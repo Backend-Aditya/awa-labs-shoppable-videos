@@ -10,7 +10,7 @@ generator client {
 // See https://www.prisma.io/docs/orm/reference/prisma-schema-reference#string for more information
 datasource db {
   provider = "sqlite"
-  url      = "file:dev.sqlite"
+  url      = env("DATABASE_URL")
 }
 
 model Session {
@@ -31,4 +31,46 @@ model Session {
   emailVerified Boolean?  @default(false)
   refreshToken        String?
   refreshTokenExpires DateTime?
+}
+
+// SQLite has no native Prisma enum support, so plan/type are plain strings
+// constrained by TS union types in app/models/*.server.ts, not DB enums.
+model Shop {
+  id             String   @id @default(cuid())
+  shopDomain     String   @unique
+  plan           String   @default("FREE")
+  viewCapMonthly Int      @default(200)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  billingCycles  BillingCycle[]
+  widgets        Widget[]
+}
+
+model BillingCycle {
+  id             String   @id @default(cuid())
+  shop           Shop     @relation(fields: [shopId], references: [id])
+  shopId         String
+  periodStart    DateTime
+  periodEnd      DateTime
+  viewsUsed      Int      @default(0)
+  overageViews   Int      @default(0)
+  overageCharged Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@unique([shopId, periodStart])
+  @@index([shopId])
+}
+
+model Widget {
+  id        String   @id @default(cuid())
+  shop      Shop     @relation(fields: [shopId], references: [id])
+  shopId    String
+  type      String
+  name      String
+  config    Json
+  published Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([shopId])
 }
