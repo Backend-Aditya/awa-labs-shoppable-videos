@@ -13,11 +13,10 @@ export const PLAN_VIEW_CAPS: Record<PlanTier, number> = {
 };
 
 export async function getOrCreateShop(shopDomain: string): Promise<Shop> {
-  const existing = await prisma.shop.findUnique({ where: { shopDomain } });
-  if (existing) return existing;
-
-  return prisma.shop.create({
-    data: {
+  return prisma.shop.upsert({
+    where: { shopDomain },
+    update: {},
+    create: {
       shopDomain,
       plan: "FREE",
       viewCapMonthly: PLAN_VIEW_CAPS.FREE,

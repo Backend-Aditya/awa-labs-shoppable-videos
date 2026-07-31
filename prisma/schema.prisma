@@ -48,7 +48,7 @@ model Shop {
 
 model BillingCycle {
   id             String   @id @default(cuid())
-  shop           Shop     @relation(fields: [shopId], references: [id])
+  shop           Shop     @relation(fields: [shopId], references: [id], onDelete: Restrict)
   shopId         String
   periodStart    DateTime
   periodEnd      DateTime
@@ -63,7 +63,7 @@ model BillingCycle {
 
 model Widget {
   id        String   @id @default(cuid())
-  shop      Shop     @relation(fields: [shopId], references: [id])
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
   shopId    String
   type      String
   name      String

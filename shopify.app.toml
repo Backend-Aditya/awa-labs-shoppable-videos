@@ -15,6 +15,7 @@ description = "A single shoppable video: source, tagged products, poster, and in
 
   [metaobjects.app.reel.access]
   admin = "merchant_read_write"
+  storefront = "public_read"
 
 [metaobjects.app.reel.fields.title]
 name = "Title"
@@ -33,7 +34,7 @@ required = true
 description = "cloudflareStreamUid, posterUrl, durationSeconds, productIds, interactions {ctaLabel, ctaUrl}, source {type, originalUrl}"
 
 [product.metafields.app.reels]
-type = "list.metaobject_reference"
+type = "list.metaobject_reference<$app:reel>"
 name = "Reels"
 description = "Reels tagged to this product, referenced by metaobject ID"
 

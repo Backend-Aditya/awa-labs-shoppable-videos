@@ -11,11 +11,16 @@ node_modules
 /app/public/build
 /prisma/dev.sqlite
 /prisma/dev.sqlite-journal
+/prisma/test.sqlite
+/prisma/test.sqlite-journal
+/prisma/test.sqlite-wal
+/prisma/test.sqlite-shm
 database.sqlite
 
 .env
 .env.*
 !.env.test
+!.env.example
 
 
 

@@ -18,7 +18,7 @@
     "graphql-codegen": "graphql-codegen",
     "vite": "vite",
     "typecheck": "react-router typegen && tsc --noEmit",
-    "test": "dotenv -e .env.test -- npm run test:run",
+    "test": "dotenv -e .env.test -o -- npm run test:run",
     "test:run": "npm run test:migrate && vitest run",
     "test:migrate": "prisma migrate deploy"
   },
