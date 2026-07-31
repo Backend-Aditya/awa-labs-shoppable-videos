@@ -25,7 +25,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return new Response("Invalid signature", { status: 401 });
   }
 
-  const payload = JSON.parse(rawBody) as CloudflareWebhookPayload;
+  let payload: CloudflareWebhookPayload;
+  try {
+    payload = JSON.parse(rawBody) as CloudflareWebhookPayload;
+  } catch {
+    return new Response("Malformed payload", { status: 400 });
+  }
+
   const shop = payload.meta?.shop;
   const reelId = payload.meta?.reelId;
 
@@ -37,21 +43,26 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return new Response("OK", { status: 200 });
   }
 
-  const { admin } = await unauthenticated.admin(shop);
+  try {
+    const { admin } = await unauthenticated.admin(shop);
 
-  const details = await getVideoDetails(
-    {
-      accountId: process.env.CLOUDFLARE_ACCOUNT_ID ?? "",
-      apiToken: process.env.CLOUDFLARE_API_TOKEN ?? "",
-    },
-    payload.uid,
-  );
+    const details = await getVideoDetails(
+      {
+        accountId: process.env.CLOUDFLARE_ACCOUNT_ID ?? "",
+        apiToken: process.env.CLOUDFLARE_API_TOKEN ?? "",
+      },
+      payload.uid,
+    );
 
-  await updateReelConfig(admin, reelId, {
-    cloudflareStreamUid: payload.uid,
-    posterUrl: details.thumbnail ?? undefined,
-    durationSeconds: details.duration ?? undefined,
-  });
+    await updateReelConfig(admin, reelId, {
+      cloudflareStreamUid: payload.uid,
+      posterUrl: details.thumbnail ?? undefined,
+      durationSeconds: details.duration ?? undefined,
+    });
 
-  return new Response("OK", { status: 200 });
+    return new Response("OK", { status: 200 });
+  } catch (error) {
+    console.error("Cloudflare Stream webhook processing failed:", error);
+    return new Response("Processing failed", { status: 500 });
+  }
 };
