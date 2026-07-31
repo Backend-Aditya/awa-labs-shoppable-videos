@@ -3,7 +3,7 @@ import type {
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
-import { useLoaderData, useNavigation } from "react-router";
+import { Form, useActionData, useLoaderData, useNavigation } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { generateReelHandle, listReels, upsertReel } from "../models/reel.server";
@@ -18,7 +18,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
   const formData = await request.formData();
   const title = String(formData.get("title") ?? "").trim();
-  const published = formData.get("published") === "on";
+  const published = formData.get("published") != null;
 
   if (!title) {
     return { error: "Title is required" };
@@ -35,13 +35,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 export default function ReelsLibrary() {
   const { reels } = useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
 
   return (
     <s-page heading="Reels library">
       <s-section heading="Create a reel">
-        <form method="post">
+        {actionData?.error && (
+          <s-paragraph tone="critical">{actionData.error}</s-paragraph>
+        )}
+        <Form method="post">
           <s-stack gap="base">
             <s-text-field label="Title" name="title" required></s-text-field>
             <s-checkbox label="Published" name="published"></s-checkbox>
@@ -53,7 +57,7 @@ export default function ReelsLibrary() {
               Create reel
             </s-button>
           </s-stack>
-        </form>
+        </Form>
       </s-section>
       <s-section heading="All reels">
         {reels.length === 0 ? (

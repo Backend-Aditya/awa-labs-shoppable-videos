@@ -3,7 +3,7 @@ import type {
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
-import { useLoaderData, useNavigation } from "react-router";
+import { Form, useActionData, useLoaderData, useNavigation } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { getOrCreateShop } from "../models/shop.server";
@@ -46,16 +46,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 export default function Widgets() {
   const { widgets } = useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
 
   return (
     <s-page heading="Widgets">
       <s-section heading="Create a widget">
-        <form method="post">
+        {actionData?.error && (
+          <s-paragraph tone="critical">{actionData.error}</s-paragraph>
+        )}
+        <Form method="post">
           <s-stack gap="base">
             <s-text-field label="Name" name="name" required></s-text-field>
-            <s-select label="Type" name="type" placeholder="Select a widget type">
+            <s-select
+              label="Type"
+              name="type"
+              placeholder="Select a widget type"
+              required
+            >
               {WIDGET_KINDS.map((kind) => (
                 <s-option key={kind} value={kind}>
                   {kind}
@@ -70,7 +79,7 @@ export default function Widgets() {
               Create widget
             </s-button>
           </s-stack>
-        </form>
+        </Form>
       </s-section>
       <s-section heading="All widgets">
         {widgets.length === 0 ? (

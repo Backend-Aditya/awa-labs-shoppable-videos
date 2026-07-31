@@ -16,12 +16,12 @@ describe("reel.server", () => {
 
   it("generates a URL-safe handle from a title", () => {
     const handle = generateReelHandle("Summer Look #1!");
-    expect(handle).toMatch(/^summer-look-1-[a-z0-9]+$/);
+    expect(handle).toMatch(/^summer-look-1-[a-z0-9-]+$/);
   });
 
   it("falls back to a plain prefix when the title has no safe characters", () => {
     const handle = generateReelHandle("!!!");
-    expect(handle).toMatch(/^reel-[a-z0-9]+$/);
+    expect(handle).toMatch(/^reel-[a-z0-9-]+$/);
   });
 
   it("upserts a reel via metaobjectUpsert and parses jsonValue fields back", async () => {

@@ -19,6 +19,7 @@ export interface AdminGraphqlClient {
   graphql: (
     query: string,
     options?: { variables?: Record<string, unknown> },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- GraphQL response shape varies per query; this is the external Admin API boundary
   ) => Promise<{ json: () => Promise<any> }>;
 }
 
@@ -27,7 +28,7 @@ export function generateReelHandle(title: string): string {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "");
-  const suffix = Date.now().toString(36);
+  const suffix = `${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 8)}`;
   return slug ? `${slug}-${suffix}` : `reel-${suffix}`;
 }
 
@@ -122,6 +123,7 @@ export async function listReels(
 
   const json = await response.json();
   assertNoGraphqlErrors(json);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- GraphQL response shape varies per query; this is the external Admin API boundary
   return json.data.metaobjects.nodes.map((node: any) => ({
     id: node.id,
     handle: node.handle,
