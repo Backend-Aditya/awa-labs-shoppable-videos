@@ -9,29 +9,37 @@ name = "AWAlabs Shoppable Videos"
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
 scopes = "write_products,write_metaobjects,write_metaobject_definitions"
 
-[product.metafields.app.demo_info]
-type = "single_line_text_field"
-name = "Demo Source Info"
-description = "Tracks products created by the Shopify app template for development"
+[metaobjects.app.reel]
+name = "Reel"
+description = "A single shoppable video: source, tagged products, poster, and interaction config"
 
-  [product.metafields.app.demo_info.access]
+  [metaobjects.app.reel.access]
   admin = "merchant_read_write"
 
-[metaobjects.app.example]
-name = "Example"
-description = "An example metaobject definition created by this template"
-
-  [metaobjects.app.example.access]
-  admin = "merchant_read_write"
-
-[metaobjects.app.example.fields.title]
+[metaobjects.app.reel.fields.title]
 name = "Title"
 type = "single_line_text_field"
 required = true
 
-[metaobjects.app.example.fields.description]
-name = "Description"
-type = "multi_line_text_field"
+[metaobjects.app.reel.fields.published]
+name = "Published"
+type = "boolean"
+required = true
+
+[metaobjects.app.reel.fields.config]
+name = "Config"
+type = "json"
+required = true
+description = "cloudflareStreamUid, posterUrl, durationSeconds, productIds, interactions {ctaLabel, ctaUrl}, source {type, originalUrl}"
+
+[product.metafields.app.reels]
+type = "list.metaobject_reference"
+name = "Reels"
+description = "Reels tagged to this product, referenced by metaobject ID"
+
+  [product.metafields.app.reels.access]
+  admin = "merchant_read_write"
+  storefront = "public_read"
 
 [webhooks]
 api_version = "2026-10"
