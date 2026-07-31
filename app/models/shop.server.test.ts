@@ -4,6 +4,7 @@ import { getOrCreateShop, updateShopPlan, PLAN_VIEW_CAPS } from "./shop.server";
 
 describe("shop.server", () => {
   beforeEach(async () => {
+    await prisma.widget.deleteMany();
     await prisma.shop.deleteMany();
   });
 
