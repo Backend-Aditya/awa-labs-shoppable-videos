@@ -102,6 +102,21 @@ describe("reel.server", () => {
     ).rejects.toThrow("Title can't be blank");
   });
 
+  it("throws a meaningful error when the response has top-level GraphQL errors", async () => {
+    const admin = {
+      graphql: async () => ({
+        json: async () => ({
+          data: null,
+          errors: [{ message: "Throttled" }],
+        }),
+      }),
+    };
+
+    await expect(
+      upsertReel(admin, "x", "Title", false, config),
+    ).rejects.toThrow("Throttled");
+  });
+
   it("lists reels, parsing jsonValue fields for each node", async () => {
     const admin = {
       graphql: async () => ({

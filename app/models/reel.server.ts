@@ -39,6 +39,17 @@ function throwOnUserErrors(
   }
 }
 
+function assertNoGraphqlErrors(json: {
+  data: unknown;
+  errors?: Array<{ message: string }>;
+}): void {
+  if (json.errors && json.errors.length > 0) {
+    throw new Error(
+      `GraphQL request failed: ${json.errors.map((e) => e.message).join(", ")}`,
+    );
+  }
+}
+
 export async function upsertReel(
   admin: AdminGraphqlClient,
   handle: string,
@@ -75,6 +86,7 @@ export async function upsertReel(
   );
 
   const json = await response.json();
+  assertNoGraphqlErrors(json);
   const result = json.data.metaobjectUpsert;
   throwOnUserErrors(result.userErrors);
 
@@ -109,6 +121,7 @@ export async function listReels(
   );
 
   const json = await response.json();
+  assertNoGraphqlErrors(json);
   return json.data.metaobjects.nodes.map((node: any) => ({
     id: node.id,
     handle: node.handle,
@@ -134,5 +147,6 @@ export async function deleteReel(
   );
 
   const json = await response.json();
+  assertNoGraphqlErrors(json);
   throwOnUserErrors(json.data.metaobjectDelete.userErrors);
 }
