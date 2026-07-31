@@ -4,6 +4,8 @@ import {
   upsertReel,
   listReels,
   deleteReel,
+  getReel,
+  updateReelConfig,
 } from "./reel.server";
 import type { ReelConfig } from "./reel.server";
 
@@ -186,5 +188,141 @@ describe("reel.server", () => {
     await expect(
       deleteReel(admin, "gid://shopify/Metaobject/999"),
     ).rejects.toThrow("Not found");
+  });
+
+  it("fetches a single reel by ID via the metaobject query", async () => {
+    let capturedQuery = "";
+    let capturedVariables: Record<string, unknown> | undefined;
+    const admin = {
+      graphql: async (
+        query: string,
+        options?: { variables?: Record<string, unknown> },
+      ) => {
+        capturedQuery = query;
+        capturedVariables = options?.variables;
+        return {
+          json: async () => ({
+            data: {
+              metaobject: {
+                id: "gid://shopify/Metaobject/1",
+                handle: "summer-look-1",
+                title: { jsonValue: "Summer Look" },
+                published: { jsonValue: false },
+                config: { jsonValue: config },
+              },
+            },
+          }),
+        };
+      },
+    };
+
+    const reel = await getReel(admin, "gid://shopify/Metaobject/1");
+
+    expect(reel).toEqual({
+      id: "gid://shopify/Metaobject/1",
+      handle: "summer-look-1",
+      title: "Summer Look",
+      published: false,
+      config,
+    });
+    expect(capturedQuery).toContain("metaobject(id: $id)");
+    expect(capturedVariables).toEqual({ id: "gid://shopify/Metaobject/1" });
+  });
+
+  it("returns null from getReel when the metaobject doesn't exist", async () => {
+    const admin = {
+      graphql: async () => ({
+        json: async () => ({ data: { metaobject: null } }),
+      }),
+    };
+
+    const reel = await getReel(admin, "gid://shopify/Metaobject/999");
+    expect(reel).toBeNull();
+  });
+
+  it("merges a partial config into the existing reel via updateReelConfig", async () => {
+    let upsertVariables: Record<string, unknown> | undefined;
+    const admin = {
+      graphql: async (
+        query: string,
+        options?: { variables?: Record<string, unknown> },
+      ) => {
+        if (query.includes("metaobject(id: $id)")) {
+          return {
+            json: async () => ({
+              data: {
+                metaobject: {
+                  id: "gid://shopify/Metaobject/1",
+                  handle: "summer-look-1",
+                  title: { jsonValue: "Summer Look" },
+                  published: { jsonValue: false },
+                  config: { jsonValue: config },
+                },
+              },
+            }),
+          };
+        }
+
+        // The upsertReel call underneath updateReelConfig
+        upsertVariables = options?.variables;
+        return {
+          json: async () => ({
+            data: {
+              metaobjectUpsert: {
+                metaobject: {
+                  id: "gid://shopify/Metaobject/1",
+                  handle: "summer-look-1",
+                  title: { jsonValue: "Summer Look" },
+                  published: { jsonValue: false },
+                  config: {
+                    jsonValue: {
+                      ...config,
+                      cloudflareStreamUid: "abc123",
+                      durationSeconds: 12.5,
+                    },
+                  },
+                },
+                userErrors: [],
+              },
+            },
+          }),
+        };
+      },
+    };
+
+    const updated = await updateReelConfig(admin, "gid://shopify/Metaobject/1", {
+      cloudflareStreamUid: "abc123",
+      durationSeconds: 12.5,
+    });
+
+    expect(updated.config).toEqual({
+      ...config,
+      cloudflareStreamUid: "abc123",
+      durationSeconds: 12.5,
+    });
+    // Confirms the merge kept fields untouched by the partial update (productIds, interactions, source)
+    const mergedFieldsSent = JSON.parse(
+      (upsertVariables!.metaobject as { fields: Array<{ key: string; value: string }> })
+        .fields.find((f) => f.key === "config")!.value,
+    );
+    expect(mergedFieldsSent).toEqual({
+      ...config,
+      cloudflareStreamUid: "abc123",
+      durationSeconds: 12.5,
+    });
+  });
+
+  it("throws from updateReelConfig when the reel doesn't exist", async () => {
+    const admin = {
+      graphql: async () => ({
+        json: async () => ({ data: { metaobject: null } }),
+      }),
+    };
+
+    await expect(
+      updateReelConfig(admin, "gid://shopify/Metaobject/999", {
+        cloudflareStreamUid: "abc123",
+      }),
+    ).rejects.toThrow("Reel not found");
   });
 });

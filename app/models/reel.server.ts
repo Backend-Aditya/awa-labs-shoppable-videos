@@ -133,6 +133,60 @@ export async function listReels(
   }));
 }
 
+export async function getReel(
+  admin: AdminGraphqlClient,
+  id: string,
+): Promise<Reel | null> {
+  const response = await admin.graphql(
+    `#graphql
+    query GetReel($id: ID!) {
+      metaobject(id: $id) {
+        id
+        handle
+        title: field(key: "title") { jsonValue }
+        published: field(key: "published") { jsonValue }
+        config: field(key: "config") { jsonValue }
+      }
+    }`,
+    { variables: { id } },
+  );
+
+  const json = await response.json();
+  assertNoGraphqlErrors(json);
+
+  const node = json.data.metaobject;
+  if (!node) return null;
+
+  return {
+    id: node.id,
+    handle: node.handle,
+    title: node.title.jsonValue,
+    published: node.published.jsonValue,
+    config: node.config.jsonValue,
+  };
+}
+
+export async function updateReelConfig(
+  admin: AdminGraphqlClient,
+  id: string,
+  partialConfig: Partial<ReelConfig>,
+): Promise<Reel> {
+  const existing = await getReel(admin, id);
+  if (!existing) {
+    throw new Error(`Reel not found: ${id}`);
+  }
+
+  const mergedConfig: ReelConfig = { ...existing.config, ...partialConfig };
+
+  return upsertReel(
+    admin,
+    existing.handle,
+    existing.title,
+    existing.published,
+    mergedConfig,
+  );
+}
+
 export async function deleteReel(
   admin: AdminGraphqlClient,
   id: string,
