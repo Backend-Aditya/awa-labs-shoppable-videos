@@ -176,7 +176,11 @@ export async function updateReelConfig(
     throw new Error(`Reel not found: ${id}`);
   }
 
-  const mergedConfig: ReelConfig = { ...existing.config, ...partialConfig };
+  const definedUpdates = Object.fromEntries(
+    Object.entries(partialConfig).filter(([, value]) => value !== undefined),
+  );
+
+  const mergedConfig: ReelConfig = { ...existing.config, ...definedUpdates };
 
   return upsertReel(
     admin,

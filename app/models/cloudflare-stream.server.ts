@@ -5,6 +5,28 @@ export interface CloudflareStreamConfig {
   apiToken: string;
 }
 
+/**
+ * Builds a CloudflareStreamConfig from environment variables, throwing a
+ * clear error instead of silently sending requests with an empty account ID
+ * and empty bearer token when Cloudflare isn't configured yet (which is the
+ * real state of this repo until a Cloudflare account is set up). Both the
+ * upload-start action and the webhook handler should call this rather than
+ * constructing the config inline, so there is exactly one place that decides
+ * what "not configured" means.
+ */
+export function getCloudflareConfig(): CloudflareStreamConfig {
+  const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+
+  if (!accountId || !apiToken) {
+    throw new Error(
+      "Cloudflare Stream is not configured: set CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN",
+    );
+  }
+
+  return { accountId, apiToken };
+}
+
 export interface DirectUploadResult {
   uid: string;
   uploadURL: string;
@@ -94,7 +116,7 @@ export async function getVideoDetails(
     uid: json.result.uid,
     state: json.result.status.state,
     readyToStream: json.result.readyToStream,
-    duration: json.result.duration ?? null,
+    duration: json.result.duration >= 0 ? json.result.duration : null,
     thumbnail: json.result.thumbnail ?? null,
     meta: json.result.meta ?? {},
   };

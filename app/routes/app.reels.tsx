@@ -8,7 +8,7 @@ import { Form, useActionData, useFetcher, useLoaderData, useNavigation } from "r
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { deleteReel, generateReelHandle, listReels, upsertReel } from "../models/reel.server";
-import { createDirectUploadUrl } from "../models/cloudflare-stream.server";
+import { createDirectUploadUrl, getCloudflareConfig } from "../models/cloudflare-stream.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
@@ -36,10 +36,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
       try {
         const { uploadURL } = await createDirectUploadUrl(
-          {
-            accountId: process.env.CLOUDFLARE_ACCOUNT_ID ?? "",
-            apiToken: process.env.CLOUDFLARE_API_TOKEN ?? "",
-          },
+          getCloudflareConfig(),
           3600,
           { reelId: reel.id, shop: session.shop },
         );
@@ -57,6 +54,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         };
       }
     } catch (e) {
+      // The Shopify Admin client throws actual Response objects (not Error) for
+      // session-token expiry and rate-limit throttling — this is Shopify's own
+      // control-flow mechanism and React Router needs to see it propagate. Do not
+      // remove this rethrow or it will swallow real auth failures and mislabel
+      // them as Cloudflare configuration errors.
       if (e instanceof Response) throw e;
       return {
         error: "Could not create the reel. Try again.",
@@ -85,8 +87,15 @@ function UploadVideoForm() {
   const fetcher = useFetcher<typeof action>();
   const [file, setFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState<
-    "idle" | "uploading" | "done" | "error"
+    "idle" | "uploading" | "done" | "error" | "no-file"
   >("idle");
+  // armedRef gates the upload PUT to fire exactly once per submission. Without
+  // it, changing the selected file after a completed/failed upload re-runs this
+  // effect and re-fires against the STALE one-time uploadURL from the previous
+  // submission — silently uploading the wrong file into the wrong reel's
+  // Cloudflare record with no visible error. Do not remove this guard, and do
+  // not drop `fetcher.state` from the dependency array (it closes a ~1-3s race
+  // during an in-flight submission).
   const armedRef = useRef(false);
 
   useEffect(() => {
@@ -115,7 +124,7 @@ function UploadVideoForm() {
         onSubmit={(e) => {
           if (!file) {
             e.preventDefault();
-            setUploadStatus("error");
+            setUploadStatus("no-file");
             return;
           }
           armedRef.current = true;
@@ -150,6 +159,9 @@ function UploadVideoForm() {
           )}
           {uploadStatus === "error" && (
             <s-paragraph tone="critical">Upload failed. Try again.</s-paragraph>
+          )}
+          {uploadStatus === "no-file" && (
+            <s-paragraph tone="critical">Choose a video file first.</s-paragraph>
           )}
         </s-stack>
       </fetcher.Form>
