@@ -56,9 +56,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           uploadURL: null,
         };
       }
-    } catch {
+    } catch (e) {
+      if (e instanceof Response) throw e;
       return {
-        error: "Could not start upload. Check Cloudflare configuration.",
+        error: "Could not create the reel. Try again.",
         uploadURL: null,
       };
     }
@@ -89,7 +90,12 @@ function UploadVideoForm() {
   const armedRef = useRef(false);
 
   useEffect(() => {
-    if (armedRef.current && fetcher.data?.uploadURL && file) {
+    if (
+      armedRef.current &&
+      fetcher.state === "idle" &&
+      fetcher.data?.uploadURL &&
+      file
+    ) {
       armedRef.current = false;
       setUploadStatus("uploading");
       const body = new FormData();
@@ -100,7 +106,7 @@ function UploadVideoForm() {
         })
         .catch(() => setUploadStatus("error"));
     }
-  }, [fetcher.data, file]);
+  }, [fetcher.data, file, fetcher.state]);
 
   return (
     <s-section heading="Upload a video">
