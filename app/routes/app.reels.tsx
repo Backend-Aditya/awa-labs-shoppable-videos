@@ -3,10 +3,12 @@ import type {
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
-import { Form, useActionData, useLoaderData, useNavigation } from "react-router";
+import { useEffect, useState } from "react";
+import { Form, useActionData, useFetcher, useLoaderData, useNavigation } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { generateReelHandle, listReels, upsertReel } from "../models/reel.server";
+import { createDirectUploadUrl } from "../models/cloudflare-stream.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
@@ -15,13 +17,39 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { admin } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const formData = await request.formData();
+  const intent = formData.get("intent");
+
+  if (intent === "start-upload") {
+    const title = String(formData.get("uploadTitle") ?? "").trim();
+    if (!title) {
+      return { error: "Title is required", uploadURL: null };
+    }
+
+    const reel = await upsertReel(admin, generateReelHandle(title), title, false, {
+      productIds: [],
+      interactions: {},
+      source: { type: "upload" },
+    });
+
+    const { uploadURL } = await createDirectUploadUrl(
+      {
+        accountId: process.env.CLOUDFLARE_ACCOUNT_ID ?? "",
+        apiToken: process.env.CLOUDFLARE_API_TOKEN ?? "",
+      },
+      3600,
+      { reelId: reel.id, shop: session.shop },
+    );
+
+    return { error: null, uploadURL };
+  }
+
   const title = String(formData.get("title") ?? "").trim();
   const published = formData.get("published") != null;
 
   if (!title) {
-    return { error: "Title is required" };
+    return { error: "Title is required", uploadURL: null };
   }
 
   await upsertReel(admin, generateReelHandle(title), title, published, {
@@ -30,8 +58,65 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     source: { type: "upload" },
   });
 
-  return { error: null };
+  return { error: null, uploadURL: null };
 };
+
+function UploadVideoForm() {
+  const fetcher = useFetcher<typeof action>();
+  const [file, setFile] = useState<File | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<
+    "idle" | "uploading" | "done" | "error"
+  >("idle");
+
+  useEffect(() => {
+    if (fetcher.data?.uploadURL && file) {
+      setUploadStatus("uploading");
+      const body = new FormData();
+      body.append("file", file);
+      fetch(fetcher.data.uploadURL, { method: "POST", body })
+        .then((res) => {
+          setUploadStatus(res.ok ? "done" : "error");
+        })
+        .catch(() => setUploadStatus("error"));
+    }
+  }, [fetcher.data, file]);
+
+  return (
+    <s-section heading="Upload a video">
+      <fetcher.Form
+        method="post"
+        onSubmit={() => setUploadStatus("idle")}
+      >
+        <input type="hidden" name="intent" value="start-upload" />
+        <s-stack gap="base">
+          {fetcher.data?.error && (
+            <s-paragraph tone="critical">{fetcher.data.error}</s-paragraph>
+          )}
+          <s-text-field label="Title" name="uploadTitle" required></s-text-field>
+          <input
+            type="file"
+            accept="video/*"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          />
+          <s-button type="submit" variant="primary">
+            Start upload
+          </s-button>
+          {uploadStatus === "uploading" && (
+            <s-paragraph>Uploading to Cloudflare…</s-paragraph>
+          )}
+          {uploadStatus === "done" && (
+            <s-paragraph tone="success">
+              Upload complete — processing will finish shortly.
+            </s-paragraph>
+          )}
+          {uploadStatus === "error" && (
+            <s-paragraph tone="critical">Upload failed. Try again.</s-paragraph>
+          )}
+        </s-stack>
+      </fetcher.Form>
+    </s-section>
+  );
+}
 
 export default function ReelsLibrary() {
   const { reels } = useLoaderData<typeof loader>();
@@ -59,6 +144,7 @@ export default function ReelsLibrary() {
           </s-stack>
         </Form>
       </s-section>
+      <UploadVideoForm />
       <s-section heading="All reels">
         {reels.length === 0 ? (
           <s-paragraph>No reels yet. Create your first one above.</s-paragraph>
