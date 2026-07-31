@@ -71,9 +71,12 @@ describe("cloudflare-stream.server", () => {
   it("fetches video details and normalizes the response shape", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (url: string) => {
+      vi.fn(async (url: string, init?: RequestInit) => {
         expect(url).toBe(
           "https://api.cloudflare.com/client/v4/accounts/acct123/stream/abc123",
+        );
+        expect((init?.headers as Record<string, string>).Authorization).toBe(
+          "Bearer token123",
         );
         return {
           json: async () => ({
@@ -137,6 +140,15 @@ describe("cloudflare-stream.server", () => {
 
   it("rejects a malformed signature header instead of throwing", () => {
     const valid = verifyWebhookSignature("{}", "garbage-header", "secret");
+    expect(valid).toBe(false);
+  });
+
+  it("rejects a signature of the wrong length instead of throwing", () => {
+    const valid = verifyWebhookSignature(
+      "{}",
+      "time=1700000000,sig1=ab",
+      "secret",
+    );
     expect(valid).toBe(false);
   });
 });
