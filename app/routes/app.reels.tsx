@@ -3,11 +3,11 @@ import type {
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Form, useActionData, useFetcher, useLoaderData, useNavigation } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { generateReelHandle, listReels, upsertReel } from "../models/reel.server";
+import { deleteReel, generateReelHandle, listReels, upsertReel } from "../models/reel.server";
 import { createDirectUploadUrl } from "../models/cloudflare-stream.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -27,22 +27,41 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return { error: "Title is required", uploadURL: null };
     }
 
-    const reel = await upsertReel(admin, generateReelHandle(title), title, false, {
-      productIds: [],
-      interactions: {},
-      source: { type: "upload" },
-    });
+    try {
+      const reel = await upsertReel(admin, generateReelHandle(title), title, false, {
+        productIds: [],
+        interactions: {},
+        source: { type: "upload" },
+      });
 
-    const { uploadURL } = await createDirectUploadUrl(
-      {
-        accountId: process.env.CLOUDFLARE_ACCOUNT_ID ?? "",
-        apiToken: process.env.CLOUDFLARE_API_TOKEN ?? "",
-      },
-      3600,
-      { reelId: reel.id, shop: session.shop },
-    );
+      try {
+        const { uploadURL } = await createDirectUploadUrl(
+          {
+            accountId: process.env.CLOUDFLARE_ACCOUNT_ID ?? "",
+            apiToken: process.env.CLOUDFLARE_API_TOKEN ?? "",
+          },
+          3600,
+          { reelId: reel.id, shop: session.shop },
+        );
 
-    return { error: null, uploadURL };
+        return { error: null, uploadURL };
+      } catch {
+        try {
+          await deleteReel(admin, reel.id);
+        } catch {
+          // best-effort cleanup; the original error below is what the merchant sees
+        }
+        return {
+          error: "Could not start upload. Check Cloudflare configuration.",
+          uploadURL: null,
+        };
+      }
+    } catch {
+      return {
+        error: "Could not start upload. Check Cloudflare configuration.",
+        uploadURL: null,
+      };
+    }
   }
 
   const title = String(formData.get("title") ?? "").trim();
@@ -67,9 +86,11 @@ function UploadVideoForm() {
   const [uploadStatus, setUploadStatus] = useState<
     "idle" | "uploading" | "done" | "error"
   >("idle");
+  const armedRef = useRef(false);
 
   useEffect(() => {
-    if (fetcher.data?.uploadURL && file) {
+    if (armedRef.current && fetcher.data?.uploadURL && file) {
+      armedRef.current = false;
       setUploadStatus("uploading");
       const body = new FormData();
       body.append("file", file);
@@ -85,7 +106,15 @@ function UploadVideoForm() {
     <s-section heading="Upload a video">
       <fetcher.Form
         method="post"
-        onSubmit={() => setUploadStatus("idle")}
+        onSubmit={(e) => {
+          if (!file) {
+            e.preventDefault();
+            setUploadStatus("error");
+            return;
+          }
+          armedRef.current = true;
+          setUploadStatus("idle");
+        }}
       >
         <input type="hidden" name="intent" value="start-upload" />
         <s-stack gap="base">
@@ -98,7 +127,11 @@ function UploadVideoForm() {
             accept="video/*"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           />
-          <s-button type="submit" variant="primary">
+          <s-button
+            type="submit"
+            variant="primary"
+            {...(fetcher.state !== "idle" ? { loading: true } : {})}
+          >
             Start upload
           </s-button>
           {uploadStatus === "uploading" && (
