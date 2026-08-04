@@ -45,6 +45,7 @@ export interface VideoDetails {
   duration: number | null;
   thumbnail: string | null;
   meta: Record<string, string>;
+  playback: { hls: string | null; dash: string | null };
 }
 
 interface CloudflareApiResponse<T> {
@@ -109,6 +110,7 @@ export async function getVideoDetails(
     duration: number;
     thumbnail: string;
     meta: Record<string, string>;
+    playback?: { hls?: string; dash?: string };
   }>;
   throwOnCloudflareErrors(json);
 
@@ -119,6 +121,10 @@ export async function getVideoDetails(
     duration: json.result.duration >= 0 ? json.result.duration : null,
     thumbnail: json.result.thumbnail ?? null,
     meta: json.result.meta ?? {},
+    playback: {
+      hls: json.result.playback?.hls ?? null,
+      dash: json.result.playback?.dash ?? null,
+    },
   };
 }
 

@@ -2,6 +2,8 @@ export interface ReelConfig {
   cloudflareStreamUid?: string;
   posterUrl?: string;
   durationSeconds?: number;
+  hlsManifestUrl?: string;
+  dashManifestUrl?: string;
   productIds: string[];
   interactions: { ctaLabel?: string; ctaUrl?: string };
   source: { type: "upload" | "instagram" | "tiktok"; originalUrl?: string };

@@ -90,6 +90,10 @@ describe("cloudflare-stream.server", () => {
               duration: 12.5,
               thumbnail: "https://videodelivery.net/abc123/thumbnails/thumbnail.jpg",
               meta: { reelId: "gid://shopify/Metaobject/1" },
+              playback: {
+                hls: "https://customer-abc.cloudflarestream.com/abc123/manifest/video.m3u8",
+                dash: "https://customer-abc.cloudflarestream.com/abc123/manifest/video.mpd",
+              },
             },
           }),
         };
@@ -104,6 +108,10 @@ describe("cloudflare-stream.server", () => {
       duration: 12.5,
       thumbnail: "https://videodelivery.net/abc123/thumbnails/thumbnail.jpg",
       meta: { reelId: "gid://shopify/Metaobject/1" },
+      playback: {
+        hls: "https://customer-abc.cloudflarestream.com/abc123/manifest/video.m3u8",
+        dash: "https://customer-abc.cloudflarestream.com/abc123/manifest/video.mpd",
+      },
     });
   });
 

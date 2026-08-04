@@ -73,6 +73,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       cloudflareStreamUid: payload.uid,
       posterUrl: details.thumbnail ?? undefined,
       durationSeconds: details.duration ?? undefined,
+      hlsManifestUrl: details.playback.hls ?? undefined,
+      dashManifestUrl: details.playback.dash ?? undefined,
     });
 
     return new Response("OK", { status: 200 });
