@@ -1,4 +1,6 @@
 (function () {
+  var currentScriptSrc = document.currentScript ? document.currentScript.src : "";
+
   function supportsNativeHls(video) {
     return video.canPlayType("application/vnd.apple.mpegurl") !== "";
   }
@@ -33,12 +35,10 @@
 
     return new Promise(function (resolve, reject) {
       var script = document.createElement("script");
-      script.src = document.currentScript
-        ? document.currentScript.src.replace(
-            "product-page-reels.js",
-            "hls.min.js",
-          )
-        : "";
+      script.src = currentScriptSrc.replace(
+        "product-page-reels.js",
+        "hls.min.js",
+      );
       script.dataset.reelupHlsjs = "true";
       script.onload = function () {
         resolve();
