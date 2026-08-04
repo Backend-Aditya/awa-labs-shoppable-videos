@@ -25,14 +25,13 @@ Liquid at render time, no runtime API call.
           class="reelup-reel"
           style="--reelup-aspect-ratio: 9 / 16;"
           data-reelup-reel
-          data-hls-src="{{ reel.config.value.hlsManifestUrl }}"
-          data-poster="{{ reel.config.value.posterUrl }}"
+          data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
         >
           <div class="reelup-reel__frame">
             {% if reel.config.value.posterUrl != blank %}
               <img
                 class="reelup-reel__poster"
-                src="{{ reel.config.value.posterUrl }}"
+                src="{{ reel.config.value.posterUrl | escape }}"
                 alt="{{ reel.title.value | escape }}"
                 loading="lazy"
                 width="360"

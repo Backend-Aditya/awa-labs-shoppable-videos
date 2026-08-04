@@ -1,11 +1,14 @@
 (function () {
+  if (window.__reelupInitialized) return;
+  window.__reelupInitialized = true;
+
   var currentScriptSrc = document.currentScript ? document.currentScript.src : "";
 
   function supportsNativeHls(video) {
     return video.canPlayType("application/vnd.apple.mpegurl") !== "";
   }
 
-  function attachSource(video, hlsSrc) {
+  function attachSource(reelEl, video, hlsSrc) {
     if (supportsNativeHls(video)) {
       video.src = hlsSrc;
       return Promise.resolve();
@@ -15,8 +18,14 @@
       return Promise.reject(new Error("HLS not supported"));
     }
 
+    if (reelEl._reelupHlsInstance) {
+      reelEl._reelupHlsInstance.destroy();
+      reelEl._reelupHlsInstance = null;
+    }
+
     return new Promise(function (resolve, reject) {
       var hls = new window.Hls();
+      reelEl._reelupHlsInstance = hls;
       hls.loadSource(hlsSrc);
       hls.attachMedia(video);
       hls.on(window.Hls.Events.MANIFEST_PARSED, function () {
@@ -58,7 +67,7 @@
     var playButton = reelEl.querySelector(".reelup-reel__play");
     var hlsSrc = reelEl.dataset.hlsSrc;
 
-    if (!video || !hlsSrc) return;
+    if (!video || !playButton || !hlsSrc) return;
 
     playButton.addEventListener("click", function () {
       var ready = supportsNativeHls(video)
@@ -67,11 +76,13 @@
 
       ready
         .then(function () {
-          return attachSource(video, hlsSrc);
+          return attachSource(reelEl, video, hlsSrc);
+        })
+        .then(function () {
+          return video.play();
         })
         .then(function () {
           reelEl.setAttribute("data-playing", "true");
-          video.play();
         })
         .catch(function () {
           // Playback failed to initialize; leave the poster/play button visible.
