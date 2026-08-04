@@ -19,7 +19,11 @@ module.exports = {
     commonjs: true,
     es6: true,
   },
-  ignorePatterns: ["!**/.server", "!**/.client"],
+  ignorePatterns: [
+    "!**/.server",
+    "!**/.client",
+    "extensions/**/assets/hls.min.js",
+  ],
 
   // Base config
   extends: ["eslint:recommended"],

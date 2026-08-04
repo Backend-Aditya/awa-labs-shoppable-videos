@@ -60,6 +60,10 @@ Liquid at render time, no runtime API call.
   </div>
 {% endif %}
 
+{% if visible_count > 0 %}
+  <script src="{{ 'product-page-reels.js' | asset_url }}" defer></script>
+{% endif %}
+
 {% stylesheet %}
 .reelup-product-reels {
   display: flex;
