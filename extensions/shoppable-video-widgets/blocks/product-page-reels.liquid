@@ -1,0 +1,138 @@
+{% doc %}
+Renders every published, ready reel tagged to the current product as a
+lightweight, lazily-loaded video player. Reads the product's tagged reels
+via the app-owned metaobject reference metafield — resolved entirely by
+Liquid at render time, no runtime API call.
+@example
+{% content_for 'block', type: 'product-page-reels', id: 'reels' %}
+{% enddoc %}
+
+{% render 'reel-namespace' %}
+{% assign reels_field = block.settings.product.metafields[reel_namespace].reels %}
+
+{% assign visible_reels = '' | split: '' %}
+{% for reel in reels_field.value %}
+  {% if reel.published.value and reel.config.value.cloudflareStreamUid != blank and reel.config.value.hlsManifestUrl != blank %}
+    {% assign visible_reels = visible_reels | concat: reel %}
+  {% endif %}
+{% endfor %}
+
+{% if visible_reels.size > 0 %}
+  <div class="reelup-product-reels" {{ block.shopify_attributes }}>
+    {% for reel in visible_reels %}
+      <div
+        class="reelup-reel"
+        style="--reelup-aspect-ratio: 9 / 16;"
+        data-reelup-reel
+        data-hls-src="{{ reel.config.value.hlsManifestUrl }}"
+        data-poster="{{ reel.config.value.posterUrl }}"
+      >
+        <div class="reelup-reel__frame">
+          {% if reel.config.value.posterUrl != blank %}
+            <img
+              class="reelup-reel__poster"
+              src="{{ reel.config.value.posterUrl }}"
+              alt="{{ reel.title.value | escape }}"
+              loading="lazy"
+              width="360"
+              height="640"
+            >
+          {% endif %}
+          <button
+            type="button"
+            class="reelup-reel__play"
+            aria-label="{{ 'reels.play_label' | t }}"
+          >
+            <span class="reelup-reel__play-icon" aria-hidden="true"></span>
+          </button>
+          <video
+            class="reelup-reel__video"
+            playsinline
+            muted
+            loop
+            preload="none"
+          ></video>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+{% stylesheet %}
+.reelup-product-reels {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-block: 12px;
+}
+
+.reelup-reel {
+  flex: 0 0 auto;
+  width: 200px;
+}
+
+.reelup-reel__frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: var(--reelup-aspect-ratio);
+  background: #111;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.reelup-reel__poster,
+.reelup-reel__video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.reelup-reel__video {
+  display: none;
+}
+
+.reelup-reel[data-playing] .reelup-reel__poster,
+.reelup-reel[data-playing] .reelup-reel__play {
+  display: none;
+}
+
+.reelup-reel[data-playing] .reelup-reel__video {
+  display: block;
+}
+
+.reelup-reel__play {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reelup-reel__play-icon {
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 8px 0 8px 14px;
+  border-color: transparent transparent transparent #fff;
+  margin-left: 3px;
+}
+{% endstylesheet %}
+
+{% schema %}
+{
+  "name": "Product page reels",
+  "target": "section",
+  "settings": [
+    { "type": "product", "id": "product", "label": "Product", "autofill": true }
+  ]
+}
+{% endschema %}

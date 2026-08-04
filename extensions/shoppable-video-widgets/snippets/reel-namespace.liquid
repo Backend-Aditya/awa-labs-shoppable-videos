@@ -1,0 +1,17 @@
+{% doc %}
+Assigns `reel_namespace` to this app's resolved metafield namespace for the
+reel metaobject reference. This is the ONE place this magic string appears —
+every block/snippet that needs to read the product's tagged reels renders
+this snippet first, rather than repeating the literal namespace string.
+
+Confirmed empirically against a live product on the real storefront during
+planning: product.metafields['app--404281098241'].reels is the working
+access pattern. $app, plain "app", and combined "$app:reels" bracket forms
+were all tried and do NOT resolve — this is not a guess.
+
+@example
+{% render 'reel-namespace' %}
+{{ product.metafields[reel_namespace].reels.value }}
+{% enddoc %}
+
+{% assign reel_namespace = 'app--404281098241' %}
