@@ -10,50 +10,52 @@ Liquid at render time, no runtime API call.
 {% render 'reel-namespace' %}
 {% assign reels_field = block.settings.product.metafields[reel_namespace].reels %}
 
-{% assign visible_reels = '' | split: '' %}
+{% assign visible_count = 0 %}
 {% for reel in reels_field.value %}
   {% if reel.published.value and reel.config.value.cloudflareStreamUid != blank and reel.config.value.hlsManifestUrl != blank %}
-    {% assign visible_reels = visible_reels | concat: reel %}
+    {% assign visible_count = visible_count | plus: 1 %}
   {% endif %}
 {% endfor %}
 
-{% if visible_reels.size > 0 %}
+{% if visible_count > 0 %}
   <div class="reelup-product-reels" {{ block.shopify_attributes }}>
-    {% for reel in visible_reels %}
-      <div
-        class="reelup-reel"
-        style="--reelup-aspect-ratio: 9 / 16;"
-        data-reelup-reel
-        data-hls-src="{{ reel.config.value.hlsManifestUrl }}"
-        data-poster="{{ reel.config.value.posterUrl }}"
-      >
-        <div class="reelup-reel__frame">
-          {% if reel.config.value.posterUrl != blank %}
-            <img
-              class="reelup-reel__poster"
-              src="{{ reel.config.value.posterUrl }}"
-              alt="{{ reel.title.value | escape }}"
-              loading="lazy"
-              width="360"
-              height="640"
+    {% for reel in reels_field.value %}
+      {% if reel.published.value and reel.config.value.cloudflareStreamUid != blank and reel.config.value.hlsManifestUrl != blank %}
+        <div
+          class="reelup-reel"
+          style="--reelup-aspect-ratio: 9 / 16;"
+          data-reelup-reel
+          data-hls-src="{{ reel.config.value.hlsManifestUrl }}"
+          data-poster="{{ reel.config.value.posterUrl }}"
+        >
+          <div class="reelup-reel__frame">
+            {% if reel.config.value.posterUrl != blank %}
+              <img
+                class="reelup-reel__poster"
+                src="{{ reel.config.value.posterUrl }}"
+                alt="{{ reel.title.value | escape }}"
+                loading="lazy"
+                width="360"
+                height="640"
+              >
+            {% endif %}
+            <button
+              type="button"
+              class="reelup-reel__play"
+              aria-label="{{ 'reels.play_label' | t }}"
             >
-          {% endif %}
-          <button
-            type="button"
-            class="reelup-reel__play"
-            aria-label="{{ 'reels.play_label' | t }}"
-          >
-            <span class="reelup-reel__play-icon" aria-hidden="true"></span>
-          </button>
-          <video
-            class="reelup-reel__video"
-            playsinline
-            muted
-            loop
-            preload="none"
-          ></video>
+              <span class="reelup-reel__play-icon" aria-hidden="true"></span>
+            </button>
+            <video
+              class="reelup-reel__video"
+              playsinline
+              muted
+              loop
+              preload="none"
+            ></video>
+          </div>
         </div>
-      </div>
+      {% endif %}
     {% endfor %}
   </div>
 {% endif %}
