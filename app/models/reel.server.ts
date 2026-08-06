@@ -4,6 +4,7 @@ export interface ReelConfig {
   durationSeconds?: number;
   hlsManifestUrl?: string;
   dashManifestUrl?: string;
+  uploadFailedAt?: string;
   productIds: string[];
   interactions: { ctaLabel?: string; ctaUrl?: string };
   source: { type: "upload" | "instagram" | "tiktok"; originalUrl?: string };
@@ -211,4 +212,46 @@ export async function deleteReel(
   const json = await response.json();
   assertNoGraphqlErrors(json);
   throwOnUserErrors(json.data.metaobjectDelete.userErrors);
+}
+
+export type ReelStatus = "draft" | "processing" | "failed" | "ready";
+
+export function deriveReelStatus(config: ReelConfig): ReelStatus {
+  if (config.hlsManifestUrl) return "ready";
+  if (config.cloudflareStreamUid) return "processing";
+  if (config.uploadFailedAt) return "failed";
+  return "draft";
+}
+
+export interface ProductSummary {
+  id: string;
+  title: string;
+  handle: string;
+}
+
+export async function getProductsByIds(
+  admin: AdminGraphqlClient,
+  ids: string[],
+): Promise<ProductSummary[]> {
+  if (ids.length === 0) return [];
+
+  const response = await admin.graphql(
+    `#graphql
+    query GetProductsByIds($ids: [ID!]!) {
+      nodes(ids: $ids) {
+        ... on Product {
+          id
+          title
+          handle
+        }
+      }
+    }`,
+    { variables: { ids } },
+  );
+
+  const json = await response.json();
+  assertNoGraphqlErrors(json);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- GraphQL response shape varies per query; this is the external Admin API boundary
+  return json.data.nodes.filter((node: any) => node != null);
 }

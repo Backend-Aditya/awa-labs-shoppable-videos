@@ -6,6 +6,8 @@ import {
   deleteReel,
   getReel,
   updateReelConfig,
+  deriveReelStatus,
+  getProductsByIds,
 } from "./reel.server";
 import type { ReelConfig } from "./reel.server";
 
@@ -324,5 +326,94 @@ describe("reel.server", () => {
         cloudflareStreamUid: "abc123",
       }),
     ).rejects.toThrow("Reel not found");
+  });
+
+  describe("deriveReelStatus", () => {
+    const base: ReelConfig = {
+      productIds: [],
+      interactions: {},
+      source: { type: "upload" },
+    };
+
+    it("returns ready when hlsManifestUrl is present", () => {
+      expect(
+        deriveReelStatus({ ...base, cloudflareStreamUid: "abc", hlsManifestUrl: "https://x/y.m3u8" }),
+      ).toBe("ready");
+    });
+
+    it("returns processing when cloudflareStreamUid is present but hlsManifestUrl is not", () => {
+      expect(deriveReelStatus({ ...base, cloudflareStreamUid: "abc" })).toBe("processing");
+    });
+
+    it("returns failed when uploadFailedAt is present and no cloudflareStreamUid", () => {
+      expect(deriveReelStatus({ ...base, uploadFailedAt: "2026-08-06T00:00:00.000Z" })).toBe(
+        "failed",
+      );
+    });
+
+    it("returns draft when nothing has happened yet", () => {
+      expect(deriveReelStatus(base)).toBe("draft");
+    });
+
+    it("prefers ready over a stale failed/processing marker if hlsManifestUrl is set", () => {
+      expect(
+        deriveReelStatus({
+          ...base,
+          uploadFailedAt: "2026-08-06T00:00:00.000Z",
+          cloudflareStreamUid: "abc",
+          hlsManifestUrl: "https://x/y.m3u8",
+        }),
+      ).toBe("ready");
+    });
+  });
+
+  describe("getProductsByIds", () => {
+    it("fetches product titles for the given IDs", async () => {
+      let capturedVariables: Record<string, unknown> | undefined;
+      const admin = {
+        graphql: async (
+          _query: string,
+          options?: { variables?: Record<string, unknown> },
+        ) => {
+          capturedVariables = options?.variables;
+          return {
+            json: async () => ({
+              data: {
+                nodes: [
+                  { id: "gid://shopify/Product/1", title: "Blue Shirt", handle: "blue-shirt" },
+                  null,
+                ],
+              },
+            }),
+          };
+        },
+      };
+
+      const products = await getProductsByIds(admin, [
+        "gid://shopify/Product/1",
+        "gid://shopify/Product/999",
+      ]);
+
+      expect(products).toEqual([
+        { id: "gid://shopify/Product/1", title: "Blue Shirt", handle: "blue-shirt" },
+      ]);
+      expect(capturedVariables).toEqual({
+        ids: ["gid://shopify/Product/1", "gid://shopify/Product/999"],
+      });
+    });
+
+    it("returns an empty array without a network call when ids is empty", async () => {
+      let called = false;
+      const admin = {
+        graphql: async () => {
+          called = true;
+          return { json: async () => ({ data: { nodes: [] } }) };
+        },
+      };
+
+      const products = await getProductsByIds(admin, []);
+      expect(products).toEqual([]);
+      expect(called).toBe(false);
+    });
   });
 });
