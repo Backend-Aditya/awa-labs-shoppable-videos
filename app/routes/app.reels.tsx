@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { Form, useActionData, useFetcher, useLoaderData, useNavigation } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { deleteReel, deriveReelStatus, generateReelHandle, listReels, upsertReel } from "../models/reel.server";
+import { deleteReel, deriveReelStatus, generateReelHandle, listReels, updateReelConfig, upsertReel } from "../models/reel.server";
 import { createDirectUploadUrl, getCloudflareConfig } from "../models/cloudflare-stream.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -21,10 +21,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const formData = await request.formData();
   const intent = formData.get("intent");
 
+  if (intent === "mark-upload-failed") {
+    const reelId = String(formData.get("reelId") ?? "");
+    if (!reelId) {
+      return { error: "Missing reel id", uploadURL: null, reelId: null };
+    }
+    await updateReelConfig(admin, reelId, {
+      uploadFailedAt: new Date().toISOString(),
+    });
+    return { error: null, uploadURL: null, reelId: null };
+  }
+
   if (intent === "start-upload") {
     const title = String(formData.get("uploadTitle") ?? "").trim();
     if (!title) {
-      return { error: "Title is required", uploadURL: null };
+      return { error: "Title is required", uploadURL: null, reelId: null };
     }
 
     try {
@@ -41,7 +52,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           { reelId: reel.id, shop: session.shop },
         );
 
-        return { error: null, uploadURL };
+        return { error: null, uploadURL, reelId: reel.id };
       } catch {
         try {
           await deleteReel(admin, reel.id);
@@ -51,6 +62,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return {
           error: "Could not start upload. Check Cloudflare configuration.",
           uploadURL: null,
+          reelId: null,
         };
       }
     } catch (e) {
@@ -63,6 +75,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return {
         error: "Could not create the reel. Try again.",
         uploadURL: null,
+        reelId: null,
       };
     }
   }
@@ -71,7 +84,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const published = formData.get("published") != null;
 
   if (!title) {
-    return { error: "Title is required", uploadURL: null };
+    return { error: "Title is required", uploadURL: null, reelId: null };
   }
 
   await upsertReel(admin, generateReelHandle(title), title, published, {
@@ -80,11 +93,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     source: { type: "upload" },
   });
 
-  return { error: null, uploadURL: null };
+  return { error: null, uploadURL: null, reelId: null };
 };
 
 function UploadVideoForm() {
   const fetcher = useFetcher<typeof action>();
+  const failureFetcher = useFetcher();
   const [file, setFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState<
     "idle" | "uploading" | "done" | "error" | "no-file"
@@ -107,15 +121,30 @@ function UploadVideoForm() {
     ) {
       armedRef.current = false;
       setUploadStatus("uploading");
+      const reelId = fetcher.data.reelId;
       const body = new FormData();
       body.append("file", file);
       fetch(fetcher.data.uploadURL, { method: "POST", body })
         .then((res) => {
           setUploadStatus(res.ok ? "done" : "error");
+          if (!res.ok && reelId) {
+            const failForm = new FormData();
+            failForm.set("intent", "mark-upload-failed");
+            failForm.set("reelId", reelId);
+            failureFetcher.submit(failForm, { method: "post" });
+          }
         })
-        .catch(() => setUploadStatus("error"));
+        .catch(() => {
+          setUploadStatus("error");
+          if (reelId) {
+            const failForm = new FormData();
+            failForm.set("intent", "mark-upload-failed");
+            failForm.set("reelId", reelId);
+            failureFetcher.submit(failForm, { method: "post" });
+          }
+        });
     }
-  }, [fetcher.data, file, fetcher.state]);
+  }, [fetcher.data, file, fetcher.state, failureFetcher]);
 
   return (
     <s-section heading="Upload a video">
