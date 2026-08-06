@@ -8,6 +8,7 @@ import {
   updateReelConfig,
   deriveReelStatus,
   getProductsByIds,
+  syncProductReelMetafields,
 } from "./reel.server";
 import type { ReelConfig } from "./reel.server";
 
@@ -414,6 +415,173 @@ describe("reel.server", () => {
       const products = await getProductsByIds(admin, []);
       expect(products).toEqual([]);
       expect(called).toBe(false);
+    });
+  });
+
+  describe("syncProductReelMetafields", () => {
+    it("adds the reel ID to a newly tagged product's existing metafield list", async () => {
+      let capturedSetVariables: Record<string, unknown> | undefined;
+      const admin = {
+        graphql: async (query: string, options?: { variables?: Record<string, unknown> }) => {
+          if (query.includes("GetProductReelMetafields")) {
+            return {
+              json: async () => ({
+                data: {
+                  nodes: [
+                    {
+                      id: "gid://shopify/Product/1",
+                      metafield: { value: JSON.stringify(["gid://shopify/Metaobject/9"]) },
+                    },
+                  ],
+                },
+              }),
+            };
+          }
+          capturedSetVariables = options?.variables;
+          return {
+            json: async () => ({
+              data: { metafieldsSet: { userErrors: [] } },
+            }),
+          };
+        },
+      };
+
+      await syncProductReelMetafields(
+        admin,
+        "gid://shopify/Metaobject/1",
+        [],
+        ["gid://shopify/Product/1"],
+      );
+
+      expect(capturedSetVariables).toEqual({
+        metafields: [
+          {
+            ownerId: "gid://shopify/Product/1",
+            namespace: "$app",
+            key: "reels",
+            type: "list.metaobject_reference",
+            value: JSON.stringify([
+              "gid://shopify/Metaobject/9",
+              "gid://shopify/Metaobject/1",
+            ]),
+          },
+        ],
+      });
+    });
+
+    it("removes the reel ID from an untagged product's metafield list", async () => {
+      let capturedSetVariables: Record<string, unknown> | undefined;
+      const admin = {
+        graphql: async (query: string, options?: { variables?: Record<string, unknown> }) => {
+          if (query.includes("GetProductReelMetafields")) {
+            return {
+              json: async () => ({
+                data: {
+                  nodes: [
+                    {
+                      id: "gid://shopify/Product/1",
+                      metafield: {
+                        value: JSON.stringify([
+                          "gid://shopify/Metaobject/1",
+                          "gid://shopify/Metaobject/2",
+                        ]),
+                      },
+                    },
+                  ],
+                },
+              }),
+            };
+          }
+          capturedSetVariables = options?.variables;
+          return {
+            json: async () => ({
+              data: { metafieldsSet: { userErrors: [] } },
+            }),
+          };
+        },
+      };
+
+      await syncProductReelMetafields(
+        admin,
+        "gid://shopify/Metaobject/1",
+        ["gid://shopify/Product/1"],
+        [],
+      );
+
+      expect(capturedSetVariables).toEqual({
+        metafields: [
+          {
+            ownerId: "gid://shopify/Product/1",
+            namespace: "$app",
+            key: "reels",
+            type: "list.metaobject_reference",
+            value: JSON.stringify(["gid://shopify/Metaobject/2"]),
+          },
+        ],
+      });
+    });
+
+    it("makes no GraphQL call when the product set is unchanged", async () => {
+      let called = false;
+      const admin = {
+        graphql: async () => {
+          called = true;
+          return { json: async () => ({ data: {} }) };
+        },
+      };
+
+      await syncProductReelMetafields(
+        admin,
+        "gid://shopify/Metaobject/1",
+        ["gid://shopify/Product/1"],
+        ["gid://shopify/Product/1"],
+      );
+
+      expect(called).toBe(false);
+    });
+
+    it("starts from an empty list when a product has no existing metafield value", async () => {
+      let capturedSetVariables: Record<string, unknown> | undefined;
+      const admin = {
+        graphql: async (query: string, options?: { variables?: Record<string, unknown> }) => {
+          if (query.includes("GetProductReelMetafields")) {
+            return {
+              json: async () => ({
+                data: {
+                  nodes: [
+                    { id: "gid://shopify/Product/1", metafield: null },
+                  ],
+                },
+              }),
+            };
+          }
+          capturedSetVariables = options?.variables;
+          return {
+            json: async () => ({
+              data: { metafieldsSet: { userErrors: [] } },
+            }),
+          };
+        },
+      };
+
+      await syncProductReelMetafields(
+        admin,
+        "gid://shopify/Metaobject/1",
+        [],
+        ["gid://shopify/Product/1"],
+      );
+
+      expect(capturedSetVariables).toEqual({
+        metafields: [
+          {
+            ownerId: "gid://shopify/Product/1",
+            namespace: "$app",
+            key: "reels",
+            type: "list.metaobject_reference",
+            value: JSON.stringify(["gid://shopify/Metaobject/1"]),
+          },
+        ],
+      });
     });
   });
 });

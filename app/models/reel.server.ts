@@ -253,5 +253,68 @@ export async function getProductsByIds(
   assertNoGraphqlErrors(json);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- GraphQL response shape varies per query; this is the external Admin API boundary
-  return json.data.nodes.filter((node: any) => node != null);
+  return json.data.nodes.filter((node: any) => node?.id != null);
+}
+
+export async function syncProductReelMetafields(
+  admin: AdminGraphqlClient,
+  reelId: string,
+  previousProductIds: string[],
+  newProductIds: string[],
+): Promise<void> {
+  const added = newProductIds.filter((id) => !previousProductIds.includes(id));
+  const removed = previousProductIds.filter((id) => !newProductIds.includes(id));
+  const affectedProductIds = [...new Set([...added, ...removed])];
+
+  if (affectedProductIds.length === 0) return;
+
+  const response = await admin.graphql(
+    `#graphql
+    query GetProductReelMetafields($ids: [ID!]!) {
+      nodes(ids: $ids) {
+        ... on Product {
+          id
+          metafield(namespace: "$app", key: "reels") {
+            value
+          }
+        }
+      }
+    }`,
+    { variables: { ids: affectedProductIds } },
+  );
+  const json = await response.json();
+  assertNoGraphqlErrors(json);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- GraphQL response shape varies per query; this is the external Admin API boundary
+  const metafieldsToSet = json.data.nodes.map((node: any) => {
+    const currentReelIds: string[] = node.metafield?.value
+      ? JSON.parse(node.metafield.value)
+      : [];
+    const shouldHaveReel = newProductIds.includes(node.id);
+    const withoutThisReel = currentReelIds.filter((id) => id !== reelId);
+    const updatedReelIds = shouldHaveReel
+      ? [...withoutThisReel, reelId]
+      : withoutThisReel;
+
+    return {
+      ownerId: node.id,
+      namespace: "$app",
+      key: "reels",
+      type: "list.metaobject_reference",
+      value: JSON.stringify(updatedReelIds),
+    };
+  });
+
+  const setResponse = await admin.graphql(
+    `#graphql
+    mutation SetProductReelMetafields($metafields: [MetafieldsSetInput!]!) {
+      metafieldsSet(metafields: $metafields) {
+        userErrors { field message }
+      }
+    }`,
+    { variables: { metafields: metafieldsToSet } },
+  );
+  const setJson = await setResponse.json();
+  assertNoGraphqlErrors(setJson);
+  throwOnUserErrors(setJson.data.metafieldsSet.userErrors);
 }

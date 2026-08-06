@@ -3,11 +3,18 @@ import type {
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
-import { Form, redirect, useFetcher, useLoaderData, useNavigation } from "react-router";
+import { Form, redirect, useActionData, useFetcher, useLoaderData, useNavigation } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { deleteReel, deriveReelStatus, getProductsByIds, getReel, updateReelConfig, upsertReel } from "../models/reel.server";
+import { deleteReel, deriveReelStatus, getProductsByIds, getReel, syncProductReelMetafields, updateReelConfig, upsertReel } from "../models/reel.server";
+
+const REEL_STATUS_LABELS: Record<string, string> = {
+  draft: "No video",
+  processing: "Processing",
+  ready: "Ready",
+  failed: "Failed",
+};
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
@@ -31,7 +38,9 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
   if (intent === "set-products") {
     const productIds = formData.getAll("productId").map(String);
+    const previousProductIds = reel.config.productIds;
     await updateReelConfig(admin, reel.id, { productIds });
+    await syncProductReelMetafields(admin, reel.id, previousProductIds, productIds);
     return { error: null };
   }
 
@@ -53,8 +62,10 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
 export default function ReelDetail() {
   const { reel, taggedProducts } = useLoaderData<typeof loader>();
+  const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
-  const isSubmitting = navigation.state === "submitting";
+  const isSubmitting =
+    navigation.formData?.get("intent") == null && navigation.state === "submitting";
   const status = deriveReelStatus(reel.config);
   const statusTone =
     status === "ready"
@@ -88,8 +99,11 @@ export default function ReelDetail() {
       <s-link href="/app/reels">Back to reels</s-link>
       <s-section heading="Details">
         <s-stack gap="base">
+          {actionData?.error && (
+            <s-paragraph tone="critical">{actionData.error}</s-paragraph>
+          )}
           <s-paragraph>
-            Status: <s-badge tone={statusTone}>{status}</s-badge>
+            Status: <s-badge tone={statusTone}>{REEL_STATUS_LABELS[status]}</s-badge>
           </s-paragraph>
           <Form method="post">
             <s-stack gap="base">
@@ -117,6 +131,9 @@ export default function ReelDetail() {
       </s-section>
       <s-section heading="Tagged products">
         <s-stack gap="base">
+          {productsFetcher.data?.error && (
+            <s-paragraph tone="critical">{productsFetcher.data.error}</s-paragraph>
+          )}
           {taggedProducts.length === 0 ? (
             <s-paragraph>No products tagged yet.</s-paragraph>
           ) : (

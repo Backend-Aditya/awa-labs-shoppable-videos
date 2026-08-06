@@ -10,6 +10,13 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 import { deleteReel, deriveReelStatus, generateReelHandle, listReels, updateReelConfig, upsertReel } from "../models/reel.server";
 import { createDirectUploadUrl, getCloudflareConfig } from "../models/cloudflare-stream.server";
 
+const REEL_STATUS_LABELS: Record<string, string> = {
+  draft: "No video",
+  processing: "Processing",
+  ready: "Ready",
+  failed: "Failed",
+};
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
   const reels = await listReels(admin, 50);
@@ -259,7 +266,7 @@ export default function ReelsLibrary() {
                       </s-badge>
                     </s-table-cell>
                     <s-table-cell>
-                      <s-badge tone={statusTone}>{status}</s-badge>
+                      <s-badge tone={statusTone}>{REEL_STATUS_LABELS[status]}</s-badge>
                     </s-table-cell>
                   </s-table-row>
                 );
