@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { Form, useActionData, useFetcher, useLoaderData, useNavigation } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { deleteReel, generateReelHandle, listReels, upsertReel } from "../models/reel.server";
+import { deleteReel, deriveReelStatus, generateReelHandle, listReels, upsertReel } from "../models/reel.server";
 import { createDirectUploadUrl, getCloudflareConfig } from "../models/cloudflare-stream.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -203,19 +203,38 @@ export default function ReelsLibrary() {
           <s-table variant="list">
             <s-table-header-row>
               <s-table-header listSlot="primary">Title</s-table-header>
+              <s-table-header listSlot="inline">Published</s-table-header>
               <s-table-header listSlot="inline">Status</s-table-header>
             </s-table-header-row>
             <s-table-body>
-              {reels.map((reel) => (
-                <s-table-row key={reel.id}>
-                  <s-table-cell>{reel.title}</s-table-cell>
-                  <s-table-cell>
-                    <s-badge tone={reel.published ? "success" : "neutral"}>
-                      {reel.published ? "Published" : "Draft"}
-                    </s-badge>
-                  </s-table-cell>
-                </s-table-row>
-              ))}
+              {reels.map((reel) => {
+                const status = deriveReelStatus(reel.config);
+                const statusTone =
+                  status === "ready"
+                    ? "success"
+                    : status === "failed"
+                      ? "critical"
+                      : status === "processing"
+                        ? "info"
+                        : "neutral";
+                return (
+                  <s-table-row key={reel.id}>
+                    <s-table-cell>
+                      <s-link href={`/app/reels/${encodeURIComponent(reel.id)}`}>
+                        {reel.title}
+                      </s-link>
+                    </s-table-cell>
+                    <s-table-cell>
+                      <s-badge tone={reel.published ? "success" : "neutral"}>
+                        {reel.published ? "Published" : "Draft"}
+                      </s-badge>
+                    </s-table-cell>
+                    <s-table-cell>
+                      <s-badge tone={statusTone}>{status}</s-badge>
+                    </s-table-cell>
+                  </s-table-row>
+                );
+              })}
             </s-table-body>
           </s-table>
         )}
