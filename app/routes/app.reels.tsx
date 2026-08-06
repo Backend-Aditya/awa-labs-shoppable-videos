@@ -7,7 +7,8 @@ import { useEffect, useRef, useState } from "react";
 import { Form, useActionData, useFetcher, useLoaderData, useNavigation } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { deleteReel, deriveReelStatus, generateReelHandle, listReels, updateReelConfig, upsertReel } from "../models/reel.server";
+import { deleteReel, generateReelHandle, listReels, updateReelConfig, upsertReel } from "../models/reel.server";
+import { deriveReelStatus } from "../models/reel-status";
 import { createDirectUploadUrl, getCloudflareConfig } from "../models/cloudflare-stream.server";
 
 const REEL_STATUS_LABELS: Record<string, string> = {

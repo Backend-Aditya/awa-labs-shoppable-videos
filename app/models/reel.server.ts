@@ -214,14 +214,12 @@ export async function deleteReel(
   throwOnUserErrors(json.data.metaobjectDelete.userErrors);
 }
 
-export type ReelStatus = "draft" | "processing" | "failed" | "ready";
-
-export function deriveReelStatus(config: ReelConfig): ReelStatus {
-  if (config.hlsManifestUrl) return "ready";
-  if (config.cloudflareStreamUid) return "processing";
-  if (config.uploadFailedAt) return "failed";
-  return "draft";
-}
+// deriveReelStatus is a pure function with no server-only dependencies, so it
+// lives in reel-status.ts (no `.server` suffix) — React Router strips
+// `.server.ts` modules entirely from the client bundle, and this function is
+// called directly from route components' JSX, not just loaders/actions.
+export type { ReelStatus } from "./reel-status";
+export { deriveReelStatus } from "./reel-status";
 
 export interface ProductSummary {
   id: string;

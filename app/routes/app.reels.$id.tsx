@@ -7,7 +7,8 @@ import { Form, redirect, useActionData, useFetcher, useLoaderData, useNavigation
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { deleteReel, deriveReelStatus, getProductsByIds, getReel, syncProductReelMetafields, updateReelConfig, upsertReel } from "../models/reel.server";
+import { deleteReel, getProductsByIds, getReel, syncProductReelMetafields, updateReelConfig, upsertReel } from "../models/reel.server";
+import { deriveReelStatus } from "../models/reel-status";
 
 const REEL_STATUS_LABELS: Record<string, string> = {
   draft: "No video",
