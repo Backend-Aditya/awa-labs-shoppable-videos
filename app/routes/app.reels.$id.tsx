@@ -3,10 +3,11 @@ import type {
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
-import { Form, redirect, useLoaderData, useNavigation } from "react-router";
+import { Form, redirect, useFetcher, useLoaderData, useNavigation } from "react-router";
+import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { deleteReel, deriveReelStatus, getReel, upsertReel } from "../models/reel.server";
+import { deleteReel, deriveReelStatus, getProductsByIds, getReel, updateReelConfig, upsertReel } from "../models/reel.server";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
@@ -14,7 +15,8 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   if (!reel) {
     throw new Response("Reel not found", { status: 404 });
   }
-  return { reel };
+  const taggedProducts = await getProductsByIds(admin, reel.config.productIds);
+  return { reel, taggedProducts };
 };
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
@@ -25,6 +27,12 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   const reel = await getReel(admin, params.id!);
   if (!reel) {
     throw new Response("Reel not found", { status: 404 });
+  }
+
+  if (intent === "set-products") {
+    const productIds = formData.getAll("productId").map(String);
+    await updateReelConfig(admin, reel.id, { productIds });
+    return { error: null };
   }
 
   if (intent === "delete") {
@@ -44,7 +52,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 };
 
 export default function ReelDetail() {
-  const { reel } = useLoaderData<typeof loader>();
+  const { reel, taggedProducts } = useLoaderData<typeof loader>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
   const status = deriveReelStatus(reel.config);
@@ -56,6 +64,24 @@ export default function ReelDetail() {
         : status === "processing"
           ? "info"
           : "neutral";
+  const shopify = useAppBridge();
+  const productsFetcher = useFetcher();
+
+  const handlePickProducts = async () => {
+    const selected = await shopify.resourcePicker({
+      type: "product",
+      multiple: true,
+      selectionIds: taggedProducts.map((p) => ({ id: p.id })),
+    });
+    if (!selected) return;
+
+    const formData = new FormData();
+    formData.set("intent", "set-products");
+    for (const product of selected) {
+      formData.append("productId", product.id);
+    }
+    productsFetcher.submit(formData, { method: "post" });
+  };
 
   return (
     <s-page heading={reel.title}>
@@ -87,6 +113,25 @@ export default function ReelDetail() {
               </s-button>
             </s-stack>
           </Form>
+        </s-stack>
+      </s-section>
+      <s-section heading="Tagged products">
+        <s-stack gap="base">
+          {taggedProducts.length === 0 ? (
+            <s-paragraph>No products tagged yet.</s-paragraph>
+          ) : (
+            <s-stack gap="small">
+              {taggedProducts.map((product) => (
+                <s-paragraph key={product.id}>{product.title}</s-paragraph>
+              ))}
+            </s-stack>
+          )}
+          <s-button
+            onClick={handlePickProducts}
+            {...(productsFetcher.state !== "idle" ? { loading: true } : {})}
+          >
+            {taggedProducts.length === 0 ? "Tag products" : "Edit tagged products"}
+          </s-button>
         </s-stack>
       </s-section>
       <s-section heading="Danger zone">
