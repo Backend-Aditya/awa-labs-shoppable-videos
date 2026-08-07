@@ -242,6 +242,7 @@ export default function ReelsLibrary() {
               <s-table-header listSlot="primary">Title</s-table-header>
               <s-table-header listSlot="inline">Published</s-table-header>
               <s-table-header listSlot="inline">Status</s-table-header>
+              <s-table-header listSlot="inline">Products</s-table-header>
             </s-table-header-row>
             <s-table-body>
               {reels.map((reel) => {
@@ -254,6 +255,7 @@ export default function ReelsLibrary() {
                       : status === "processing"
                         ? "info"
                         : "neutral";
+                const productCount = reel.config.productIds.length;
                 return (
                   <s-table-row key={reel.id}>
                     <s-table-cell>
@@ -268,6 +270,11 @@ export default function ReelsLibrary() {
                     </s-table-cell>
                     <s-table-cell>
                       <s-badge tone={statusTone}>{REEL_STATUS_LABELS[status]}</s-badge>
+                    </s-table-cell>
+                    <s-table-cell>
+                      <s-badge tone={productCount > 0 ? "success" : "neutral"}>
+                        {productCount > 0 ? `${productCount} tagged` : "Untagged"}
+                      </s-badge>
                     </s-table-cell>
                   </s-table-row>
                 );
