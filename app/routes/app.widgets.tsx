@@ -94,7 +94,11 @@ export default function Widgets() {
             <s-table-body>
               {widgets.map((widget) => (
                 <s-table-row key={widget.id}>
-                  <s-table-cell>{widget.name}</s-table-cell>
+                  <s-table-cell>
+                    <s-link href={`/app/widgets/${encodeURIComponent(widget.id)}`}>
+                      {widget.name}
+                    </s-link>
+                  </s-table-cell>
                   <s-table-cell>{widget.type}</s-table-cell>
                   <s-table-cell>
                     <s-badge tone={widget.published ? "success" : "neutral"}>
