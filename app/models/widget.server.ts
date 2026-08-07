@@ -49,3 +49,31 @@ export async function setWidgetPublished(
 export async function deleteWidget(id: string): Promise<void> {
   await prisma.widget.delete({ where: { id } });
 }
+
+export async function getWidget(
+  shopId: string,
+  id: string,
+): Promise<Widget | null> {
+  return prisma.widget.findFirst({ where: { id, shopId } });
+}
+
+export async function updateWidget(
+  id: string,
+  updates: { name?: string; published?: boolean },
+): Promise<Widget> {
+  return prisma.widget.update({ where: { id }, data: updates });
+}
+
+export async function updateWidgetTargetRule(
+  id: string,
+  targetRule: WidgetConfig["targetRule"],
+): Promise<Widget> {
+  const existing = await prisma.widget.findUniqueOrThrow({ where: { id } });
+  const existingConfig = existing.config as unknown as WidgetConfig;
+  const mergedConfig: WidgetConfig = { ...existingConfig, targetRule };
+
+  return prisma.widget.update({
+    where: { id },
+    data: { config: mergedConfig as unknown as Prisma.InputJsonValue },
+  });
+}

@@ -6,7 +6,11 @@ import {
   listWidgetsForShop,
   setWidgetPublished,
   deleteWidget,
+  getWidget,
+  updateWidget,
+  updateWidgetTargetRule,
 } from "./widget.server";
+import type { WidgetConfig } from "./widget.server";
 
 describe("widget.server", () => {
   beforeEach(async () => {
@@ -59,5 +63,85 @@ describe("widget.server", () => {
     await deleteWidget(widget.id);
     const remaining = await listWidgetsForShop(shop.id);
     expect(remaining).toHaveLength(0);
+  });
+
+  it("gets a widget scoped to its shop, returns null for a different shop or missing id", async () => {
+    const shopA = await getOrCreateShop("widget-get-a.myshopify.com");
+    const shopB = await getOrCreateShop("widget-get-b.myshopify.com");
+    const widget = await createWidget(shopA.id, "GRID", "A grid", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+    });
+
+    const found = await getWidget(shopA.id, widget.id);
+    expect(found?.id).toBe(widget.id);
+
+    const wrongShop = await getWidget(shopB.id, widget.id);
+    expect(wrongShop).toBeNull();
+
+    const missing = await getWidget(shopA.id, "nonexistent-id");
+    expect(missing).toBeNull();
+  });
+
+  it("updates a widget's name and published flag", async () => {
+    const shop = await getOrCreateShop("widget-update.myshopify.com");
+    const widget = await createWidget(shop.id, "CAROUSEL", "Original name", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+    });
+
+    const updated = await updateWidget(widget.id, {
+      name: "Renamed carousel",
+      published: true,
+    });
+
+    expect(updated.name).toBe("Renamed carousel");
+    expect(updated.published).toBe(true);
+  });
+
+  it("updates only the provided fields, leaving others unchanged", async () => {
+    const shop = await getOrCreateShop("widget-partial-update.myshopify.com");
+    const widget = await createWidget(shop.id, "STORIES", "Keep my name", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+    });
+
+    const updated = await updateWidget(widget.id, { published: true });
+
+    expect(updated.name).toBe("Keep my name");
+    expect(updated.published).toBe(true);
+  });
+
+  it("updates a widget's targetRule to specific product handles", async () => {
+    const shop = await getOrCreateShop("widget-target-handles.myshopify.com");
+    const widget = await createWidget(shop.id, "REEL_POPS", "Targeted pop", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+    });
+
+    const updated = await updateWidgetTargetRule(widget.id, {
+      type: "handles",
+      handles: ["blue-shirt", "red-hat"],
+    });
+
+    expect(updated.config).toEqual({
+      templateStyle: "classic",
+      targetRule: { type: "handles", handles: ["blue-shirt", "red-hat"] },
+    });
+  });
+
+  it("resets a widget's targetRule to all_products, preserving other config keys", async () => {
+    const shop = await getOrCreateShop("widget-target-reset.myshopify.com");
+    const widget = await createWidget(shop.id, "REEL_POPS", "Reset pop", {
+      templateStyle: "bold",
+      targetRule: { type: "handles", handles: ["old-handle"] },
+    });
+
+    const updated = await updateWidgetTargetRule(widget.id, { type: "all_products" });
+
+    expect(updated.config).toEqual({
+      templateStyle: "bold",
+      targetRule: { type: "all_products" },
+    });
   });
 });
