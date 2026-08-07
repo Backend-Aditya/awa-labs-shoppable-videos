@@ -255,7 +255,7 @@ export default function ReelsLibrary() {
                       : status === "processing"
                         ? "info"
                         : "neutral";
-                const productCount = reel.config.productIds.length;
+                const productCount = reel.config.productIds?.length ?? 0;
                 return (
                   <s-table-row key={reel.id}>
                     <s-table-cell>

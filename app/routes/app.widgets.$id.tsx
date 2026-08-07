@@ -33,7 +33,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   const intent = formData.get("intent");
 
   if (intent === "set-target") {
-    const handles = formData.getAll("productHandle").map(String);
+    const handles = formData.getAll("productHandle").map(String).filter(Boolean);
     const targetRule: WidgetConfig["targetRule"] =
       handles.length > 0 ? { type: "handles", handles } : { type: "all_products" };
     await updateWidgetTargetRule(widget.id, targetRule);

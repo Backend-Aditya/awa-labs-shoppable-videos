@@ -77,7 +77,7 @@ export default function ReelDetail() {
           ? "info"
           : "neutral";
   const shopify = useAppBridge();
-  const productsFetcher = useFetcher();
+  const productsFetcher = useFetcher<typeof action>();
 
   const handlePickProducts = async () => {
     const selected = await shopify.resourcePicker({
@@ -101,7 +101,8 @@ export default function ReelDetail() {
       <s-section heading="Preview">
         {reel.config.cloudflareStreamUid ? (
           <iframe
-            src={`https://iframe.videodelivery.net/${reel.config.cloudflareStreamUid}`}
+            src={`https://iframe.videodelivery.net/${encodeURIComponent(reel.config.cloudflareStreamUid)}`}
+            title={`Preview of ${reel.title}`}
             style={{ border: "none", aspectRatio: "9 / 16", width: "100%", maxWidth: "280px" }}
             allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
             allowFullScreen
