@@ -10,7 +10,6 @@ import {
   updateWidget,
   updateWidgetTargetRule,
 } from "./widget.server";
-import type { WidgetConfig } from "./widget.server";
 
 describe("widget.server", () => {
   beforeEach(async () => {
