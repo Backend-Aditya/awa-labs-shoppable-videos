@@ -98,6 +98,18 @@ export default function ReelDetail() {
   return (
     <s-page heading={reel.title}>
       <s-link href="/app/reels">Back to reels</s-link>
+      <s-section heading="Preview">
+        {reel.config.cloudflareStreamUid ? (
+          <iframe
+            src={`https://iframe.videodelivery.net/${reel.config.cloudflareStreamUid}`}
+            style={{ border: "none", aspectRatio: "9 / 16", width: "100%", maxWidth: "280px" }}
+            allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
+            allowFullScreen
+          ></iframe>
+        ) : (
+          <s-paragraph>No video uploaded yet.</s-paragraph>
+        )}
+      </s-section>
       <s-section heading="Details">
         <s-stack gap="base">
           {actionData?.error && (
