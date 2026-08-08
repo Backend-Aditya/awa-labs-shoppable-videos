@@ -97,7 +97,9 @@ export default function WidgetDetail() {
 
   return (
     <s-page heading={widget.name}>
-      <Link to="/app/widgets">Back to widgets</Link>
+      <s-section>
+        <Link to="/app/widgets">Back to widgets</Link>
+      </s-section>
       <s-section heading="Details">
         <s-stack gap="base">
           {actionData?.error && (
