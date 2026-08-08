@@ -3,7 +3,7 @@ import type {
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
-import { Form, useActionData, useLoaderData, useNavigation } from "react-router";
+import { Form, Link, useActionData, useLoaderData, useNavigation } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { getOrCreateShop } from "../models/shop.server";
@@ -96,12 +96,12 @@ export default function Widgets() {
                 return (
                 <s-table-row key={widget.id}>
                   <s-table-cell>
-                    <a
-                      href={`/app/widgets/${encodeURIComponent(widget.id)}`}
+                    <Link
+                      to={`/app/widgets/${encodeURIComponent(widget.id)}`}
                       style={{ color: "inherit", textDecoration: "underline" }}
                     >
                       {widget.name}
-                    </a>
+                    </Link>
                   </s-table-cell>
                   <s-table-cell>{widget.type}</s-table-cell>
                   <s-table-cell>

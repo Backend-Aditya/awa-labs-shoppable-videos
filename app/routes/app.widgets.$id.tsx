@@ -3,7 +3,7 @@ import type {
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
-import { Form, redirect, useActionData, useFetcher, useLoaderData, useNavigation } from "react-router";
+import { Form, Link, redirect, useActionData, useFetcher, useLoaderData, useNavigation } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { useAppBridge } from "@shopify/app-bridge-react";
@@ -97,7 +97,7 @@ export default function WidgetDetail() {
 
   return (
     <s-page heading={widget.name}>
-      <a href="/app/widgets">Back to widgets</a>
+      <Link to="/app/widgets">Back to widgets</Link>
       <s-section heading="Details">
         <s-stack gap="base">
           {actionData?.error && (

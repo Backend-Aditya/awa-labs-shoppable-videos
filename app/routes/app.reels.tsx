@@ -4,7 +4,7 @@ import type {
   LoaderFunctionArgs,
 } from "react-router";
 import { useEffect, useRef, useState } from "react";
-import { Form, useActionData, useFetcher, useLoaderData, useNavigation } from "react-router";
+import { Form, Link, useActionData, useFetcher, useLoaderData, useNavigation } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { deleteReel, generateReelHandle, listReels, updateReelConfig, upsertReel } from "../models/reel.server";
@@ -259,12 +259,12 @@ export default function ReelsLibrary() {
                 return (
                   <s-table-row key={reel.id}>
                     <s-table-cell>
-                      <a
-                        href={`/app/reels/${encodeURIComponent(reel.id)}`}
+                      <Link
+                        to={`/app/reels/${encodeURIComponent(reel.id)}`}
                         style={{ color: "inherit", textDecoration: "underline" }}
                       >
                         {reel.title}
-                      </a>
+                      </Link>
                     </s-table-cell>
                     <s-table-cell>
                       <s-badge tone={reel.published ? "success" : "neutral"}>

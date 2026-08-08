@@ -3,7 +3,7 @@ import type {
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
-import { Form, redirect, useActionData, useFetcher, useLoaderData, useNavigation } from "react-router";
+import { Form, Link, redirect, useActionData, useFetcher, useLoaderData, useNavigation } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
@@ -97,7 +97,7 @@ export default function ReelDetail() {
 
   return (
     <s-page heading={reel.title}>
-      <a href="/app/reels">Back to reels</a>
+      <Link to="/app/reels">Back to reels</Link>
       <s-section heading="Preview">
         {reel.config.cloudflareStreamUid ? (
           <iframe
