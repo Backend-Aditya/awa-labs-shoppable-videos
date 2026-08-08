@@ -45,49 +45,44 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   return { error: null };
 };
 
-function openStandalone(href: string) {
-  window.open(window.location.origin + href + window.location.search, "_blank");
-}
-
 function WidgetCard({ widget }: { widget: Widget }) {
   const href = `/app/widgets/${encodeURIComponent(widget.id)}`;
 
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={(e) => {
-        e.preventDefault();
-        openStandalone(href);
-      }}
-      style={{
-        textDecoration: "none",
-        color: "inherit",
-        cursor: "pointer",
-        display: "block",
-        border: "1px solid #d9d9d9",
-        borderRadius: "8px",
-        padding: "12px",
-        background: "#ffffff",
-      }}
-    >
-      <div style={{ fontWeight: 600, marginBottom: "6px" }}>{widget.name}</div>
-      <div style={{ color: "#6b6b6b", marginBottom: "8px" }}>{widget.type}</div>
-      <span
+    <form method="get" action={href} style={{ margin: 0 }}>
+      <button
+        type="submit"
         style={{
-          display: "inline-block",
-          padding: "2px 8px",
-          borderRadius: "999px",
-          fontSize: "12px",
-          fontWeight: 500,
-          background: widget.published ? "#d1f7dc" : "#e5e5e5",
-          color: widget.published ? "#0a6640" : "#444444",
+          all: "unset",
+          cursor: "pointer",
+          display: "block",
+          width: "100%",
+          boxSizing: "border-box",
+          textAlign: "left",
+          color: "inherit",
+          border: "1px solid #d9d9d9",
+          borderRadius: "8px",
+          padding: "12px",
+          background: "#ffffff",
         }}
       >
-        {widget.published ? "Published" : "Draft"}
-      </span>
-    </a>
+        <div style={{ fontWeight: 600, marginBottom: "6px" }}>{widget.name}</div>
+        <div style={{ color: "#6b6b6b", marginBottom: "8px" }}>{widget.type}</div>
+        <span
+          style={{
+            display: "inline-block",
+            padding: "2px 8px",
+            borderRadius: "999px",
+            fontSize: "12px",
+            fontWeight: 500,
+            background: widget.published ? "#d1f7dc" : "#e5e5e5",
+            color: widget.published ? "#0a6640" : "#444444",
+          }}
+        >
+          {widget.published ? "Published" : "Draft"}
+        </span>
+      </button>
+    </form>
   );
 }
 

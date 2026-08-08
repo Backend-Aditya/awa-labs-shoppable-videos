@@ -1,5 +1,5 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { useLoaderData, useNavigate } from "react-router";
+import { useLoaderData } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { getOrCreateShop } from "../models/shop.server";
@@ -37,28 +37,28 @@ function NavCard({
   heading: string;
   description: string;
 }) {
-  const navigate = useNavigate();
   return (
-    <a
-      href={to}
-      onClick={(e) => {
-        e.preventDefault();
-        navigate(to);
-      }}
-      style={{
-        textDecoration: "none",
-        color: "inherit",
-        cursor: "pointer",
-        display: "block",
-        border: "1px solid #d9d9d9",
-        borderRadius: "8px",
-        padding: "12px",
-        background: "#ffffff",
-      }}
-    >
-      <div style={{ fontWeight: 600, marginBottom: "6px" }}>{heading}</div>
-      <div style={{ color: "#6b6b6b" }}>{description}</div>
-    </a>
+    <form method="get" action={to} style={{ margin: 0 }}>
+      <button
+        type="submit"
+        style={{
+          all: "unset",
+          cursor: "pointer",
+          display: "block",
+          width: "100%",
+          boxSizing: "border-box",
+          textAlign: "left",
+          color: "inherit",
+          border: "1px solid #d9d9d9",
+          borderRadius: "8px",
+          padding: "12px",
+          background: "#ffffff",
+        }}
+      >
+        <div style={{ fontWeight: 600, marginBottom: "6px" }}>{heading}</div>
+        <div style={{ color: "#6b6b6b" }}>{description}</div>
+      </button>
+    </form>
   );
 }
 

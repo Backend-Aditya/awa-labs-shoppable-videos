@@ -3,7 +3,7 @@ import type {
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
-import { Form, redirect, useActionData, useFetcher, useLoaderData, useNavigate, useNavigation } from "react-router";
+import { Form, redirect, useActionData, useFetcher, useLoaderData, useNavigation } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
@@ -64,7 +64,6 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 export default function ReelDetail() {
   const { reel, taggedProducts } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
-  const navigate = useNavigate();
   const navigation = useNavigation();
   const isSubmitting =
     navigation.formData?.get("intent") == null && navigation.state === "submitting";
@@ -99,15 +98,19 @@ export default function ReelDetail() {
   return (
     <s-page heading={reel.title}>
       <s-section>
-        <a
-          href="/app/reels"
-          onClick={(e) => {
-            e.preventDefault();
-            navigate("/app/reels");
-          }}
-        >
-          Back to reels
-        </a>
+        <form method="get" action="/app/reels" style={{ margin: 0 }}>
+          <button
+            type="submit"
+            style={{
+              all: "unset",
+              cursor: "pointer",
+              color: "#2c6ecb",
+              textDecoration: "underline",
+            }}
+          >
+            Back to reels
+          </button>
+        </form>
       </s-section>
       <s-section heading="Preview">
         {reel.config.cloudflareStreamUid ? (

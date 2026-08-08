@@ -249,16 +249,6 @@ function PlainBadge({ tone, children }: { tone: string; children: React.ReactNod
   );
 }
 
-function openStandalone(href: string) {
-  // Opens in a fresh browser tab instead of navigating client-side inside
-  // the current embedded iframe. The current tab's query string carries the
-  // live embedded-session params (host/id_token/session/shop), so appending
-  // it to the new tab's URL lets Shopify's own embedded-app bounce logic
-  // authenticate and re-embed the new tab correctly on its own, isolated
-  // from whatever is going on in the current tab's iframe.
-  window.open(window.location.origin + href + window.location.search, "_blank");
-}
-
 function ReelCard({ reel }: { reel: Reel }) {
   const status = deriveReelStatus(reel.config);
   const statusTone =
@@ -273,25 +263,28 @@ function ReelCard({ reel }: { reel: Reel }) {
   const href = `/app/reels/${encodeURIComponent(reel.id)}`;
 
   return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      onClick={(e) => {
-        e.preventDefault();
-        openStandalone(href);
-      }}
-      style={{
-        textDecoration: "none",
-        color: "inherit",
-        cursor: "pointer",
-        display: "block",
-        border: "1px solid #d9d9d9",
-        borderRadius: "8px",
-        padding: "12px",
-        background: "#ffffff",
-      }}
-    >
+    // Plain native GET form submission — no client-side router, no onClick
+    // handler, no JS event wiring of any kind. A form's submit button click
+    // is handled entirely by the browser's built-in form-submission
+    // machinery, which cannot silently fail to fire the way a React
+    // synthetic-event listener could if hydration didn't attach correctly.
+    <form method="get" action={href} style={{ margin: 0 }}>
+      <button
+        type="submit"
+        style={{
+          all: "unset",
+          cursor: "pointer",
+          display: "block",
+          width: "100%",
+          boxSizing: "border-box",
+          textAlign: "left",
+          color: "inherit",
+          border: "1px solid #d9d9d9",
+          borderRadius: "8px",
+          padding: "12px",
+          background: "#ffffff",
+        }}
+      >
       <div
         style={{
           background: "#f1f1f1",
@@ -320,7 +313,8 @@ function ReelCard({ reel }: { reel: Reel }) {
       <PlainBadge tone={productCount > 0 ? "success" : "neutral"}>
         {productCount > 0 ? `${productCount} tagged` : "Untagged"}
       </PlainBadge>
-    </a>
+      </button>
+    </form>
   );
 }
 
