@@ -256,10 +256,12 @@ export default function ReelsLibrary() {
                         ? "info"
                         : "neutral";
                 const productCount = reel.config.productIds?.length ?? 0;
+                const linkId = `reel-link-${reel.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
                 return (
-                  <s-table-row key={reel.id}>
+                  <s-table-row key={reel.id} clickDelegate={linkId}>
                     <s-table-cell>
                       <Link
+                        id={linkId}
                         to={`/app/reels/${encodeURIComponent(reel.id)}`}
                         style={{ color: "inherit", textDecoration: "underline" }}
                       >
