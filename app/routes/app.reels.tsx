@@ -277,7 +277,7 @@ function ReelCard({ reel }: { reel: Reel }) {
     // but React Router intercepts it client-side to do an in-app SPA
     // transition — keeping the embedded session's query params intact
     // instead of a full page reload that would drop them.
-    <Form method="get" action={href} style={{ margin: 0 }}>
+    <form method="get" action={href} style={{ margin: 0 }}>
       <button
         type="submit"
         style={{
@@ -323,7 +323,7 @@ function ReelCard({ reel }: { reel: Reel }) {
         {productCount > 0 ? `${productCount} tagged` : "Untagged"}
       </PlainBadge>
       </button>
-    </Form>
+    </form>
   );
 }
 

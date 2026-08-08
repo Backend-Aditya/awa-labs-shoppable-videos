@@ -115,14 +115,14 @@ export default function ReelDetail() {
     return (
       <s-page heading="Reel detail — error">
         <s-section>
-          <Form method="get" action="/app/reels" style={{ margin: 0 }}>
+          <form method="get" action="/app/reels" style={{ margin: 0 }}>
             <button
               type="submit"
               style={{ all: "unset", cursor: "pointer", color: "#2c6ecb", textDecoration: "underline" }}
             >
               Back to reels
             </button>
-          </Form>
+          </form>
         </s-section>
         <s-section heading="Something went wrong loading this reel">
           <s-paragraph tone="critical">{loaderError}</s-paragraph>
@@ -144,7 +144,7 @@ export default function ReelDetail() {
   return (
     <s-page heading={reel.title}>
       <s-section>
-        <Form method="get" action="/app/reels" style={{ margin: 0 }}>
+        <form method="get" action="/app/reels" style={{ margin: 0 }}>
           <button
             type="submit"
             style={{
@@ -156,7 +156,7 @@ export default function ReelDetail() {
           >
             Back to reels
           </button>
-        </Form>
+        </form>
       </s-section>
       <s-section heading="Preview">
         {reel.config.cloudflareStreamUid ? (

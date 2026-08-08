@@ -1,5 +1,5 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { Form, useLoaderData } from "react-router";
+import { useLoaderData } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { getOrCreateShop } from "../models/shop.server";
@@ -38,7 +38,7 @@ function NavCard({
   description: string;
 }) {
   return (
-    <Form method="get" action={to} style={{ margin: 0 }}>
+    <form method="get" action={to} style={{ margin: 0 }}>
       <button
         type="submit"
         style={{
@@ -58,7 +58,7 @@ function NavCard({
         <div style={{ fontWeight: 600, marginBottom: "6px" }}>{heading}</div>
         <div style={{ color: "#6b6b6b" }}>{description}</div>
       </button>
-    </Form>
+    </form>
   );
 }
 
