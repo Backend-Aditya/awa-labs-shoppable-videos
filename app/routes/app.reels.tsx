@@ -260,7 +260,16 @@ function ReelCard({ reel }: { reel: Reel }) {
           ? "info"
           : "neutral";
   const productCount = reel.config.productIds?.length ?? 0;
-  const href = `/app/reels/${encodeURIComponent(reel.id)}`;
+  // Route uses just the trailing numeric id, not the full GID — a raw GID
+  // (gid://shopify/Metaobject/123) contains ':' and '/' characters that,
+  // even percent-encoded, get decoded back into real path separators
+  // somewhere in Shopify's embedded-app iframe/proxy layer, splitting what
+  // should be one URL segment into several and silently missing the
+  // single-segment $id route (confirmed live: it falls through to the
+  // reels list instead of erroring, which is why this looked like "nothing
+  // happens" rather than a 404).
+  const numericId = reel.id.split("/").pop();
+  const href = `/app/reels/${numericId}`;
 
   return (
     // React Router's Form: submit is handled by native browser form

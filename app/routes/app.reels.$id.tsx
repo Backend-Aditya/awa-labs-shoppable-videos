@@ -17,9 +17,16 @@ const REEL_STATUS_LABELS: Record<string, string> = {
   failed: "Failed",
 };
 
+// The route param is the trailing numeric id only (see app.reels.tsx's
+// href construction) — the full GID is reconstructed here, server-side,
+// so the URL never has to carry ':' or '/' characters.
+function toReelGid(numericId: string): string {
+  return `gid://shopify/Metaobject/${numericId}`;
+}
+
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { admin } = await authenticate.admin(request);
-  const reel = await getReel(admin, params.id!);
+  const reel = await getReel(admin, toReelGid(params.id!));
   if (!reel) {
     throw new Response("Reel not found", { status: 404 });
   }
@@ -32,7 +39,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   const formData = await request.formData();
   const intent = formData.get("intent");
 
-  const reel = await getReel(admin, params.id!);
+  const reel = await getReel(admin, toReelGid(params.id!));
   if (!reel) {
     throw new Response("Reel not found", { status: 404 });
   }
