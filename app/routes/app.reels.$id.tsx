@@ -25,13 +25,31 @@ function toReelGid(numericId: string): string {
 }
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
-  const { admin } = await authenticate.admin(request);
-  const reel = await getReel(admin, toReelGid(params.id!));
-  if (!reel) {
-    throw new Response("Reel not found", { status: 404 });
+  // Temporary diagnostic wrapper: surface ANY failure visibly on the page
+  // instead of letting it fall into Shopify's bare-div error boundary
+  // (which renders as near-invisible unstyled text — easy to mistake for
+  // "the page did nothing"). Once navigation is confirmed working, this
+  // can be simplified back to letting errors throw normally.
+  try {
+    const { admin } = await authenticate.admin(request);
+    const reel = await getReel(admin, toReelGid(params.id!));
+    if (!reel) {
+      return {
+        loaderError: `No reel found for id "${params.id}" (looked up as ${toReelGid(params.id!)})`,
+        reel: null,
+        taggedProducts: [],
+      };
+    }
+    const taggedProducts = await getProductsByIds(admin, reel.config.productIds);
+    return { loaderError: null, reel, taggedProducts };
+  } catch (e) {
+    if (e instanceof Response) throw e;
+    return {
+      loaderError: e instanceof Error ? `${e.name}: ${e.message}` : String(e),
+      reel: null,
+      taggedProducts: [],
+    };
   }
-  const taggedProducts = await getProductsByIds(admin, reel.config.productIds);
-  return { reel, taggedProducts };
 };
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
@@ -69,20 +87,11 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 };
 
 export default function ReelDetail() {
-  const { reel, taggedProducts } = useLoaderData<typeof loader>();
+  const { loaderError, reel, taggedProducts } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting =
     navigation.formData?.get("intent") == null && navigation.state === "submitting";
-  const status = deriveReelStatus(reel.config);
-  const statusTone =
-    status === "ready"
-      ? "success"
-      : status === "failed"
-        ? "critical"
-        : status === "processing"
-          ? "info"
-          : "neutral";
   const shopify = useAppBridge();
   const productsFetcher = useFetcher<typeof action>();
 
@@ -101,6 +110,36 @@ export default function ReelDetail() {
     }
     productsFetcher.submit(formData, { method: "post" });
   };
+
+  if (!reel) {
+    return (
+      <s-page heading="Reel detail — error">
+        <s-section>
+          <Form method="get" action="/app/reels" style={{ margin: 0 }}>
+            <button
+              type="submit"
+              style={{ all: "unset", cursor: "pointer", color: "#2c6ecb", textDecoration: "underline" }}
+            >
+              Back to reels
+            </button>
+          </Form>
+        </s-section>
+        <s-section heading="Something went wrong loading this reel">
+          <s-paragraph tone="critical">{loaderError}</s-paragraph>
+        </s-section>
+      </s-page>
+    );
+  }
+
+  const status = deriveReelStatus(reel.config);
+  const statusTone =
+    status === "ready"
+      ? "success"
+      : status === "failed"
+        ? "critical"
+        : status === "processing"
+          ? "info"
+          : "neutral";
 
   return (
     <s-page heading={reel.title}>
