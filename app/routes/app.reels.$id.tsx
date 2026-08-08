@@ -97,7 +97,7 @@ export default function ReelDetail() {
 
   return (
     <s-page heading={reel.title}>
-      <s-link href="/app/reels">Back to reels</s-link>
+      <a href="/app/reels">Back to reels</a>
       <s-section heading="Preview">
         {reel.config.cloudflareStreamUid ? (
           <iframe

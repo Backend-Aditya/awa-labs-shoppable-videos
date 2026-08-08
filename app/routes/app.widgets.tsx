@@ -93,13 +93,15 @@ export default function Widgets() {
             </s-table-header-row>
             <s-table-body>
               {widgets.map((widget) => {
-                const linkId = `widget-link-${widget.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
                 return (
-                <s-table-row key={widget.id} clickDelegate={linkId}>
+                <s-table-row key={widget.id}>
                   <s-table-cell>
-                    <s-link id={linkId} href={`/app/widgets/${encodeURIComponent(widget.id)}`}>
+                    <a
+                      href={`/app/widgets/${encodeURIComponent(widget.id)}`}
+                      style={{ color: "inherit", textDecoration: "underline" }}
+                    >
                       {widget.name}
-                    </s-link>
+                    </a>
                   </s-table-cell>
                   <s-table-cell>{widget.type}</s-table-cell>
                   <s-table-cell>
