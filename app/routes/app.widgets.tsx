@@ -49,7 +49,7 @@ function WidgetCard({ widget }: { widget: Widget }) {
   const href = `/app/widgets/${encodeURIComponent(widget.id)}`;
 
   return (
-    <form method="get" action={href} style={{ margin: 0 }}>
+    <Form method="get" action={href} style={{ margin: 0 }}>
       <button
         type="submit"
         style={{
@@ -82,7 +82,7 @@ function WidgetCard({ widget }: { widget: Widget }) {
           {widget.published ? "Published" : "Draft"}
         </span>
       </button>
-    </form>
+    </Form>
   );
 }
 

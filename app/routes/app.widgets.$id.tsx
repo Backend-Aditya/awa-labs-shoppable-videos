@@ -98,7 +98,7 @@ export default function WidgetDetail() {
   return (
     <s-page heading={widget.name}>
       <s-section>
-        <form method="get" action="/app/widgets" style={{ margin: 0 }}>
+        <Form method="get" action="/app/widgets" style={{ margin: 0 }}>
           <button
             type="submit"
             style={{
@@ -110,7 +110,7 @@ export default function WidgetDetail() {
           >
             Back to widgets
           </button>
-        </form>
+        </Form>
       </s-section>
       <s-section heading="Details">
         <s-stack gap="base">

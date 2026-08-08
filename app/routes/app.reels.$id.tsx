@@ -98,7 +98,7 @@ export default function ReelDetail() {
   return (
     <s-page heading={reel.title}>
       <s-section>
-        <form method="get" action="/app/reels" style={{ margin: 0 }}>
+        <Form method="get" action="/app/reels" style={{ margin: 0 }}>
           <button
             type="submit"
             style={{
@@ -110,7 +110,7 @@ export default function ReelDetail() {
           >
             Back to reels
           </button>
-        </form>
+        </Form>
       </s-section>
       <s-section heading="Preview">
         {reel.config.cloudflareStreamUid ? (

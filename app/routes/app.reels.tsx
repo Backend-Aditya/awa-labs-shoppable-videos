@@ -263,12 +263,12 @@ function ReelCard({ reel }: { reel: Reel }) {
   const href = `/app/reels/${encodeURIComponent(reel.id)}`;
 
   return (
-    // Plain native GET form submission — no client-side router, no onClick
-    // handler, no JS event wiring of any kind. A form's submit button click
-    // is handled entirely by the browser's built-in form-submission
-    // machinery, which cannot silently fail to fire the way a React
-    // synthetic-event listener could if hydration didn't attach correctly.
-    <form method="get" action={href} style={{ margin: 0 }}>
+    // React Router's Form: submit is handled by native browser form
+    // machinery (reliable even if a plain onClick handler failed to attach),
+    // but React Router intercepts it client-side to do an in-app SPA
+    // transition — keeping the embedded session's query params intact
+    // instead of a full page reload that would drop them.
+    <Form method="get" action={href} style={{ margin: 0 }}>
       <button
         type="submit"
         style={{
@@ -314,7 +314,7 @@ function ReelCard({ reel }: { reel: Reel }) {
         {productCount > 0 ? `${productCount} tagged` : "Untagged"}
       </PlainBadge>
       </button>
-    </form>
+    </Form>
   );
 }
 
