@@ -93,7 +93,7 @@ export default function Widgets() {
             </s-table-header-row>
             <s-table-body>
               {widgets.map((widget) => {
-                const linkId = `widget-link-${widget.id}`;
+                const linkId = `widget-link-${widget.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
                 return (
                 <s-table-row key={widget.id} clickDelegate={linkId}>
                   <s-table-cell>
