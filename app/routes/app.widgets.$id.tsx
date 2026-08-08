@@ -3,7 +3,7 @@ import type {
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
-import { Form, Link, redirect, useActionData, useFetcher, useLoaderData, useNavigation } from "react-router";
+import { Form, redirect, useActionData, useFetcher, useLoaderData, useNavigate, useNavigation } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { useAppBridge } from "@shopify/app-bridge-react";
@@ -64,6 +64,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 export default function WidgetDetail() {
   const { widget } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
+  const navigate = useNavigate();
   const navigation = useNavigation();
   const isSubmitting =
     navigation.formData?.get("intent") == null &&
@@ -98,7 +99,15 @@ export default function WidgetDetail() {
   return (
     <s-page heading={widget.name}>
       <s-section>
-        <Link to="/app/widgets">Back to widgets</Link>
+        <a
+          href="/app/widgets"
+          onClick={(e) => {
+            e.preventDefault();
+            navigate("/app/widgets");
+          }}
+        >
+          Back to widgets
+        </a>
       </s-section>
       <s-section heading="Details">
         <s-stack gap="base">

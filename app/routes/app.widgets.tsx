@@ -3,12 +3,13 @@ import type {
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
-import { Form, Link, useActionData, useLoaderData, useNavigation } from "react-router";
+import { Form, useActionData, useLoaderData, useNavigate, useNavigation } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { getOrCreateShop } from "../models/shop.server";
 import { createWidget, listWidgetsForShop } from "../models/widget.server";
 import type { WidgetKind } from "../models/widget.server";
+import type { Widget } from "@prisma/client";
 
 const WIDGET_KINDS: WidgetKind[] = [
   "PRODUCT_PAGE_REELS",
@@ -44,14 +45,72 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   return { error: null };
 };
 
+function WidgetCard({ widget }: { widget: Widget }) {
+  const navigate = useNavigate();
+  const href = `/app/widgets/${encodeURIComponent(widget.id)}`;
+
+  return (
+    <a
+      href={href}
+      onClick={(e) => {
+        e.preventDefault();
+        navigate(href);
+      }}
+      style={{
+        textDecoration: "none",
+        color: "inherit",
+        cursor: "pointer",
+        display: "block",
+        border: "1px solid #d9d9d9",
+        borderRadius: "8px",
+        padding: "12px",
+        background: "#ffffff",
+      }}
+    >
+      <div style={{ fontWeight: 600, marginBottom: "6px" }}>{widget.name}</div>
+      <div style={{ color: "#6b6b6b", marginBottom: "8px" }}>{widget.type}</div>
+      <span
+        style={{
+          display: "inline-block",
+          padding: "2px 8px",
+          borderRadius: "999px",
+          fontSize: "12px",
+          fontWeight: 500,
+          background: widget.published ? "#d1f7dc" : "#e5e5e5",
+          color: widget.published ? "#0a6640" : "#444444",
+        }}
+      >
+        {widget.published ? "Published" : "Draft"}
+      </span>
+    </a>
+  );
+}
+
 export default function Widgets() {
   const { widgets } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
+  const publishedCount = widgets.filter((w) => w.published).length;
 
   return (
     <s-page heading="Widgets">
+      <s-section>
+        <s-stack direction="inline" gap="base">
+          <s-box padding="base" background="subdued" borderRadius="base" minInlineSize="140px">
+            <s-stack gap="small-200">
+              <s-text color="subdued">Total widgets</s-text>
+              <s-heading>{widgets.length}</s-heading>
+            </s-stack>
+          </s-box>
+          <s-box padding="base" background="subdued" borderRadius="base" minInlineSize="140px">
+            <s-stack gap="small-200">
+              <s-text color="subdued">Published</s-text>
+              <s-heading>{publishedCount}</s-heading>
+            </s-stack>
+          </s-box>
+        </s-stack>
+      </s-section>
       <s-section heading="Create a widget">
         {actionData?.error && (
           <s-paragraph tone="critical">{actionData.error}</s-paragraph>
@@ -85,35 +144,17 @@ export default function Widgets() {
         {widgets.length === 0 ? (
           <s-paragraph>No widgets yet. Create your first one above.</s-paragraph>
         ) : (
-          <s-table variant="list">
-            <s-table-header-row>
-              <s-table-header listSlot="primary">Name</s-table-header>
-              <s-table-header listSlot="labeled">Type</s-table-header>
-              <s-table-header listSlot="inline">Status</s-table-header>
-            </s-table-header-row>
-            <s-table-body>
-              {widgets.map((widget) => {
-                return (
-                <s-table-row key={widget.id}>
-                  <s-table-cell>
-                    <Link
-                      to={`/app/widgets/${encodeURIComponent(widget.id)}`}
-                      style={{ color: "inherit", textDecoration: "underline" }}
-                    >
-                      {widget.name}
-                    </Link>
-                  </s-table-cell>
-                  <s-table-cell>{widget.type}</s-table-cell>
-                  <s-table-cell>
-                    <s-badge tone={widget.published ? "success" : "neutral"}>
-                      {widget.published ? "Published" : "Draft"}
-                    </s-badge>
-                  </s-table-cell>
-                </s-table-row>
-                );
-              })}
-            </s-table-body>
-          </s-table>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+              gap: "12px",
+            }}
+          >
+            {widgets.map((widget) => (
+              <WidgetCard key={widget.id} widget={widget} />
+            ))}
+          </div>
         )}
       </s-section>
     </s-page>
