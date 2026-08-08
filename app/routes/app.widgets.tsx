@@ -92,10 +92,12 @@ export default function Widgets() {
               <s-table-header listSlot="inline">Status</s-table-header>
             </s-table-header-row>
             <s-table-body>
-              {widgets.map((widget) => (
-                <s-table-row key={widget.id}>
+              {widgets.map((widget) => {
+                const linkId = `widget-link-${widget.id}`;
+                return (
+                <s-table-row key={widget.id} clickDelegate={linkId}>
                   <s-table-cell>
-                    <s-link href={`/app/widgets/${encodeURIComponent(widget.id)}`}>
+                    <s-link id={linkId} href={`/app/widgets/${encodeURIComponent(widget.id)}`}>
                       {widget.name}
                     </s-link>
                   </s-table-cell>
@@ -106,7 +108,8 @@ export default function Widgets() {
                     </s-badge>
                   </s-table-cell>
                 </s-table-row>
-              ))}
+                );
+              })}
             </s-table-body>
           </s-table>
         )}
