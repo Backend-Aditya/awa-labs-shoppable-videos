@@ -3,7 +3,7 @@ import type {
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
-import { Form, useActionData, useLoaderData, useNavigate, useNavigation } from "react-router";
+import { Form, useActionData, useLoaderData, useNavigation } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { getOrCreateShop } from "../models/shop.server";
@@ -45,16 +45,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   return { error: null };
 };
 
+function openStandalone(href: string) {
+  window.open(window.location.origin + href + window.location.search, "_blank");
+}
+
 function WidgetCard({ widget }: { widget: Widget }) {
-  const navigate = useNavigate();
   const href = `/app/widgets/${encodeURIComponent(widget.id)}`;
 
   return (
     <a
       href={href}
+      target="_blank"
+      rel="noopener noreferrer"
       onClick={(e) => {
         e.preventDefault();
-        navigate(href);
+        openStandalone(href);
       }}
       style={{
         textDecoration: "none",

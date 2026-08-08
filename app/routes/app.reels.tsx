@@ -4,7 +4,7 @@ import type {
   LoaderFunctionArgs,
 } from "react-router";
 import { useEffect, useRef, useState } from "react";
-import { Form, useActionData, useFetcher, useLoaderData, useNavigate, useNavigation } from "react-router";
+import { Form, useActionData, useFetcher, useLoaderData, useNavigation } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { deleteReel, generateReelHandle, listReels, updateReelConfig, upsertReel } from "../models/reel.server";
@@ -249,6 +249,16 @@ function PlainBadge({ tone, children }: { tone: string; children: React.ReactNod
   );
 }
 
+function openStandalone(href: string) {
+  // Opens in a fresh browser tab instead of navigating client-side inside
+  // the current embedded iframe. The current tab's query string carries the
+  // live embedded-session params (host/id_token/session/shop), so appending
+  // it to the new tab's URL lets Shopify's own embedded-app bounce logic
+  // authenticate and re-embed the new tab correctly on its own, isolated
+  // from whatever is going on in the current tab's iframe.
+  window.open(window.location.origin + href + window.location.search, "_blank");
+}
+
 function ReelCard({ reel }: { reel: Reel }) {
   const status = deriveReelStatus(reel.config);
   const statusTone =
@@ -260,15 +270,16 @@ function ReelCard({ reel }: { reel: Reel }) {
           ? "info"
           : "neutral";
   const productCount = reel.config.productIds?.length ?? 0;
-  const navigate = useNavigate();
   const href = `/app/reels/${encodeURIComponent(reel.id)}`;
 
   return (
     <a
       href={href}
+      target="_blank"
+      rel="noopener noreferrer"
       onClick={(e) => {
         e.preventDefault();
-        navigate(href);
+        openStandalone(href);
       }}
       style={{
         textDecoration: "none",
