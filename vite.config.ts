@@ -37,7 +37,12 @@ if (host === "localhost") {
 
 export default defineConfig({
   server: {
-    allowedHosts: [host],
+    // The CLI's dev tunnel hostname rotates on every `shopify app dev` restart —
+    // an exact single-hostname allowlist can desync from what Shopify/Cloudflare
+    // actually routes the browser to, and Vite silently 421s every request that
+    // doesn't match (breaking client-side fetch-based navigation, e.g. React
+    // Router's <Link>, with no error surfaced anywhere in the app itself).
+    allowedHosts: [host, ".trycloudflare.com"],
     cors: {
       preflightContinue: true,
     },
