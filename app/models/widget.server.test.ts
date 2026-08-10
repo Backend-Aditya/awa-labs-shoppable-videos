@@ -9,8 +9,41 @@ import {
   getWidget,
   updateWidget,
   updateWidgetTargetRule,
-  syncWidgetConfigMetafield,
+  syncShopWidgetState,
 } from "./widget.server";
+
+// Admin mock that records the variables passed to the metafieldsSet mutation.
+function createRecordingAdmin() {
+  const recorder: { variables?: Record<string, unknown>; callCount: number } = {
+    variables: undefined,
+    callCount: 0,
+  };
+  const admin = {
+    graphql: async (query: string, options?: { variables?: Record<string, unknown> }) => {
+      recorder.callCount += 1;
+      if (query.includes("GetShopId")) {
+        return { json: async () => ({ data: { shop: { id: "gid://shopify/Shop/1" } } }) };
+      }
+      recorder.variables = options?.variables;
+      return { json: async () => ({ data: { metafieldsSet: { userErrors: [] } } }) };
+    },
+  };
+  return { admin, recorder };
+}
+
+function expectedMetafields(value: unknown) {
+  return {
+    metafields: [
+      {
+        ownerId: "gid://shopify/Shop/1",
+        namespace: "$app",
+        key: "product_page_reels_widget",
+        type: "json",
+        value: JSON.stringify(value),
+      },
+    ],
+  };
+}
 
 describe("widget.server", () => {
   beforeEach(async () => {
@@ -278,62 +311,135 @@ describe("widget.server", () => {
       ],
     });
   });
-});
 
-describe("syncWidgetConfigMetafield", () => {
-  it("writes a shop-level $app metafield with published state and targetRule", async () => {
-    let capturedSetVariables: Record<string, unknown> | undefined;
-    const admin = {
-      graphql: async (query: string, options?: { variables?: Record<string, unknown> }) => {
-        if (query.includes("GetShopId")) {
-          return { json: async () => ({ data: { shop: { id: "gid://shopify/Shop/1" } } }) };
-        }
-        capturedSetVariables = options?.variables;
-        return { json: async () => ({ data: { metafieldsSet: { userErrors: [] } } }) };
-      },
+  describe("shop metafield reflects the live widget, not the widget just touched", () => {
+    async function seedLiveAndDraft(domain: string) {
+      const shop = await getOrCreateShop(domain);
+      const live = await createWidget(shop.id, "PRODUCT_PAGE_REELS", "Live A", {
+        templateStyle: "classic",
+        targetRule: { type: "handles", handles: ["live-product"] },
+      });
+      await setWidgetPublished(live.id, true);
+      const draft = await createWidget(shop.id, "PRODUCT_PAGE_REELS", "Draft B", {
+        templateStyle: "classic",
+        targetRule: { type: "handles", handles: ["draft-product"] },
+      });
+      return { shop, live, draft };
+    }
+
+    const liveValue = {
+      published: true,
+      targetRule: { type: "handles", handles: ["live-product"] },
     };
 
-    await syncWidgetConfigMetafield(admin, {
-      type: "PRODUCT_PAGE_REELS",
-      published: true,
-      config: { templateStyle: "classic", targetRule: { type: "all_products" } },
+    it("renaming an unrelated draft widget does not clobber the live widget's state", async () => {
+      const { draft } = await seedLiveAndDraft("widget-clobber-rename.myshopify.com");
+      const { admin, recorder } = createRecordingAdmin();
+
+      await updateWidget(admin, draft.id, { name: "Draft B renamed" });
+
+      expect(recorder.variables).toEqual(expectedMetafields(liveValue));
     });
 
-    expect(capturedSetVariables).toEqual({
-      metafields: [
-        {
-          ownerId: "gid://shopify/Shop/1",
-          namespace: "$app",
-          key: "product_page_reels_widget",
-          type: "json",
-          value: JSON.stringify({
-            published: true,
-            targetRule: { type: "all_products" },
-          }),
-        },
-      ],
+    it("changing an unrelated draft widget's targetRule does not clobber the live widget's state", async () => {
+      const { draft } = await seedLiveAndDraft("widget-clobber-target.myshopify.com");
+      const { admin, recorder } = createRecordingAdmin();
+
+      await updateWidgetTargetRule(admin, draft.id, {
+        type: "handles",
+        handles: ["some-other-product"],
+      });
+
+      expect(recorder.variables).toEqual(expectedMetafields(liveValue));
+    });
+
+    it("deleting an unrelated draft widget does not clobber the live widget's state", async () => {
+      const { draft } = await seedLiveAndDraft("widget-clobber-delete.myshopify.com");
+      const { admin, recorder } = createRecordingAdmin();
+
+      await deleteWidget(admin, draft.id);
+
+      expect(recorder.variables).toEqual(expectedMetafields(liveValue));
+    });
+
+    it("editing a widget of a different kind does not clobber the live widget's state", async () => {
+      const { shop } = await seedLiveAndDraft("widget-clobber-other-kind.myshopify.com");
+      const carousel = await createWidget(shop.id, "CAROUSEL", "A carousel", {
+        templateStyle: "classic",
+        targetRule: { type: "all_products" },
+      });
+      const { admin, recorder } = createRecordingAdmin();
+
+      await updateWidget(admin, carousel.id, { name: "Renamed carousel", published: true });
+
+      expect(recorder.variables).toEqual(expectedMetafields(liveValue));
     });
   });
+});
 
-  it("does nothing for widget kinds other than PRODUCT_PAGE_REELS", async () => {
-    let callCount = 0;
-    const admin = {
-      graphql: async () => {
-        callCount += 1;
-        return { json: async () => ({ data: {} }) };
-      },
-    };
+describe("syncShopWidgetState", () => {
+  beforeEach(async () => {
+    await prisma.widget.deleteMany();
+    await prisma.shop.deleteMany();
+  });
 
-    await syncWidgetConfigMetafield(admin, {
-      type: "CAROUSEL",
-      published: true,
-      config: { templateStyle: "classic", targetRule: { type: "all_products" } },
+  it("writes a shop-level $app metafield derived from the shop's published PRODUCT_PAGE_REELS widget", async () => {
+    const shop = await getOrCreateShop("sync-state-published.myshopify.com");
+    const widget = await createWidget(shop.id, "PRODUCT_PAGE_REELS", "Live", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
     });
+    await setWidgetPublished(widget.id, true);
+    const { admin, recorder } = createRecordingAdmin();
 
-    expect(callCount).toBe(0);
+    await syncShopWidgetState(admin, shop.id);
+
+    expect(recorder.variables).toEqual(
+      expectedMetafields({ published: true, targetRule: { type: "all_products" } }),
+    );
+  });
+
+  it("writes published:false when the shop has a PRODUCT_PAGE_REELS widget but none published", async () => {
+    const shop = await getOrCreateShop("sync-state-draft.myshopify.com");
+    await createWidget(shop.id, "PRODUCT_PAGE_REELS", "Draft", {
+      templateStyle: "classic",
+      targetRule: { type: "handles", handles: ["x"] },
+    });
+    const { admin, recorder } = createRecordingAdmin();
+
+    await syncShopWidgetState(admin, shop.id);
+
+    expect(recorder.variables).toEqual(
+      expectedMetafields({ published: false, targetRule: { type: "all_products" } }),
+    );
+  });
+
+  it("makes no Shopify calls for a shop with no PRODUCT_PAGE_REELS widget", async () => {
+    const shop = await getOrCreateShop("sync-state-none.myshopify.com");
+    await createWidget(shop.id, "CAROUSEL", "Carousel", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+    });
+    const { admin, recorder } = createRecordingAdmin();
+
+    await syncShopWidgetState(admin, shop.id);
+
+    expect(recorder.callCount).toBe(0);
+  });
+
+  it("writes published:false anyway when forced (e.g. the last reels widget was just deleted)", async () => {
+    const shop = await getOrCreateShop("sync-state-forced.myshopify.com");
+    const { admin, recorder } = createRecordingAdmin();
+
+    await syncShopWidgetState(admin, shop.id, { force: true });
+
+    expect(recorder.variables).toEqual(
+      expectedMetafields({ published: false, targetRule: { type: "all_products" } }),
+    );
   });
 
   it("throws if the metafieldsSet mutation returns userErrors", async () => {
+    const shop = await getOrCreateShop("sync-state-errors.myshopify.com");
     const admin = {
       graphql: async (query: string) => {
         if (query.includes("GetShopId")) {
@@ -352,11 +458,7 @@ describe("syncWidgetConfigMetafield", () => {
     };
 
     await expect(
-      syncWidgetConfigMetafield(admin, {
-        type: "PRODUCT_PAGE_REELS",
-        published: false,
-        config: { templateStyle: "classic", targetRule: { type: "all_products" } },
-      }),
+      syncShopWidgetState(admin, shop.id, { force: true }),
     ).rejects.toThrow("bad value");
   });
 });

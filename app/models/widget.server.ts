@@ -41,6 +41,9 @@ export async function listWidgetsForShop(shopId: string): Promise<Widget[]> {
   });
 }
 
+// Test-only helper: flips `published` directly without enforcing the
+// one-published-widget-per-type invariant and without syncing the shop
+// metafield. Production code must go through `updateWidget` instead.
 export async function setWidgetPublished(
   id: string,
   published: boolean,
@@ -52,7 +55,12 @@ export async function deleteWidget(admin: AdminGraphqlClient, id: string): Promi
   const existing = await prisma.widget.findUnique({ where: { id } });
   await prisma.widget.delete({ where: { id } });
   if (existing) {
-    await syncWidgetConfigMetafield(admin, { ...existing, published: false });
+    // Force the sync when the deleted widget was the reels widget: after the
+    // delete the shop may have no PRODUCT_PAGE_REELS rows left at all, and we
+    // still need to clear any metafield the deleted widget had written.
+    await syncShopWidgetState(admin, existing.shopId, {
+      force: existing.type === "PRODUCT_PAGE_REELS",
+    });
   }
 }
 
@@ -80,16 +88,17 @@ export async function updateWidget(
       },
     });
     for (const sibling of siblings) {
-      const unpublished = await prisma.widget.update({
+      await prisma.widget.update({
         where: { id: sibling.id },
         data: { published: false },
       });
-      await syncWidgetConfigMetafield(admin, unpublished);
     }
   }
 
   const widget = await prisma.widget.update({ where: { id }, data: updates });
-  await syncWidgetConfigMetafield(admin, widget);
+  // Single sync after all DB writes — it re-derives from the DB, so the
+  // sibling unpublishes above don't need their own sync calls.
+  await syncShopWidgetState(admin, widget.shopId);
   return widget;
 }
 
@@ -106,7 +115,7 @@ export async function updateWidgetTargetRule(
     where: { id },
     data: { config: mergedConfig as unknown as Prisma.InputJsonValue },
   });
-  await syncWidgetConfigMetafield(admin, widget);
+  await syncShopWidgetState(admin, widget.shopId);
   return widget;
 }
 
@@ -127,23 +136,49 @@ async function getShopGid(admin: AdminGraphqlClient): Promise<string> {
   return json.data.shop.id;
 }
 
-// Mirrors Widget.published/config.targetRule into a shop-level metafield so
-// the storefront Liquid block (which has no access to this app's Postgres
-// DB) can read it. Scoped to PRODUCT_PAGE_REELS only — the other widget
-// kinds have no theme implementation yet, so writing a metafield for them
-// would just be dead data no block reads.
-export async function syncWidgetConfigMetafield(
+// Mirrors the shop's *current* PRODUCT_PAGE_REELS state into a shop-level
+// metafield so the storefront Liquid block (which has no access to this
+// app's DB) can read it. Scoped to PRODUCT_PAGE_REELS only — the other
+// widget kinds have no theme implementation yet, so writing a metafield for
+// them would just be dead data no block reads.
+//
+// The value is always DERIVED from the DB (the shop's one published
+// PRODUCT_PAGE_REELS widget, if any) rather than from whichever widget was
+// just written. The metafield is a shop-level singleton, so syncing "the
+// widget that was just touched" would let an edit to an unrelated draft
+// widget clobber the live widget's state.
+//
+// `force` writes the metafield even when the shop has no PRODUCT_PAGE_REELS
+// widgets at all — needed by `deleteWidget`, which may have just removed the
+// last one and still has to clear what it wrote.
+export async function syncShopWidgetState(
   admin: AdminGraphqlClient,
-  widget: Pick<Widget, "type" | "published" | "config">,
+  shopId: string,
+  options: { force?: boolean } = {},
 ): Promise<void> {
-  if (widget.type !== "PRODUCT_PAGE_REELS") return;
+  const live = await prisma.widget.findFirst({
+    where: { shopId, type: "PRODUCT_PAGE_REELS", published: true },
+  });
+
+  if (!live && !options.force) {
+    // Nothing published now — only worth a write if this shop has a
+    // PRODUCT_PAGE_REELS widget whose state could have been mirrored before.
+    // A shop that has never had one has no metafield to correct, so skip the
+    // Shopify round-trips entirely.
+    const everReels = await prisma.widget.count({
+      where: { shopId, type: "PRODUCT_PAGE_REELS" },
+    });
+    if (everReels === 0) return;
+  }
+
+  const value: WidgetMetafieldValue = live
+    ? {
+        published: true,
+        targetRule: (live.config as unknown as WidgetConfig).targetRule,
+      }
+    : { published: false, targetRule: { type: "all_products" } };
 
   const shopGid = await getShopGid(admin);
-  const config = widget.config as unknown as WidgetConfig;
-  const value: WidgetMetafieldValue = {
-    published: widget.published,
-    targetRule: config.targetRule,
-  };
 
   const response = await admin.graphql(
     `#graphql
