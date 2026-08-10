@@ -5,12 +5,25 @@ import type {
 } from "react-router";
 import { useEffect, useRef, useState } from "react";
 import { Form, useActionData, useFetcher, useLoaderData, useNavigation } from "react-router";
+import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { deleteReel, generateReelHandle, listReels, updateReelConfig, upsertReel } from "../models/reel.server";
+import {
+  deleteReel,
+  generateReelHandle,
+  listReels,
+  updateReelConfig,
+  upsertReel,
+} from "../models/reel.server";
 import type { Reel } from "../models/reel.server";
 import { deriveReelStatus } from "../models/reel-status";
 import { createDirectUploadUrl, getCloudflareConfig } from "../models/cloudflare-stream.server";
+
+// Route param is the trailing numeric id only — a raw GID (gid://shopify/Metaobject/123)
+// contains ':' and '/' characters that break single-segment routing/URLs.
+function reelNumericId(reel: Reel): string {
+  return reel.id.split("/").pop()!;
+}
 
 const REEL_STATUS_LABELS: Record<string, string> = {
   draft: "No video",
@@ -55,11 +68,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       });
 
       try {
-        const { uploadURL } = await createDirectUploadUrl(
+        const { uid, uploadURL } = await createDirectUploadUrl(
           getCloudflareConfig(),
           3600,
           { reelId: reel.id, shop: session.shop },
         );
+
+        // Record the stream uid as soon as it exists, not just when the
+        // "ready" webhook fires — that webhook depends on a notificationUrl
+        // registered against this app's public URL, which in dev points at
+        // a Cloudflare tunnel hostname that rotates on every restart. Without
+        // this, an otherwise-successful upload leaves config.cloudflareStreamUid
+        // unset forever and the preview never appears, regardless of whether
+        // the video actually finished processing.
+        await updateReelConfig(admin, reel.id, { cloudflareStreamUid: uid });
 
         return { error: null, uploadURL, reelId: reel.id };
       } catch {
@@ -249,7 +271,7 @@ function PlainBadge({ tone, children }: { tone: string; children: React.ReactNod
   );
 }
 
-function ReelCard({ reel }: { reel: Reel }) {
+function ReelCard({ reel, onOpen }: { reel: Reel; onOpen: (reel: Reel) => void }) {
   const status = deriveReelStatus(reel.config);
   const statusTone =
     status === "ready"
@@ -260,40 +282,31 @@ function ReelCard({ reel }: { reel: Reel }) {
           ? "info"
           : "neutral";
   const productCount = reel.config.productIds?.length ?? 0;
-  // Route uses just the trailing numeric id, not the full GID — a raw GID
-  // (gid://shopify/Metaobject/123) contains ':' and '/' characters that,
-  // even percent-encoded, get decoded back into real path separators
-  // somewhere in Shopify's embedded-app iframe/proxy layer, splitting what
-  // should be one URL segment into several and silently missing the
-  // single-segment $id route (confirmed live: it falls through to the
-  // reels list instead of erroring, which is why this looked like "nothing
-  // happens" rather than a 404).
-  const numericId = reel.id.split("/").pop();
-  const href = `/app/reels/${numericId}`;
 
   return (
-    // React Router's Form: submit is handled by native browser form
-    // machinery (reliable even if a plain onClick handler failed to attach),
-    // but React Router intercepts it client-side to do an in-app SPA
-    // transition — keeping the embedded session's query params intact
-    // instead of a full page reload that would drop them.
-    <form method="get" action={href} style={{ margin: 0 }}>
-      <button
-        type="submit"
-        style={{
-          all: "unset",
-          cursor: "pointer",
-          display: "block",
-          width: "100%",
-          boxSizing: "border-box",
-          textAlign: "left",
-          color: "inherit",
-          border: "1px solid #d9d9d9",
-          borderRadius: "8px",
-          padding: "12px",
-          background: "#ffffff",
-        }}
-      >
+    // Opens a popup instead of navigating — full-page navigation inside the
+    // embedded admin iframe repeatedly failed to reach the detail route (see
+    // git history). A click handler that shows an <s-modal> and loads detail
+    // data via useFetcher() sidesteps that: fetcher requests go through
+    // App Bridge's patched fetch(), which attaches a session-token header,
+    // so authenticate.admin() never falls back to needing shop/host params.
+    <button
+      type="button"
+      onClick={() => onOpen(reel)}
+      style={{
+        all: "unset",
+        cursor: "pointer",
+        display: "block",
+        width: "100%",
+        boxSizing: "border-box",
+        textAlign: "left",
+        color: "inherit",
+        border: "1px solid #d9d9d9",
+        borderRadius: "8px",
+        padding: "12px",
+        background: "#ffffff",
+      }}
+    >
       <div
         style={{
           background: "#f1f1f1",
@@ -322,8 +335,181 @@ function ReelCard({ reel }: { reel: Reel }) {
       <PlainBadge tone={productCount > 0 ? "success" : "neutral"}>
         {productCount > 0 ? `${productCount} tagged` : "Untagged"}
       </PlainBadge>
-      </button>
-    </form>
+    </button>
+  );
+}
+
+const MODAL_ID = "reel-detail-modal";
+
+type ReelDetailLoaderData = {
+  loaderError: string | null;
+  reel: Reel | null;
+  taggedProducts: { id: string; title: string }[];
+};
+
+function ReelDetailModal({
+  reel,
+  onClose,
+}: {
+  reel: Reel | null;
+  onClose: () => void;
+}) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const modalRef = useRef<any>(null);
+  const detailFetcher = useFetcher<ReelDetailLoaderData>();
+  const editFetcher = useFetcher<{ error: string | null }>();
+  const productsFetcher = useFetcher<{ error: string | null }>();
+  const deleteFetcher = useFetcher();
+  const shopify = useAppBridge();
+  const href = reel ? `/app/reels/${reelNumericId(reel)}` : null;
+
+  useEffect(() => {
+    if (href) {
+      modalRef.current?.showOverlay();
+      detailFetcher.load(href);
+    } else {
+      modalRef.current?.hideOverlay();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [href]);
+
+  useEffect(() => {
+    if (href && editFetcher.state === "idle" && editFetcher.data) {
+      detailFetcher.load(href);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editFetcher.state, editFetcher.data]);
+
+  useEffect(() => {
+    if (href && productsFetcher.state === "idle" && productsFetcher.data) {
+      detailFetcher.load(href);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productsFetcher.state, productsFetcher.data]);
+
+  const handlePickProducts = async () => {
+    if (!href) return;
+    const selected = await shopify.resourcePicker({
+      type: "product",
+      multiple: true,
+      selectionIds: (detailFetcher.data?.taggedProducts ?? []).map((p) => ({ id: p.id })),
+    });
+    if (!selected) return;
+
+    const formData = new FormData();
+    formData.set("intent", "set-products");
+    for (const product of selected) {
+      formData.append("productId", product.id);
+    }
+    productsFetcher.submit(formData, { method: "post", action: href });
+  };
+
+  const data = detailFetcher.data;
+  const detailReel = data?.reel ?? null;
+  const status = detailReel ? deriveReelStatus(detailReel.config) : null;
+  const statusTone =
+    status === "ready"
+      ? "success"
+      : status === "failed"
+        ? "critical"
+        : status === "processing"
+          ? "info"
+          : "neutral";
+
+  return (
+    <s-modal id={MODAL_ID} heading={reel?.title ?? "Reel"} ref={modalRef} onHide={onClose}>
+      {!data ? (
+        <s-paragraph>Loading…</s-paragraph>
+      ) : data.loaderError ? (
+        <s-paragraph tone="critical">{data.loaderError}</s-paragraph>
+      ) : detailReel ? (
+        <s-stack gap="base">
+          {detailReel.config.cloudflareStreamUid ? (
+            <iframe
+              src={`https://iframe.videodelivery.net/${encodeURIComponent(detailReel.config.cloudflareStreamUid)}`}
+              title={`Preview of ${detailReel.title}`}
+              style={{ border: "none", aspectRatio: "9 / 16", width: "100%", maxWidth: "220px" }}
+              allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
+              allowFullScreen
+            ></iframe>
+          ) : (
+            <s-paragraph>No video uploaded yet.</s-paragraph>
+          )}
+          <s-paragraph>
+            Status: <s-badge tone={statusTone}>{status ? REEL_STATUS_LABELS[status] : ""}</s-badge>
+          </s-paragraph>
+
+          {editFetcher.data?.error && (
+            <s-paragraph tone="critical">{editFetcher.data.error}</s-paragraph>
+          )}
+          <editFetcher.Form method="post" action={href!}>
+            <s-stack gap="base">
+              <s-text-field
+                label="Title"
+                name="title"
+                defaultValue={detailReel.title}
+                required
+              ></s-text-field>
+              <s-checkbox
+                label="Published"
+                name="published"
+                defaultChecked={detailReel.published}
+              ></s-checkbox>
+              <s-button
+                type="submit"
+                variant="primary"
+                {...(editFetcher.state !== "idle" ? { loading: true } : {})}
+              >
+                Save
+              </s-button>
+            </s-stack>
+          </editFetcher.Form>
+
+          <s-stack gap="base">
+            {productsFetcher.data?.error && (
+              <s-paragraph tone="critical">{productsFetcher.data.error}</s-paragraph>
+            )}
+            {data.taggedProducts.length === 0 ? (
+              <s-paragraph>No products tagged yet.</s-paragraph>
+            ) : (
+              <s-stack gap="small">
+                {data.taggedProducts.map((product) => (
+                  <s-paragraph key={product.id}>{product.title}</s-paragraph>
+                ))}
+              </s-stack>
+            )}
+            <s-button
+              onClick={handlePickProducts}
+              {...(productsFetcher.state !== "idle" ? { loading: true } : {})}
+            >
+              {data.taggedProducts.length === 0 ? "Tag products" : "Edit tagged products"}
+            </s-button>
+          </s-stack>
+        </s-stack>
+      ) : null}
+      <deleteFetcher.Form
+        method="post"
+        action={href ?? undefined}
+        slot="primary-action"
+        onSubmit={(e) => {
+          if (!confirm("Delete this reel? This can't be undone.")) {
+            e.preventDefault();
+            return;
+          }
+          onClose();
+        }}
+      >
+        <input type="hidden" name="intent" value="delete" />
+        <s-button
+          type="submit"
+          variant="secondary"
+          tone="critical"
+          {...(deleteFetcher.state !== "idle" ? { loading: true } : {})}
+        >
+          Delete reel
+        </s-button>
+      </deleteFetcher.Form>
+    </s-modal>
   );
 }
 
@@ -332,6 +518,10 @@ export default function ReelsLibrary() {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
+  const [selectedReelId, setSelectedReelId] = useState<string | null>(null);
+  // Re-derived from the live `reels` list (not stored as its own object) so
+  // the modal reflects fresh data automatically after the list revalidates.
+  const selectedReel = reels.find((r) => r.id === selectedReelId) ?? null;
 
   const publishedCount = reels.filter((r) => r.published).length;
   const readyCount = reels.filter(
@@ -382,11 +572,12 @@ export default function ReelsLibrary() {
             }}
           >
             {reels.map((reel) => (
-              <ReelCard key={reel.id} reel={reel} />
+              <ReelCard key={reel.id} reel={reel} onOpen={(r) => setSelectedReelId(r.id)} />
             ))}
           </div>
         )}
       </s-section>
+      <ReelDetailModal reel={selectedReel} onClose={() => setSelectedReelId(null)} />
     </s-page>
   );
 }

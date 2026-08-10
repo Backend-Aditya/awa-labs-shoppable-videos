@@ -9,6 +9,7 @@ import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { deleteReel, getProductsByIds, getReel, syncProductReelMetafields, updateReelConfig, upsertReel } from "../models/reel.server";
 import { deriveReelStatus } from "../models/reel-status";
+import { PreserveSearchParams } from "../components/PreserveSearchParams";
 
 const REEL_STATUS_LABELS: Record<string, string> = {
   draft: "No video",
@@ -145,6 +146,7 @@ export default function ReelDetail() {
     <s-page heading={reel.title}>
       <s-section>
         <form method="get" action="/app/reels" style={{ margin: 0 }}>
+          <PreserveSearchParams />
           <button
             type="submit"
             style={{

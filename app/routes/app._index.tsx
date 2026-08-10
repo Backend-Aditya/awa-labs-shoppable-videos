@@ -6,6 +6,7 @@ import { getOrCreateShop } from "../models/shop.server";
 import { listReels } from "../models/reel.server";
 import { deriveReelStatus } from "../models/reel-status";
 import { listWidgetsForShop } from "../models/widget.server";
+import { PreserveSearchParams } from "../components/PreserveSearchParams";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -39,6 +40,7 @@ function NavCard({
 }) {
   return (
     <form method="get" action={to} style={{ margin: 0 }}>
+      <PreserveSearchParams />
       <button
         type="submit"
         style={{

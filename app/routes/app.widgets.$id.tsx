@@ -10,6 +10,7 @@ import { useAppBridge } from "@shopify/app-bridge-react";
 import { getOrCreateShop } from "../models/shop.server";
 import { deleteWidget, getWidget, updateWidget, updateWidgetTargetRule } from "../models/widget.server";
 import type { WidgetConfig } from "../models/widget.server";
+import { PreserveSearchParams } from "../components/PreserveSearchParams";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -99,6 +100,7 @@ export default function WidgetDetail() {
     <s-page heading={widget.name}>
       <s-section>
         <form method="get" action="/app/widgets" style={{ margin: 0 }}>
+          <PreserveSearchParams />
           <button
             type="submit"
             style={{
