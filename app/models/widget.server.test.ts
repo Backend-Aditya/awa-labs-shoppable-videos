@@ -9,6 +9,7 @@ import {
   getWidget,
   updateWidget,
   updateWidgetTargetRule,
+  syncWidgetConfigMetafield,
 } from "./widget.server";
 
 describe("widget.server", () => {
@@ -142,5 +143,86 @@ describe("widget.server", () => {
       templateStyle: "bold",
       targetRule: { type: "all_products" },
     });
+  });
+});
+
+describe("syncWidgetConfigMetafield", () => {
+  it("writes a shop-level $app metafield with published state and targetRule", async () => {
+    let capturedSetVariables: Record<string, unknown> | undefined;
+    const admin = {
+      graphql: async (query: string, options?: { variables?: Record<string, unknown> }) => {
+        if (query.includes("GetShopId")) {
+          return { json: async () => ({ data: { shop: { id: "gid://shopify/Shop/1" } } }) };
+        }
+        capturedSetVariables = options?.variables;
+        return { json: async () => ({ data: { metafieldsSet: { userErrors: [] } } }) };
+      },
+    };
+
+    await syncWidgetConfigMetafield(admin, {
+      type: "PRODUCT_PAGE_REELS",
+      published: true,
+      config: { templateStyle: "classic", targetRule: { type: "all_products" } },
+    });
+
+    expect(capturedSetVariables).toEqual({
+      metafields: [
+        {
+          ownerId: "gid://shopify/Shop/1",
+          namespace: "$app",
+          key: "product_page_reels_widget",
+          type: "json",
+          value: JSON.stringify({
+            published: true,
+            targetRule: { type: "all_products" },
+          }),
+        },
+      ],
+    });
+  });
+
+  it("does nothing for widget kinds other than PRODUCT_PAGE_REELS", async () => {
+    let callCount = 0;
+    const admin = {
+      graphql: async () => {
+        callCount += 1;
+        return { json: async () => ({ data: {} }) };
+      },
+    };
+
+    await syncWidgetConfigMetafield(admin, {
+      type: "CAROUSEL",
+      published: true,
+      config: { templateStyle: "classic", targetRule: { type: "all_products" } },
+    });
+
+    expect(callCount).toBe(0);
+  });
+
+  it("throws if the metafieldsSet mutation returns userErrors", async () => {
+    const admin = {
+      graphql: async (query: string) => {
+        if (query.includes("GetShopId")) {
+          return { json: async () => ({ data: { shop: { id: "gid://shopify/Shop/1" } } }) };
+        }
+        return {
+          json: async () => ({
+            data: {
+              metafieldsSet: {
+                userErrors: [{ field: ["metafields", "0", "value"], message: "bad value" }],
+              },
+            },
+          }),
+        };
+      },
+    };
+
+    await expect(
+      syncWidgetConfigMetafield(admin, {
+        type: "PRODUCT_PAGE_REELS",
+        published: false,
+        config: { templateStyle: "classic", targetRule: { type: "all_products" } },
+      }),
+    ).rejects.toThrow("bad value");
   });
 });

@@ -1,5 +1,7 @@
 import type { Prisma, Widget } from "@prisma/client";
 import prisma from "../db.server";
+import type { AdminGraphqlClient } from "./reel.server";
+import { assertNoGraphqlErrors, throwOnUserErrors } from "./reel.server";
 
 export type WidgetKind =
   | "PRODUCT_PAGE_REELS"
@@ -76,4 +78,65 @@ export async function updateWidgetTargetRule(
     where: { id },
     data: { config: mergedConfig as unknown as Prisma.InputJsonValue },
   });
+}
+
+interface WidgetMetafieldValue {
+  published: boolean;
+  targetRule: WidgetConfig["targetRule"];
+}
+
+async function getShopGid(admin: AdminGraphqlClient): Promise<string> {
+  const response = await admin.graphql(
+    `#graphql
+    query GetShopId {
+      shop { id }
+    }`,
+  );
+  const json = await response.json();
+  assertNoGraphqlErrors(json);
+  return json.data.shop.id;
+}
+
+// Mirrors Widget.published/config.targetRule into a shop-level metafield so
+// the storefront Liquid block (which has no access to this app's Postgres
+// DB) can read it. Scoped to PRODUCT_PAGE_REELS only — the other widget
+// kinds have no theme implementation yet, so writing a metafield for them
+// would just be dead data no block reads.
+export async function syncWidgetConfigMetafield(
+  admin: AdminGraphqlClient,
+  widget: Pick<Widget, "type" | "published" | "config">,
+): Promise<void> {
+  if (widget.type !== "PRODUCT_PAGE_REELS") return;
+
+  const shopGid = await getShopGid(admin);
+  const config = widget.config as unknown as WidgetConfig;
+  const value: WidgetMetafieldValue = {
+    published: widget.published,
+    targetRule: config.targetRule,
+  };
+
+  const response = await admin.graphql(
+    `#graphql
+    mutation SetWidgetConfigMetafield($metafields: [MetafieldsSetInput!]!) {
+      metafieldsSet(metafields: $metafields) {
+        userErrors { field message }
+      }
+    }`,
+    {
+      variables: {
+        metafields: [
+          {
+            ownerId: shopGid,
+            namespace: "$app",
+            key: "product_page_reels_widget",
+            type: "json",
+            value: JSON.stringify(value),
+          },
+        ],
+      },
+    },
+  );
+  const json = await response.json();
+  assertNoGraphqlErrors(json);
+  throwOnUserErrors(json.data.metafieldsSet.userErrors);
 }
