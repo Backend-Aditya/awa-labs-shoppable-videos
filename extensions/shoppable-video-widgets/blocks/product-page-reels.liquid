@@ -11,14 +11,27 @@ Liquid at render time, no runtime API call.
 
 {% capture reel_namespace %}{% render 'reel-namespace' %}{% endcapture %}
 {% assign reel_namespace = reel_namespace | strip %}
+
+{% assign widget_field = shop.metafields[reel_namespace].product_page_reels_widget %}
+{% assign widget_matches_product = false %}
+{% if widget_field.value.published %}
+  {% if widget_field.value.targetRule.type == "all_products" %}
+    {% assign widget_matches_product = true %}
+  {% elsif widget_field.value.targetRule.type == "handles" and widget_field.value.targetRule.handles contains product.handle %}
+    {% assign widget_matches_product = true %}
+  {% endif %}
+{% endif %}
+
 {% assign reels_field = block.settings.product.metafields[reel_namespace].reels %}
 
 {% assign visible_count = 0 %}
-{% for reel in reels_field.value %}
-  {% if reel.published.value and reel.config.value.cloudflareStreamUid != blank and reel.config.value.hlsManifestUrl != blank %}
-    {% assign visible_count = visible_count | plus: 1 %}
-  {% endif %}
-{% endfor %}
+{% if widget_matches_product %}
+  {% for reel in reels_field.value %}
+    {% if reel.published.value and reel.config.value.cloudflareStreamUid != blank and reel.config.value.hlsManifestUrl != blank %}
+      {% assign visible_count = visible_count | plus: 1 %}
+    {% endif %}
+  {% endfor %}
+{% endif %}
 
 {% if visible_count > 0 %}
   <div class="reelup-product-reels" {{ block.shopify_attributes }}>
