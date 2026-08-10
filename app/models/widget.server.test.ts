@@ -174,8 +174,9 @@ describe("widget.server", () => {
       templateStyle: "classic",
       targetRule: { type: "all_products" },
     });
+    const admin = { graphql: async () => ({ json: async () => ({ data: {} }) }) };
 
-    const updated = await updateWidgetTargetRule(widget.id, {
+    const updated = await updateWidgetTargetRule(admin, widget.id, {
       type: "handles",
       handles: ["blue-shirt", "red-hat"],
     });
@@ -192,12 +193,52 @@ describe("widget.server", () => {
       templateStyle: "bold",
       targetRule: { type: "handles", handles: ["old-handle"] },
     });
+    const admin = { graphql: async () => ({ json: async () => ({ data: {} }) }) };
 
-    const updated = await updateWidgetTargetRule(widget.id, { type: "all_products" });
+    const updated = await updateWidgetTargetRule(admin, widget.id, { type: "all_products" });
 
     expect(updated.config).toEqual({
       templateStyle: "bold",
       targetRule: { type: "all_products" },
+    });
+  });
+
+  it("syncs the shop metafield when targetRule changes on a published PRODUCT_PAGE_REELS widget", async () => {
+    const shop = await getOrCreateShop("widget-target-sync.myshopify.com");
+    const widget = await createWidget(shop.id, "PRODUCT_PAGE_REELS", "Synced", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+    });
+    await setWidgetPublished(widget.id, true);
+    let capturedSetVariables: Record<string, unknown> | undefined;
+    const admin = {
+      graphql: async (query: string, options?: { variables?: Record<string, unknown> }) => {
+        if (query.includes("GetShopId")) {
+          return { json: async () => ({ data: { shop: { id: "gid://shopify/Shop/1" } } }) };
+        }
+        capturedSetVariables = options?.variables;
+        return { json: async () => ({ data: { metafieldsSet: { userErrors: [] } } }) };
+      },
+    };
+
+    await updateWidgetTargetRule(admin, widget.id, {
+      type: "handles",
+      handles: ["blue-shirt"],
+    });
+
+    expect(capturedSetVariables).toEqual({
+      metafields: [
+        {
+          ownerId: "gid://shopify/Shop/1",
+          namespace: "$app",
+          key: "product_page_reels_widget",
+          type: "json",
+          value: JSON.stringify({
+            published: true,
+            targetRule: { type: "handles", handles: ["blue-shirt"] },
+          }),
+        },
+      ],
     });
   });
 });

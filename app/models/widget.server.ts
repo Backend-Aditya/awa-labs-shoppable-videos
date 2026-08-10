@@ -90,6 +90,7 @@ export async function updateWidget(
 }
 
 export async function updateWidgetTargetRule(
+  admin: AdminGraphqlClient,
   id: string,
   targetRule: WidgetConfig["targetRule"],
 ): Promise<Widget> {
@@ -97,10 +98,12 @@ export async function updateWidgetTargetRule(
   const existingConfig = existing.config as unknown as WidgetConfig;
   const mergedConfig: WidgetConfig = { ...existingConfig, targetRule };
 
-  return prisma.widget.update({
+  const widget = await prisma.widget.update({
     where: { id },
     data: { config: mergedConfig as unknown as Prisma.InputJsonValue },
   });
+  await syncWidgetConfigMetafield(admin, widget);
+  return widget;
 }
 
 interface WidgetMetafieldValue {
