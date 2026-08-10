@@ -23,7 +23,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const shop = await getOrCreateShop(session.shop);
   const widget = await getWidget(shop.id, params.id!);
   if (!widget) {
@@ -37,17 +37,17 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     const handles = formData.getAll("productHandle").map(String).filter(Boolean);
     const targetRule: WidgetConfig["targetRule"] =
       handles.length > 0 ? { type: "handles", handles } : { type: "all_products" };
-    await updateWidgetTargetRule(widget.id, targetRule);
+    await updateWidgetTargetRule(admin, widget.id, targetRule);
     return { error: null };
   }
 
   if (intent === "clear-target") {
-    await updateWidgetTargetRule(widget.id, { type: "all_products" });
+    await updateWidgetTargetRule(admin, widget.id, { type: "all_products" });
     return { error: null };
   }
 
   if (intent === "delete") {
-    await deleteWidget(widget.id);
+    await deleteWidget(admin, widget.id);
     return redirect("/app/widgets");
   }
 
@@ -58,7 +58,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     return { error: "Name is required" };
   }
 
-  await updateWidget(widget.id, { name, published });
+  await updateWidget(admin, widget.id, { name, published });
   return { error: null };
 };
 

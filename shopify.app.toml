@@ -42,6 +42,15 @@ description = "Reels tagged to this product, referenced by metaobject ID"
   admin = "merchant_read_write"
   storefront = "public_read"
 
+[shop.metafields.app.product_page_reels_widget]
+type = "json"
+name = "Product page reels widget"
+description = "Published state and target rule for the PRODUCT_PAGE_REELS widget"
+
+  [shop.metafields.app.product_page_reels_widget.access]
+  admin = "merchant_read"
+  storefront = "public_read"
+
 [auth]
 redirect_urls = [ "https://example.com/api/auth" ]
 
