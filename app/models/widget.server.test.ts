@@ -89,8 +89,9 @@ describe("widget.server", () => {
       templateStyle: "classic",
       targetRule: { type: "all_products" },
     });
+    const admin = { graphql: async () => ({ json: async () => ({ data: {} }) }) };
 
-    const updated = await updateWidget(widget.id, {
+    const updated = await updateWidget(admin, widget.id, {
       name: "Renamed carousel",
       published: true,
     });
@@ -105,11 +106,66 @@ describe("widget.server", () => {
       templateStyle: "classic",
       targetRule: { type: "all_products" },
     });
+    const admin = { graphql: async () => ({ json: async () => ({ data: {} }) }) };
 
-    const updated = await updateWidget(widget.id, { published: true });
+    const updated = await updateWidget(admin, widget.id, { published: true });
 
     expect(updated.name).toBe("Keep my name");
     expect(updated.published).toBe(true);
+  });
+
+  it("publishing a widget unpublishes another published widget of the same type and shop", async () => {
+    const shop = await getOrCreateShop("widget-exclusive.myshopify.com");
+    const first = await createWidget(shop.id, "PRODUCT_PAGE_REELS", "First", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+    });
+    const second = await createWidget(shop.id, "PRODUCT_PAGE_REELS", "Second", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+    });
+    await updateWidget(
+      { graphql: async () => ({ json: async () => ({ data: { shop: { id: "gid://shopify/Shop/1" }, metafieldsSet: { userErrors: [] } } }) }) },
+      first.id,
+      { published: true },
+    );
+
+    const secondPublishedResult = await updateWidget(
+      { graphql: async () => ({ json: async () => ({ data: { shop: { id: "gid://shopify/Shop/1" }, metafieldsSet: { userErrors: [] } } }) }) },
+      second.id,
+      { published: true },
+    );
+
+    const firstAfter = await getWidget(shop.id, first.id);
+    expect(firstAfter?.published).toBe(false);
+    expect(secondPublishedResult.published).toBe(true);
+  });
+
+  it("publishing a widget does not unpublish a widget of a different type or shop", async () => {
+    const shopA = await getOrCreateShop("widget-exclusive-a.myshopify.com");
+    const shopB = await getOrCreateShop("widget-exclusive-b.myshopify.com");
+    const sameShopDifferentType = await createWidget(shopA.id, "CAROUSEL", "Carousel", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+    });
+    const differentShop = await createWidget(shopB.id, "PRODUCT_PAGE_REELS", "Other shop", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+    });
+    await setWidgetPublished(sameShopDifferentType.id, true);
+    await setWidgetPublished(differentShop.id, true);
+    const target = await createWidget(shopA.id, "PRODUCT_PAGE_REELS", "Target", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+    });
+    const admin = { graphql: async () => ({ json: async () => ({ data: { shop: { id: "gid://shopify/Shop/1" }, metafieldsSet: { userErrors: [] } } }) }) };
+
+    await updateWidget(admin, target.id, { published: true });
+
+    const sameShopDifferentTypeAfter = await getWidget(shopA.id, sameShopDifferentType.id);
+    const differentShopAfter = await getWidget(shopB.id, differentShop.id);
+    expect(sameShopDifferentTypeAfter?.published).toBe(true);
+    expect(differentShopAfter?.published).toBe(true);
   });
 
   it("updates a widget's targetRule to specific product handles", async () => {

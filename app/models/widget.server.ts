@@ -60,10 +60,33 @@ export async function getWidget(
 }
 
 export async function updateWidget(
+  admin: AdminGraphqlClient,
   id: string,
   updates: { name?: string; published?: boolean },
 ): Promise<Widget> {
-  return prisma.widget.update({ where: { id }, data: updates });
+  const current = await prisma.widget.findUniqueOrThrow({ where: { id } });
+
+  if (updates.published === true && !current.published) {
+    const siblings = await prisma.widget.findMany({
+      where: {
+        shopId: current.shopId,
+        type: current.type,
+        published: true,
+        id: { not: id },
+      },
+    });
+    for (const sibling of siblings) {
+      const unpublished = await prisma.widget.update({
+        where: { id: sibling.id },
+        data: { published: false },
+      });
+      await syncWidgetConfigMetafield(admin, unpublished);
+    }
+  }
+
+  const widget = await prisma.widget.update({ where: { id }, data: updates });
+  await syncWidgetConfigMetafield(admin, widget);
+  return widget;
 }
 
 export async function updateWidgetTargetRule(
