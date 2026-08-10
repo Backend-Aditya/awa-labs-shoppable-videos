@@ -35,7 +35,7 @@ export function generateReelHandle(title: string): string {
   return slug ? `${slug}-${suffix}` : `reel-${suffix}`;
 }
 
-function throwOnUserErrors(
+export function throwOnUserErrors(
   userErrors: Array<{ field: string[]; message: string }>,
 ): void {
   if (userErrors.length > 0) {
@@ -43,7 +43,7 @@ function throwOnUserErrors(
   }
 }
 
-function assertNoGraphqlErrors(json: {
+export function assertNoGraphqlErrors(json: {
   data: unknown;
   errors?: Array<{ message: string }>;
 }): void {
