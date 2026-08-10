@@ -56,13 +56,50 @@ describe("widget.server", () => {
       templateStyle: "classic",
       targetRule: { type: "handles", handles: ["a-product"] },
     });
+    const admin = { graphql: async () => ({ json: async () => ({ data: {} }) }) };
 
     const published = await setWidgetPublished(widget.id, true);
     expect(published.published).toBe(true);
 
-    await deleteWidget(widget.id);
+    await deleteWidget(admin, widget.id);
     const remaining = await listWidgetsForShop(shop.id);
     expect(remaining).toHaveLength(0);
+  });
+
+  it("syncs published:false when deleting a published PRODUCT_PAGE_REELS widget", async () => {
+    const shop = await getOrCreateShop("widget-delete-sync.myshopify.com");
+    const widget = await createWidget(shop.id, "PRODUCT_PAGE_REELS", "Deleted", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+    });
+    await setWidgetPublished(widget.id, true);
+    let capturedSetVariables: Record<string, unknown> | undefined;
+    const admin = {
+      graphql: async (query: string, options?: { variables?: Record<string, unknown> }) => {
+        if (query.includes("GetShopId")) {
+          return { json: async () => ({ data: { shop: { id: "gid://shopify/Shop/1" } } }) };
+        }
+        capturedSetVariables = options?.variables;
+        return { json: async () => ({ data: { metafieldsSet: { userErrors: [] } } }) };
+      },
+    };
+
+    await deleteWidget(admin, widget.id);
+
+    expect(capturedSetVariables).toEqual({
+      metafields: [
+        {
+          ownerId: "gid://shopify/Shop/1",
+          namespace: "$app",
+          key: "product_page_reels_widget",
+          type: "json",
+          value: JSON.stringify({
+            published: false,
+            targetRule: { type: "all_products" },
+          }),
+        },
+      ],
+    });
   });
 
   it("gets a widget scoped to its shop, returns null for a different shop or missing id", async () => {

@@ -48,8 +48,12 @@ export async function setWidgetPublished(
   return prisma.widget.update({ where: { id }, data: { published } });
 }
 
-export async function deleteWidget(id: string): Promise<void> {
+export async function deleteWidget(admin: AdminGraphqlClient, id: string): Promise<void> {
+  const existing = await prisma.widget.findUnique({ where: { id } });
   await prisma.widget.delete({ where: { id } });
+  if (existing) {
+    await syncWidgetConfigMetafield(admin, { ...existing, published: false });
+  }
 }
 
 export async function getWidget(
