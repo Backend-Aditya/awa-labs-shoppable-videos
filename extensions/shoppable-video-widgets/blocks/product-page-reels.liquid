@@ -9,10 +9,20 @@ Liquid at render time, no runtime API call.
 
 {{ 'product-page-reels.css' | asset_url | stylesheet_tag }}
 
-{% capture reel_namespace %}{% render 'reel-namespace' %}{% endcapture %}
-{% assign reel_namespace = reel_namespace | strip %}
+{% comment %}
+  Not using {% render 'reel-namespace' %} + capture here: Shopify's theme
+  editor preview wraps app-block-rendered snippet output in
+  "<!-- BEGIN app snippet: ... --> ... <!-- END app snippet -->" comments
+  for its own inspector. `strip` only trims whitespace, not those markers,
+  so a captured render corrupts the namespace string into something that
+  never resolves shop.metafields[...] — confirmed live via a debug dump
+  of the captured value in the theme editor preview. Keep this literal in
+  sync with reel-namespace.liquid (single source of truth for the string).
+{% endcomment %}
+{% assign reel_namespace = 'app--404281098241' %}
 
 {% assign widget_field = shop.metafields[reel_namespace].product_page_reels_widget %}
+
 {% assign widget_matches_product = false %}
 {% if widget_field.value.published %}
   {% if widget_field.value.targetRule.type == "all_products" %}

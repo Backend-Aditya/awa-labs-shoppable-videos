@@ -1,13 +1,13 @@
 {% doc %}
-Outputs this app's resolved metafield namespace for the reel metaobject
-reference. This is the ONE place this magic string appears — every
-block/snippet that needs to read the product's tagged reels captures this
-snippet's output rather than repeating the literal namespace string.
-
-`{% render %}` is scope-isolated in Liquid — a variable `{% assign %}`ed
-inside a rendered snippet does NOT leak back to the caller. So this snippet
-echoes the raw string instead of assigning a variable, and callers capture
-the output into their own local variable.
+Documents this app's resolved metafield namespace for the reel metaobject
+reference. This used to be the ONE place the magic string appeared, with
+callers capturing `{% render %}`'d output into a local variable — but
+Shopify's theme editor preview wraps app-block-rendered snippet output in
+"<!-- BEGIN app snippet: ... --> ... <!-- END app snippet -->" comments for
+its own inspector, which corrupts a captured render into a string that
+never resolves shop/product.metafields[...]. Callers now hardcode the
+literal string directly instead of rendering this snippet — keep them in
+sync with the value below if it ever changes.
 
 Confirmed empirically against a live product on the real storefront during
 planning: product.metafields['app--404281098241'].reels is the working
@@ -15,8 +15,7 @@ access pattern. $app, plain "app", and combined "$app:reels" bracket forms
 were all tried and do NOT resolve — this is not a guess.
 
 @example
-{% capture reel_namespace %}{% render 'reel-namespace' %}{% endcapture %}
-{% assign reel_namespace = reel_namespace | strip %}
+{% assign reel_namespace = 'app--404281098241' %}
 {{ product.metafields[reel_namespace].reels.value }}
 {% enddoc %}
 {%- liquid
