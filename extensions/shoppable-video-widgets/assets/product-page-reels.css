@@ -26,6 +26,7 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  z-index: 0;
 }
 
 .reelup-reel__video {
@@ -43,6 +44,7 @@
 .reelup-reel__play {
   position: absolute;
   inset: 0;
+  z-index: 1;
   margin: auto;
   width: 48px;
   height: 48px;
