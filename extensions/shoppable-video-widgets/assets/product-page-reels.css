@@ -93,7 +93,16 @@
   right: 5%;
   max-width: 90%;
   bottom: 16px;
-  display: flex;
+  /* Grid, not flex: a flex container with overflow-x:auto lets a
+     flex-basis:100% child resolve against a content-driven (auto-expanding)
+     width instead of the container's real visible width, so the "slide"
+     grows to fit its unshrunk content and overflows past the frame edge
+     instead of being capped — confirmed live (card + button clipped off
+     the right edge). grid-auto-columns:100% resolves against the grid
+     container's own definite box instead, avoiding that feedback loop. */
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 100%;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   scroll-behavior: smooth;
@@ -108,7 +117,7 @@
 }
 
 .reelup-reel__product {
-  flex: 0 0 100%;
+  min-width: 0;
   scroll-snap-align: center;
   scroll-snap-stop: always;
   display: flex;
