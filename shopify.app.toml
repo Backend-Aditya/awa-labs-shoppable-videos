@@ -56,6 +56,60 @@ description = "Published state and target rule for the PRODUCT_PAGE_REELS widget
   admin = "merchant_read"
   storefront = "public_read"
 
+[shop.metafields.app.single_video_widget]
+type = "json"
+name = "Single video widget"
+description = "Published state and target rule for the SINGLE_VIDEO widget"
+
+  [shop.metafields.app.single_video_widget.access]
+  admin = "merchant_read"
+  storefront = "public_read"
+
+[shop.metafields.app.single_video_featured_reel]
+type = "metaobject_reference<$app:reel>"
+name = "Single video featured reel"
+description = "The one reel the SINGLE_VIDEO widget plays"
+
+  [shop.metafields.app.single_video_featured_reel.access]
+  admin = "merchant_read"
+  storefront = "public_read"
+
+[shop.metafields.app.stacked_carousel_widget]
+type = "json"
+name = "Stacked carousel widget"
+description = "Published state and target rule for the CAROUSEL widget"
+
+  [shop.metafields.app.stacked_carousel_widget.access]
+  admin = "merchant_read"
+  storefront = "public_read"
+
+[shop.metafields.app.insta_stories_widget]
+type = "json"
+name = "Insta-style stories widget"
+description = "Published state and target rule for the STORIES widget"
+
+  [shop.metafields.app.insta_stories_widget.access]
+  admin = "merchant_read"
+  storefront = "public_read"
+
+[shop.metafields.app.reel_pops_widget]
+type = "json"
+name = "Reel pops widget"
+description = "Published state and target rule for the REEL_POPS widget"
+
+  [shop.metafields.app.reel_pops_widget.access]
+  admin = "merchant_read"
+  storefront = "public_read"
+
+[shop.metafields.app.reel_pops_featured_reel]
+type = "metaobject_reference<$app:reel>"
+name = "Reel pops featured reel"
+description = "The one reel the REEL_POPS floating bubble plays"
+
+  [shop.metafields.app.reel_pops_featured_reel.access]
+  admin = "merchant_read"
+  storefront = "public_read"
+
 [auth]
 redirect_urls = [ "https://example.com/api/auth" ]
 
