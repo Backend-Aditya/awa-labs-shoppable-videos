@@ -9,6 +9,7 @@ import {
   getWidget,
   updateWidget,
   updateWidgetTargetRule,
+  updateWidgetFeaturedReel,
   syncShopWidgetState,
 } from "./widget.server";
 
@@ -89,7 +90,7 @@ describe("widget.server", () => {
       templateStyle: "classic",
       targetRule: { type: "handles", handles: ["a-product"] },
     });
-    const admin = { graphql: async () => ({ json: async () => ({ data: {} }) }) };
+    const { admin } = createRecordingAdmin();
 
     const published = await setWidgetPublished(widget.id, true);
     expect(published.published).toBe(true);
@@ -159,7 +160,7 @@ describe("widget.server", () => {
       templateStyle: "classic",
       targetRule: { type: "all_products" },
     });
-    const admin = { graphql: async () => ({ json: async () => ({ data: {} }) }) };
+    const { admin } = createRecordingAdmin();
 
     const updated = await updateWidget(admin, widget.id, {
       name: "Renamed carousel",
@@ -176,7 +177,7 @@ describe("widget.server", () => {
       templateStyle: "classic",
       targetRule: { type: "all_products" },
     });
-    const admin = { graphql: async () => ({ json: async () => ({ data: {} }) }) };
+    const { admin } = createRecordingAdmin();
 
     const updated = await updateWidget(admin, widget.id, { published: true });
 
@@ -244,7 +245,7 @@ describe("widget.server", () => {
       templateStyle: "classic",
       targetRule: { type: "all_products" },
     });
-    const admin = { graphql: async () => ({ json: async () => ({ data: {} }) }) };
+    const { admin } = createRecordingAdmin();
 
     const updated = await updateWidgetTargetRule(admin, widget.id, {
       type: "handles",
@@ -263,7 +264,7 @@ describe("widget.server", () => {
       templateStyle: "bold",
       targetRule: { type: "handles", handles: ["old-handle"] },
     });
-    const admin = { graphql: async () => ({ json: async () => ({ data: {} }) }) };
+    const { admin } = createRecordingAdmin();
 
     const updated = await updateWidgetTargetRule(admin, widget.id, { type: "all_products" });
 
@@ -362,7 +363,7 @@ describe("widget.server", () => {
       expect(recorder.variables).toEqual(expectedMetafields(liveValue));
     });
 
-    it("editing a widget of a different kind does not clobber the live widget's state", async () => {
+    it("editing a widget of a different kind syncs only that kind's own metafield, not the reels widget's", async () => {
       const { shop } = await seedLiveAndDraft("widget-clobber-other-kind.myshopify.com");
       const carousel = await createWidget(shop.id, "CAROUSEL", "A carousel", {
         templateStyle: "classic",
@@ -372,7 +373,20 @@ describe("widget.server", () => {
 
       await updateWidget(admin, carousel.id, { name: "Renamed carousel", published: true });
 
-      expect(recorder.variables).toEqual(expectedMetafields(liveValue));
+      // Sync is scoped per-kind now, so publishing the carousel writes only
+      // the carousel's own metafield — it never touches (and so can't
+      // clobber) the unrelated live PRODUCT_PAGE_REELS widget's metafield.
+      expect(recorder.variables).toEqual({
+        metafields: [
+          {
+            ownerId: "gid://shopify/Shop/1",
+            namespace: "$app",
+            key: "stacked_carousel_widget",
+            type: "json",
+            value: JSON.stringify({ published: true, targetRule: { type: "all_products" } }),
+          },
+        ],
+      });
     });
   });
 });
@@ -392,7 +406,7 @@ describe("syncShopWidgetState", () => {
     await setWidgetPublished(widget.id, true);
     const { admin, recorder } = createRecordingAdmin();
 
-    await syncShopWidgetState(admin, shop.id);
+    await syncShopWidgetState(admin, shop.id, "PRODUCT_PAGE_REELS");
 
     expect(recorder.variables).toEqual(
       expectedMetafields({ published: true, targetRule: { type: "all_products" } }),
@@ -407,7 +421,7 @@ describe("syncShopWidgetState", () => {
     });
     const { admin, recorder } = createRecordingAdmin();
 
-    await syncShopWidgetState(admin, shop.id);
+    await syncShopWidgetState(admin, shop.id, "PRODUCT_PAGE_REELS");
 
     expect(recorder.variables).toEqual(
       expectedMetafields({ published: false, targetRule: { type: "all_products" } }),
@@ -422,7 +436,7 @@ describe("syncShopWidgetState", () => {
     });
     const { admin, recorder } = createRecordingAdmin();
 
-    await syncShopWidgetState(admin, shop.id);
+    await syncShopWidgetState(admin, shop.id, "PRODUCT_PAGE_REELS");
 
     expect(recorder.callCount).toBe(0);
   });
@@ -431,7 +445,7 @@ describe("syncShopWidgetState", () => {
     const shop = await getOrCreateShop("sync-state-forced.myshopify.com");
     const { admin, recorder } = createRecordingAdmin();
 
-    await syncShopWidgetState(admin, shop.id, { force: true });
+    await syncShopWidgetState(admin, shop.id, "PRODUCT_PAGE_REELS", { force: true });
 
     expect(recorder.variables).toEqual(
       expectedMetafields({ published: false, targetRule: { type: "all_products" } }),
@@ -458,7 +472,141 @@ describe("syncShopWidgetState", () => {
     };
 
     await expect(
-      syncShopWidgetState(admin, shop.id, { force: true }),
+      syncShopWidgetState(admin, shop.id, "PRODUCT_PAGE_REELS", { force: true }),
     ).rejects.toThrow("bad value");
+  });
+
+  it("syncs a different kind to its own metafield key", async () => {
+    const shop = await getOrCreateShop("sync-state-carousel.myshopify.com");
+    const widget = await createWidget(shop.id, "CAROUSEL", "Live carousel", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+    });
+    await setWidgetPublished(widget.id, true);
+    const { admin, recorder } = createRecordingAdmin();
+
+    await syncShopWidgetState(admin, shop.id, "CAROUSEL");
+
+    expect(recorder.variables).toEqual({
+      metafields: [
+        {
+          ownerId: "gid://shopify/Shop/1",
+          namespace: "$app",
+          key: "stacked_carousel_widget",
+          type: "json",
+          value: JSON.stringify({ published: true, targetRule: { type: "all_products" } }),
+        },
+      ],
+    });
+  });
+
+  it("makes no Shopify calls for GRID, which has no sync config", async () => {
+    const shop = await getOrCreateShop("sync-state-grid.myshopify.com");
+    await createWidget(shop.id, "GRID", "A grid", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+    });
+    const { admin, recorder } = createRecordingAdmin();
+
+    await syncShopWidgetState(admin, shop.id, "GRID");
+
+    expect(recorder.callCount).toBe(0);
+  });
+
+  it("includes the featured-reel reference field for SINGLE_VIDEO when one is set", async () => {
+    const shop = await getOrCreateShop("sync-state-single-video.myshopify.com");
+    const widget = await createWidget(shop.id, "SINGLE_VIDEO", "Featured video", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+      featuredReelId: "gid://shopify/Metaobject/999",
+    });
+    await setWidgetPublished(widget.id, true);
+    const { admin, recorder } = createRecordingAdmin();
+
+    await syncShopWidgetState(admin, shop.id, "SINGLE_VIDEO");
+
+    expect(recorder.variables).toEqual({
+      metafields: [
+        {
+          ownerId: "gid://shopify/Shop/1",
+          namespace: "$app",
+          key: "single_video_widget",
+          type: "json",
+          value: JSON.stringify({ published: true, targetRule: { type: "all_products" } }),
+        },
+        {
+          ownerId: "gid://shopify/Shop/1",
+          namespace: "$app",
+          key: "single_video_featured_reel",
+          type: "metaobject_reference",
+          value: "gid://shopify/Metaobject/999",
+        },
+      ],
+    });
+  });
+
+  it("omits the featured-reel field for SINGLE_VIDEO when none is set", async () => {
+    const shop = await getOrCreateShop("sync-state-single-video-none.myshopify.com");
+    const widget = await createWidget(shop.id, "SINGLE_VIDEO", "No reel yet", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+    });
+    await setWidgetPublished(widget.id, true);
+    const { admin, recorder } = createRecordingAdmin();
+
+    await syncShopWidgetState(admin, shop.id, "SINGLE_VIDEO");
+
+    expect(recorder.variables).toEqual({
+      metafields: [
+        {
+          ownerId: "gid://shopify/Shop/1",
+          namespace: "$app",
+          key: "single_video_widget",
+          type: "json",
+          value: JSON.stringify({ published: true, targetRule: { type: "all_products" } }),
+        },
+      ],
+    });
+  });
+});
+
+describe("updateWidgetFeaturedReel", () => {
+  beforeEach(async () => {
+    await prisma.widget.deleteMany();
+    await prisma.shop.deleteMany();
+  });
+
+  it("sets featuredReelId on the widget's config and syncs", async () => {
+    const shop = await getOrCreateShop("featured-reel-set.myshopify.com");
+    const widget = await createWidget(shop.id, "SINGLE_VIDEO", "Featured", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+    });
+    await setWidgetPublished(widget.id, true);
+    const { admin, recorder } = createRecordingAdmin();
+
+    const updated = await updateWidgetFeaturedReel(admin, widget.id, "gid://shopify/Metaobject/42");
+
+    expect((updated.config as { featuredReelId?: string }).featuredReelId).toBe(
+      "gid://shopify/Metaobject/42",
+    );
+    expect(recorder.variables).toEqual({
+      metafields: [
+        {
+          ownerId: "gid://shopify/Shop/1",
+          namespace: "$app",
+          key: "single_video_widget",
+          type: "json",
+          value: JSON.stringify({ published: true, targetRule: { type: "all_products" } }),
+        },
+        {
+          ownerId: "gid://shopify/Shop/1",
+          namespace: "$app",
+          key: "single_video_featured_reel",
+          type: "metaobject_reference",
+          value: "gid://shopify/Metaobject/42",
+        },
+      ],
+    });
   });
 });
