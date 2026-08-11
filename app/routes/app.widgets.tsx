@@ -13,13 +13,41 @@ import { createWidget, listWidgetsForShop } from "../models/widget.server";
 import type { WidgetConfig, WidgetKind } from "../models/widget.server";
 import type { Widget } from "@prisma/client";
 
-const WIDGET_KINDS: WidgetKind[] = [
-  "PRODUCT_PAGE_REELS",
-  "CAROUSEL",
-  "GRID",
-  "STORIES",
-  "REEL_POPS",
+interface WidgetTemplateMeta {
+  kind: WidgetKind;
+  name: string;
+  description: string;
+}
+
+const WIDGET_TEMPLATES: WidgetTemplateMeta[] = [
+  {
+    kind: "PRODUCT_PAGE_REELS",
+    name: "Product page reels",
+    description: "A row of tagged reels on the product page.",
+  },
+  {
+    kind: "SINGLE_VIDEO",
+    name: "Single video",
+    description: "One featured video, no carousel.",
+  },
+  {
+    kind: "CAROUSEL",
+    name: "Stacked carousel",
+    description: "Tagged reels as a swipeable stacked deck.",
+  },
+  {
+    kind: "STORIES",
+    name: "Insta-style stories",
+    description: "Circular avatars that open a full-screen story viewer.",
+  },
+  {
+    kind: "REEL_POPS",
+    name: "Reel pops",
+    description: "A site-wide floating bubble that expands into a video.",
+  },
 ];
+
+const WIDGET_KINDS: WidgetKind[] = WIDGET_TEMPLATES.map((t) => t.kind);
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -89,10 +117,58 @@ function WidgetCard({ widget, onOpen }: { widget: Widget; onOpen: (widget: Widge
   );
 }
 
+function TemplatePicker({
+  value,
+  onChange,
+}: {
+  value: WidgetKind;
+  onChange: (kind: WidgetKind) => void;
+}) {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+        gap: "8px",
+      }}
+    >
+      {WIDGET_TEMPLATES.map((template) => (
+        <button
+          key={template.kind}
+          type="button"
+          onClick={() => onChange(template.kind)}
+          style={{
+            textAlign: "left",
+            cursor: "pointer",
+            padding: "10px",
+            borderRadius: "8px",
+            border: template.kind === value ? "2px solid #111" : "1px solid #d9d9d9",
+            background: "#ffffff",
+            font: "inherit",
+            color: "inherit",
+          }}
+        >
+          <div
+            style={{
+              height: "56px",
+              borderRadius: "6px",
+              background: "#f1f1f1",
+              marginBottom: "8px",
+            }}
+          />
+          <div style={{ fontWeight: 600, fontSize: "13px" }}>{template.name}</div>
+          <div style={{ color: "#6b6b6b", fontSize: "12px" }}>{template.description}</div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 const MODAL_ID = "widget-detail-modal";
 
 type WidgetDetailLoaderData = {
   widget: Widget;
+  reels: { id: string; title: string }[];
 };
 
 function WidgetDetailModal({
@@ -107,6 +183,7 @@ function WidgetDetailModal({
   const detailFetcher = useFetcher<WidgetDetailLoaderData>();
   const editFetcher = useFetcher<{ error: string | null }>();
   const targetFetcher = useFetcher<{ error: string | null }>();
+  const featuredReelFetcher = useFetcher<{ error: string | null }>();
   const deleteFetcher = useFetcher();
   const shopify = useAppBridge();
   const href = widget ? `/app/widgets/${encodeURIComponent(widget.id)}` : null;
@@ -134,6 +211,13 @@ function WidgetDetailModal({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [targetFetcher.state, targetFetcher.data]);
+
+  useEffect(() => {
+    if (href && featuredReelFetcher.state === "idle" && featuredReelFetcher.data) {
+      detailFetcher.load(href);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [featuredReelFetcher.state, featuredReelFetcher.data]);
 
   const detailWidget = detailFetcher.data?.widget ?? null;
   const targetRule = detailWidget
@@ -223,6 +307,42 @@ function WidgetDetailModal({
               </s-button>
             )}
           </s-stack>
+
+          {(detailWidget.type === "SINGLE_VIDEO" || detailWidget.type === "REEL_POPS") && (
+            <s-stack gap="base">
+              {featuredReelFetcher.data?.error && (
+                <s-paragraph tone="critical">{featuredReelFetcher.data.error}</s-paragraph>
+              )}
+              <s-paragraph>
+                Featured reel:{" "}
+                {(() => {
+                  const featuredReelId = (detailWidget.config as unknown as WidgetConfig)
+                    .featuredReelId;
+                  const reels = detailFetcher.data?.reels ?? [];
+                  const featured = reels.find((r) => r.id === featuredReelId);
+                  return featured ? featured.title : "None chosen yet";
+                })()}
+              </s-paragraph>
+              <featuredReelFetcher.Form method="post" action={href!}>
+                <input type="hidden" name="intent" value="set-featured-reel" />
+                <s-stack gap="base">
+                  <s-select label="Choose reel" name="featuredReelId" required>
+                    {(detailFetcher.data?.reels ?? []).map((reel) => (
+                      <s-option key={reel.id} value={reel.id}>
+                        {reel.title}
+                      </s-option>
+                    ))}
+                  </s-select>
+                  <s-button
+                    type="submit"
+                    {...(featuredReelFetcher.state !== "idle" ? { loading: true } : {})}
+                  >
+                    Save featured reel
+                  </s-button>
+                </s-stack>
+              </featuredReelFetcher.Form>
+            </s-stack>
+          )}
         </s-stack>
       )}
       <deleteFetcher.Form
@@ -248,6 +368,38 @@ function WidgetDetailModal({
         </s-button>
       </deleteFetcher.Form>
     </s-modal>
+  );
+}
+
+function CreateWidgetSection({
+  actionData,
+  isSubmitting,
+}: {
+  actionData: { error: string | null } | undefined;
+  isSubmitting: boolean;
+}) {
+  const [selectedKind, setSelectedKind] = useState<WidgetKind>("PRODUCT_PAGE_REELS");
+
+  return (
+    <s-section heading="Create a widget">
+      {actionData?.error && (
+        <s-paragraph tone="critical">{actionData.error}</s-paragraph>
+      )}
+      <Form method="post">
+        <s-stack gap="base">
+          <s-text-field label="Name" name="name" required></s-text-field>
+          <input type="hidden" name="type" value={selectedKind} />
+          <TemplatePicker value={selectedKind} onChange={setSelectedKind} />
+          <s-button
+            type="submit"
+            variant="primary"
+            {...(isSubmitting ? { loading: true } : {})}
+          >
+            Create widget
+          </s-button>
+        </s-stack>
+      </Form>
+    </s-section>
   );
 }
 
@@ -278,35 +430,7 @@ export default function Widgets() {
           </s-box>
         </s-stack>
       </s-section>
-      <s-section heading="Create a widget">
-        {actionData?.error && (
-          <s-paragraph tone="critical">{actionData.error}</s-paragraph>
-        )}
-        <Form method="post">
-          <s-stack gap="base">
-            <s-text-field label="Name" name="name" required></s-text-field>
-            <s-select
-              label="Type"
-              name="type"
-              placeholder="Select a widget type"
-              required
-            >
-              {WIDGET_KINDS.map((kind) => (
-                <s-option key={kind} value={kind}>
-                  {kind}
-                </s-option>
-              ))}
-            </s-select>
-            <s-button
-              type="submit"
-              variant="primary"
-              {...(isSubmitting ? { loading: true } : {})}
-            >
-              Create widget
-            </s-button>
-          </s-stack>
-        </Form>
-      </s-section>
+      <CreateWidgetSection actionData={actionData} isSubmitting={isSubmitting} />
       <s-section heading="All widgets">
         {widgets.length === 0 ? (
           <s-paragraph>No widgets yet. Create your first one above.</s-paragraph>
