@@ -95,6 +95,59 @@
         // Playback failed to initialize; leave the poster/play button visible.
       }
     });
+
+    bindProductsCarousel(reelEl);
+    bindAddToCartButtons(reelEl);
+  };
+
+  const bindProductsCarousel = (reelEl) => {
+    const track = reelEl.querySelector("[data-reelup-products]");
+    const prevButton = reelEl.querySelector("[data-reelup-products-prev]");
+    const nextButton = reelEl.querySelector("[data-reelup-products-next]");
+    if (!track) return;
+
+    const slide = (direction) => {
+      track.scrollBy({ left: direction * track.clientWidth, behavior: "smooth" });
+    };
+
+    prevButton?.addEventListener("click", () => slide(-1));
+    nextButton?.addEventListener("click", () => slide(1));
+  };
+
+  const bindAddToCartButtons = (reelEl) => {
+    reelEl.querySelectorAll("[data-reelup-add-to-cart]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        if (button.dataset.state === "loading") return;
+
+        const variantId = button.dataset.variantId;
+        const addLabel = button.dataset.addLabel ?? button.textContent;
+        const addedLabel = button.dataset.addedLabel ?? addLabel;
+
+        button.dataset.state = "loading";
+
+        try {
+          const response = await fetch("/cart/add.js", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: variantId, quantity: 1 }),
+          });
+          if (!response.ok) throw new Error("Add to cart failed");
+
+          document.dispatchEvent(new CustomEvent("cart:refresh"));
+          button.dataset.state = "added";
+          button.textContent = addedLabel;
+        } catch {
+          button.dataset.state = "";
+          button.textContent = addLabel;
+          return;
+        }
+
+        setTimeout(() => {
+          button.dataset.state = "";
+          button.textContent = addLabel;
+        }, 2000);
+      });
+    });
   };
 
   const observeReels = () => {

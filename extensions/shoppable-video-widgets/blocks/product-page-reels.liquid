@@ -79,23 +79,55 @@ Liquid at render time, no runtime API call.
               preload="none"
             ></video>
             {% if reel.tagged_products.value.size > 0 %}
-              <div class="reelup-reel__products">
+              <div class="reelup-reel__products" data-reelup-products>
                 {% for product in reel.tagged_products.value %}
-                  <a class="reelup-reel__product" href="{{ product.url }}" title="{{ product.title | escape }}">
-                    {% if product.featured_image %}
-                      <img
-                        class="reelup-reel__product-image"
-                        src="{{ product.featured_image | image_url: width: 120 }}"
-                        alt="{{ product.title | escape }}"
-                        loading="lazy"
-                        width="60"
-                        height="60"
+                  {% assign variant = product.selected_or_first_available_variant %}
+                  <div class="reelup-reel__product">
+                    <a class="reelup-reel__product-link" href="{{ product.url }}">
+                      {% if product.featured_image %}
+                        <img
+                          class="reelup-reel__product-image"
+                          src="{{ product.featured_image | image_url: width: 160 }}"
+                          alt="{{ product.title | escape }}"
+                          loading="lazy"
+                          width="56"
+                          height="56"
+                        >
+                      {% endif %}
+                      <span class="reelup-reel__product-info">
+                        <span class="reelup-reel__product-title">{{ product.title }}</span>
+                        <span class="reelup-reel__product-price">{{ product.price | money }}</span>
+                      </span>
+                    </a>
+                    {% if variant %}
+                      <button
+                        type="button"
+                        class="reelup-reel__add-to-cart"
+                        data-reelup-add-to-cart
+                        data-variant-id="{{ variant.id }}"
+                        data-add-label="{{ 'reels.add_to_cart' | t }}"
+                        data-added-label="{{ 'reels.added_to_cart' | t }}"
                       >
+                        {{ 'reels.add_to_cart' | t }}
+                      </button>
                     {% endif %}
-                    <span class="reelup-reel__product-price">{{ product.price | money }}</span>
-                  </a>
+                  </div>
                 {% endfor %}
               </div>
+              {% if reel.tagged_products.value.size > 1 %}
+                <button
+                  type="button"
+                  class="reelup-reel__products-nav reelup-reel__products-nav--prev"
+                  data-reelup-products-prev
+                  aria-label="{{ 'reels.previous_product_label' | t }}"
+                >‹</button>
+                <button
+                  type="button"
+                  class="reelup-reel__products-nav reelup-reel__products-nav--next"
+                  data-reelup-products-next
+                  aria-label="{{ 'reels.next_product_label' | t }}"
+                >›</button>
+              {% endif %}
             {% endif %}
           </div>
         </div>
