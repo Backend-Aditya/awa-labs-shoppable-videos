@@ -81,6 +81,7 @@ describe("reel.server", () => {
           { key: "title", value: "Summer Look" },
           { key: "published", value: "true" },
           { key: "config", value: JSON.stringify(config) },
+          { key: "tagged_products", value: JSON.stringify(config.productIds) },
         ],
       },
     });

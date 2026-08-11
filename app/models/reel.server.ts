@@ -83,6 +83,11 @@ export async function upsertReel(
             { key: "title", value: title },
             { key: "published", value: String(published) },
             { key: "config", value: JSON.stringify(config) },
+            // Mirrors config.productIds as native product references — this
+            // is what the storefront block resolves into full product data
+            // (title/price/image); the JSON config field alone is just raw
+            // GID strings Liquid can't dereference.
+            { key: "tagged_products", value: JSON.stringify(config.productIds) },
           ],
         },
       },

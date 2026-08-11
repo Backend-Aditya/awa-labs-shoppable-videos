@@ -33,6 +33,11 @@ type = "json"
 required = true
 description = "cloudflareStreamUid, posterUrl, durationSeconds, productIds, interactions {ctaLabel, ctaUrl}, source {type, originalUrl}"
 
+[metaobjects.app.reel.fields.tagged_products]
+name = "Tagged products"
+type = "list.product_reference"
+description = "Mirrors config.productIds as native product references so Liquid can resolve full product data (title, price, image) without a runtime API call"
+
 [product.metafields.app.reels]
 type = "list.metaobject_reference<$app:reel>"
 name = "Reels"

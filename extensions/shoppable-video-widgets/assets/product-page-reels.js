@@ -60,16 +60,31 @@
   }
 
   function activateReel(reelEl) {
-    if (reelEl.dataset.reelupActivated) return;
-    reelEl.dataset.reelupActivated = "true";
-
     var video = reelEl.querySelector(".reelup-reel__video");
     var playButton = reelEl.querySelector(".reelup-reel__play");
     var hlsSrc = reelEl.dataset.hlsSrc;
 
     if (!video || !playButton || !hlsSrc) return;
 
+    video.addEventListener("play", function () {
+      reelEl.setAttribute("data-playing", "true");
+    });
+    video.addEventListener("pause", function () {
+      reelEl.setAttribute("data-playing", "false");
+    });
+
     playButton.addEventListener("click", function () {
+      // Already loaded and just paused — toggle play/pause directly, no
+      // need to re-run the HLS attach dance.
+      if (reelEl.hasAttribute("data-activated")) {
+        if (video.paused) {
+          video.play();
+        } else {
+          video.pause();
+        }
+        return;
+      }
+
       var ready = supportsNativeHls(video)
         ? Promise.resolve()
         : loadHlsJsIfNeeded();
@@ -79,10 +94,8 @@
           return attachSource(reelEl, video, hlsSrc);
         })
         .then(function () {
+          reelEl.setAttribute("data-activated", "true");
           return video.play();
-        })
-        .then(function () {
-          reelEl.setAttribute("data-playing", "true");
         })
         .catch(function () {
           // Playback failed to initialize; leave the poster/play button visible.
