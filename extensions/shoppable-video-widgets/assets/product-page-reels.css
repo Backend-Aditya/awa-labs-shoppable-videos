@@ -89,9 +89,9 @@
 .reelup-reel__products {
   position: absolute;
   z-index: 2;
-  left: 5%;
-  right: 5%;
-  max-width: 90%;
+  left: 9%;
+  right: 9%;
+  max-width: 82%;
   bottom: 16px;
   /* Grid, not flex: a flex container with overflow-x:auto lets a
      flex-basis:100% child resolve against a content-driven (auto-expanding)
