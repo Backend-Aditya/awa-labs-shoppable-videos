@@ -8,18 +8,23 @@ import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { getOrCreateShop } from "../models/shop.server";
-import { deleteWidget, getWidget, updateWidget, updateWidgetTargetRule } from "../models/widget.server";
+import { deleteWidget, getWidget, updateWidget, updateWidgetFeaturedReel, updateWidgetTargetRule } from "../models/widget.server";
+import { listReels } from "../models/reel.server";
 import type { WidgetConfig } from "../models/widget.server";
 import { PreserveSearchParams } from "../components/PreserveSearchParams";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const shop = await getOrCreateShop(session.shop);
   const widget = await getWidget(shop.id, params.id!);
   if (!widget) {
     throw new Response("Widget not found", { status: 404 });
   }
-  return { widget };
+
+  const needsFeaturedReel = widget.type === "SINGLE_VIDEO" || widget.type === "REEL_POPS";
+  const reels = needsFeaturedReel ? await listReels(admin, 50) : [];
+
+  return { widget, reels };
 };
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
@@ -43,6 +48,15 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
   if (intent === "clear-target") {
     await updateWidgetTargetRule(admin, widget.id, { type: "all_products" });
+    return { error: null };
+  }
+
+  if (intent === "set-featured-reel") {
+    const featuredReelId = String(formData.get("featuredReelId") ?? "");
+    if (!featuredReelId) {
+      return { error: "Choose a reel first" };
+    }
+    await updateWidgetFeaturedReel(admin, widget.id, featuredReelId);
     return { error: null };
   }
 
