@@ -1,0 +1,73 @@
+{% doc %}
+Renders the product's tagged reels as a stacked, swipeable deck (CAROUSEL
+widget kind). Same product-tagging data source and widget-gating pattern as
+product-page-reels.liquid; different visual layout.
+@example
+{% content_for 'block', type: 'stacked-carousel', id: 'stacked-carousel' %}
+{% enddoc %}
+
+{{ 'stacked-carousel.css' | asset_url | stylesheet_tag }}
+
+{% assign reel_namespace = 'app--404281098241' %}
+
+{% assign widget_field = shop.metafields[reel_namespace].stacked_carousel_widget %}
+{% assign widget_matches_product = false %}
+{% if widget_field.value.published %}
+  {% if widget_field.value.targetRule.type == "all_products" %}
+    {% assign widget_matches_product = true %}
+  {% elsif widget_field.value.targetRule.type == "handles" and widget_field.value.targetRule.handles contains product.handle %}
+    {% assign widget_matches_product = true %}
+  {% endif %}
+{% endif %}
+
+{% assign reels_field = block.settings.product.metafields[reel_namespace].reels %}
+
+{% assign visible_reels = "" | split: "," %}
+{% if widget_matches_product %}
+  {% for reel in reels_field.value %}
+    {% if reel.published.value and reel.config.value.cloudflareStreamUid != blank and reel.config.value.hlsManifestUrl != blank %}
+      {% assign visible_reels = visible_reels | push: reel %}
+    {% endif %}
+  {% endfor %}
+{% endif %}
+
+{% if visible_reels.size > 0 %}
+  <div class="reelup-stack" {{ block.shopify_attributes }} data-reelup-stack>
+    {% for reel in reels_field.value %}
+      {% if reel.published.value and reel.config.value.cloudflareStreamUid != blank and reel.config.value.hlsManifestUrl != blank %}
+        <div
+          class="reelup-stack__card"
+          style="--reelup-stack-index: {{ forloop.index0 }};"
+          data-reelup-stack-card
+          data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
+        >
+          {% if reel.config.value.posterUrl != blank %}
+            <img
+              class="reelup-stack__poster"
+              src="{{ reel.config.value.posterUrl | escape }}"
+              alt="{{ reel.title.value | escape }}"
+              loading="lazy"
+              width="360"
+              height="640"
+            >
+          {% endif %}
+          <video class="reelup-stack__video" playsinline muted loop preload="none"></video>
+        </div>
+      {% endif %}
+    {% endfor %}
+    {% if visible_reels.size > 1 %}
+      <button type="button" class="reelup-stack__next" data-reelup-stack-next aria-label="{{ 'reels.next_product_label' | t }}">›</button>
+    {% endif %}
+  </div>
+  <script src="{{ 'stacked-carousel.js' | asset_url }}" defer></script>
+{% endif %}
+
+{% schema %}
+{
+  "name": "Stacked carousel",
+  "target": "section",
+  "settings": [
+    { "type": "product", "id": "product", "label": "Product", "autofill": true }
+  ]
+}
+{% endschema %}
