@@ -1,0 +1,75 @@
+{% doc %}
+Renders the shop's SINGLE_VIDEO widget: one merchant-picked featured reel,
+no carousel, no product tags. Gated on the shop-level widget metafield
+(published + targetRule) exactly like product-page-reels.liquid.
+@example
+{% content_for 'block', type: 'single-video', id: 'single-video' %}
+{% enddoc %}
+
+{{ 'single-video.css' | asset_url | stylesheet_tag }}
+
+{% assign reel_namespace = 'app--404281098241' %}
+
+{% assign widget_field = shop.metafields[reel_namespace].single_video_widget %}
+{% assign featured_reel = shop.metafields[reel_namespace].single_video_featured_reel %}
+
+{% assign widget_matches_product = false %}
+{% if widget_field.value.published %}
+  {% if widget_field.value.targetRule.type == "all_products" %}
+    {% assign widget_matches_product = true %}
+  {% elsif widget_field.value.targetRule.type == "handles" and widget_field.value.targetRule.handles contains product.handle %}
+    {% assign widget_matches_product = true %}
+  {% endif %}
+{% endif %}
+
+{% assign reel = featured_reel.value %}
+{% assign show_reel = false %}
+{% if widget_matches_product and reel and reel.published.value and reel.config.value.cloudflareStreamUid != blank and reel.config.value.hlsManifestUrl != blank %}
+  {% assign show_reel = true %}
+{% endif %}
+
+{% if show_reel %}
+  <div class="reelup-single-video" {{ block.shopify_attributes }}>
+    <div
+      class="reelup-single-video__frame"
+      data-reelup-single-video
+      data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
+    >
+      {% if reel.config.value.posterUrl != blank %}
+        <img
+          class="reelup-single-video__poster"
+          src="{{ reel.config.value.posterUrl | escape }}"
+          alt="{{ reel.title.value | escape }}"
+          loading="lazy"
+          width="480"
+          height="854"
+        >
+      {% endif %}
+      <button
+        type="button"
+        class="reelup-single-video__play"
+        aria-label="{{ 'reels.play_label' | t }}"
+      >
+        <span class="reelup-single-video__play-icon" aria-hidden="true"></span>
+      </button>
+      <video
+        class="reelup-single-video__video"
+        playsinline
+        muted
+        loop
+        preload="none"
+      ></video>
+    </div>
+  </div>
+  <script src="{{ 'single-video.js' | asset_url }}" defer></script>
+{% endif %}
+
+{% schema %}
+{
+  "name": "Single video",
+  "target": "section",
+  "settings": [
+    { "type": "product", "id": "product", "label": "Product", "autofill": true }
+  ]
+}
+{% endschema %}
