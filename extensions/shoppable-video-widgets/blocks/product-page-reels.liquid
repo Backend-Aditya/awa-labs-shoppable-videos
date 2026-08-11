@@ -78,27 +78,26 @@ Liquid at render time, no runtime API call.
               loop
               preload="none"
             ></video>
+            {% if reel.tagged_products.value.size > 0 %}
+              <div class="reelup-reel__products">
+                {% for product in reel.tagged_products.value %}
+                  <a class="reelup-reel__product" href="{{ product.url }}" title="{{ product.title | escape }}">
+                    {% if product.featured_image %}
+                      <img
+                        class="reelup-reel__product-image"
+                        src="{{ product.featured_image | image_url: width: 120 }}"
+                        alt="{{ product.title | escape }}"
+                        loading="lazy"
+                        width="60"
+                        height="60"
+                      >
+                    {% endif %}
+                    <span class="reelup-reel__product-price">{{ product.price | money }}</span>
+                  </a>
+                {% endfor %}
+              </div>
+            {% endif %}
           </div>
-          {% if reel.tagged_products.value.size > 0 %}
-            <div class="reelup-reel__products">
-              {% for product in reel.tagged_products.value %}
-                <a class="reelup-reel__product" href="{{ product.url }}">
-                  {% if product.featured_image %}
-                    <img
-                      class="reelup-reel__product-image"
-                      src="{{ product.featured_image | image_url: width: 120 }}"
-                      alt="{{ product.title | escape }}"
-                      loading="lazy"
-                      width="60"
-                      height="60"
-                    >
-                  {% endif %}
-                  <span class="reelup-reel__product-title">{{ product.title }}</span>
-                  <span class="reelup-reel__product-price">{{ product.price | money }}</span>
-                </a>
-              {% endfor %}
-            </div>
-          {% endif %}
         </div>
       {% endif %}
     {% endfor %}
