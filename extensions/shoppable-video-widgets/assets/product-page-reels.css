@@ -89,8 +89,9 @@
 .reelup-reel__products {
   position: absolute;
   z-index: 2;
-  left: 20px;
-  right: 20px;
+  left: 5%;
+  right: 5%;
+  max-width: 90%;
   bottom: 16px;
   display: flex;
   overflow-x: auto;
@@ -143,6 +144,9 @@
 }
 
 .reelup-reel__product-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
   font-size: 14px;
   font-weight: 500;
   overflow: hidden;
