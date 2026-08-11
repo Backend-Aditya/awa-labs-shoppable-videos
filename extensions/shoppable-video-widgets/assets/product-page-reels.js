@@ -1,7 +1,12 @@
 (function () {
-  if (window.__reelupInitialized) return;
-  window.__reelupInitialized = true;
-
+  // No global "already initialized" guard: Shopify's theme editor live
+  // preview re-injects this script on every Liquid/JS hot-reload without a
+  // full page navigation. A global once-guard would silently no-op every
+  // reload after the first, leaving fresh DOM with zero listeners attached
+  // (confirmed live: play button stopped responding after any hot-reload).
+  // Idempotency instead lives per-element, in activateReel below, which is
+  // correct for both the hot-reload case and the "script tag appears twice"
+  // case.
   var currentScriptSrc = document.currentScript ? document.currentScript.src : "";
 
   function supportsNativeHls(video) {
@@ -60,6 +65,9 @@
   }
 
   function activateReel(reelEl) {
+    if (reelEl.dataset.reelupBound) return;
+    reelEl.dataset.reelupBound = "true";
+
     var video = reelEl.querySelector(".reelup-reel__video");
     var playButton = reelEl.querySelector(".reelup-reel__play");
     var hlsSrc = reelEl.dataset.hlsSrc;
