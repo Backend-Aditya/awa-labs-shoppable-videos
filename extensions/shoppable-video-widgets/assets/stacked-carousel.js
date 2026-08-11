@@ -50,7 +50,9 @@
     activateCard(order[0]);
 
     stackEl.querySelector("[data-reelup-stack-next]")?.addEventListener("click", advance);
-    order[0].addEventListener("click", () => {
+    stackEl.addEventListener("click", (event) => {
+      const card = event.target.closest("[data-reelup-stack-card]");
+      if (!card || card !== order[0]) return;
       if (order.length > 1) advance();
     });
   });
