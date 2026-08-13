@@ -32,7 +32,7 @@ Liquid at render time, no runtime API call.
   {% endif %}
 {% endif %}
 
-{% assign reels_field = block.settings.product.metafields[reel_namespace].reels %}
+{% assign reels_field = shop.metafields[reel_namespace].product_page_reels_widget_reels %}
 
 {% assign visible_count = 0 %}
 {% if widget_matches_product %}

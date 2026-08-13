@@ -20,7 +20,7 @@ product-page-reels.liquid; different visual layout.
   {% endif %}
 {% endif %}
 
-{% assign reels_field = block.settings.product.metafields[reel_namespace].reels %}
+{% assign reels_field = shop.metafields[reel_namespace].stacked_carousel_widget_reels %}
 
 {% assign visible_reels = "" | split: "," %}
 {% if widget_matches_product %}
