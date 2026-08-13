@@ -56,6 +56,15 @@ description = "Published state and target rule for the PRODUCT_PAGE_REELS widget
   admin = "merchant_read"
   storefront = "public_read"
 
+[shop.metafields.app.product_page_reels_widget_reels]
+type = "list.metaobject_reference<$app:reel>"
+name = "Product page reels widget - curated reels"
+description = "The reels the PRODUCT_PAGE_REELS widget shows, picked directly in the widget"
+
+  [shop.metafields.app.product_page_reels_widget_reels.access]
+  admin = "merchant_read"
+  storefront = "public_read"
+
 [shop.metafields.app.single_video_widget]
 type = "json"
 name = "Single video widget"
@@ -83,12 +92,30 @@ description = "Published state and target rule for the CAROUSEL widget"
   admin = "merchant_read"
   storefront = "public_read"
 
+[shop.metafields.app.stacked_carousel_widget_reels]
+type = "list.metaobject_reference<$app:reel>"
+name = "Stacked carousel widget - curated reels"
+description = "The reels the CAROUSEL widget shows, picked directly in the widget"
+
+  [shop.metafields.app.stacked_carousel_widget_reels.access]
+  admin = "merchant_read"
+  storefront = "public_read"
+
 [shop.metafields.app.insta_stories_widget]
 type = "json"
 name = "Insta-style stories widget"
 description = "Published state and target rule for the STORIES widget"
 
   [shop.metafields.app.insta_stories_widget.access]
+  admin = "merchant_read"
+  storefront = "public_read"
+
+[shop.metafields.app.insta_stories_widget_reels]
+type = "list.metaobject_reference<$app:reel>"
+name = "Insta-style stories widget - curated reels"
+description = "The reels the STORIES widget shows, picked directly in the widget (no Liquid block reads this yet)"
+
+  [shop.metafields.app.insta_stories_widget_reels.access]
   admin = "merchant_read"
   storefront = "public_read"
 
