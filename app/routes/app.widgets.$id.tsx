@@ -8,7 +8,7 @@ import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { getOrCreateShop } from "../models/shop.server";
-import { deleteWidget, getWidget, updateWidget, updateWidgetFeaturedReel, updateWidgetTargetRule } from "../models/widget.server";
+import { deleteWidget, getWidget, updateWidget, updateWidgetFeaturedReel, updateWidgetReels, updateWidgetTargetRule } from "../models/widget.server";
 import { listReels } from "../models/reel.server";
 import type { WidgetConfig } from "../models/widget.server";
 import { PreserveSearchParams } from "../components/PreserveSearchParams";
@@ -21,8 +21,13 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     throw new Response("Widget not found", { status: 404 });
   }
 
-  const needsFeaturedReel = widget.type === "SINGLE_VIDEO" || widget.type === "REEL_POPS";
-  const reels = needsFeaturedReel ? await listReels(admin, 50) : [];
+  const needsReelPicker =
+    widget.type === "SINGLE_VIDEO" ||
+    widget.type === "REEL_POPS" ||
+    widget.type === "PRODUCT_PAGE_REELS" ||
+    widget.type === "CAROUSEL" ||
+    widget.type === "STORIES";
+  const reels = needsReelPicker ? await listReels(admin, 50) : [];
 
   return { widget, reels };
 };
@@ -57,6 +62,12 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       return { error: "Choose a reel first" };
     }
     await updateWidgetFeaturedReel(admin, widget.id, featuredReelId);
+    return { error: null };
+  }
+
+  if (intent === "set-reels") {
+    const reelIds = formData.getAll("reelId").map(String).filter(Boolean);
+    await updateWidgetReels(admin, widget.id, reelIds);
     return { error: null };
   }
 
