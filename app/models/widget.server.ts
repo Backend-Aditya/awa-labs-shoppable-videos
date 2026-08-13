@@ -17,6 +17,7 @@ export interface WidgetConfig {
     | { type: "all_products" }
     | { type: "handles"; handles: string[] };
   featuredReelId?: string;
+  reelIds?: string[];
 }
 
 export async function createWidget(
@@ -126,16 +127,26 @@ interface WidgetMetafieldValue {
 interface WidgetKindSyncConfig {
   metafieldKey: string;
   featuredReelMetafieldKey?: string;
+  reelListMetafieldKey?: string;
 }
 
 const WIDGET_KIND_SYNC_CONFIG: Partial<Record<WidgetKind, WidgetKindSyncConfig>> = {
-  PRODUCT_PAGE_REELS: { metafieldKey: "product_page_reels_widget" },
+  PRODUCT_PAGE_REELS: {
+    metafieldKey: "product_page_reels_widget",
+    reelListMetafieldKey: "product_page_reels_widget_reels",
+  },
   SINGLE_VIDEO: {
     metafieldKey: "single_video_widget",
     featuredReelMetafieldKey: "single_video_featured_reel",
   },
-  CAROUSEL: { metafieldKey: "stacked_carousel_widget" },
-  STORIES: { metafieldKey: "insta_stories_widget" },
+  CAROUSEL: {
+    metafieldKey: "stacked_carousel_widget",
+    reelListMetafieldKey: "stacked_carousel_widget_reels",
+  },
+  STORIES: {
+    metafieldKey: "insta_stories_widget",
+    reelListMetafieldKey: "insta_stories_widget_reels",
+  },
   REEL_POPS: {
     metafieldKey: "reel_pops_widget",
     featuredReelMetafieldKey: "reel_pops_featured_reel",
@@ -216,6 +227,16 @@ export async function syncShopWidgetState(
     });
   }
 
+  if (syncConfig.reelListMetafieldKey && liveConfig?.reelIds && liveConfig.reelIds.length > 0) {
+    metafields.push({
+      ownerId: shopGid,
+      namespace: "$app",
+      key: syncConfig.reelListMetafieldKey,
+      type: "list.metaobject_reference",
+      value: JSON.stringify(liveConfig.reelIds),
+    });
+  }
+
   const response = await admin.graphql(
     `#graphql
     mutation SetWidgetConfigMetafield($metafields: [MetafieldsSetInput!]!) {
@@ -238,6 +259,23 @@ export async function updateWidgetFeaturedReel(
   const existing = await prisma.widget.findUniqueOrThrow({ where: { id } });
   const existingConfig = existing.config as unknown as WidgetConfig;
   const mergedConfig: WidgetConfig = { ...existingConfig, featuredReelId };
+
+  const widget = await prisma.widget.update({
+    where: { id },
+    data: { config: mergedConfig as unknown as Prisma.InputJsonValue },
+  });
+  await syncShopWidgetState(admin, widget.shopId, widget.type as WidgetKind);
+  return widget;
+}
+
+export async function updateWidgetReels(
+  admin: AdminGraphqlClient,
+  id: string,
+  reelIds: string[],
+): Promise<Widget> {
+  const existing = await prisma.widget.findUniqueOrThrow({ where: { id } });
+  const existingConfig = existing.config as unknown as WidgetConfig;
+  const mergedConfig: WidgetConfig = { ...existingConfig, reelIds };
 
   const widget = await prisma.widget.update({
     where: { id },
