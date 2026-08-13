@@ -33,7 +33,10 @@ function createRecordingAdmin() {
   return { admin, recorder };
 }
 
-function expectedMetafields(value: unknown) {
+// PRODUCT_PAGE_REELS always writes its reel-list field alongside its json
+// state field (an empty array when the live widget has no curated reels),
+// so this helper defaults to that shape unless a test overrides reelIds.
+function expectedMetafields(value: unknown, reelIds: string[] = []) {
   return {
     metafields: [
       {
@@ -42,6 +45,13 @@ function expectedMetafields(value: unknown) {
         key: "product_page_reels_widget",
         type: "json",
         value: JSON.stringify(value),
+      },
+      {
+        ownerId: "gid://shopify/Shop/1",
+        namespace: "$app",
+        key: "product_page_reels_widget_reels",
+        type: "list.metaobject_reference",
+        value: JSON.stringify(reelIds),
       },
     ],
   };
@@ -121,20 +131,9 @@ describe("widget.server", () => {
 
     await deleteWidget(admin, widget.id);
 
-    expect(capturedSetVariables).toEqual({
-      metafields: [
-        {
-          ownerId: "gid://shopify/Shop/1",
-          namespace: "$app",
-          key: "product_page_reels_widget",
-          type: "json",
-          value: JSON.stringify({
-            published: false,
-            targetRule: { type: "all_products" },
-          }),
-        },
-      ],
-    });
+    expect(capturedSetVariables).toEqual(
+      expectedMetafields({ published: false, targetRule: { type: "all_products" } }),
+    );
   });
 
   it("gets a widget scoped to its shop, returns null for a different shop or missing id", async () => {
@@ -298,20 +297,12 @@ describe("widget.server", () => {
       handles: ["blue-shirt"],
     });
 
-    expect(capturedSetVariables).toEqual({
-      metafields: [
-        {
-          ownerId: "gid://shopify/Shop/1",
-          namespace: "$app",
-          key: "product_page_reels_widget",
-          type: "json",
-          value: JSON.stringify({
-            published: true,
-            targetRule: { type: "handles", handles: ["blue-shirt"] },
-          }),
-        },
-      ],
-    });
+    expect(capturedSetVariables).toEqual(
+      expectedMetafields({
+        published: true,
+        targetRule: { type: "handles", handles: ["blue-shirt"] },
+      }),
+    );
   });
 
   describe("shop metafield reflects the live widget, not the widget just touched", () => {
@@ -385,6 +376,13 @@ describe("widget.server", () => {
             key: "stacked_carousel_widget",
             type: "json",
             value: JSON.stringify({ published: true, targetRule: { type: "all_products" } }),
+          },
+          {
+            ownerId: "gid://shopify/Shop/1",
+            namespace: "$app",
+            key: "stacked_carousel_widget_reels",
+            type: "list.metaobject_reference",
+            value: JSON.stringify([]),
           },
         ],
       });
@@ -497,6 +495,13 @@ describe("syncShopWidgetState", () => {
           type: "json",
           value: JSON.stringify({ published: true, targetRule: { type: "all_products" } }),
         },
+        {
+          ownerId: "gid://shopify/Shop/1",
+          namespace: "$app",
+          key: "stacked_carousel_widget_reels",
+          type: "list.metaobject_reference",
+          value: JSON.stringify([]),
+        },
       ],
     });
   });
@@ -602,7 +607,7 @@ describe("syncShopWidgetState", () => {
     });
   });
 
-  it("omits the reel-list field for PRODUCT_PAGE_REELS when reelIds is empty or unset", async () => {
+  it("writes the reel-list field as an empty array for PRODUCT_PAGE_REELS when reelIds is empty or unset", async () => {
     const shop = await getOrCreateShop("sync-state-reel-list-empty.myshopify.com");
     const widget = await createWidget(shop.id, "PRODUCT_PAGE_REELS", "No reels yet", {
       templateStyle: "classic",
@@ -621,6 +626,45 @@ describe("syncShopWidgetState", () => {
           key: "product_page_reels_widget",
           type: "json",
           value: JSON.stringify({ published: true, targetRule: { type: "all_products" } }),
+        },
+        {
+          ownerId: "gid://shopify/Shop/1",
+          namespace: "$app",
+          key: "product_page_reels_widget_reels",
+          type: "list.metaobject_reference",
+          value: JSON.stringify([]),
+        },
+      ],
+    });
+  });
+
+  it("clears a previously-written reel list to an empty array once a widget's reels are all removed", async () => {
+    const shop = await getOrCreateShop("sync-state-reel-list-cleared.myshopify.com");
+    const widget = await createWidget(shop.id, "PRODUCT_PAGE_REELS", "Was curated", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+      reelIds: ["gid://shopify/Metaobject/10", "gid://shopify/Metaobject/11"],
+    });
+    await setWidgetPublished(widget.id, true);
+    const { admin, recorder } = createRecordingAdmin();
+
+    await updateWidgetReels(admin, widget.id, []);
+
+    expect(recorder.variables).toEqual({
+      metafields: [
+        {
+          ownerId: "gid://shopify/Shop/1",
+          namespace: "$app",
+          key: "product_page_reels_widget",
+          type: "json",
+          value: JSON.stringify({ published: true, targetRule: { type: "all_products" } }),
+        },
+        {
+          ownerId: "gid://shopify/Shop/1",
+          namespace: "$app",
+          key: "product_page_reels_widget_reels",
+          type: "list.metaobject_reference",
+          value: JSON.stringify([]),
         },
       ],
     });
@@ -744,7 +788,7 @@ describe("updateWidgetReels", () => {
     });
   });
 
-  it("syncing an unpublished widget's reel list still omits it (published:false wins)", async () => {
+  it("syncing an unpublished widget's reel list writes an empty reel list (published:false wins)", async () => {
     const shop = await getOrCreateShop("reels-set-unpublished.myshopify.com");
     const widget = await createWidget(shop.id, "CAROUSEL", "Draft deck", {
       templateStyle: "classic",
@@ -756,9 +800,11 @@ describe("updateWidgetReels", () => {
 
     // Widget was never published, so syncShopWidgetState finds no "live"
     // widget for this kind — it writes published:false and, since `live`
-    // is null, no reel-list field at all (the reference field is only
-    // ever built from the DB's live/published widget's config, never from
-    // whichever widget was just touched).
+    // is null, an empty reel list (the reference field is only ever built
+    // from the DB's live/published widget's config, never from whichever
+    // widget was just touched, and is always written — even empty — so a
+    // stale reel list from a previously-live widget of this kind gets
+    // cleared too).
     expect(recorder.variables).toEqual({
       metafields: [
         {
@@ -767,6 +813,13 @@ describe("updateWidgetReels", () => {
           key: "stacked_carousel_widget",
           type: "json",
           value: JSON.stringify({ published: false, targetRule: { type: "all_products" } }),
+        },
+        {
+          ownerId: "gid://shopify/Shop/1",
+          namespace: "$app",
+          key: "stacked_carousel_widget_reels",
+          type: "list.metaobject_reference",
+          value: JSON.stringify([]),
         },
       ],
     });

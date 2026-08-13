@@ -227,13 +227,13 @@ export async function syncShopWidgetState(
     });
   }
 
-  if (syncConfig.reelListMetafieldKey && liveConfig?.reelIds && liveConfig.reelIds.length > 0) {
+  if (syncConfig.reelListMetafieldKey) {
     metafields.push({
       ownerId: shopGid,
       namespace: "$app",
       key: syncConfig.reelListMetafieldKey,
       type: "list.metaobject_reference",
-      value: JSON.stringify(liveConfig.reelIds),
+      value: JSON.stringify(liveConfig?.reelIds ?? []),
     });
   }
 

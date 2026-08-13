@@ -66,7 +66,15 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   }
 
   if (intent === "set-reels") {
-    const reelIds = formData.getAll("reelId").map(String).filter(Boolean);
+    const submittedReelIds = formData.getAll("reelId").map(String).filter(Boolean);
+    // Filter against the reels currently available in the picker so a
+    // stale/deleted reel id can never be persisted into a widget's curated
+    // list — an invalid metaobject reference here would block every future
+    // publish/unpublish/target-rule sync for this widget's kind (see
+    // syncShopWidgetState, which writes the reel-list field in the same
+    // metafieldsSet call as the widget's published/targetRule state).
+    const validReelIds = new Set((await listReels(admin, 50)).map((reel) => reel.id));
+    const reelIds = submittedReelIds.filter((reelId) => validReelIds.has(reelId));
     await updateWidgetReels(admin, widget.id, reelIds);
     return { error: null };
   }
