@@ -184,6 +184,7 @@ function WidgetDetailModal({
   const editFetcher = useFetcher<{ error: string | null }>();
   const targetFetcher = useFetcher<{ error: string | null }>();
   const featuredReelFetcher = useFetcher<{ error: string | null }>();
+  const reelsFetcher = useFetcher<{ error: string | null }>();
   const deleteFetcher = useFetcher();
   const shopify = useAppBridge();
   const href = widget ? `/app/widgets/${encodeURIComponent(widget.id)}` : null;
@@ -218,6 +219,13 @@ function WidgetDetailModal({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [featuredReelFetcher.state, featuredReelFetcher.data]);
+
+  useEffect(() => {
+    if (href && reelsFetcher.state === "idle" && reelsFetcher.data) {
+      detailFetcher.load(href);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reelsFetcher.state, reelsFetcher.data]);
 
   const detailWidget = detailFetcher.data?.widget ?? null;
   const targetRule = detailWidget
@@ -341,6 +349,39 @@ function WidgetDetailModal({
                   </s-button>
                 </s-stack>
               </featuredReelFetcher.Form>
+            </s-stack>
+          )}
+
+          {(detailWidget.type === "PRODUCT_PAGE_REELS" ||
+            detailWidget.type === "CAROUSEL" ||
+            detailWidget.type === "STORIES") && (
+            <s-stack gap="base">
+              {reelsFetcher.data?.error && (
+                <s-paragraph tone="critical">{reelsFetcher.data.error}</s-paragraph>
+              )}
+              <s-paragraph>Reels shown by this widget (same set on every targeted product page):</s-paragraph>
+              <reelsFetcher.Form method="post" action={href!}>
+                <input type="hidden" name="intent" value="set-reels" />
+                <s-stack gap="small">
+                  {(detailFetcher.data?.reels ?? []).map((reel) => (
+                    <s-checkbox
+                      key={reel.id}
+                      label={reel.title}
+                      name="reelId"
+                      value={reel.id}
+                      defaultChecked={(
+                        (detailWidget.config as unknown as WidgetConfig).reelIds ?? []
+                      ).includes(reel.id)}
+                    ></s-checkbox>
+                  ))}
+                </s-stack>
+                <s-button
+                  type="submit"
+                  {...(reelsFetcher.state !== "idle" ? { loading: true } : {})}
+                >
+                  Save reels
+                </s-button>
+              </reelsFetcher.Form>
             </s-stack>
           )}
         </s-stack>
