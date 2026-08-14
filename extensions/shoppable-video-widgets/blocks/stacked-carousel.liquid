@@ -22,16 +22,16 @@ product-page-reels.liquid; different visual layout.
 
 {% assign reels_field = shop.metafields[reel_namespace].stacked_carousel_widget_reels %}
 
-{% assign visible_reels = "" | split: "," %}
+{% assign visible_count = 0 %}
 {% if widget_matches_product %}
   {% for reel in reels_field.value %}
     {% if reel.published.value and reel.config.value.cloudflareStreamUid != blank and reel.config.value.hlsManifestUrl != blank %}
-      {% assign visible_reels = visible_reels | push: reel %}
+      {% assign visible_count = visible_count | plus: 1 %}
     {% endif %}
   {% endfor %}
 {% endif %}
 
-{% if visible_reels.size > 0 %}
+{% if visible_count > 0 %}
   <div class="reelup-stack" {{ block.shopify_attributes }} data-reelup-stack>
     {% for reel in reels_field.value %}
       {% if reel.published.value and reel.config.value.cloudflareStreamUid != blank and reel.config.value.hlsManifestUrl != blank %}
@@ -55,7 +55,7 @@ product-page-reels.liquid; different visual layout.
         </div>
       {% endif %}
     {% endfor %}
-    {% if visible_reels.size > 1 %}
+    {% if visible_count > 1 %}
       <button type="button" class="reelup-stack__next" data-reelup-stack-next aria-label="{{ 'reels.next_product_label' | t }}">›</button>
     {% endif %}
   </div>
