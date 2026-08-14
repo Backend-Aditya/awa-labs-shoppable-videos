@@ -1,11 +1,12 @@
-import type { InputHTMLAttributes } from "react";
+import { useId, type InputHTMLAttributes } from "react";
 
 interface CheckboxProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
 }
 
 export function Checkbox({ label, name, value, id, ...props }: CheckboxProps) {
-  const fieldId = id ?? `checkbox-${name}-${String(value ?? label).replace(/\s+/g, "-").toLowerCase()}`;
+  const generatedId = useId();
+  const fieldId = id ?? generatedId;
   return (
     <label htmlFor={fieldId} className="flex items-center gap-2 text-sm text-ink">
       <input

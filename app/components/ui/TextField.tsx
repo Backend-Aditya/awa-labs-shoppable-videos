@@ -1,11 +1,12 @@
-import type { InputHTMLAttributes } from "react";
+import { useId, type InputHTMLAttributes } from "react";
 
 interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
 }
 
 export function TextField({ label, name, id, ...props }: TextFieldProps) {
-  const fieldId = id ?? `field-${name}`;
+  const generatedId = useId();
+  const fieldId = id ?? generatedId;
   return (
     <label htmlFor={fieldId} className="flex flex-col gap-1.5">
       <span className="text-sm font-medium text-ink">{label}</span>

@@ -42,10 +42,11 @@ export const Modal = forwardRef<ModalHandle, ModalProps>(function Modal(
       onClick={(e) => {
         if (e.target === dialogRef.current) dialogRef.current?.close();
       }}
+      aria-labelledby="modal-title"
       className="m-auto w-full max-w-lg rounded-xl border border-border bg-bg p-0 backdrop:bg-ink/40"
     >
       <div className="flex items-center justify-between border-b border-border px-5 py-4">
-        <h2 className="text-lg font-semibold text-ink">{title}</h2>
+        <h2 id="modal-title" className="text-lg font-semibold text-ink">{title}</h2>
         <button
           type="button"
           onClick={() => dialogRef.current?.close()}

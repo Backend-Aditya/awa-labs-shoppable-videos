@@ -1,11 +1,12 @@
-import type { SelectHTMLAttributes } from "react";
+import { useId, type SelectHTMLAttributes } from "react";
 
 interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
   label: string;
 }
 
 export function Select({ label, name, id, children, ...props }: SelectProps) {
-  const fieldId = id ?? `select-${name}`;
+  const generatedId = useId();
+  const fieldId = id ?? generatedId;
   return (
     <label htmlFor={fieldId} className="flex flex-col gap-1.5">
       <span className="text-sm font-medium text-ink">{label}</span>
