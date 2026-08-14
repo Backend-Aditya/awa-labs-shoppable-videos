@@ -8,10 +8,10 @@ export function StatTile({
   sublabel?: string;
 }) {
   return (
-    <div className="min-w-[140px] rounded-lg border border-border bg-surface p-4">
+    <div className="rounded-xl border border-border bg-surface p-5">
       <div className="text-sm text-muted">{label}</div>
-      <div className="mt-1 text-2xl font-semibold text-ink">{value}</div>
-      {sublabel && <div className="mt-1 text-sm text-muted">{sublabel}</div>}
+      <div className="mt-1.5 text-3xl font-semibold text-ink">{value}</div>
+      {sublabel && <div className="mt-1.5 text-sm text-muted">{sublabel}</div>}
     </div>
   );
 }
