@@ -490,11 +490,16 @@ function ReelDetailModal({
             method="post"
             action={href ?? undefined}
             onSubmit={(e) => {
+              // Don't call onClose() here — it sets selectedReelId to null
+              // synchronously, which can flip href to null before/while the
+              // fetcher reads this form's action, sending the delete POST
+              // for the wrong (or no) id and 404ing (confirmed live on the
+              // equivalent widgets modal). The modal closes naturally once
+              // the reel disappears from the revalidated list after the
+              // delete redirect completes.
               if (!confirm("Delete this reel? This can't be undone.")) {
                 e.preventDefault();
-                return;
               }
-              onClose();
             }}
           >
             <input type="hidden" name="intent" value="delete" />
