@@ -63,13 +63,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   if (intent === "start-upload") {
-    const title = String(formData.get("uploadTitle") ?? "").trim();
+    const title = String(formData.get("title") ?? "").trim();
+    const published = formData.get("published") != null;
     if (!title) {
       return { error: "Title is required", uploadURL: null, reelId: null };
     }
 
     try {
-      const reel = await upsertReel(admin, generateReelHandle(title), title, false, {
+      const reel = await upsertReel(admin, generateReelHandle(title), title, published, {
         productIds: [],
         interactions: {},
         source: { type: "upload" },
@@ -119,20 +120,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
 
-  const title = String(formData.get("title") ?? "").trim();
-  const published = formData.get("published") != null;
-
-  if (!title) {
-    return { error: "Title is required", uploadURL: null, reelId: null };
-  }
-
-  await upsertReel(admin, generateReelHandle(title), title, published, {
-    productIds: [],
-    interactions: {},
-    source: { type: "upload" },
-  });
-
-  return { error: null, uploadURL: null, reelId: null };
+  return { error: "Unknown request", uploadURL: null, reelId: null };
 };
 
 function CreateReelModal({
@@ -144,48 +132,12 @@ function CreateReelModal({
 }) {
   const modalRef = useRef<ModalHandle>(null);
   const fetcher = useFetcher<typeof action>();
-  const isSubmitting = fetcher.state !== "idle";
-
-  useEffect(() => {
-    if (open) {
-      modalRef.current?.show();
-    } else {
-      modalRef.current?.hide();
-    }
-  }, [open]);
-
-  useEffect(() => {
-    if (fetcher.state === "idle" && fetcher.data && !fetcher.data.error) {
-      onClose();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetcher.state, fetcher.data]);
-
-  return (
-    <Modal ref={modalRef} title="Create a reel" onClose={onClose}>
-      <fetcher.Form method="post" className="flex flex-col gap-4">
-        {fetcher.data?.error && (
-          <p className="text-sm text-critical">{fetcher.data.error}</p>
-        )}
-        <TextField label="Title" name="title" required />
-        <Checkbox label="Published" name="published" />
-        <div>
-          <Button type="submit" variant="primary" loading={isSubmitting}>
-            Create reel
-          </Button>
-        </div>
-      </fetcher.Form>
-    </Modal>
-  );
-}
-
-function UploadVideoForm() {
-  const fetcher = useFetcher<typeof action>();
   const failureFetcher = useFetcher();
   const [file, setFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState<
     "idle" | "uploading" | "done" | "error" | "no-file"
   >("idle");
+  const [fileInputKey, setFileInputKey] = useState(0);
   // armedRef gates the upload PUT to fire exactly once per submission. Without
   // it, changing the selected file after a completed/failed upload re-runs this
   // effect and re-fires against the STALE one-time uploadURL from the previous
@@ -194,6 +146,17 @@ function UploadVideoForm() {
   // not drop `fetcher.state` from the dependency array (it closes a ~1-3s race
   // during an in-flight submission).
   const armedRef = useRef(false);
+
+  useEffect(() => {
+    if (open) {
+      modalRef.current?.show();
+    } else {
+      modalRef.current?.hide();
+      setFile(null);
+      setUploadStatus("idle");
+      setFileInputKey((k) => k + 1);
+    }
+  }, [open]);
 
   useEffect(() => {
     if (
@@ -229,9 +192,17 @@ function UploadVideoForm() {
     }
   }, [fetcher.data, file, fetcher.state, failureFetcher]);
 
+  useEffect(() => {
+    if (uploadStatus === "done") {
+      onClose();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uploadStatus]);
+
+  const isSubmitting = fetcher.state !== "idle" || uploadStatus === "uploading";
+
   return (
-    <section>
-      <h2 className="mb-3 text-lg font-semibold text-ink">Upload a video</h2>
+    <Modal ref={modalRef} title="Create a reel" onClose={onClose}>
       <fetcher.Form
         method="post"
         onSubmit={(e) => {
@@ -249,25 +220,28 @@ function UploadVideoForm() {
         {fetcher.data?.error && (
           <p className="text-sm text-critical">{fetcher.data.error}</p>
         )}
-        <TextField label="Title" name="uploadTitle" required />
-        <input
-          type="file"
-          accept="video/*"
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          className="text-sm text-ink file:mr-3 file:rounded-md file:border file:border-border file:bg-bg file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ink hover:file:bg-surface"
-        />
+        <TextField label="Title" name="title" required />
+        <Checkbox label="Published" name="published" />
         <div>
-          <Button type="submit" variant="primary" loading={fetcher.state !== "idle"}>
-            Start upload
+          <label htmlFor="reel-video-file" className="mb-1.5 block text-sm font-medium text-ink">
+            Video file
+          </label>
+          <input
+            id="reel-video-file"
+            key={fileInputKey}
+            type="file"
+            accept="video/*"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            className="text-sm text-ink file:mr-3 file:rounded-md file:border file:border-border file:bg-bg file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ink hover:file:bg-surface"
+          />
+        </div>
+        <div>
+          <Button type="submit" variant="primary" loading={isSubmitting}>
+            Create reel
           </Button>
         </div>
         {uploadStatus === "uploading" && (
           <p className="text-sm text-muted">Uploading to Cloudflare…</p>
-        )}
-        {uploadStatus === "done" && (
-          <p className="text-sm text-success">
-            Upload complete — processing will finish shortly.
-          </p>
         )}
         {uploadStatus === "error" && (
           <p className="text-sm text-critical">Upload failed. Try again.</p>
@@ -276,7 +250,7 @@ function UploadVideoForm() {
           <p className="text-sm text-critical">Choose a video file first.</p>
         )}
       </fetcher.Form>
-    </section>
+    </Modal>
   );
 }
 
@@ -306,16 +280,25 @@ function ReelCard({ reel, onOpen }: { reel: Reel; onOpen: (reel: Reel) => void }
       onClick={() => onOpen(reel)}
       className={`block w-full ${CARD_INTERACTIVE_CLASSES}`}
     >
-      <div className="mb-2 h-[180px] w-full overflow-hidden rounded-md bg-surface">
+      <div className="relative mb-2 aspect-[9/16] w-full overflow-hidden rounded-lg bg-surface">
         {reel.config.posterUrl ? (
           <img
             src={reel.config.posterUrl}
             alt={reel.title}
             className="h-full w-full object-cover"
           />
-        ) : null}
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <svg className="h-8 w-8 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+              <rect x="3" y="5" width="14" height="14" rx="2" />
+              <path d="M17 9.5l4-2.5v10l-4-2.5" />
+            </svg>
+          </div>
+        )}
+        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/70 to-transparent p-2 pt-6">
+          <div className="truncate text-sm font-semibold text-white">{reel.title}</div>
+        </div>
       </div>
-      <div className="mb-2 font-semibold text-ink">{reel.title}</div>
       <div className="mb-1.5 flex flex-wrap gap-1.5">
         <Badge tone={reel.published ? "success" : "neutral"}>
           {reel.published ? "Published" : "Draft"}
@@ -523,8 +506,6 @@ export default function ReelsLibrary() {
         <StatTile label="Ready to play" value={readyCount} />
         <StatTile label="Tagged to products" value={taggedCount} />
       </div>
-
-      <UploadVideoForm />
 
       <section>
         <h2 className="mb-3 text-lg font-semibold text-ink">All reels</h2>

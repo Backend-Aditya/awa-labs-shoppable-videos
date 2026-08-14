@@ -85,6 +85,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 function WidgetCard({ widget, onOpen }: { widget: Widget; onOpen: (widget: Widget) => void }) {
+  const config = widget.config as unknown as WidgetConfig;
+  const kind = widget.type as WidgetKind;
+  const meta = WIDGET_TEMPLATES.find((t) => t.kind === kind);
+  const targetRule = config.targetRule;
+  const handleCount = targetRule?.type === "handles" ? targetRule.handles.length : 0;
+  const targetSummary =
+    targetRule?.type === "all_products"
+      ? "All products"
+      : `${handleCount} product${handleCount === 1 ? "" : "s"}`;
+  const reelCount = config.reelIds?.length ?? 0;
+  const hasFeaturedReel = Boolean(config.featuredReelId);
+  const showsFeaturedReel = kind === "SINGLE_VIDEO" || kind === "REEL_POPS";
+  const showsReelCount = kind === "PRODUCT_PAGE_REELS" || kind === "CAROUSEL" || kind === "STORIES";
+
   return (
     // Opens a popup instead of navigating — see ReelCard in app.reels.tsx for
     // why: full-page navigation inside the embedded admin iframe repeatedly
@@ -95,11 +109,27 @@ function WidgetCard({ widget, onOpen }: { widget: Widget; onOpen: (widget: Widge
       onClick={() => onOpen(widget)}
       className={`block w-full ${CARD_INTERACTIVE_CLASSES}`}
     >
-      <div className="mb-1.5 font-semibold text-ink">{widget.name}</div>
-      <div className="mb-2 text-sm text-muted">{widget.type}</div>
-      <Badge tone={widget.published ? "success" : "neutral"}>
-        {widget.published ? "Published" : "Draft"}
-      </Badge>
+      <div className="mb-3 flex items-center gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-surface">
+          <TemplateIcon kind={kind} />
+        </div>
+        <div className="min-w-0 text-left">
+          <div className="truncate font-semibold text-ink">{widget.name}</div>
+          <div className="truncate text-xs text-muted">{meta?.name ?? widget.type}</div>
+        </div>
+      </div>
+      <div className="mb-3 flex flex-wrap gap-1.5">
+        <Badge tone={widget.published ? "success" : "neutral"}>
+          {widget.published ? "Published" : "Draft"}
+        </Badge>
+        <Badge tone="neutral">{targetSummary}</Badge>
+      </div>
+      {(showsFeaturedReel || showsReelCount) && (
+        <div className="text-xs text-muted">
+          {showsFeaturedReel && (hasFeaturedReel ? "Featured reel set" : "No featured reel yet")}
+          {showsReelCount && `${reelCount} reel${reelCount === 1 ? "" : "s"} selected`}
+        </div>
+      )}
     </button>
   );
 }
