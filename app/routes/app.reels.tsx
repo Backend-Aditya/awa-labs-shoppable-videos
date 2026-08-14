@@ -18,6 +18,14 @@ import {
 import type { Reel } from "../models/reel.server";
 import { deriveReelStatus } from "../models/reel-status";
 import { createDirectUploadUrl, getCloudflareConfig } from "../models/cloudflare-stream.server";
+import { PageShell } from "../components/ui/PageShell";
+import { StatTile } from "../components/ui/StatTile";
+import { CARD_INTERACTIVE_CLASSES } from "../components/ui/Card";
+import { Badge } from "../components/ui/Badge";
+import { Button } from "../components/ui/Button";
+import { TextField } from "../components/ui/TextField";
+import { Checkbox } from "../components/ui/Checkbox";
+import { Modal, type ModalHandle } from "../components/ui/Modal";
 
 // Route param is the trailing numeric id only — a raw GID (gid://shopify/Metaobject/123)
 // contains ':' and '/' characters that break single-segment routing/URLs.
@@ -178,7 +186,8 @@ function UploadVideoForm() {
   }, [fetcher.data, file, fetcher.state, failureFetcher]);
 
   return (
-    <s-section heading="Upload a video">
+    <section>
+      <h2 className="mb-3 text-lg font-semibold text-ink">Upload a video</h2>
       <fetcher.Form
         method="post"
         onSubmit={(e) => {
@@ -190,156 +199,91 @@ function UploadVideoForm() {
           armedRef.current = true;
           setUploadStatus("idle");
         }}
+        className="flex flex-col gap-4"
       >
         <input type="hidden" name="intent" value="start-upload" />
-        <s-stack gap="base">
-          {fetcher.data?.error && (
-            <s-paragraph tone="critical">{fetcher.data.error}</s-paragraph>
-          )}
-          <s-text-field label="Title" name="uploadTitle" required></s-text-field>
-          <input
-            type="file"
-            accept="video/*"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          />
-          <s-button
-            type="submit"
-            variant="primary"
-            {...(fetcher.state !== "idle" ? { loading: true } : {})}
-          >
+        {fetcher.data?.error && (
+          <p className="text-sm text-critical">{fetcher.data.error}</p>
+        )}
+        <TextField label="Title" name="uploadTitle" required />
+        <input
+          type="file"
+          accept="video/*"
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          className="text-sm text-ink file:mr-3 file:rounded-md file:border file:border-border file:bg-bg file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ink hover:file:bg-surface"
+        />
+        <div>
+          <Button type="submit" variant="primary" loading={fetcher.state !== "idle"}>
             Start upload
-          </s-button>
-          {uploadStatus === "uploading" && (
-            <s-paragraph>Uploading to Cloudflare…</s-paragraph>
-          )}
-          {uploadStatus === "done" && (
-            <s-paragraph tone="success">
-              Upload complete — processing will finish shortly.
-            </s-paragraph>
-          )}
-          {uploadStatus === "error" && (
-            <s-paragraph tone="critical">Upload failed. Try again.</s-paragraph>
-          )}
-          {uploadStatus === "no-file" && (
-            <s-paragraph tone="critical">Choose a video file first.</s-paragraph>
-          )}
-        </s-stack>
+          </Button>
+        </div>
+        {uploadStatus === "uploading" && (
+          <p className="text-sm text-muted">Uploading to Cloudflare…</p>
+        )}
+        {uploadStatus === "done" && (
+          <p className="text-sm text-success">
+            Upload complete — processing will finish shortly.
+          </p>
+        )}
+        {uploadStatus === "error" && (
+          <p className="text-sm text-critical">Upload failed. Try again.</p>
+        )}
+        {uploadStatus === "no-file" && (
+          <p className="text-sm text-critical">Choose a video file first.</p>
+        )}
       </fetcher.Form>
-    </s-section>
+    </section>
   );
 }
 
-function StatTile({ label, value }: { label: string; value: number }) {
-  return (
-    <s-box
-      padding="base"
-      background="subdued"
-      borderRadius="base"
-      minInlineSize="140px"
-    >
-      <s-stack gap="small-200">
-        <s-text color="subdued">{label}</s-text>
-        <s-heading>{value}</s-heading>
-      </s-stack>
-    </s-box>
-  );
-}
-
-const TONE_COLORS: Record<string, { bg: string; fg: string }> = {
-  success: { bg: "#d1f7dc", fg: "#0a6640" },
-  critical: { bg: "#fde4e1", fg: "#a3200e" },
-  info: { bg: "#d3ecfa", fg: "#0a4a6e" },
-  neutral: { bg: "#e5e5e5", fg: "#444444" },
-};
-
-function PlainBadge({ tone, children }: { tone: string; children: React.ReactNode }) {
-  const colors = TONE_COLORS[tone] ?? TONE_COLORS.neutral;
-  return (
-    <span
-      style={{
-        display: "inline-block",
-        padding: "2px 8px",
-        borderRadius: "999px",
-        fontSize: "12px",
-        fontWeight: 500,
-        background: colors.bg,
-        color: colors.fg,
-      }}
-    >
-      {children}
-    </span>
-  );
+function statusTone(status: string | null): "success" | "critical" | "info" | "neutral" {
+  return status === "ready"
+    ? "success"
+    : status === "failed"
+      ? "critical"
+      : status === "processing"
+        ? "info"
+        : "neutral";
 }
 
 function ReelCard({ reel, onOpen }: { reel: Reel; onOpen: (reel: Reel) => void }) {
   const status = deriveReelStatus(reel.config);
-  const statusTone =
-    status === "ready"
-      ? "success"
-      : status === "failed"
-        ? "critical"
-        : status === "processing"
-          ? "info"
-          : "neutral";
   const productCount = reel.config.productIds?.length ?? 0;
 
   return (
     // Opens a popup instead of navigating — full-page navigation inside the
     // embedded admin iframe repeatedly failed to reach the detail route (see
-    // git history). A click handler that shows an <s-modal> and loads detail
-    // data via useFetcher() sidesteps that: fetcher requests go through
-    // App Bridge's patched fetch(), which attaches a session-token header,
-    // so authenticate.admin() never falls back to needing shop/host params.
+    // git history). A click handler that shows a Modal and loads detail data
+    // via useFetcher() sidesteps that: fetcher requests go through App
+    // Bridge's patched fetch(), which attaches a session-token header, so
+    // authenticate.admin() never falls back to needing shop/host params.
     <button
       type="button"
       onClick={() => onOpen(reel)}
-      style={{
-        all: "unset",
-        cursor: "pointer",
-        display: "block",
-        width: "100%",
-        boxSizing: "border-box",
-        textAlign: "left",
-        color: "inherit",
-        border: "1px solid #d9d9d9",
-        borderRadius: "8px",
-        padding: "12px",
-        background: "#ffffff",
-      }}
+      className={`block w-full ${CARD_INTERACTIVE_CLASSES}`}
     >
-      <div
-        style={{
-          background: "#f1f1f1",
-          borderRadius: "6px",
-          height: "140px",
-          width: "100%",
-          overflow: "hidden",
-          marginBottom: "8px",
-        }}
-      >
+      <div className="mb-2 h-[140px] w-full overflow-hidden rounded-md bg-surface">
         {reel.config.posterUrl ? (
           <img
             src={reel.config.posterUrl}
             alt={reel.title}
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            className="h-full w-full object-cover"
           />
         ) : null}
       </div>
-      <div style={{ fontWeight: 600, marginBottom: "8px" }}>{reel.title}</div>
-      <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "6px" }}>
-        <PlainBadge tone={reel.published ? "success" : "neutral"}>
+      <div className="mb-2 font-semibold text-ink">{reel.title}</div>
+      <div className="mb-1.5 flex flex-wrap gap-1.5">
+        <Badge tone={reel.published ? "success" : "neutral"}>
           {reel.published ? "Published" : "Draft"}
-        </PlainBadge>
-        <PlainBadge tone={statusTone}>{REEL_STATUS_LABELS[status]}</PlainBadge>
+        </Badge>
+        <Badge tone={statusTone(status)}>{REEL_STATUS_LABELS[status]}</Badge>
       </div>
-      <PlainBadge tone={productCount > 0 ? "success" : "neutral"}>
+      <Badge tone={productCount > 0 ? "success" : "neutral"}>
         {productCount > 0 ? `${productCount} tagged` : "Untagged"}
-      </PlainBadge>
+      </Badge>
     </button>
   );
 }
-
-const MODAL_ID = "reel-detail-modal";
 
 type ReelDetailLoaderData = {
   loaderError: string | null;
@@ -354,8 +298,7 @@ function ReelDetailModal({
   reel: Reel | null;
   onClose: () => void;
 }) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const modalRef = useRef<any>(null);
+  const modalRef = useRef<ModalHandle>(null);
   const detailFetcher = useFetcher<ReelDetailLoaderData>();
   const editFetcher = useFetcher<{ error: string | null }>();
   const productsFetcher = useFetcher<{ error: string | null }>();
@@ -365,10 +308,10 @@ function ReelDetailModal({
 
   useEffect(() => {
     if (href) {
-      modalRef.current?.showOverlay();
+      modalRef.current?.show();
       detailFetcher.load(href);
     } else {
-      modalRef.current?.hideOverlay();
+      modalRef.current?.hide();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [href]);
@@ -407,84 +350,69 @@ function ReelDetailModal({
   const data = detailFetcher.data;
   const detailReel = data?.reel ?? null;
   const status = detailReel ? deriveReelStatus(detailReel.config) : null;
-  const statusTone =
-    status === "ready"
-      ? "success"
-      : status === "failed"
-        ? "critical"
-        : status === "processing"
-          ? "info"
-          : "neutral";
 
   return (
-    <s-modal id={MODAL_ID} heading={reel?.title ?? "Reel"} ref={modalRef} onHide={onClose}>
+    <Modal ref={modalRef} title={reel?.title ?? "Reel"} onClose={onClose}>
       {!data ? (
-        <s-paragraph>Loading…</s-paragraph>
+        <p className="text-sm text-muted">Loading…</p>
       ) : data.loaderError ? (
-        <s-paragraph tone="critical">{data.loaderError}</s-paragraph>
+        <p className="text-sm text-critical">{data.loaderError}</p>
       ) : detailReel ? (
-        <s-stack gap="base">
+        <div className="flex flex-col gap-4">
           {detailReel.config.cloudflareStreamUid ? (
             <iframe
               src={`https://iframe.videodelivery.net/${encodeURIComponent(detailReel.config.cloudflareStreamUid)}`}
               title={`Preview of ${detailReel.title}`}
-              style={{ border: "none", aspectRatio: "9 / 16", width: "100%", maxWidth: "220px" }}
+              className="aspect-[9/16] w-full max-w-[220px] border-0"
               allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
               allowFullScreen
             ></iframe>
           ) : (
-            <s-paragraph>No video uploaded yet.</s-paragraph>
+            <p className="text-sm text-muted">No video uploaded yet.</p>
           )}
-          <s-paragraph>
-            Status: <s-badge tone={statusTone}>{status ? REEL_STATUS_LABELS[status] : ""}</s-badge>
-          </s-paragraph>
+          <p className="flex items-center gap-2 text-sm text-ink">
+            Status:{" "}
+            <Badge tone={statusTone(status)}>{status ? REEL_STATUS_LABELS[status] : ""}</Badge>
+          </p>
 
           {editFetcher.data?.error && (
-            <s-paragraph tone="critical">{editFetcher.data.error}</s-paragraph>
+            <p className="text-sm text-critical">{editFetcher.data.error}</p>
           )}
-          <editFetcher.Form method="post" action={href!}>
-            <s-stack gap="base">
-              <s-text-field
-                label="Title"
-                name="title"
-                defaultValue={detailReel.title}
-                required
-              ></s-text-field>
-              <s-checkbox
-                label="Published"
-                name="published"
-                defaultChecked={detailReel.published}
-              ></s-checkbox>
-              <s-button
-                type="submit"
-                variant="primary"
-                {...(editFetcher.state !== "idle" ? { loading: true } : {})}
-              >
+          <editFetcher.Form method="post" action={href!} className="flex flex-col gap-4">
+            <TextField label="Title" name="title" defaultValue={detailReel.title} required />
+            <Checkbox label="Published" name="published" defaultChecked={detailReel.published} />
+            <div>
+              <Button type="submit" variant="primary" loading={editFetcher.state !== "idle"}>
                 Save
-              </s-button>
-            </s-stack>
+              </Button>
+            </div>
           </editFetcher.Form>
 
-          <s-stack gap="base">
+          <div className="flex flex-col gap-3">
             {productsFetcher.data?.error && (
-              <s-paragraph tone="critical">{productsFetcher.data.error}</s-paragraph>
+              <p className="text-sm text-critical">{productsFetcher.data.error}</p>
             )}
             {data.taggedProducts.length === 0 ? (
-              <s-paragraph>No products tagged yet.</s-paragraph>
+              <p className="text-sm text-muted">No products tagged yet.</p>
             ) : (
-              <s-stack gap="small">
+              <div className="flex flex-col gap-1.5">
                 {data.taggedProducts.map((product) => (
-                  <s-paragraph key={product.id}>{product.title}</s-paragraph>
+                  <p key={product.id} className="text-sm text-ink">
+                    {product.title}
+                  </p>
                 ))}
-              </s-stack>
+              </div>
             )}
-            <s-button
-              onClick={handlePickProducts}
-              {...(productsFetcher.state !== "idle" ? { loading: true } : {})}
-            >
-              {data.taggedProducts.length === 0 ? "Tag products" : "Edit tagged products"}
-            </s-button>
-          </s-stack>
+            <div>
+              <Button
+                variant="secondary"
+                onClick={handlePickProducts}
+                loading={productsFetcher.state !== "idle"}
+              >
+                {data.taggedProducts.length === 0 ? "Tag products" : "Edit tagged products"}
+              </Button>
+            </div>
+          </div>
 
           <deleteFetcher.Form
             method="post"
@@ -503,18 +431,13 @@ function ReelDetailModal({
             }}
           >
             <input type="hidden" name="intent" value="delete" />
-            <s-button
-              type="submit"
-              variant="secondary"
-              tone="critical"
-              {...(deleteFetcher.state !== "idle" ? { loading: true } : {})}
-            >
+            <Button type="submit" variant="critical" loading={deleteFetcher.state !== "idle"}>
               Delete reel
-            </s-button>
+            </Button>
           </deleteFetcher.Form>
-        </s-stack>
+        </div>
       ) : null}
-    </s-modal>
+    </Modal>
   );
 }
 
@@ -537,53 +460,47 @@ export default function ReelsLibrary() {
   ).length;
 
   return (
-    <s-page heading="Reels library">
-      <s-section>
-        <s-stack direction="inline" gap="base">
-          <StatTile label="Total reels" value={reels.length} />
-          <StatTile label="Published" value={publishedCount} />
-          <StatTile label="Ready to play" value={readyCount} />
-          <StatTile label="Tagged to products" value={taggedCount} />
-        </s-stack>
-      </s-section>
-      <s-section heading="Create a reel">
+    <PageShell heading="Reels library">
+      <div className="flex flex-wrap gap-4">
+        <StatTile label="Total reels" value={reels.length} />
+        <StatTile label="Published" value={publishedCount} />
+        <StatTile label="Ready to play" value={readyCount} />
+        <StatTile label="Tagged to products" value={taggedCount} />
+      </div>
+
+      <section>
+        <h2 className="mb-3 text-lg font-semibold text-ink">Create a reel</h2>
         {actionData?.error && (
-          <s-paragraph tone="critical">{actionData.error}</s-paragraph>
+          <p className="mb-3 text-sm text-critical">{actionData.error}</p>
         )}
-        <Form method="post">
-          <s-stack gap="base">
-            <s-text-field label="Title" name="title" required></s-text-field>
-            <s-checkbox label="Published" name="published"></s-checkbox>
-            <s-button
-              type="submit"
-              variant="primary"
-              {...(isSubmitting ? { loading: true } : {})}
-            >
+        <Form method="post" className="flex flex-col gap-4">
+          <TextField label="Title" name="title" required />
+          <Checkbox label="Published" name="published" />
+          <div>
+            <Button type="submit" variant="primary" loading={isSubmitting}>
               Create reel
-            </s-button>
-          </s-stack>
+            </Button>
+          </div>
         </Form>
-      </s-section>
+      </section>
+
       <UploadVideoForm />
-      <s-section heading="All reels">
+
+      <section>
+        <h2 className="mb-3 text-lg font-semibold text-ink">All reels</h2>
         {reels.length === 0 ? (
-          <s-paragraph>No reels yet. Create your first one above.</s-paragraph>
+          <p className="text-sm text-muted">No reels yet. Create your first one above.</p>
         ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-              gap: "12px",
-            }}
-          >
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
             {reels.map((reel) => (
               <ReelCard key={reel.id} reel={reel} onOpen={(r) => setSelectedReelId(r.id)} />
             ))}
           </div>
         )}
-      </s-section>
+      </section>
+
       <ReelDetailModal reel={selectedReel} onClose={() => setSelectedReelId(null)} />
-    </s-page>
+    </PageShell>
   );
 }
 
