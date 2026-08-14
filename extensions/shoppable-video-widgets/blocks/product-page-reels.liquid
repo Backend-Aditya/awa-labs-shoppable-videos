@@ -1,12 +1,14 @@
 {% doc %}
 Renders every published, ready reel tagged to the current product as a
-lightweight, lazily-loaded video player. Reads the product's tagged reels
-via the app-owned metaobject reference metafield — resolved entirely by
+click-to-open trigger; clicking one opens the shared reel lightbox with
+the video and any tagged products. Reads the product's tagged reels via
+the app-owned metaobject reference metafield — resolved entirely by
 Liquid at render time, no runtime API call.
 @example
 {% content_for 'block', type: 'product-page-reels', id: 'reels' %}
 {% enddoc %}
 
+{{ 'reel-lightbox.css' | asset_url | stylesheet_tag }}
 {{ 'product-page-reels.css' | asset_url | stylesheet_tag }}
 
 {% comment %}
@@ -47,46 +49,42 @@ Liquid at render time, no runtime API call.
   <div class="reelup-product-reels" {{ block.shopify_attributes }}>
     {% for reel in reels_field.value %}
       {% if reel.published.value and reel.config.value.cloudflareStreamUid != blank and reel.config.value.hlsManifestUrl != blank %}
-        <div
-          class="reelup-reel"
-          style="--reelup-aspect-ratio: 9 / 16;"
-          data-reelup-reel
-          data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
-        >
-          <div class="reelup-reel__frame">
-            {% if reel.config.value.posterUrl != blank %}
-              <img
-                class="reelup-reel__poster"
-                src="{{ reel.config.value.posterUrl | escape }}"
-                alt="{{ reel.title.value | escape }}"
-                loading="lazy"
-                width="360"
-                height="640"
-              >
-            {% endif %}
+        <div class="reelup-product-reels__item">
+          <div
+            class="reelup-trigger"
+            data-reelup-trigger
+            data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
+            data-poster-url="{{ reel.config.value.posterUrl | escape }}"
+            data-title="{{ reel.title.value | escape }}"
+            data-close-label="{{ 'reels.close_label' | t }}"
+            data-shop-label="{{ 'reels.shop_this_video_label' | t }}"
+          >
             <button
               type="button"
-              class="reelup-reel__play"
+              class="reelup-trigger__button"
               aria-label="{{ 'reels.play_label' | t }}"
             >
-              <span class="reelup-reel__play-icon" aria-hidden="true"></span>
+              {% if reel.config.value.posterUrl != blank %}
+                <img
+                  class="reelup-trigger__poster"
+                  src="{{ reel.config.value.posterUrl | escape }}"
+                  alt="{{ reel.title.value | escape }}"
+                  loading="lazy"
+                  width="360"
+                  height="640"
+                >
+              {% endif %}
+              <span class="reelup-trigger__play-icon" aria-hidden="true"></span>
             </button>
-            <video
-              class="reelup-reel__video"
-              playsinline
-              muted
-              loop
-              preload="none"
-            ></video>
             {% if reel.tagged_products.value.size > 0 %}
-              <div class="reelup-reel__products" data-reelup-products>
+              <template data-reelup-products>
                 {% for product in reel.tagged_products.value %}
                   {% assign variant = product.selected_or_first_available_variant %}
-                  <div class="reelup-reel__product">
-                    <a class="reelup-reel__product-link" href="{{ product.url }}">
+                  <div class="reelup-lightbox__product">
+                    <a class="reelup-lightbox__product-link" href="{{ product.url }}">
                       {% if product.featured_image %}
                         <img
-                          class="reelup-reel__product-image"
+                          class="reelup-lightbox__product-image"
                           src="{{ product.featured_image | image_url: width: 160 }}"
                           alt="{{ product.title | escape }}"
                           loading="lazy"
@@ -94,15 +92,15 @@ Liquid at render time, no runtime API call.
                           height="56"
                         >
                       {% endif %}
-                      <span class="reelup-reel__product-info">
-                        <span class="reelup-reel__product-title">{{ product.title }}</span>
-                        <span class="reelup-reel__product-price">{{ product.price | money }}</span>
+                      <span class="reelup-lightbox__product-info">
+                        <span class="reelup-lightbox__product-title">{{ product.title }}</span>
+                        <span class="reelup-lightbox__product-price">{{ product.price | money }}</span>
                       </span>
                     </a>
                     {% if variant %}
                       <button
                         type="button"
-                        class="reelup-reel__add-to-cart"
+                        class="reelup-lightbox__add-to-cart"
                         data-reelup-add-to-cart
                         data-variant-id="{{ variant.id }}"
                         data-add-label="{{ 'reels.add_to_cart' | t }}"
@@ -113,31 +111,15 @@ Liquid at render time, no runtime API call.
                     {% endif %}
                   </div>
                 {% endfor %}
-              </div>
-              {% if reel.tagged_products.value.size > 1 %}
-                <button
-                  type="button"
-                  class="reelup-reel__products-nav reelup-reel__products-nav--prev"
-                  data-reelup-products-prev
-                  aria-label="{{ 'reels.previous_product_label' | t }}"
-                >‹</button>
-                <button
-                  type="button"
-                  class="reelup-reel__products-nav reelup-reel__products-nav--next"
-                  data-reelup-products-next
-                  aria-label="{{ 'reels.next_product_label' | t }}"
-                >›</button>
-              {% endif %}
+              </template>
             {% endif %}
           </div>
         </div>
       {% endif %}
     {% endfor %}
   </div>
-{% endif %}
-
-{% if visible_count > 0 %}
-  <script src="{{ 'product-page-reels.js' | asset_url }}" defer></script>
+  <script src="{{ 'reel-lightbox.js' | asset_url }}" defer></script>
+  <script src="{{ 'reel-trigger.js' | asset_url }}" defer></script>
 {% endif %}
 
 {% schema %}
