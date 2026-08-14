@@ -485,30 +485,30 @@ function ReelDetailModal({
               {data.taggedProducts.length === 0 ? "Tag products" : "Edit tagged products"}
             </s-button>
           </s-stack>
+
+          <deleteFetcher.Form
+            method="post"
+            action={href ?? undefined}
+            onSubmit={(e) => {
+              if (!confirm("Delete this reel? This can't be undone.")) {
+                e.preventDefault();
+                return;
+              }
+              onClose();
+            }}
+          >
+            <input type="hidden" name="intent" value="delete" />
+            <s-button
+              type="submit"
+              variant="secondary"
+              tone="critical"
+              {...(deleteFetcher.state !== "idle" ? { loading: true } : {})}
+            >
+              Delete reel
+            </s-button>
+          </deleteFetcher.Form>
         </s-stack>
       ) : null}
-      <deleteFetcher.Form
-        method="post"
-        action={href ?? undefined}
-        slot="primary-action"
-        onSubmit={(e) => {
-          if (!confirm("Delete this reel? This can't be undone.")) {
-            e.preventDefault();
-            return;
-          }
-          onClose();
-        }}
-      >
-        <input type="hidden" name="intent" value="delete" />
-        <s-button
-          type="submit"
-          variant="secondary"
-          tone="critical"
-          {...(deleteFetcher.state !== "idle" ? { loading: true } : {})}
-        >
-          Delete reel
-        </s-button>
-      </deleteFetcher.Form>
     </s-modal>
   );
 }
