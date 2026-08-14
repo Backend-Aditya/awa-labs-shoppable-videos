@@ -12,6 +12,15 @@ import { getOrCreateShop } from "../models/shop.server";
 import { createWidget, listWidgetsForShop } from "../models/widget.server";
 import type { WidgetConfig, WidgetKind } from "../models/widget.server";
 import type { Widget } from "@prisma/client";
+import { PageShell } from "../components/ui/PageShell";
+import { StatTile } from "../components/ui/StatTile";
+import { CARD_INTERACTIVE_CLASSES } from "../components/ui/Card";
+import { Badge } from "../components/ui/Badge";
+import { Button } from "../components/ui/Button";
+import { TextField } from "../components/ui/TextField";
+import { Checkbox } from "../components/ui/Checkbox";
+import { Select } from "../components/ui/Select";
+import { Modal, type ModalHandle } from "../components/ui/Modal";
 
 interface WidgetTemplateMeta {
   kind: WidgetKind;
@@ -84,35 +93,13 @@ function WidgetCard({ widget, onOpen }: { widget: Widget; onOpen: (widget: Widge
     <button
       type="button"
       onClick={() => onOpen(widget)}
-      style={{
-        all: "unset",
-        cursor: "pointer",
-        display: "block",
-        width: "100%",
-        boxSizing: "border-box",
-        textAlign: "left",
-        color: "inherit",
-        border: "1px solid #d9d9d9",
-        borderRadius: "8px",
-        padding: "12px",
-        background: "#ffffff",
-      }}
+      className={`block w-full ${CARD_INTERACTIVE_CLASSES}`}
     >
-      <div style={{ fontWeight: 600, marginBottom: "6px" }}>{widget.name}</div>
-      <div style={{ color: "#6b6b6b", marginBottom: "8px" }}>{widget.type}</div>
-      <span
-        style={{
-          display: "inline-block",
-          padding: "2px 8px",
-          borderRadius: "999px",
-          fontSize: "12px",
-          fontWeight: 500,
-          background: widget.published ? "#d1f7dc" : "#e5e5e5",
-          color: widget.published ? "#0a6640" : "#444444",
-        }}
-      >
+      <div className="mb-1.5 font-semibold text-ink">{widget.name}</div>
+      <div className="mb-2 text-sm text-muted">{widget.type}</div>
+      <Badge tone={widget.published ? "success" : "neutral"}>
         {widget.published ? "Published" : "Draft"}
-      </span>
+      </Badge>
     </button>
   );
 }
@@ -125,46 +112,26 @@ function TemplatePicker({
   onChange: (kind: WidgetKind) => void;
 }) {
   return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-        gap: "8px",
-      }}
-    >
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-2">
       {WIDGET_TEMPLATES.map((template) => (
         <button
           key={template.kind}
           type="button"
           onClick={() => onChange(template.kind)}
-          style={{
-            textAlign: "left",
-            cursor: "pointer",
-            padding: "10px",
-            borderRadius: "8px",
-            border: template.kind === value ? "2px solid #111" : "1px solid #d9d9d9",
-            background: "#ffffff",
-            font: "inherit",
-            color: "inherit",
-          }}
+          className={`rounded-lg border p-2.5 text-left transition-colors ${
+            template.kind === value
+              ? "border-2 border-primary"
+              : "border border-border hover:border-primary/40"
+          }`}
         >
-          <div
-            style={{
-              height: "56px",
-              borderRadius: "6px",
-              background: "#f1f1f1",
-              marginBottom: "8px",
-            }}
-          />
-          <div style={{ fontWeight: 600, fontSize: "13px" }}>{template.name}</div>
-          <div style={{ color: "#6b6b6b", fontSize: "12px" }}>{template.description}</div>
+          <div className="mb-2 h-14 rounded-md bg-surface" />
+          <div className="text-sm font-semibold text-ink">{template.name}</div>
+          <div className="text-xs text-muted">{template.description}</div>
         </button>
       ))}
     </div>
   );
 }
-
-const MODAL_ID = "widget-detail-modal";
 
 type WidgetDetailLoaderData = {
   widget: Widget;
@@ -178,8 +145,7 @@ function WidgetDetailModal({
   widget: Widget | null;
   onClose: () => void;
 }) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const modalRef = useRef<any>(null);
+  const modalRef = useRef<ModalHandle>(null);
   const detailFetcher = useFetcher<WidgetDetailLoaderData>();
   const editFetcher = useFetcher<{ error: string | null }>();
   const targetFetcher = useFetcher<{ error: string | null }>();
@@ -191,10 +157,10 @@ function WidgetDetailModal({
 
   useEffect(() => {
     if (href) {
-      modalRef.current?.showOverlay();
+      modalRef.current?.show();
       detailFetcher.load(href);
     } else {
-      modalRef.current?.hideOverlay();
+      modalRef.current?.hide();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [href]);
@@ -254,74 +220,64 @@ function WidgetDetailModal({
   };
 
   return (
-    <s-modal id={MODAL_ID} heading={widget?.name ?? "Widget"} ref={modalRef} onHide={onClose}>
+    <Modal ref={modalRef} title={widget?.name ?? "Widget"} onClose={onClose}>
       {!detailWidget ? (
-        <s-paragraph>Loading…</s-paragraph>
+        <p className="text-sm text-muted">Loading…</p>
       ) : (
-        <s-stack gap="base">
-          <s-paragraph>
-            Type: <s-text>{detailWidget.type}</s-text>
-          </s-paragraph>
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-ink">Type: {detailWidget.type}</p>
 
           {editFetcher.data?.error && (
-            <s-paragraph tone="critical">{editFetcher.data.error}</s-paragraph>
+            <p className="text-sm text-critical">{editFetcher.data.error}</p>
           )}
-          <editFetcher.Form method="post" action={href!}>
-            <s-stack gap="base">
-              <s-text-field
-                label="Name"
-                name="name"
-                defaultValue={detailWidget.name}
-                required
-              ></s-text-field>
-              <s-checkbox
-                label="Published"
-                name="published"
-                defaultChecked={detailWidget.published}
-              ></s-checkbox>
-              <s-button
-                type="submit"
-                variant="primary"
-                {...(editFetcher.state !== "idle" ? { loading: true } : {})}
-              >
+          <editFetcher.Form method="post" action={href!} className="flex flex-col gap-4">
+            <TextField label="Name" name="name" defaultValue={detailWidget.name} required />
+            <Checkbox label="Published" name="published" defaultChecked={detailWidget.published} />
+            <div>
+              <Button type="submit" variant="primary" loading={editFetcher.state !== "idle"}>
                 Save
-              </s-button>
-            </s-stack>
+              </Button>
+            </div>
           </editFetcher.Form>
 
-          <s-stack gap="base">
+          <div className="flex flex-col gap-3">
             {targetFetcher.data?.error && (
-              <s-paragraph tone="critical">{targetFetcher.data.error}</s-paragraph>
+              <p className="text-sm text-critical">{targetFetcher.data.error}</p>
             )}
             {targetRule?.type === "all_products" ? (
-              <s-paragraph>Showing on all products.</s-paragraph>
+              <p className="text-sm text-ink">Showing on all products.</p>
             ) : (
-              <s-stack gap="small">
-                <s-paragraph>Targeting {currentHandles.length} product(s):</s-paragraph>
+              <div className="flex flex-col gap-1.5">
+                <p className="text-sm text-ink">Targeting {currentHandles.length} product(s):</p>
                 {currentHandles.map((handle) => (
-                  <s-paragraph key={handle}>{handle}</s-paragraph>
+                  <p key={handle} className="text-sm text-muted">
+                    {handle}
+                  </p>
                 ))}
-              </s-stack>
+              </div>
             )}
-            <s-button
-              onClick={handlePickProducts}
-              {...(targetFetcher.state !== "idle" ? { loading: true } : {})}
-            >
-              Choose products
-            </s-button>
-            {targetRule?.type === "handles" && (
-              <s-button onClick={handleClearTarget} variant="secondary">
-                Target all products instead
-              </s-button>
-            )}
-          </s-stack>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="secondary"
+                onClick={handlePickProducts}
+                loading={targetFetcher.state !== "idle"}
+              >
+                Choose products
+              </Button>
+              {targetRule?.type === "handles" && (
+                <Button variant="ghost" onClick={handleClearTarget}>
+                  Target all products instead
+                </Button>
+              )}
+            </div>
+          </div>
 
           {(detailWidget.type === "SINGLE_VIDEO" || detailWidget.type === "REEL_POPS") && (
-            <s-stack gap="base">
+            <div className="flex flex-col gap-3">
               {featuredReelFetcher.data?.error && (
-                <s-paragraph tone="critical">{featuredReelFetcher.data.error}</s-paragraph>
+                <p className="text-sm text-critical">{featuredReelFetcher.data.error}</p>
               )}
-              <s-paragraph>
+              <p className="text-sm text-ink">
                 Featured reel:{" "}
                 {(() => {
                   const featuredReelId = (detailWidget.config as unknown as WidgetConfig)
@@ -330,41 +286,44 @@ function WidgetDetailModal({
                   const featured = reels.find((r) => r.id === featuredReelId);
                   return featured ? featured.title : "None chosen yet";
                 })()}
-              </s-paragraph>
-              <featuredReelFetcher.Form method="post" action={href!}>
+              </p>
+              <featuredReelFetcher.Form method="post" action={href!} className="flex flex-col gap-3">
                 <input type="hidden" name="intent" value="set-featured-reel" />
-                <s-stack gap="base">
-                  <s-select label="Choose reel" name="featuredReelId" required>
-                    {(detailFetcher.data?.reels ?? []).map((reel) => (
-                      <s-option key={reel.id} value={reel.id}>
-                        {reel.title}
-                      </s-option>
-                    ))}
-                  </s-select>
-                  <s-button
+                <Select label="Choose reel" name="featuredReelId" required>
+                  {(detailFetcher.data?.reels ?? []).map((reel) => (
+                    <option key={reel.id} value={reel.id}>
+                      {reel.title}
+                    </option>
+                  ))}
+                </Select>
+                <div>
+                  <Button
                     type="submit"
-                    {...(featuredReelFetcher.state !== "idle" ? { loading: true } : {})}
+                    variant="secondary"
+                    loading={featuredReelFetcher.state !== "idle"}
                   >
                     Save featured reel
-                  </s-button>
-                </s-stack>
+                  </Button>
+                </div>
               </featuredReelFetcher.Form>
-            </s-stack>
+            </div>
           )}
 
           {(detailWidget.type === "PRODUCT_PAGE_REELS" ||
             detailWidget.type === "CAROUSEL" ||
             detailWidget.type === "STORIES") && (
-            <s-stack gap="base">
+            <div className="flex flex-col gap-3">
               {reelsFetcher.data?.error && (
-                <s-paragraph tone="critical">{reelsFetcher.data.error}</s-paragraph>
+                <p className="text-sm text-critical">{reelsFetcher.data.error}</p>
               )}
-              <s-paragraph>Reels shown by this widget (same set on every targeted product page):</s-paragraph>
-              <reelsFetcher.Form method="post" action={href!}>
+              <p className="text-sm text-ink">
+                Reels shown by this widget (same set on every targeted product page):
+              </p>
+              <reelsFetcher.Form method="post" action={href!} className="flex flex-col gap-3">
                 <input type="hidden" name="intent" value="set-reels" />
-                <s-stack gap="small">
+                <div className="flex flex-col gap-2">
                   {(detailFetcher.data?.reels ?? []).map((reel) => (
-                    <s-checkbox
+                    <Checkbox
                       key={reel.id}
                       label={reel.title}
                       name="reelId"
@@ -372,17 +331,20 @@ function WidgetDetailModal({
                       defaultChecked={(
                         (detailWidget.config as unknown as WidgetConfig).reelIds ?? []
                       ).includes(reel.id)}
-                    ></s-checkbox>
+                    />
                   ))}
-                </s-stack>
-                <s-button
-                  type="submit"
-                  {...(reelsFetcher.state !== "idle" ? { loading: true } : {})}
-                >
-                  Save reels
-                </s-button>
+                </div>
+                <div>
+                  <Button
+                    type="submit"
+                    variant="secondary"
+                    loading={reelsFetcher.state !== "idle"}
+                  >
+                    Save reels
+                  </Button>
+                </div>
               </reelsFetcher.Form>
-            </s-stack>
+            </div>
           )}
 
           <deleteFetcher.Form
@@ -401,18 +363,13 @@ function WidgetDetailModal({
             }}
           >
             <input type="hidden" name="intent" value="delete" />
-            <s-button
-              type="submit"
-              variant="secondary"
-              tone="critical"
-              {...(deleteFetcher.state !== "idle" ? { loading: true } : {})}
-            >
+            <Button type="submit" variant="critical" loading={deleteFetcher.state !== "idle"}>
               Delete widget
-            </s-button>
+            </Button>
           </deleteFetcher.Form>
-        </s-stack>
+        </div>
       )}
-    </s-modal>
+    </Modal>
   );
 }
 
@@ -426,25 +383,22 @@ function CreateWidgetSection({
   const [selectedKind, setSelectedKind] = useState<WidgetKind>("PRODUCT_PAGE_REELS");
 
   return (
-    <s-section heading="Create a widget">
+    <section>
+      <h2 className="mb-3 text-lg font-semibold text-ink">Create a widget</h2>
       {actionData?.error && (
-        <s-paragraph tone="critical">{actionData.error}</s-paragraph>
+        <p className="mb-3 text-sm text-critical">{actionData.error}</p>
       )}
-      <Form method="post">
-        <s-stack gap="base">
-          <s-text-field label="Name" name="name" required></s-text-field>
-          <input type="hidden" name="type" value={selectedKind} />
-          <TemplatePicker value={selectedKind} onChange={setSelectedKind} />
-          <s-button
-            type="submit"
-            variant="primary"
-            {...(isSubmitting ? { loading: true } : {})}
-          >
+      <Form method="post" className="flex flex-col gap-4">
+        <TextField label="Name" name="name" required />
+        <input type="hidden" name="type" value={selectedKind} />
+        <TemplatePicker value={selectedKind} onChange={setSelectedKind} />
+        <div>
+          <Button type="submit" variant="primary" loading={isSubmitting}>
             Create widget
-          </s-button>
-        </s-stack>
+          </Button>
+        </div>
       </Form>
-    </s-section>
+    </section>
   );
 }
 
@@ -458,43 +412,29 @@ export default function Widgets() {
   const selectedWidget = widgets.find((w) => w.id === selectedWidgetId) ?? null;
 
   return (
-    <s-page heading="Widgets">
-      <s-section>
-        <s-stack direction="inline" gap="base">
-          <s-box padding="base" background="subdued" borderRadius="base" minInlineSize="140px">
-            <s-stack gap="small-200">
-              <s-text color="subdued">Total widgets</s-text>
-              <s-heading>{widgets.length}</s-heading>
-            </s-stack>
-          </s-box>
-          <s-box padding="base" background="subdued" borderRadius="base" minInlineSize="140px">
-            <s-stack gap="small-200">
-              <s-text color="subdued">Published</s-text>
-              <s-heading>{publishedCount}</s-heading>
-            </s-stack>
-          </s-box>
-        </s-stack>
-      </s-section>
+    <PageShell heading="Widgets">
+      <div className="flex flex-wrap gap-4">
+        <StatTile label="Total widgets" value={widgets.length} />
+        <StatTile label="Published" value={publishedCount} />
+      </div>
+
       <CreateWidgetSection actionData={actionData} isSubmitting={isSubmitting} />
-      <s-section heading="All widgets">
+
+      <section>
+        <h2 className="mb-3 text-lg font-semibold text-ink">All widgets</h2>
         {widgets.length === 0 ? (
-          <s-paragraph>No widgets yet. Create your first one above.</s-paragraph>
+          <p className="text-sm text-muted">No widgets yet. Create your first one above.</p>
         ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-              gap: "12px",
-            }}
-          >
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
             {widgets.map((widget) => (
               <WidgetCard key={widget.id} widget={widget} onOpen={(w) => setSelectedWidgetId(w.id)} />
             ))}
           </div>
         )}
-      </s-section>
+      </section>
+
       <WidgetDetailModal widget={selectedWidget} onClose={() => setSelectedWidgetId(null)} />
-    </s-page>
+    </PageShell>
   );
 }
 
