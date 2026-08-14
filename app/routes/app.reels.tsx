@@ -4,7 +4,7 @@ import type {
   LoaderFunctionArgs,
 } from "react-router";
 import { useEffect, useRef, useState } from "react";
-import { Form, useActionData, useFetcher, useLoaderData, useNavigation } from "react-router";
+import { useFetcher, useLoaderData } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
@@ -135,6 +135,50 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   return { error: null, uploadURL: null, reelId: null };
 };
 
+function CreateReelModal({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const modalRef = useRef<ModalHandle>(null);
+  const fetcher = useFetcher<typeof action>();
+  const isSubmitting = fetcher.state !== "idle";
+
+  useEffect(() => {
+    if (open) {
+      modalRef.current?.show();
+    } else {
+      modalRef.current?.hide();
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (fetcher.state === "idle" && fetcher.data && !fetcher.data.error) {
+      onClose();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetcher.state, fetcher.data]);
+
+  return (
+    <Modal ref={modalRef} title="Create a reel" onClose={onClose}>
+      <fetcher.Form method="post" className="flex flex-col gap-4">
+        {fetcher.data?.error && (
+          <p className="text-sm text-critical">{fetcher.data.error}</p>
+        )}
+        <TextField label="Title" name="title" required />
+        <Checkbox label="Published" name="published" />
+        <div>
+          <Button type="submit" variant="primary" loading={isSubmitting}>
+            Create reel
+          </Button>
+        </div>
+      </fetcher.Form>
+    </Modal>
+  );
+}
+
 function UploadVideoForm() {
   const fetcher = useFetcher<typeof action>();
   const failureFetcher = useFetcher();
@@ -262,7 +306,7 @@ function ReelCard({ reel, onOpen }: { reel: Reel; onOpen: (reel: Reel) => void }
       onClick={() => onOpen(reel)}
       className={`block w-full ${CARD_INTERACTIVE_CLASSES}`}
     >
-      <div className="mb-2 h-[140px] w-full overflow-hidden rounded-md bg-surface">
+      <div className="mb-2 h-[180px] w-full overflow-hidden rounded-md bg-surface">
         {reel.config.posterUrl ? (
           <img
             src={reel.config.posterUrl}
@@ -358,37 +402,41 @@ function ReelDetailModal({
       ) : data.loaderError ? (
         <p className="text-sm text-critical">{data.loaderError}</p>
       ) : detailReel ? (
-        <div className="flex flex-col gap-4">
-          {detailReel.config.cloudflareStreamUid ? (
-            <iframe
-              src={`https://iframe.videodelivery.net/${encodeURIComponent(detailReel.config.cloudflareStreamUid)}`}
-              title={`Preview of ${detailReel.title}`}
-              className="aspect-[9/16] w-full max-w-[220px] border-0"
-              allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
-              allowFullScreen
-            ></iframe>
-          ) : (
-            <p className="text-sm text-muted">No video uploaded yet.</p>
-          )}
-          <p className="flex items-center gap-2 text-sm text-ink">
-            Status:{" "}
-            <Badge tone={statusTone(status)}>{status ? REEL_STATUS_LABELS[status] : ""}</Badge>
-          </p>
+        <div className="flex flex-col">
+          <div className="flex flex-col gap-4 pb-6">
+            {detailReel.config.cloudflareStreamUid ? (
+              <iframe
+                src={`https://iframe.videodelivery.net/${encodeURIComponent(detailReel.config.cloudflareStreamUid)}`}
+                title={`Preview of ${detailReel.title}`}
+                className="aspect-[9/16] w-full max-w-[220px] border-0"
+                allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
+                allowFullScreen
+              ></iframe>
+            ) : (
+              <p className="text-sm text-muted">No video uploaded yet.</p>
+            )}
+            <p className="flex items-center gap-2 text-sm text-ink">
+              Status:{" "}
+              <Badge tone={statusTone(status)}>{status ? REEL_STATUS_LABELS[status] : ""}</Badge>
+            </p>
+          </div>
 
-          {editFetcher.data?.error && (
-            <p className="text-sm text-critical">{editFetcher.data.error}</p>
-          )}
-          <editFetcher.Form method="post" action={href!} className="flex flex-col gap-4">
-            <TextField label="Title" name="title" defaultValue={detailReel.title} required />
-            <Checkbox label="Published" name="published" defaultChecked={detailReel.published} />
-            <div>
-              <Button type="submit" variant="primary" loading={editFetcher.state !== "idle"}>
-                Save
-              </Button>
-            </div>
-          </editFetcher.Form>
+          <div className="flex flex-col gap-4 border-t border-border py-6">
+            {editFetcher.data?.error && (
+              <p className="text-sm text-critical">{editFetcher.data.error}</p>
+            )}
+            <editFetcher.Form method="post" action={href!} className="flex flex-col gap-4">
+              <TextField label="Title" name="title" defaultValue={detailReel.title} required />
+              <Checkbox label="Published" name="published" defaultChecked={detailReel.published} />
+              <div>
+                <Button type="submit" variant="primary" loading={editFetcher.state !== "idle"}>
+                  Save
+                </Button>
+              </div>
+            </editFetcher.Form>
+          </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 border-t border-border py-6">
             {productsFetcher.data?.error && (
               <p className="text-sm text-critical">{productsFetcher.data.error}</p>
             )}
@@ -414,27 +462,29 @@ function ReelDetailModal({
             </div>
           </div>
 
-          <deleteFetcher.Form
-            method="post"
-            action={href ?? undefined}
-            onSubmit={(e) => {
-              // Don't call onClose() here — it sets selectedReelId to null
-              // synchronously, which can flip href to null before/while the
-              // fetcher reads this form's action, sending the delete POST
-              // for the wrong (or no) id and 404ing (confirmed live on the
-              // equivalent widgets modal). The modal closes naturally once
-              // the reel disappears from the revalidated list after the
-              // delete redirect completes.
-              if (!confirm("Delete this reel? This can't be undone.")) {
-                e.preventDefault();
-              }
-            }}
-          >
-            <input type="hidden" name="intent" value="delete" />
-            <Button type="submit" variant="critical" loading={deleteFetcher.state !== "idle"}>
-              Delete reel
-            </Button>
-          </deleteFetcher.Form>
+          <div className="border-t border-border pt-6">
+            <deleteFetcher.Form
+              method="post"
+              action={href ?? undefined}
+              onSubmit={(e) => {
+                // Don't call onClose() here — it sets selectedReelId to null
+                // synchronously, which can flip href to null before/while the
+                // fetcher reads this form's action, sending the delete POST
+                // for the wrong (or no) id and 404ing (confirmed live on the
+                // equivalent widgets modal). The modal closes naturally once
+                // the reel disappears from the revalidated list after the
+                // delete redirect completes.
+                if (!confirm("Delete this reel? This can't be undone.")) {
+                  e.preventDefault();
+                }
+              }}
+            >
+              <input type="hidden" name="intent" value="delete" />
+              <Button type="submit" variant="critical" loading={deleteFetcher.state !== "idle"}>
+                Delete reel
+              </Button>
+            </deleteFetcher.Form>
+          </div>
         </div>
       ) : null}
     </Modal>
@@ -443,10 +493,8 @@ function ReelDetailModal({
 
 export default function ReelsLibrary() {
   const { reels } = useLoaderData<typeof loader>();
-  const actionData = useActionData<typeof action>();
-  const navigation = useNavigation();
-  const isSubmitting = navigation.state === "submitting";
   const [selectedReelId, setSelectedReelId] = useState<string | null>(null);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   // Re-derived from the live `reels` list (not stored as its own object) so
   // the modal reflects fresh data automatically after the list revalidates.
   const selectedReel = reels.find((r) => r.id === selectedReelId) ?? null;
@@ -460,29 +508,21 @@ export default function ReelsLibrary() {
   ).length;
 
   return (
-    <PageShell heading="Reels library">
-      <div className="flex flex-wrap gap-4">
+    <PageShell
+      heading="Reels library"
+      description="Upload videos, tag products, and manage what's ready to publish."
+      actions={
+        <Button variant="primary" onClick={() => setIsCreateOpen(true)}>
+          Create reel
+        </Button>
+      }
+    >
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatTile label="Total reels" value={reels.length} />
         <StatTile label="Published" value={publishedCount} />
         <StatTile label="Ready to play" value={readyCount} />
         <StatTile label="Tagged to products" value={taggedCount} />
       </div>
-
-      <section>
-        <h2 className="mb-3 text-lg font-semibold text-ink">Create a reel</h2>
-        {actionData?.error && (
-          <p className="mb-3 text-sm text-critical">{actionData.error}</p>
-        )}
-        <Form method="post" className="flex flex-col gap-4">
-          <TextField label="Title" name="title" required />
-          <Checkbox label="Published" name="published" />
-          <div>
-            <Button type="submit" variant="primary" loading={isSubmitting}>
-              Create reel
-            </Button>
-          </div>
-        </Form>
-      </section>
 
       <UploadVideoForm />
 
@@ -491,7 +531,7 @@ export default function ReelsLibrary() {
         {reels.length === 0 ? (
           <p className="text-sm text-muted">No reels yet. Create your first one above.</p>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
             {reels.map((reel) => (
               <ReelCard key={reel.id} reel={reel} onOpen={(r) => setSelectedReelId(r.id)} />
             ))}
@@ -499,6 +539,7 @@ export default function ReelsLibrary() {
         )}
       </section>
 
+      <CreateReelModal open={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
       <ReelDetailModal reel={selectedReel} onClose={() => setSelectedReelId(null)} />
     </PageShell>
   );
