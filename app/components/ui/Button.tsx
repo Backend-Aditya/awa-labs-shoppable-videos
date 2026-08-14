@@ -12,7 +12,7 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
   ghost: "text-ink hover:bg-surface focus-visible:outline-primary",
 };
 
-interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "variant"> {
   variant?: ButtonVariant;
   loading?: boolean;
 }
