@@ -63,15 +63,18 @@ export default function Index() {
   } = useLoaderData<typeof loader>();
 
   return (
-    <PageShell heading="Shoppable Videos">
-      <div className="flex flex-wrap gap-4">
+    <PageShell
+      heading="Shoppable Videos"
+      description="An overview of your reels and storefront widgets."
+    >
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatTile label="Reels" value={totalReels} sublabel={`${readyReels} ready to play`} />
         <StatTile label="Widgets" value={totalWidgets} sublabel={`${publishedWidgets} published`} />
         <StatTile label="Plan" value={plan} sublabel={`${viewCapMonthly.toLocaleString()} views/mo`} />
       </div>
       <section>
         <h2 className="mb-3 text-lg font-semibold text-ink">Get started</h2>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
           <NavCard
             to="/app/reels"
             heading="Reels library"
