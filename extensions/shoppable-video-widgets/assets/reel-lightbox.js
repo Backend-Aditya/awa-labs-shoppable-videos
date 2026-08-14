@@ -81,6 +81,7 @@
     document.body.appendChild(dialog);
 
     const video = dialog.querySelector(".reelup-lightbox__video");
+    const bodyEl = dialog.querySelector(".reelup-lightbox__body");
     const productsPanel = dialog.querySelector("[data-reelup-lightbox-products]");
     const productsList = dialog.querySelector("[data-reelup-lightbox-products-list]");
     const closeButton = dialog.querySelector("[data-reelup-lightbox-close]");
@@ -92,7 +93,7 @@
     });
 
     dialog.addEventListener("click", (event) => {
-      if (event.target === dialog) dialog.close();
+      if (event.target === dialog || event.target === bodyEl) dialog.close();
     });
 
     closeButton.addEventListener("click", () => dialog.close());
