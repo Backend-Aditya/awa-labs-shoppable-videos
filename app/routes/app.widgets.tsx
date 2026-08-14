@@ -487,7 +487,7 @@ export default function Widgets() {
         </Button>
       }
     >
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid max-w-md grid-cols-2 gap-4">
         <StatTile label="Total widgets" value={widgets.length} />
         <StatTile label="Published" value={publishedCount} />
       </div>
@@ -495,7 +495,7 @@ export default function Widgets() {
       <section>
         <h2 className="mb-3 text-lg font-semibold text-ink">All widgets</h2>
         {widgets.length === 0 ? (
-          <p className="text-sm text-muted">No widgets yet. Create your first one above.</p>
+          <p className="text-sm text-muted">No widgets yet. Use Create widget to add your first one.</p>
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
             {widgets.map((widget) => (

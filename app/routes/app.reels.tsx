@@ -529,7 +529,7 @@ export default function ReelsLibrary() {
       <section>
         <h2 className="mb-3 text-lg font-semibold text-ink">All reels</h2>
         {reels.length === 0 ? (
-          <p className="text-sm text-muted">No reels yet. Create your first one above.</p>
+          <p className="text-sm text-muted">No reels yet. Use Create reel to add your first one.</p>
         ) : (
           <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
             {reels.map((reel) => (

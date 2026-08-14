@@ -67,7 +67,7 @@ export default function Index() {
       heading="Shoppable Videos"
       description="An overview of your reels and storefront widgets."
     >
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
         <StatTile label="Reels" value={totalReels} sublabel={`${readyReels} ready to play`} />
         <StatTile label="Widgets" value={totalWidgets} sublabel={`${publishedWidgets} published`} />
         <StatTile label="Plan" value={plan} sublabel={`${viewCapMonthly.toLocaleString()} views/mo`} />

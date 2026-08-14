@@ -1,6 +1,7 @@
 import {
   forwardRef,
   useEffect,
+  useId,
   useImperativeHandle,
   useRef,
   type ReactNode,
@@ -22,6 +23,7 @@ export const Modal = forwardRef<ModalHandle, ModalProps>(function Modal(
   ref,
 ) {
   const dialogRef = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
 
   useImperativeHandle(ref, () => ({
     show: () => dialogRef.current?.showModal(),
@@ -42,11 +44,11 @@ export const Modal = forwardRef<ModalHandle, ModalProps>(function Modal(
       onClick={(e) => {
         if (e.target === dialogRef.current) dialogRef.current?.close();
       }}
-      aria-labelledby="modal-title"
+      aria-labelledby={titleId}
       className="m-auto w-full max-w-2xl rounded-xl border border-border bg-bg p-0 backdrop:bg-ink/40"
     >
       <div className="flex items-center justify-between border-b border-border px-6 py-5">
-        <h2 id="modal-title" className="text-lg font-semibold text-ink">{title}</h2>
+        <h2 id={titleId} className="text-lg font-semibold text-ink">{title}</h2>
         <button
           type="button"
           onClick={() => dialogRef.current?.close()}
