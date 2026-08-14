@@ -1,7 +1,8 @@
 {% doc %}
-Renders the product's tagged reels as a stacked, swipeable deck (CAROUSEL
-widget kind). Same product-tagging data source and widget-gating pattern as
-product-page-reels.liquid; different visual layout.
+Renders the widget's curated reels as a row of independently-playable video
+cards, roughly 4 per row (CAROUSEL widget kind). Same widget-gating pattern
+as product-page-reels.liquid; each card plays/pauses on its own, no
+stack/swipe-through interaction.
 @example
 {% content_for 'block', type: 'stacked-carousel', id: 'stacked-carousel' %}
 {% enddoc %}
@@ -32,32 +33,37 @@ product-page-reels.liquid; different visual layout.
 {% endif %}
 
 {% if visible_count > 0 %}
-  <div class="reelup-stack" {{ block.shopify_attributes }} data-reelup-stack>
+  <div class="reelup-carousel" {{ block.shopify_attributes }}>
     {% for reel in reels_field.value %}
       {% if reel.published.value and reel.config.value.cloudflareStreamUid != blank and reel.config.value.hlsManifestUrl != blank %}
         <div
-          class="reelup-stack__card"
-          style="--reelup-stack-index: {{ forloop.index0 }};"
-          data-reelup-stack-card
+          class="reelup-carousel__card"
+          data-reelup-carousel-card
           data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
         >
-          {% if reel.config.value.posterUrl != blank %}
-            <img
-              class="reelup-stack__poster"
-              src="{{ reel.config.value.posterUrl | escape }}"
-              alt="{{ reel.title.value | escape }}"
-              loading="lazy"
-              width="360"
-              height="640"
+          <div class="reelup-carousel__frame">
+            {% if reel.config.value.posterUrl != blank %}
+              <img
+                class="reelup-carousel__poster"
+                src="{{ reel.config.value.posterUrl | escape }}"
+                alt="{{ reel.title.value | escape }}"
+                loading="lazy"
+                width="360"
+                height="640"
+              >
+            {% endif %}
+            <button
+              type="button"
+              class="reelup-carousel__play"
+              aria-label="{{ 'reels.play_label' | t }}"
             >
-          {% endif %}
-          <video class="reelup-stack__video" playsinline muted loop preload="none"></video>
+              <span class="reelup-carousel__play-icon" aria-hidden="true"></span>
+            </button>
+            <video class="reelup-carousel__video" playsinline muted loop preload="none"></video>
+          </div>
         </div>
       {% endif %}
     {% endfor %}
-    {% if visible_count > 1 %}
-      <button type="button" class="reelup-stack__next" data-reelup-stack-next aria-label="{{ 'reels.next_product_label' | t }}">›</button>
-    {% endif %}
   </div>
   <script src="{{ 'stacked-carousel.js' | asset_url }}" defer></script>
 {% endif %}
