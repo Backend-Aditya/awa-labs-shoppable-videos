@@ -1,11 +1,14 @@
 {% doc %}
-Renders the shop's SINGLE_VIDEO widget: one merchant-picked featured reel,
-no carousel, no product tags. Gated on the shop-level widget metafield
-(published + targetRule) exactly like product-page-reels.liquid.
+Renders the shop's SINGLE_VIDEO widget: one merchant-picked featured
+reel as a click-to-open trigger. Gated on the shop-level widget
+metafield (published + targetRule) exactly like product-page-reels.liquid.
+Clicking the trigger opens the shared reel lightbox with the video and
+any tagged products.
 @example
 {% content_for 'block', type: 'single-video', id: 'single-video' %}
 {% enddoc %}
 
+{{ 'reel-lightbox.css' | asset_url | stylesheet_tag }}
 {{ 'single-video.css' | asset_url | stylesheet_tag }}
 
 {% assign reel_namespace = 'app--404281098241' %}
@@ -31,37 +34,72 @@ no carousel, no product tags. Gated on the shop-level widget metafield
 {% if show_reel %}
   <div class="reelup-single-video" {{ block.shopify_attributes }}>
     <div
-      class="reelup-single-video__frame"
-      data-reelup-single-video
+      class="reelup-trigger"
+      data-reelup-trigger
       data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
+      data-poster-url="{{ reel.config.value.posterUrl | escape }}"
+      data-title="{{ reel.title.value | escape }}"
+      data-close-label="{{ 'reels.close_label' | t }}"
+      data-shop-label="{{ 'reels.shop_this_video_label' | t }}"
     >
-      {% if reel.config.value.posterUrl != blank %}
-        <img
-          class="reelup-single-video__poster"
-          src="{{ reel.config.value.posterUrl | escape }}"
-          alt="{{ reel.title.value | escape }}"
-          loading="lazy"
-          width="480"
-          height="854"
-        >
-      {% endif %}
       <button
         type="button"
-        class="reelup-single-video__play"
+        class="reelup-trigger__button"
         aria-label="{{ 'reels.play_label' | t }}"
       >
-        <span class="reelup-single-video__play-icon" aria-hidden="true"></span>
+        {% if reel.config.value.posterUrl != blank %}
+          <img
+            class="reelup-trigger__poster"
+            src="{{ reel.config.value.posterUrl | escape }}"
+            alt="{{ reel.title.value | escape }}"
+            loading="lazy"
+            width="480"
+            height="854"
+          >
+        {% endif %}
+        <span class="reelup-trigger__play-icon" aria-hidden="true"></span>
       </button>
-      <video
-        class="reelup-single-video__video"
-        playsinline
-        muted
-        loop
-        preload="none"
-      ></video>
+      {% if reel.tagged_products.value.size > 0 %}
+        <template data-reelup-products>
+          {% for product in reel.tagged_products.value %}
+            {% assign variant = product.selected_or_first_available_variant %}
+            <div class="reelup-lightbox__product">
+              <a class="reelup-lightbox__product-link" href="{{ product.url }}">
+                {% if product.featured_image %}
+                  <img
+                    class="reelup-lightbox__product-image"
+                    src="{{ product.featured_image | image_url: width: 160 }}"
+                    alt="{{ product.title | escape }}"
+                    loading="lazy"
+                    width="56"
+                    height="56"
+                  >
+                {% endif %}
+                <span class="reelup-lightbox__product-info">
+                  <span class="reelup-lightbox__product-title">{{ product.title }}</span>
+                  <span class="reelup-lightbox__product-price">{{ product.price | money }}</span>
+                </span>
+              </a>
+              {% if variant %}
+                <button
+                  type="button"
+                  class="reelup-lightbox__add-to-cart"
+                  data-reelup-add-to-cart
+                  data-variant-id="{{ variant.id }}"
+                  data-add-label="{{ 'reels.add_to_cart' | t }}"
+                  data-added-label="{{ 'reels.added_to_cart' | t }}"
+                >
+                  {{ 'reels.add_to_cart' | t }}
+                </button>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </template>
+      {% endif %}
     </div>
   </div>
-  <script src="{{ 'single-video.js' | asset_url }}" defer></script>
+  <script src="{{ 'reel-lightbox.js' | asset_url }}" defer></script>
+  <script src="{{ 'reel-trigger.js' | asset_url }}" defer></script>
 {% endif %}
 
 {% schema %}
