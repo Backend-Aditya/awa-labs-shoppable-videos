@@ -1,12 +1,13 @@
 {% doc %}
-Renders the widget's curated reels as a row of independently-playable video
-cards, roughly 4 per row (CAROUSEL widget kind). Same widget-gating pattern
-as product-page-reels.liquid; each card plays/pauses on its own, no
-stack/swipe-through interaction.
+Renders the widget's curated reels as a responsive grid of click-to-open
+triggers (CAROUSEL widget kind). Same widget-gating pattern as
+product-page-reels.liquid. Clicking a card opens the shared reel
+lightbox with the video and any tagged products.
 @example
 {% content_for 'block', type: 'stacked-carousel', id: 'stacked-carousel' %}
 {% enddoc %}
 
+{{ 'reel-lightbox.css' | asset_url | stylesheet_tag }}
 {{ 'stacked-carousel.css' | asset_url | stylesheet_tag }}
 
 {% assign reel_namespace = 'app--404281098241' %}
@@ -37,14 +38,22 @@ stack/swipe-through interaction.
     {% for reel in reels_field.value %}
       {% if reel.published.value and reel.config.value.cloudflareStreamUid != blank and reel.config.value.hlsManifestUrl != blank %}
         <div
-          class="reelup-carousel__card"
-          data-reelup-carousel-card
+          class="reelup-trigger"
+          data-reelup-trigger
           data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
+          data-poster-url="{{ reel.config.value.posterUrl | escape }}"
+          data-title="{{ reel.title.value | escape }}"
+          data-close-label="{{ 'reels.close_label' | t }}"
+          data-shop-label="{{ 'reels.shop_this_video_label' | t }}"
         >
-          <div class="reelup-carousel__frame">
+          <button
+            type="button"
+            class="reelup-trigger__button"
+            aria-label="{{ 'reels.play_label' | t }}"
+          >
             {% if reel.config.value.posterUrl != blank %}
               <img
-                class="reelup-carousel__poster"
+                class="reelup-trigger__poster"
                 src="{{ reel.config.value.posterUrl | escape }}"
                 alt="{{ reel.title.value | escape }}"
                 loading="lazy"
@@ -52,20 +61,51 @@ stack/swipe-through interaction.
                 height="640"
               >
             {% endif %}
-            <button
-              type="button"
-              class="reelup-carousel__play"
-              aria-label="{{ 'reels.play_label' | t }}"
-            >
-              <span class="reelup-carousel__play-icon" aria-hidden="true"></span>
-            </button>
-            <video class="reelup-carousel__video" playsinline muted loop preload="none"></video>
-          </div>
+            <span class="reelup-trigger__play-icon" aria-hidden="true"></span>
+          </button>
+          {% if reel.tagged_products.value.size > 0 %}
+            <template data-reelup-products>
+              {% for product in reel.tagged_products.value %}
+                {% assign variant = product.selected_or_first_available_variant %}
+                <div class="reelup-lightbox__product">
+                  <a class="reelup-lightbox__product-link" href="{{ product.url }}">
+                    {% if product.featured_image %}
+                      <img
+                        class="reelup-lightbox__product-image"
+                        src="{{ product.featured_image | image_url: width: 160 }}"
+                        alt="{{ product.title | escape }}"
+                        loading="lazy"
+                        width="56"
+                        height="56"
+                      >
+                    {% endif %}
+                    <span class="reelup-lightbox__product-info">
+                      <span class="reelup-lightbox__product-title">{{ product.title }}</span>
+                      <span class="reelup-lightbox__product-price">{{ product.price | money }}</span>
+                    </span>
+                  </a>
+                  {% if variant %}
+                    <button
+                      type="button"
+                      class="reelup-lightbox__add-to-cart"
+                      data-reelup-add-to-cart
+                      data-variant-id="{{ variant.id }}"
+                      data-add-label="{{ 'reels.add_to_cart' | t }}"
+                      data-added-label="{{ 'reels.added_to_cart' | t }}"
+                    >
+                      {{ 'reels.add_to_cart' | t }}
+                    </button>
+                  {% endif %}
+                </div>
+              {% endfor %}
+            </template>
+          {% endif %}
         </div>
       {% endif %}
     {% endfor %}
   </div>
-  <script src="{{ 'stacked-carousel.js' | asset_url }}" defer></script>
+  <script src="{{ 'reel-lightbox.js' | asset_url }}" defer></script>
+  <script src="{{ 'reel-trigger.js' | asset_url }}" defer></script>
 {% endif %}
 
 {% schema %}
