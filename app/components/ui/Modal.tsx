@@ -36,6 +36,7 @@ export const Modal = forwardRef<ModalHandle, ModalProps>(function Modal(
   }, [onClose]);
 
   return (
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-noninteractive-element-interactions -- backdrop-dismiss on <dialog>; ESC already closes it natively, this only adds the equivalent mouse affordance
     <dialog
       ref={dialogRef}
       onClick={(e) => {
