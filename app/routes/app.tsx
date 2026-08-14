@@ -5,6 +5,7 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
 
 import { authenticate } from "../shopify.server";
+import { AppNav } from "../components/ui/AppNav";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
@@ -18,12 +19,7 @@ export default function App() {
 
   return (
     <AppProvider embedded apiKey={apiKey}>
-      <s-app-nav>
-        <s-link href="/app">Home</s-link>
-        <s-link href="/app/reels">Reels library</s-link>
-        <s-link href="/app/widgets">Widgets</s-link>
-        <s-link href="/app/settings">Settings</s-link>
-      </s-app-nav>
+      <AppNav />
       <Outlet />
     </AppProvider>
   );
