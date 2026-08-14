@@ -7,6 +7,9 @@ import { listReels } from "../models/reel.server";
 import { deriveReelStatus } from "../models/reel-status";
 import { listWidgetsForShop } from "../models/widget.server";
 import { PreserveSearchParams } from "../components/PreserveSearchParams";
+import { PageShell } from "../components/ui/PageShell";
+import { StatTile } from "../components/ui/StatTile";
+import { CARD_INTERACTIVE_CLASSES } from "../components/ui/Card";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -39,26 +42,11 @@ function NavCard({
   description: string;
 }) {
   return (
-    <form method="get" action={to} style={{ margin: 0 }}>
+    <form method="get" action={to} className="m-0">
       <PreserveSearchParams />
-      <button
-        type="submit"
-        style={{
-          all: "unset",
-          cursor: "pointer",
-          display: "block",
-          width: "100%",
-          boxSizing: "border-box",
-          textAlign: "left",
-          color: "inherit",
-          border: "1px solid #d9d9d9",
-          borderRadius: "8px",
-          padding: "12px",
-          background: "#ffffff",
-        }}
-      >
-        <div style={{ fontWeight: 600, marginBottom: "6px" }}>{heading}</div>
-        <div style={{ color: "#6b6b6b" }}>{description}</div>
+      <button type="submit" className={`block w-full ${CARD_INTERACTIVE_CLASSES}`}>
+        <div className="mb-1.5 font-semibold text-ink">{heading}</div>
+        <div className="text-sm text-muted">{description}</div>
       </button>
     </form>
   );
@@ -75,40 +63,15 @@ export default function Index() {
   } = useLoaderData<typeof loader>();
 
   return (
-    <s-page heading="Shoppable Videos">
-      <s-section>
-        <s-stack direction="inline" gap="base">
-          <s-box padding="base" background="subdued" borderRadius="base" minInlineSize="140px">
-            <s-stack gap="small-200">
-              <s-text color="subdued">Reels</s-text>
-              <s-heading>{totalReels}</s-heading>
-              <s-text color="subdued">{readyReels} ready to play</s-text>
-            </s-stack>
-          </s-box>
-          <s-box padding="base" background="subdued" borderRadius="base" minInlineSize="140px">
-            <s-stack gap="small-200">
-              <s-text color="subdued">Widgets</s-text>
-              <s-heading>{totalWidgets}</s-heading>
-              <s-text color="subdued">{publishedWidgets} published</s-text>
-            </s-stack>
-          </s-box>
-          <s-box padding="base" background="subdued" borderRadius="base" minInlineSize="140px">
-            <s-stack gap="small-200">
-              <s-text color="subdued">Plan</s-text>
-              <s-heading>{plan}</s-heading>
-              <s-text color="subdued">{viewCapMonthly.toLocaleString()} views/mo</s-text>
-            </s-stack>
-          </s-box>
-        </s-stack>
-      </s-section>
-      <s-section heading="Get started">
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
-            gap: "12px",
-          }}
-        >
+    <PageShell heading="Shoppable Videos">
+      <div className="flex flex-wrap gap-4">
+        <StatTile label="Reels" value={totalReels} sublabel={`${readyReels} ready to play`} />
+        <StatTile label="Widgets" value={totalWidgets} sublabel={`${publishedWidgets} published`} />
+        <StatTile label="Plan" value={plan} sublabel={`${viewCapMonthly.toLocaleString()} views/mo`} />
+      </div>
+      <section>
+        <h2 className="mb-3 text-lg font-semibold text-ink">Get started</h2>
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
           <NavCard
             to="/app/reels"
             heading="Reels library"
@@ -120,8 +83,8 @@ export default function Index() {
             description="Manage where reels show up on your storefront"
           />
         </div>
-      </s-section>
-    </s-page>
+      </section>
+    </PageShell>
   );
 }
 
