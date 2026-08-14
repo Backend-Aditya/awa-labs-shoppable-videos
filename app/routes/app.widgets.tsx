@@ -4,7 +4,7 @@ import type {
   LoaderFunctionArgs,
 } from "react-router";
 import { useEffect, useRef, useState } from "react";
-import { Form, useActionData, useFetcher, useLoaderData, useNavigation } from "react-router";
+import { useFetcher, useLoaderData } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
@@ -104,6 +104,51 @@ function WidgetCard({ widget, onOpen }: { widget: Widget; onOpen: (widget: Widge
   );
 }
 
+function TemplateIcon({ kind }: { kind: WidgetKind }) {
+  const common = "h-6 w-6 text-primary";
+  switch (kind) {
+    case "PRODUCT_PAGE_REELS":
+      return (
+        <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+          <rect x="3" y="6" width="4" height="12" rx="1" />
+          <rect x="10" y="6" width="4" height="12" rx="1" />
+          <rect x="17" y="6" width="4" height="12" rx="1" />
+        </svg>
+      );
+    case "SINGLE_VIDEO":
+      return (
+        <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+          <rect x="5" y="4" width="14" height="16" rx="2" />
+          <path d="M10 9l5 3-5 3V9z" fill="currentColor" stroke="none" />
+        </svg>
+      );
+    case "CAROUSEL":
+      return (
+        <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+          <rect x="2" y="7" width="5" height="10" rx="1" />
+          <rect x="9.5" y="5" width="5" height="14" rx="1" />
+          <rect x="17" y="7" width="5" height="10" rx="1" />
+        </svg>
+      );
+    case "STORIES":
+      return (
+        <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+          <circle cx="7" cy="12" r="4" />
+          <circle cx="17" cy="12" r="4" />
+        </svg>
+      );
+    case "REEL_POPS":
+      return (
+        <svg className={common} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
+          <circle cx="12" cy="12" r="7" />
+          <circle cx="17" cy="7" r="2" fill="currentColor" stroke="none" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
 function TemplatePicker({
   value,
   onChange,
@@ -124,12 +169,60 @@ function TemplatePicker({
               : "border border-border hover:border-primary/40"
           }`}
         >
-          <div className="mb-2 h-14 rounded-md bg-surface" />
+          <div className="mb-2 flex h-14 items-center justify-center rounded-md bg-surface">
+            <TemplateIcon kind={template.kind} />
+          </div>
           <div className="text-sm font-semibold text-ink">{template.name}</div>
           <div className="text-xs text-muted">{template.description}</div>
         </button>
       ))}
     </div>
+  );
+}
+
+function CreateWidgetModal({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const modalRef = useRef<ModalHandle>(null);
+  const fetcher = useFetcher<typeof action>();
+  const isSubmitting = fetcher.state !== "idle";
+  const [selectedKind, setSelectedKind] = useState<WidgetKind>("PRODUCT_PAGE_REELS");
+
+  useEffect(() => {
+    if (open) {
+      modalRef.current?.show();
+    } else {
+      modalRef.current?.hide();
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (fetcher.state === "idle" && fetcher.data && !fetcher.data.error) {
+      onClose();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetcher.state, fetcher.data]);
+
+  return (
+    <Modal ref={modalRef} title="Create a widget" onClose={onClose}>
+      <fetcher.Form method="post" className="flex flex-col gap-4">
+        {fetcher.data?.error && (
+          <p className="text-sm text-critical">{fetcher.data.error}</p>
+        )}
+        <TextField label="Name" name="name" required />
+        <input type="hidden" name="type" value={selectedKind} />
+        <TemplatePicker value={selectedKind} onChange={setSelectedKind} />
+        <div>
+          <Button type="submit" variant="primary" loading={isSubmitting}>
+            Create widget
+          </Button>
+        </div>
+      </fetcher.Form>
+    </Modal>
   );
 }
 
@@ -224,23 +317,25 @@ function WidgetDetailModal({
       {!detailWidget ? (
         <p className="text-sm text-muted">Loading…</p>
       ) : (
-        <div className="flex flex-col gap-4">
-          <p className="text-sm text-ink">Type: {detailWidget.type}</p>
+        <div className="flex flex-col">
+          <div className="flex flex-col gap-4 pb-6">
+            <p className="text-sm text-ink">Type: {detailWidget.type}</p>
 
-          {editFetcher.data?.error && (
-            <p className="text-sm text-critical">{editFetcher.data.error}</p>
-          )}
-          <editFetcher.Form method="post" action={href!} className="flex flex-col gap-4">
-            <TextField label="Name" name="name" defaultValue={detailWidget.name} required />
-            <Checkbox label="Published" name="published" defaultChecked={detailWidget.published} />
-            <div>
-              <Button type="submit" variant="primary" loading={editFetcher.state !== "idle"}>
-                Save
-              </Button>
-            </div>
-          </editFetcher.Form>
+            {editFetcher.data?.error && (
+              <p className="text-sm text-critical">{editFetcher.data.error}</p>
+            )}
+            <editFetcher.Form method="post" action={href!} className="flex flex-col gap-4">
+              <TextField label="Name" name="name" defaultValue={detailWidget.name} required />
+              <Checkbox label="Published" name="published" defaultChecked={detailWidget.published} />
+              <div>
+                <Button type="submit" variant="primary" loading={editFetcher.state !== "idle"}>
+                  Save
+                </Button>
+              </div>
+            </editFetcher.Form>
+          </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 border-t border-border py-6">
             {targetFetcher.data?.error && (
               <p className="text-sm text-critical">{targetFetcher.data.error}</p>
             )}
@@ -273,7 +368,7 @@ function WidgetDetailModal({
           </div>
 
           {(detailWidget.type === "SINGLE_VIDEO" || detailWidget.type === "REEL_POPS") && (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 border-t border-border py-6">
               {featuredReelFetcher.data?.error && (
                 <p className="text-sm text-critical">{featuredReelFetcher.data.error}</p>
               )}
@@ -312,7 +407,7 @@ function WidgetDetailModal({
           {(detailWidget.type === "PRODUCT_PAGE_REELS" ||
             detailWidget.type === "CAROUSEL" ||
             detailWidget.type === "STORIES") && (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 border-t border-border py-6">
               {reelsFetcher.data?.error && (
                 <p className="text-sm text-critical">{reelsFetcher.data.error}</p>
               )}
@@ -347,85 +442,62 @@ function WidgetDetailModal({
             </div>
           )}
 
-          <deleteFetcher.Form
-            method="post"
-            action={href ?? undefined}
-            onSubmit={(e) => {
-              // Don't call onClose() here — it sets selectedWidgetId to
-              // null synchronously, which can flip href to null before/while
-              // the fetcher reads this form's action, sending the delete
-              // POST for the wrong (or no) id and 404ing (confirmed live).
-              // The modal closes naturally once the widget disappears from
-              // the revalidated list after the delete redirect completes.
-              if (!confirm("Delete this widget? This can't be undone.")) {
-                e.preventDefault();
-              }
-            }}
-          >
-            <input type="hidden" name="intent" value="delete" />
-            <Button type="submit" variant="critical" loading={deleteFetcher.state !== "idle"}>
-              Delete widget
-            </Button>
-          </deleteFetcher.Form>
+          <div className="border-t border-border pt-6">
+            <deleteFetcher.Form
+              method="post"
+              action={href ?? undefined}
+              onSubmit={(e) => {
+                // Don't call onClose() here — it sets selectedWidgetId to
+                // null synchronously, which can flip href to null before/while
+                // the fetcher reads this form's action, sending the delete
+                // POST for the wrong (or no) id and 404ing (confirmed live).
+                // The modal closes naturally once the widget disappears from
+                // the revalidated list after the delete redirect completes.
+                if (!confirm("Delete this widget? This can't be undone.")) {
+                  e.preventDefault();
+                }
+              }}
+            >
+              <input type="hidden" name="intent" value="delete" />
+              <Button type="submit" variant="critical" loading={deleteFetcher.state !== "idle"}>
+                Delete widget
+              </Button>
+            </deleteFetcher.Form>
+          </div>
         </div>
       )}
     </Modal>
   );
 }
 
-function CreateWidgetSection({
-  actionData,
-  isSubmitting,
-}: {
-  actionData: { error: string | null } | undefined;
-  isSubmitting: boolean;
-}) {
-  const [selectedKind, setSelectedKind] = useState<WidgetKind>("PRODUCT_PAGE_REELS");
-
-  return (
-    <section>
-      <h2 className="mb-3 text-lg font-semibold text-ink">Create a widget</h2>
-      {actionData?.error && (
-        <p className="mb-3 text-sm text-critical">{actionData.error}</p>
-      )}
-      <Form method="post" className="flex flex-col gap-4">
-        <TextField label="Name" name="name" required />
-        <input type="hidden" name="type" value={selectedKind} />
-        <TemplatePicker value={selectedKind} onChange={setSelectedKind} />
-        <div>
-          <Button type="submit" variant="primary" loading={isSubmitting}>
-            Create widget
-          </Button>
-        </div>
-      </Form>
-    </section>
-  );
-}
-
 export default function Widgets() {
   const { widgets } = useLoaderData<typeof loader>();
-  const actionData = useActionData<typeof action>();
-  const navigation = useNavigation();
-  const isSubmitting = navigation.state === "submitting";
   const publishedCount = widgets.filter((w) => w.published).length;
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
   const selectedWidget = widgets.find((w) => w.id === selectedWidgetId) ?? null;
 
   return (
-    <PageShell heading="Widgets">
-      <div className="flex flex-wrap gap-4">
+    <PageShell
+      heading="Widgets"
+      description="Control where and how your reels appear on the storefront."
+      actions={
+        <Button variant="primary" onClick={() => setIsCreateOpen(true)}>
+          Create widget
+        </Button>
+      }
+    >
+      <div className="grid grid-cols-2 gap-4">
         <StatTile label="Total widgets" value={widgets.length} />
         <StatTile label="Published" value={publishedCount} />
       </div>
-
-      <CreateWidgetSection actionData={actionData} isSubmitting={isSubmitting} />
 
       <section>
         <h2 className="mb-3 text-lg font-semibold text-ink">All widgets</h2>
         {widgets.length === 0 ? (
           <p className="text-sm text-muted">No widgets yet. Create your first one above.</p>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
             {widgets.map((widget) => (
               <WidgetCard key={widget.id} widget={widget} onOpen={(w) => setSelectedWidgetId(w.id)} />
             ))}
@@ -433,6 +505,7 @@ export default function Widgets() {
         )}
       </section>
 
+      <CreateWidgetModal open={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
       <WidgetDetailModal widget={selectedWidget} onClose={() => setSelectedWidgetId(null)} />
     </PageShell>
   );
