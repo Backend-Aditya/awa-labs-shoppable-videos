@@ -62,9 +62,9 @@
   margin: 0;
   padding: 0;
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
   max-width: 100vw;
-  max-height: 100vh;
+  max-height: 100dvh;
   border: none;
   background: transparent;
   z-index: 1000;
@@ -100,7 +100,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: safe center;
   width: 100%;
   height: 100%;
   padding: 56px 16px 16px;
@@ -113,7 +113,7 @@
   position: relative;
   flex: 0 0 auto;
   width: 100%;
-  max-width: 420px;
+  max-width: min(420px, calc(72vh * 9 / 16));
   aspect-ratio: 9 / 16;
   max-height: 72vh;
   border-radius: 16px;
@@ -243,10 +243,14 @@
   }
 
   .reelup-lightbox__player {
+    flex: 0 1 auto;
+    min-width: 0;
     max-height: 88vh;
   }
 
   .reelup-lightbox__products {
+    flex: 0 1 auto;
+    min-width: 0;
     align-self: center;
     max-height: 88vh;
     overflow-y: auto;
