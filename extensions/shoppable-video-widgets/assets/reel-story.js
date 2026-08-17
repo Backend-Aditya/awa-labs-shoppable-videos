@@ -6,6 +6,7 @@
   let timer = null;
   let drawerOpen = false;
   let advancing = false;
+  let pausedRemainingMs = null;
 
   const clearTimer = () => {
     if (timer) {
@@ -55,6 +56,33 @@
     }
   };
 
+  const freezeActiveSegment = (dialog) => {
+    const segment = dialog.querySelector(`.reelup-story__segment[data-index="${currentIndex}"]`);
+    const fill = segment?.querySelector(".reelup-story__segment-fill");
+    if (!fill) return DURATION_MS;
+
+    const segmentWidth = segment.getBoundingClientRect().width;
+    const fillWidth = fill.getBoundingClientRect().width;
+    const percent = segmentWidth > 0 ? fillWidth / segmentWidth : 0;
+
+    fill.style.transition = "none";
+    fill.style.width = `${percent * 100}%`;
+
+    return Math.max(DURATION_MS * (1 - percent), 0);
+  };
+
+  const resumeActiveSegment = (dialog, remainingMs) => {
+    const segment = dialog.querySelector(`.reelup-story__segment[data-index="${currentIndex}"]`);
+    const fill = segment?.querySelector(".reelup-story__segment-fill");
+    if (!fill || remainingMs <= 0) return;
+
+    // Force a reflow so the transition below animates from the frozen width
+    // instead of the two inline-style writes batching into one recalculation.
+    void fill.offsetWidth;
+    fill.style.transition = `width ${remainingMs}ms linear`;
+    fill.style.width = "100%";
+  };
+
   const closeDrawerImmediate = (dialog) => {
     dialog.querySelector("[data-reelup-story-drawer]").hidden = true;
     drawerOpen = false;
@@ -65,12 +93,18 @@
     drawerOpen = true;
     dialog.querySelector(".reelup-story__video").pause();
     clearTimer();
+    pausedRemainingMs = freezeActiveSegment(dialog);
   };
 
   const closeDrawer = (dialog) => {
     closeDrawerImmediate(dialog);
     dialog.querySelector(".reelup-story__video").play().catch(() => {});
-    scheduleAdvance(dialog);
+
+    const remaining = pausedRemainingMs ?? DURATION_MS;
+    pausedRemainingMs = null;
+    resumeActiveSegment(dialog, remaining);
+    clearTimer();
+    timer = setTimeout(() => requestAdvance(dialog), remaining);
   };
 
   const scheduleAdvance = (dialog) => {
@@ -96,6 +130,7 @@
     const trigger = reels[index];
     const video = dialog.querySelector(".reelup-story__video");
     const title = dialog.querySelector(".reelup-story__title");
+    const closeButton = dialog.querySelector("[data-reelup-story-close]");
     const shopButton = dialog.querySelector("[data-reelup-story-shop]");
     const drawerHeading = dialog.querySelector("[data-reelup-story-drawer-heading]");
     const drawerList = dialog.querySelector("[data-reelup-story-drawer-list]");
@@ -104,6 +139,7 @@
     window.ReelupHls?.teardown(video);
 
     title.textContent = trigger.dataset.title ?? "";
+    closeButton.setAttribute("aria-label", trigger.dataset.closeLabel ?? "Close");
     const posterUrl = trigger.dataset.posterUrl;
     if (posterUrl) {
       video.setAttribute("poster", posterUrl);
@@ -148,7 +184,7 @@
       <button type="button" class="reelup-story__close" data-reelup-story-close aria-label="Close">&times;</button>
       <div class="reelup-story__frame">
         <h2 id="reelup-story-title" class="reelup-story__title"></h2>
-        <video class="reelup-story__video" playsinline></video>
+        <video class="reelup-story__video" playsinline muted></video>
         <button type="button" class="reelup-story__nav reelup-story__nav--prev" data-reelup-story-prev aria-label="Previous">&lsaquo;</button>
         <button type="button" class="reelup-story__nav reelup-story__nav--next" data-reelup-story-next aria-label="Next">&rsaquo;</button>
         <button type="button" class="reelup-story__shop" data-reelup-story-shop hidden></button>
@@ -165,8 +201,14 @@
     const drawerList = dialog.querySelector("[data-reelup-story-drawer-list]");
 
     dialog.querySelector("[data-reelup-story-close]").addEventListener("click", () => dialog.close());
-    dialog.querySelector("[data-reelup-story-prev]").addEventListener("click", () => goTo(dialog, currentIndex - 1));
-    dialog.querySelector("[data-reelup-story-next]").addEventListener("click", () => goTo(dialog, currentIndex + 1));
+    dialog.querySelector("[data-reelup-story-prev]").addEventListener("click", () => {
+      advancing = false;
+      goTo(dialog, currentIndex - 1);
+    });
+    dialog.querySelector("[data-reelup-story-next]").addEventListener("click", () => {
+      advancing = false;
+      goTo(dialog, currentIndex + 1);
+    });
     dialog.querySelector("[data-reelup-story-shop]").addEventListener("click", () => openDrawer(dialog));
     dialog
       .querySelector("[data-reelup-story-drawer-close]")

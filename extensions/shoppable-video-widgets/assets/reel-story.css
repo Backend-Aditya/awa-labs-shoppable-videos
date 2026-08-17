@@ -19,7 +19,7 @@
   height: 64px;
 }
 
-.reelup-stories__avatar-button {
+.reelup-stories .reelup-trigger__button {
   width: 64px;
   height: 64px;
   aspect-ratio: 1 / 1;
@@ -29,7 +29,7 @@
   background: #fff;
 }
 
-.reelup-stories__avatar-button .reelup-trigger__poster {
+.reelup-stories .reelup-trigger__poster {
   border-radius: 50%;
 }
 
@@ -54,12 +54,15 @@
   max-height: 100dvh;
   border: none;
   background: #000;
+  box-sizing: border-box;
+  z-index: 1001;
+}
+
+.reelup-story[open] {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: safe center;
-  box-sizing: border-box;
-  z-index: 1001;
 }
 
 .reelup-story::backdrop {
