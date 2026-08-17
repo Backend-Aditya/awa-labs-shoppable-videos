@@ -1,62 +1,4 @@
 (() => {
-  const currentScriptSrc = document.currentScript?.src ?? "";
-
-  const supportsNativeHls = (video) =>
-    video.canPlayType("application/vnd.apple.mpegurl") !== "";
-
-  let hlsInstance = null;
-
-  const loadHlsJsIfNeeded = () => {
-    if (window.Hls || document.querySelector("script[data-reelup-hlsjs]")) {
-      return Promise.resolve();
-    }
-
-    return new Promise((resolve, reject) => {
-      const script = document.createElement("script");
-      script.src = currentScriptSrc.replace("reel-lightbox.js", "hls.min.js");
-      script.dataset.reelupHlsjs = "true";
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error("Failed to load hls.js"));
-      document.head.appendChild(script);
-    });
-  };
-
-  const attachSource = (video, hlsSrc) => {
-    if (supportsNativeHls(video)) {
-      video.src = hlsSrc;
-      return Promise.resolve();
-    }
-
-    if (!window.Hls?.isSupported()) {
-      return Promise.reject(new Error("HLS not supported"));
-    }
-
-    hlsInstance?.destroy();
-    hlsInstance = null;
-
-    return new Promise((resolve, reject) => {
-      const hls = new window.Hls();
-      hlsInstance = hls;
-      hls.loadSource(hlsSrc);
-      hls.attachMedia(video);
-      hls.on(window.Hls.Events.MANIFEST_PARSED, () => resolve());
-      hls.on(window.Hls.Events.ERROR, (_event, data) => {
-        if (data.fatal) reject(new Error(data.type));
-      });
-    });
-  };
-
-  // Runs on every close (×, ESC, backdrop) via the dialog's native "close"
-  // event, so all three dismissal paths tear down the same way — no
-  // separate close handler needs to remember to call this.
-  const teardownSource = (video) => {
-    hlsInstance?.destroy();
-    hlsInstance = null;
-    video.pause();
-    video.removeAttribute("src");
-    video.load();
-  };
-
   const buildLightbox = () => {
     const existing = document.getElementById("reelup-lightbox");
     if (existing) return existing;
@@ -87,7 +29,7 @@
     const closeButton = dialog.querySelector("[data-reelup-lightbox-close]");
 
     dialog.addEventListener("close", () => {
-      teardownSource(video);
+      window.ReelupHls?.teardown(video);
       productsList.replaceChildren();
       productsPanel.hidden = true;
     });
@@ -172,10 +114,7 @@
     dialog.showModal();
 
     try {
-      if (!supportsNativeHls(video)) {
-        await loadHlsJsIfNeeded();
-      }
-      await attachSource(video, hlsSrc);
+      await window.ReelupHls.attach(video, hlsSrc);
       await video.play();
     } catch {
       // Playback failed to initialize; the lightbox stays open with the
