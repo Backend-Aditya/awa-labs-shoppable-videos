@@ -5,12 +5,21 @@
   let currentIndex = 0;
   let timer = null;
   let drawerOpen = false;
+  let advancing = false;
 
   const clearTimer = () => {
     if (timer) {
       clearTimeout(timer);
       timer = null;
     }
+  };
+
+  const requestAdvance = (dialog) => {
+    if (advancing) return;
+    advancing = true;
+    goTo(dialog, currentIndex + 1).finally(() => {
+      advancing = false;
+    });
   };
 
   const renderProgress = (dialog) => {
@@ -66,7 +75,7 @@
 
   const scheduleAdvance = (dialog) => {
     clearTimer();
-    timer = setTimeout(() => goTo(dialog, currentIndex + 1), DURATION_MS);
+    timer = setTimeout(() => requestAdvance(dialog), DURATION_MS);
   };
 
   const goTo = async (dialog, targetIndex) => {
@@ -173,7 +182,7 @@
       closeDrawerImmediate(dialog);
     });
 
-    video.addEventListener("ended", () => goTo(dialog, currentIndex + 1));
+    video.addEventListener("ended", () => requestAdvance(dialog));
 
     drawerList.addEventListener("click", async (event) => {
       const button = event.target.closest("[data-reelup-add-to-cart]");
