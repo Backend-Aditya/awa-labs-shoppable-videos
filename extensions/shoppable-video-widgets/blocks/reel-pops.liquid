@@ -1,0 +1,123 @@
+{% doc %}
+Renders the shop's REEL_POPS widget: one merchant-picked featured reel as
+a site-wide floating bubble. Unlike the other reel blocks, this is an app
+embed (target: "body") — merchants enable it once under Theme Settings >
+App embeds and it then appears on every eligible page, not manually
+placed into a section. Reuses the already-shipped lightbox stack
+entirely: clicking the bubble is handled by the same reel-trigger.js
+every other block uses, opening the same reel-lightbox.js viewer with
+the video and any tagged products. The only new behavior here is the
+dismiss button (reel-pop.js), which hides the bubble for the rest of the
+shopper's session.
+@example
+{% content_for 'block', type: 'reel-pops', id: 'reel-pops' %}
+{% enddoc %}
+
+{{ 'reel-lightbox.css' | asset_url | stylesheet_tag }}
+{{ 'reel-pop.css' | asset_url | stylesheet_tag }}
+
+{% assign reel_namespace = 'app--404281098241' %}
+
+{% assign widget_field = shop.metafields[reel_namespace].reel_pops_widget %}
+{% assign featured_reel = shop.metafields[reel_namespace].reel_pops_featured_reel %}
+
+{% assign widget_matches_product = false %}
+{% if widget_field.value.published %}
+  {% if widget_field.value.targetRule.type == "all_products" %}
+    {% assign widget_matches_product = true %}
+  {% elsif widget_field.value.targetRule.type == "handles" and product and widget_field.value.targetRule.handles contains product.handle %}
+    {% assign widget_matches_product = true %}
+  {% endif %}
+{% endif %}
+
+{% assign reel = featured_reel.value %}
+{% assign show_reel = false %}
+{% if widget_matches_product and reel and reel.published.value and reel.config.value.cloudflareStreamUid != blank and reel.config.value.hlsManifestUrl != blank %}
+  {% assign show_reel = true %}
+{% endif %}
+
+{% if show_reel %}
+  <div class="reelup-pop" data-reelup-pop data-reel-id="{{ reel.id }}">
+    <button
+      type="button"
+      class="reelup-pop__dismiss"
+      data-reelup-pop-dismiss
+      aria-label="{{ 'reels.dismiss_label' | t }}"
+    >&times;</button>
+    <div
+      class="reelup-trigger"
+      data-reelup-trigger
+      data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
+      data-poster-url="{{ reel.config.value.posterUrl | escape }}"
+      data-title="{{ reel.title.value | escape }}"
+      data-close-label="{{ 'reels.close_label' | t }}"
+      data-shop-label="{{ 'reels.shop_this_video_label' | t }}"
+    >
+      <button
+        type="button"
+        class="reelup-trigger__button"
+        aria-label="{{ 'reels.play_label' | t }}"
+      >
+        {% if reel.config.value.posterUrl != blank %}
+          <img
+            class="reelup-trigger__poster"
+            src="{{ reel.config.value.posterUrl | escape }}"
+            alt="{{ reel.title.value | escape }}"
+            loading="lazy"
+            width="144"
+            height="144"
+          >
+        {% endif %}
+        <span class="reelup-trigger__play-icon" aria-hidden="true"></span>
+      </button>
+      {% if reel.tagged_products.value.size > 0 %}
+        <template data-reelup-products>
+          {% for product in reel.tagged_products.value %}
+            {% assign variant = product.selected_or_first_available_variant %}
+            <div class="reelup-lightbox__product">
+              <a class="reelup-lightbox__product-link" href="{{ product.url }}">
+                {% if product.featured_image %}
+                  <img
+                    class="reelup-lightbox__product-image"
+                    src="{{ product.featured_image | image_url: width: 160 }}"
+                    alt="{{ product.title | escape }}"
+                    loading="lazy"
+                    width="56"
+                    height="56"
+                  >
+                {% endif %}
+                <span class="reelup-lightbox__product-info">
+                  <span class="reelup-lightbox__product-title">{{ product.title }}</span>
+                  <span class="reelup-lightbox__product-price">{{ product.price | money }}</span>
+                </span>
+              </a>
+              {% if variant %}
+                <button
+                  type="button"
+                  class="reelup-lightbox__add-to-cart"
+                  data-reelup-add-to-cart
+                  data-variant-id="{{ variant.id }}"
+                  data-add-label="{{ 'reels.add_to_cart' | t }}"
+                  data-added-label="{{ 'reels.added_to_cart' | t }}"
+                >
+                  {{ 'reels.add_to_cart' | t }}
+                </button>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </template>
+      {% endif %}
+    </div>
+  </div>
+  <script src="{{ 'reel-hls.js' | asset_url }}" defer></script>
+  <script src="{{ 'reel-lightbox.js' | asset_url }}" defer></script>
+  <script src="{{ 'reel-trigger.js' | asset_url }}" defer></script>
+  <script src="{{ 'reel-pop.js' | asset_url }}" defer></script>
+{% endif %}
+
+{% schema %}
+{
+  "name": "Reel pop",
+  "target": "body"
+}
+{% endschema %}
