@@ -3,7 +3,7 @@
     if (pop.dataset.reelupPopBound) return;
     pop.dataset.reelupPopBound = "true";
 
-    const reelId = pop.dataset.reelId ?? "default";
+    const reelId = pop.dataset.reelId || "default";
     const storageKey = `reelup-pop-dismissed-${reelId}`;
 
     let alreadyDismissed = false;

@@ -10,7 +10,8 @@ the video and any tagged products. The only new behavior here is the
 dismiss button (reel-pop.js), which hides the bubble for the rest of the
 shopper's session.
 @example
-{% content_for 'block', type: 'reel-pops', id: 'reel-pops' %}
+Enabled by the merchant under Theme Settings > App embeds — not invoked
+via {% content_for %} like a section block.
 {% enddoc %}
 
 {{ 'reel-lightbox.css' | asset_url | stylesheet_tag }}
@@ -37,7 +38,7 @@ shopper's session.
 {% endif %}
 
 {% if show_reel %}
-  <div class="reelup-pop" data-reelup-pop data-reel-id="{{ reel.id }}">
+  <div class="reelup-pop" data-reelup-pop data-reel-id="{{ reel.system.id }}">
     <button
       type="button"
       class="reelup-pop__dismiss"
@@ -68,7 +69,6 @@ shopper's session.
             height="144"
           >
         {% endif %}
-        <span class="reelup-trigger__play-icon" aria-hidden="true"></span>
       </button>
       {% if reel.tagged_products.value.size > 0 %}
         <template data-reelup-products>
