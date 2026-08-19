@@ -329,11 +329,31 @@ function ReelDetailModal({
   const deleteFetcher = useFetcher();
   const shopify = useAppBridge();
   const publishedRef = useRef<HTMLInputElement>(null);
+  // This modal instance is shared across every reel — detailFetcher.data
+  // doesn't clear when href changes, it keeps the PREVIOUS reel's data until
+  // the new load resolves. Without this gate, opening reel B right after
+  // editing reel A briefly renders reel A's published/title/products under
+  // reel B's heading (the checkbox in particular looked "stuck" from the
+  // last reel touched). pendingHrefRef records which href is in flight;
+  // resolvedHref is only set once that load actually completes, so `data`
+  // below is exposed only when it truly belongs to the current href.
+  const pendingHrefRef = useRef<string | null>(null);
+  const [resolvedHref, setResolvedHref] = useState<string | null>(null);
 
   useEffect(() => {
-    if (href) detailFetcher.load(href);
+    if (href) {
+      pendingHrefRef.current = href;
+      detailFetcher.load(href);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [href]);
+
+  useEffect(() => {
+    if (detailFetcher.state === "idle" && detailFetcher.data) {
+      setResolvedHref(pendingHrefRef.current);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detailFetcher.state, detailFetcher.data]);
 
   useEffect(() => {
     if (href && editFetcher.state === "idle" && editFetcher.data) {
@@ -366,7 +386,7 @@ function ReelDetailModal({
     productsFetcher.submit(formData, { method: "post", action: href });
   };
 
-  const data = detailFetcher.data;
+  const data = resolvedHref === href ? detailFetcher.data : undefined;
   const detailReel = data?.reel ?? null;
   const status = detailReel ? deriveReelStatus(detailReel.config) : null;
 

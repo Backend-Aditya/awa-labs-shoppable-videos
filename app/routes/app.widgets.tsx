@@ -211,11 +211,27 @@ function WidgetDetailModal({
   const deleteFetcher = useFetcher();
   const shopify = useAppBridge();
   const publishedRef = useRef<HTMLInputElement>(null);
+  // Shared modal instance across every widget — see the identical comment in
+  // ReelDetailModal (app.reels.tsx): without this gate, opening widget B
+  // right after editing widget A briefly renders widget A's stale
+  // published/name/target under widget B's heading.
+  const pendingHrefRef = useRef<string | null>(null);
+  const [resolvedHref, setResolvedHref] = useState<string | null>(null);
 
   useEffect(() => {
-    if (href) detailFetcher.load(href);
+    if (href) {
+      pendingHrefRef.current = href;
+      detailFetcher.load(href);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [href]);
+
+  useEffect(() => {
+    if (detailFetcher.state === "idle" && detailFetcher.data) {
+      setResolvedHref(pendingHrefRef.current);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detailFetcher.state, detailFetcher.data]);
 
   useEffect(() => {
     if (href && editFetcher.state === "idle" && editFetcher.data) {
@@ -245,7 +261,8 @@ function WidgetDetailModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reelsFetcher.state, reelsFetcher.data]);
 
-  const detailWidget = detailFetcher.data?.widget ?? null;
+  const detailData = resolvedHref === href ? detailFetcher.data : undefined;
+  const detailWidget = detailData?.widget ?? null;
   const targetRule = detailWidget
     ? (detailWidget.config as unknown as WidgetConfig).targetRule
     : null;
@@ -359,7 +376,7 @@ function WidgetDetailModal({
                   {(() => {
                     const featuredReelId = (detailWidget.config as unknown as WidgetConfig)
                       .featuredReelId;
-                    const reels = detailFetcher.data?.reels ?? [];
+                    const reels = detailData?.reels ?? [];
                     const featured = reels.find((r) => r.id === featuredReelId);
                     return featured ? featured.title : "None chosen yet";
                   })()}
@@ -368,7 +385,7 @@ function WidgetDetailModal({
                   <input type="hidden" name="intent" value="set-featured-reel" />
                   <s-stack gap="base">
                     <s-select label="Choose reel" name="featuredReelId" required>
-                      {(detailFetcher.data?.reels ?? []).map((reel) => (
+                      {(detailData?.reels ?? []).map((reel) => (
                         <s-option key={reel.id} value={reel.id}>
                           {reel.title}
                         </s-option>
@@ -402,7 +419,7 @@ function WidgetDetailModal({
                 <reelsFetcher.Form method="post" action={href ?? undefined}>
                   <input type="hidden" name="intent" value="set-reels" />
                   <s-stack gap="small-200">
-                    {(detailFetcher.data?.reels ?? []).map((reel) => (
+                    {(detailData?.reels ?? []).map((reel) => (
                       <s-checkbox
                         key={reel.id}
                         label={reel.title}
