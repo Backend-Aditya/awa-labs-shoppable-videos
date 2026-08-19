@@ -268,6 +268,23 @@ function WidgetDetailModal({
     : null;
   const currentHandles = targetRule?.type === "handles" ? targetRule.handles : [];
 
+  // Tracked in JS rather than relied on via each checkbox's native name/value
+  // — s-checkbox's ElementInternals form participation doesn't reliably clear
+  // on uncheck (the same bug that broke the published toggle: see reel.server.ts
+  // toBool and the earlier published-checkbox fixes). Unchecking a previously
+  // selected reel here would silently keep submitting it. Reset only when the
+  // widget identity changes, not on every unrelated detailFetcher reload, so
+  // in-progress selection edits survive an unrelated Save.
+  const [selectedReelIds, setSelectedReelIds] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (detailWidget) {
+      setSelectedReelIds(
+        new Set((detailWidget.config as unknown as WidgetConfig).reelIds ?? []),
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detailWidget?.id]);
+
   const handlePickProducts = async () => {
     if (!href) return;
     const selected = await shopify.resourcePicker({ type: "product", multiple: true });
@@ -416,29 +433,36 @@ function WidgetDetailModal({
                 <s-paragraph>
                   Reels shown by this widget (same set on every targeted product page):
                 </s-paragraph>
-                <reelsFetcher.Form method="post" action={href ?? undefined}>
-                  <input type="hidden" name="intent" value="set-reels" />
-                  <s-stack gap="small-200">
-                    {(detailData?.reels ?? []).map((reel) => (
-                      <s-checkbox
-                        key={reel.id}
-                        label={reel.title}
-                        name="reelId"
-                        value={reel.id}
-                        defaultChecked={(
-                          (detailWidget.config as unknown as WidgetConfig).reelIds ?? []
-                        ).includes(reel.id)}
-                      ></s-checkbox>
-                    ))}
-                  </s-stack>
-                  <s-button
-                    type="submit"
-                    variant="secondary"
-                    loading={reelsFetcher.state !== "idle"}
-                  >
-                    Save reels
-                  </s-button>
-                </reelsFetcher.Form>
+                <s-stack gap="small-200">
+                  {(detailData?.reels ?? []).map((reel) => (
+                    <s-checkbox
+                      key={`${detailWidget.id}-${reel.id}`}
+                      label={reel.title}
+                      defaultChecked={selectedReelIds.has(reel.id)}
+                      onChange={(event: { currentTarget: { checked: boolean } }) => {
+                        setSelectedReelIds((prev) => {
+                          const next = new Set(prev);
+                          if (event.currentTarget.checked) next.add(reel.id);
+                          else next.delete(reel.id);
+                          return next;
+                        });
+                      }}
+                    ></s-checkbox>
+                  ))}
+                </s-stack>
+                <s-button
+                  variant="secondary"
+                  loading={reelsFetcher.state !== "idle"}
+                  onClick={() => {
+                    if (!href) return;
+                    const formData = new FormData();
+                    formData.set("intent", "set-reels");
+                    for (const id of selectedReelIds) formData.append("reelId", id);
+                    reelsFetcher.submit(formData, { method: "post", action: href });
+                  }}
+                >
+                  Save reels
+                </s-button>
               </s-stack>
             </>
           )}
