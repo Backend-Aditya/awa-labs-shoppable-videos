@@ -18,14 +18,6 @@ import {
 import type { Reel } from "../models/reel.server";
 import { deriveReelStatus } from "../models/reel-status";
 import { createDirectUploadUrl, getCloudflareConfig } from "../models/cloudflare-stream.server";
-import { PageShell } from "../components/ui/PageShell";
-import { StatTile } from "../components/ui/StatTile";
-import { CARD_INTERACTIVE_CLASSES } from "../components/ui/Card";
-import { Badge } from "../components/ui/Badge";
-import { Button } from "../components/ui/Button";
-import { TextField } from "../components/ui/TextField";
-import { Checkbox } from "../components/ui/Checkbox";
-import { Modal, type ModalHandle } from "../components/ui/Modal";
 
 // Route param is the trailing numeric id only — a raw GID (gid://shopify/Metaobject/123)
 // contains ':' and '/' characters that break single-segment routing/URLs.
@@ -123,21 +115,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   return { error: "Unknown request", uploadURL: null, reelId: null };
 };
 
-function CreateReelModal({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
-  const modalRef = useRef<ModalHandle>(null);
+function statusTone(status: string | null): "success" | "critical" | "info" | "neutral" {
+  return status === "ready"
+    ? "success"
+    : status === "failed"
+      ? "critical"
+      : status === "processing"
+        ? "info"
+        : "neutral";
+}
+
+function CreateReelModal() {
   const fetcher = useFetcher<typeof action>();
   const failureFetcher = useFetcher();
+  const shopify = useAppBridge();
   const [file, setFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState<
     "idle" | "uploading" | "done" | "error" | "no-file"
   >("idle");
-  const [fileInputKey, setFileInputKey] = useState(0);
   // armedRef gates the upload PUT to fire exactly once per submission. Without
   // it, changing the selected file after a completed/failed upload re-runs this
   // effect and re-fires against the STALE one-time uploadURL from the previous
@@ -146,17 +141,6 @@ function CreateReelModal({
   // not drop `fetcher.state` from the dependency array (it closes a ~1-3s race
   // during an in-flight submission).
   const armedRef = useRef(false);
-
-  useEffect(() => {
-    if (open) {
-      modalRef.current?.show();
-    } else {
-      modalRef.current?.hide();
-      setFile(null);
-      setUploadStatus("idle");
-      setFileInputKey((k) => k + 1);
-    }
-  }, [open]);
 
   useEffect(() => {
     if (
@@ -194,15 +178,21 @@ function CreateReelModal({
 
   useEffect(() => {
     if (uploadStatus === "done") {
-      onClose();
+      shopify.modal.hide("create-reel-modal");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uploadStatus]);
+  }, [uploadStatus, shopify]);
 
   const isSubmitting = fetcher.state !== "idle" || uploadStatus === "uploading";
 
   return (
-    <Modal ref={modalRef} title="Create a reel" onClose={onClose}>
+    <s-modal
+      id="create-reel-modal"
+      heading="Create a reel"
+      onHide={() => {
+        setFile(null);
+        setUploadStatus("idle");
+      }}
+    >
       <fetcher.Form
         method="post"
         onSubmit={(e) => {
@@ -214,54 +204,40 @@ function CreateReelModal({
           armedRef.current = true;
           setUploadStatus("idle");
         }}
-        className="flex flex-col gap-4"
       >
         <input type="hidden" name="intent" value="start-upload" />
-        {fetcher.data?.error && (
-          <p className="text-sm text-critical">{fetcher.data.error}</p>
-        )}
-        <TextField label="Title" name="title" required />
-        <Checkbox label="Published" name="published" />
-        <div>
-          <label htmlFor="reel-video-file" className="mb-1.5 block text-sm font-medium text-ink">
-            Video file
-          </label>
-          <input
-            id="reel-video-file"
-            key={fileInputKey}
-            type="file"
+        <s-stack gap="base">
+          {fetcher.data?.error && (
+            <s-paragraph tone="critical">{fetcher.data.error}</s-paragraph>
+          )}
+          <s-text-field label="Title" name="title" required></s-text-field>
+          <s-checkbox label="Published" name="published"></s-checkbox>
+          <s-drop-zone
+            label="Video file"
+            name="file"
             accept="video/*"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="text-sm text-ink file:mr-3 file:rounded-md file:border file:border-border file:bg-bg file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-ink hover:file:bg-surface"
-          />
-        </div>
-        <div>
-          <Button type="submit" variant="primary" loading={isSubmitting}>
-            Create reel
-          </Button>
-        </div>
-        {uploadStatus === "uploading" && (
-          <p className="text-sm text-muted">Uploading to Cloudflare…</p>
-        )}
-        {uploadStatus === "error" && (
-          <p className="text-sm text-critical">Upload failed. Try again.</p>
-        )}
-        {uploadStatus === "no-file" && (
-          <p className="text-sm text-critical">Choose a video file first.</p>
-        )}
+            accessibilityLabel="Video file"
+            onChange={(event) => setFile(event.currentTarget.files?.[0] ?? null)}
+          ></s-drop-zone>
+          {uploadStatus === "uploading" && (
+            <s-paragraph>Uploading to Cloudflare…</s-paragraph>
+          )}
+          {uploadStatus === "error" && (
+            <s-paragraph tone="critical">Upload failed. Try again.</s-paragraph>
+          )}
+          {uploadStatus === "no-file" && (
+            <s-paragraph tone="critical">Choose a video file first.</s-paragraph>
+          )}
+        </s-stack>
+        <s-button slot="primary-action" variant="primary" type="submit" loading={isSubmitting}>
+          Create reel
+        </s-button>
+        <s-button slot="secondary-actions" commandFor="create-reel-modal" command="--hide">
+          Cancel
+        </s-button>
       </fetcher.Form>
-    </Modal>
+    </s-modal>
   );
-}
-
-function statusTone(status: string | null): "success" | "critical" | "info" | "neutral" {
-  return status === "ready"
-    ? "success"
-    : status === "failed"
-      ? "critical"
-      : status === "processing"
-        ? "info"
-        : "neutral";
 }
 
 function ReelCard({ reel, onOpen }: { reel: Reel; onOpen: (reel: Reel) => void }) {
@@ -271,44 +247,40 @@ function ReelCard({ reel, onOpen }: { reel: Reel; onOpen: (reel: Reel) => void }
   return (
     // Opens a popup instead of navigating — full-page navigation inside the
     // embedded admin iframe repeatedly failed to reach the detail route (see
-    // git history). A click handler that shows a Modal and loads detail data
-    // via useFetcher() sidesteps that: fetcher requests go through App
-    // Bridge's patched fetch(), which attaches a session-token header, so
-    // authenticate.admin() never falls back to needing shop/host params.
-    <button
-      type="button"
+    // git history). A click handler that loads detail data via useFetcher()
+    // sidesteps that: fetcher requests go through App Bridge's patched
+    // fetch(), which attaches a session-token header, so authenticate.admin()
+    // never falls back to needing shop/host params.
+    <s-clickable
+      padding="base"
+      background="subdued"
+      borderRadius="base"
+      commandFor="reel-detail-modal"
+      command="--show"
       onClick={() => onOpen(reel)}
-      className={`block w-full ${CARD_INTERACTIVE_CLASSES}`}
     >
-      <div className="relative mb-2 aspect-[9/16] w-full overflow-hidden rounded-lg bg-surface">
-        {reel.config.posterUrl ? (
-          <img
+      <s-stack gap="small-200">
+        {reel.config.posterUrl && (
+          <s-image
             src={reel.config.posterUrl}
             alt={reel.title}
-            className="h-full w-full object-cover"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center">
-            <svg className="h-8 w-8 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-              <rect x="3" y="5" width="14" height="14" rx="2" />
-              <path d="M17 9.5l4-2.5v10l-4-2.5" />
-            </svg>
-          </div>
+            aspectRatio="9/16"
+            objectFit="cover"
+            loading="lazy"
+          ></s-image>
         )}
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-ink/70 to-transparent p-2 pt-6">
-          <div className="truncate text-sm font-semibold text-white">{reel.title}</div>
-        </div>
-      </div>
-      <div className="mb-1.5 flex flex-wrap gap-1.5">
-        <Badge tone={reel.published ? "success" : "neutral"}>
-          {reel.published ? "Published" : "Draft"}
-        </Badge>
-        <Badge tone={statusTone(status)}>{REEL_STATUS_LABELS[status]}</Badge>
-      </div>
-      <Badge tone={productCount > 0 ? "success" : "neutral"}>
-        {productCount > 0 ? `${productCount} tagged` : "Untagged"}
-      </Badge>
-    </button>
+        <s-text>{reel.title}</s-text>
+        <s-stack direction="inline" gap="small-200">
+          <s-badge tone={reel.published ? "success" : "neutral"}>
+            {reel.published ? "Published" : "Draft"}
+          </s-badge>
+          <s-badge tone={statusTone(status)}>{REEL_STATUS_LABELS[status]}</s-badge>
+        </s-stack>
+        <s-badge tone={productCount > 0 ? "success" : "neutral"}>
+          {productCount > 0 ? `${productCount} tagged` : "Untagged"}
+        </s-badge>
+      </s-stack>
+    </s-clickable>
   );
 }
 
@@ -320,26 +292,21 @@ type ReelDetailLoaderData = {
 
 function ReelDetailModal({
   reel,
+  href,
   onClose,
 }: {
   reel: Reel | null;
+  href: string | null;
   onClose: () => void;
 }) {
-  const modalRef = useRef<ModalHandle>(null);
   const detailFetcher = useFetcher<ReelDetailLoaderData>();
   const editFetcher = useFetcher<{ error: string | null }>();
   const productsFetcher = useFetcher<{ error: string | null }>();
   const deleteFetcher = useFetcher();
   const shopify = useAppBridge();
-  const href = reel ? `/app/reels/${reelNumericId(reel)}` : null;
 
   useEffect(() => {
-    if (href) {
-      modalRef.current?.show();
-      detailFetcher.load(href);
-    } else {
-      modalRef.current?.hide();
-    }
+    if (href) detailFetcher.load(href);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [href]);
 
@@ -379,108 +346,112 @@ function ReelDetailModal({
   const status = detailReel ? deriveReelStatus(detailReel.config) : null;
 
   return (
-    <Modal ref={modalRef} title={reel?.title ?? "Reel"} onClose={onClose}>
+    <s-modal id="reel-detail-modal" heading={reel?.title ?? "Reel"} onHide={onClose}>
       {!data ? (
-        <p className="text-sm text-muted">Loading…</p>
+        <s-paragraph>Loading…</s-paragraph>
       ) : data.loaderError ? (
-        <p className="text-sm text-critical">{data.loaderError}</p>
+        <s-paragraph tone="critical">{data.loaderError}</s-paragraph>
       ) : detailReel ? (
-        <div className="flex flex-col">
-          <div className="flex flex-col gap-4 pb-6">
-            {detailReel.config.cloudflareStreamUid ? (
-              <iframe
-                src={`https://iframe.videodelivery.net/${encodeURIComponent(detailReel.config.cloudflareStreamUid)}`}
-                title={`Preview of ${detailReel.title}`}
-                className="aspect-[9/16] w-full max-w-[220px] border-0"
-                allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
-                allowFullScreen
-              ></iframe>
-            ) : (
-              <p className="text-sm text-muted">No video uploaded yet.</p>
-            )}
-            <p className="flex items-center gap-2 text-sm text-ink">
-              Status:{" "}
-              <Badge tone={statusTone(status)}>{status ? REEL_STATUS_LABELS[status] : ""}</Badge>
-            </p>
-          </div>
+        <s-stack gap="base">
+          {detailReel.config.cloudflareStreamUid ? (
+            <iframe
+              src={`https://iframe.videodelivery.net/${encodeURIComponent(detailReel.config.cloudflareStreamUid)}`}
+              title={`Preview of ${detailReel.title}`}
+              style={{ border: "none", aspectRatio: "9 / 16", width: "100%", maxWidth: "220px" }}
+              allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
+              allowFullScreen
+            ></iframe>
+          ) : (
+            <s-paragraph>No video uploaded yet.</s-paragraph>
+          )}
+          <s-paragraph>
+            Status: <s-badge tone={statusTone(status)}>{status ? REEL_STATUS_LABELS[status] : ""}</s-badge>
+          </s-paragraph>
 
-          <div className="flex flex-col gap-4 border-t border-border py-6">
-            {editFetcher.data?.error && (
-              <p className="text-sm text-critical">{editFetcher.data.error}</p>
-            )}
-            <editFetcher.Form method="post" action={href!} className="flex flex-col gap-4">
-              <TextField label="Title" name="title" defaultValue={detailReel.title} required />
-              <Checkbox label="Published" name="published" defaultChecked={detailReel.published} />
-              <div>
-                <Button type="submit" variant="primary" loading={editFetcher.state !== "idle"}>
-                  Save
-                </Button>
-              </div>
-            </editFetcher.Form>
-          </div>
+          <s-divider></s-divider>
 
-          <div className="flex flex-col gap-3 border-t border-border py-6">
+          {editFetcher.data?.error && (
+            <s-paragraph tone="critical">{editFetcher.data.error}</s-paragraph>
+          )}
+          <editFetcher.Form method="post" action={href ?? undefined}>
+            <s-stack gap="base">
+              <s-text-field
+                label="Title"
+                name="title"
+                defaultValue={detailReel.title}
+                required
+              ></s-text-field>
+              <s-checkbox
+                label="Published"
+                name="published"
+                defaultChecked={detailReel.published}
+              ></s-checkbox>
+              <s-button type="submit" variant="primary" loading={editFetcher.state !== "idle"}>
+                Save
+              </s-button>
+            </s-stack>
+          </editFetcher.Form>
+
+          <s-divider></s-divider>
+
+          <s-stack gap="base">
             {productsFetcher.data?.error && (
-              <p className="text-sm text-critical">{productsFetcher.data.error}</p>
+              <s-paragraph tone="critical">{productsFetcher.data.error}</s-paragraph>
             )}
             {data.taggedProducts.length === 0 ? (
-              <p className="text-sm text-muted">No products tagged yet.</p>
+              <s-paragraph>No products tagged yet.</s-paragraph>
             ) : (
-              <div className="flex flex-col gap-1.5">
+              <s-stack gap="small-200">
                 {data.taggedProducts.map((product) => (
-                  <p key={product.id} className="text-sm text-ink">
-                    {product.title}
-                  </p>
+                  <s-paragraph key={product.id}>{product.title}</s-paragraph>
                 ))}
-              </div>
+              </s-stack>
             )}
-            <div>
-              <Button
-                variant="secondary"
-                onClick={handlePickProducts}
-                loading={productsFetcher.state !== "idle"}
-              >
-                {data.taggedProducts.length === 0 ? "Tag products" : "Edit tagged products"}
-              </Button>
-            </div>
-          </div>
-
-          <div className="border-t border-border pt-6">
-            <deleteFetcher.Form
-              method="post"
-              action={href ?? undefined}
-              onSubmit={(e) => {
-                // Don't call onClose() here — it sets selectedReelId to null
-                // synchronously, which can flip href to null before/while the
-                // fetcher reads this form's action, sending the delete POST
-                // for the wrong (or no) id and 404ing (confirmed live on the
-                // equivalent widgets modal). The modal closes naturally once
-                // the reel disappears from the revalidated list after the
-                // delete redirect completes.
-                if (!confirm("Delete this reel? This can't be undone.")) {
-                  e.preventDefault();
-                }
-              }}
+            <s-button
+              variant="secondary"
+              onClick={handlePickProducts}
+              loading={productsFetcher.state !== "idle"}
             >
-              <input type="hidden" name="intent" value="delete" />
-              <Button type="submit" variant="critical" loading={deleteFetcher.state !== "idle"}>
-                Delete reel
-              </Button>
-            </deleteFetcher.Form>
-          </div>
-        </div>
+              {data.taggedProducts.length === 0 ? "Tag products" : "Edit tagged products"}
+            </s-button>
+          </s-stack>
+
+          <s-divider></s-divider>
+
+          <deleteFetcher.Form
+            method="post"
+            action={href ?? undefined}
+            onSubmit={(e) => {
+              // Don't call onClose() here — it sets selectedReelId to null
+              // synchronously, which can flip href to null before/while the
+              // fetcher reads this form's action, sending the delete POST
+              // for the wrong (or no) id and 404ing (confirmed live on the
+              // equivalent widgets modal). The modal closes naturally once
+              // the reel disappears from the revalidated list after the
+              // delete redirect completes.
+              if (!confirm("Delete this reel? This can't be undone.")) {
+                e.preventDefault();
+              }
+            }}
+          >
+            <input type="hidden" name="intent" value="delete" />
+            <s-button type="submit" variant="secondary" tone="critical" loading={deleteFetcher.state !== "idle"}>
+              Delete reel
+            </s-button>
+          </deleteFetcher.Form>
+        </s-stack>
       ) : null}
-    </Modal>
+    </s-modal>
   );
 }
 
 export default function ReelsLibrary() {
   const { reels } = useLoaderData<typeof loader>();
   const [selectedReelId, setSelectedReelId] = useState<string | null>(null);
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
   // Re-derived from the live `reels` list (not stored as its own object) so
   // the modal reflects fresh data automatically after the list revalidates.
   const selectedReel = reels.find((r) => r.id === selectedReelId) ?? null;
+  const href = selectedReel ? `/app/reels/${reelNumericId(selectedReel)}` : null;
 
   const publishedCount = reels.filter((r) => r.published).length;
   const readyCount = reels.filter(
@@ -491,38 +462,54 @@ export default function ReelsLibrary() {
   ).length;
 
   return (
-    <PageShell
-      heading="Reels library"
-      description="Upload videos, tag products, and manage what's ready to publish."
-      actions={
-        <Button variant="primary" onClick={() => setIsCreateOpen(true)}>
-          Create reel
-        </Button>
-      }
-    >
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatTile label="Total reels" value={reels.length} />
-        <StatTile label="Published" value={publishedCount} />
-        <StatTile label="Ready to play" value={readyCount} />
-        <StatTile label="Tagged to products" value={taggedCount} />
-      </div>
+    <s-page heading="Reels library" inlineSize="large">
+      <s-button slot="primary-action" variant="primary" commandFor="create-reel-modal" command="--show">
+        Create reel
+      </s-button>
+      <s-section>
+        <s-grid gridTemplateColumns="repeat(auto-fill, minmax(220px, 1fr))" gap="base">
+          <s-box padding="base" background="subdued" borderRadius="base">
+            <s-stack gap="small-200">
+              <s-text color="subdued">Total reels</s-text>
+              <s-heading>{reels.length}</s-heading>
+            </s-stack>
+          </s-box>
+          <s-box padding="base" background="subdued" borderRadius="base">
+            <s-stack gap="small-200">
+              <s-text color="subdued">Published</s-text>
+              <s-heading>{publishedCount}</s-heading>
+            </s-stack>
+          </s-box>
+          <s-box padding="base" background="subdued" borderRadius="base">
+            <s-stack gap="small-200">
+              <s-text color="subdued">Ready to play</s-text>
+              <s-heading>{readyCount}</s-heading>
+            </s-stack>
+          </s-box>
+          <s-box padding="base" background="subdued" borderRadius="base">
+            <s-stack gap="small-200">
+              <s-text color="subdued">Tagged to products</s-text>
+              <s-heading>{taggedCount}</s-heading>
+            </s-stack>
+          </s-box>
+        </s-grid>
+      </s-section>
 
-      <section>
-        <h2 className="mb-3 text-lg font-semibold text-ink">All reels</h2>
+      <s-section heading="All reels">
         {reels.length === 0 ? (
-          <p className="text-sm text-muted">No reels yet. Use Create reel to add your first one.</p>
+          <s-paragraph>No reels yet. Use Create reel to add your first one.</s-paragraph>
         ) : (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
+          <s-grid gridTemplateColumns="repeat(auto-fill, minmax(220px, 1fr))" gap="base">
             {reels.map((reel) => (
               <ReelCard key={reel.id} reel={reel} onOpen={(r) => setSelectedReelId(r.id)} />
             ))}
-          </div>
+          </s-grid>
         )}
-      </section>
+      </s-section>
 
-      <CreateReelModal open={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
-      <ReelDetailModal reel={selectedReel} onClose={() => setSelectedReelId(null)} />
-    </PageShell>
+      <CreateReelModal />
+      <ReelDetailModal reel={selectedReel} href={href} onClose={() => setSelectedReelId(null)} />
+    </s-page>
   );
 }
 
