@@ -129,6 +129,7 @@ function CreateReelModal() {
   const fetcher = useFetcher<typeof action>();
   const failureFetcher = useFetcher();
   const shopify = useAppBridge();
+  const formRef = useRef<HTMLFormElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState<
     "idle" | "uploading" | "done" | "error" | "no-file"
@@ -189,6 +190,7 @@ function CreateReelModal() {
     <s-modal
       id="create-reel-modal"
       heading="Create a reel"
+      accessibilityLabel="Create a reel"
       onHide={() => {
         setFile(null);
         setUploadStatus("idle");
@@ -197,6 +199,7 @@ function CreateReelModal() {
     >
       <fetcher.Form
         id="create-reel-form"
+        ref={formRef}
         method="post"
         onSubmit={(e) => {
           if (!file) {
@@ -214,7 +217,7 @@ function CreateReelModal() {
             <s-paragraph tone="critical">{fetcher.data.error}</s-paragraph>
           )}
           <s-text-field label="Title" name="title" required></s-text-field>
-          <s-checkbox label="Published" name="published"></s-checkbox>
+          <s-checkbox label="Published" name="published" value="true"></s-checkbox>
           <s-drop-zone
             key={dropZoneKey}
             label="Video file"
@@ -237,9 +240,7 @@ function CreateReelModal() {
         slot="primary-action"
         variant="primary"
         loading={isSubmitting}
-        onClick={() =>
-          (document.getElementById("create-reel-form") as HTMLFormElement | null)?.requestSubmit()
-        }
+        onClick={() => formRef.current?.requestSubmit()}
       >
         Create reel
       </s-button>
@@ -356,7 +357,7 @@ function ReelDetailModal({
   const status = detailReel ? deriveReelStatus(detailReel.config) : null;
 
   return (
-    <s-modal id="reel-detail-modal" heading={reel?.title ?? "Reel"} onHide={onClose}>
+    <s-modal id="reel-detail-modal" heading={reel?.title ?? "Reel"} accessibilityLabel={reel?.title ?? "Reel"} onHide={onClose}>
       {!data ? (
         <s-paragraph>Loading…</s-paragraph>
       ) : data.loaderError ? (
@@ -394,6 +395,7 @@ function ReelDetailModal({
               <s-checkbox
                 label="Published"
                 name="published"
+                value="true"
                 defaultChecked={detailReel.published}
               ></s-checkbox>
               <s-button type="submit" variant="primary" loading={editFetcher.state !== "idle"}>

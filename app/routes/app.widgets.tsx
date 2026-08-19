@@ -3,7 +3,7 @@ import type {
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useFetcher, useLoaderData } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
@@ -153,6 +153,7 @@ function TemplatePicker({
 function CreateWidgetModal() {
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
+  const formRef = useRef<HTMLFormElement>(null);
   const [selectedKind, setSelectedKind] = useState<WidgetKind>("PRODUCT_PAGE_REELS");
 
   useEffect(() => {
@@ -162,8 +163,8 @@ function CreateWidgetModal() {
   }, [fetcher.state, fetcher.data, shopify]);
 
   return (
-    <s-modal id="create-widget-modal" heading="Create a widget">
-      <fetcher.Form id="create-widget-form" method="post">
+    <s-modal id="create-widget-modal" heading="Create a widget" accessibilityLabel="Create a widget">
+      <fetcher.Form id="create-widget-form" ref={formRef} method="post">
         <s-stack gap="base">
           {fetcher.data?.error && (
             <s-paragraph tone="critical">{fetcher.data.error}</s-paragraph>
@@ -177,9 +178,7 @@ function CreateWidgetModal() {
         slot="primary-action"
         variant="primary"
         loading={fetcher.state !== "idle"}
-        onClick={() =>
-          (document.getElementById("create-widget-form") as HTMLFormElement | null)?.requestSubmit()
-        }
+        onClick={() => formRef.current?.requestSubmit()}
       >
         Create widget
       </s-button>
@@ -272,7 +271,7 @@ function WidgetDetailModal({
   };
 
   return (
-    <s-modal id="widget-detail-modal" heading={widget?.name ?? "Widget"} onHide={onClose}>
+    <s-modal id="widget-detail-modal" heading={widget?.name ?? "Widget"} accessibilityLabel={widget?.name ?? "Widget"} onHide={onClose}>
       {!detailWidget ? (
         <s-paragraph>Loading…</s-paragraph>
       ) : (
@@ -295,6 +294,7 @@ function WidgetDetailModal({
               <s-checkbox
                 label="Published"
                 name="published"
+                value="true"
                 defaultChecked={detailWidget.published}
               ></s-checkbox>
               <s-button type="submit" variant="primary" loading={editFetcher.state !== "idle"}>

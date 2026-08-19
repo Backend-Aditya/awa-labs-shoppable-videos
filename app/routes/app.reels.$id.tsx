@@ -192,6 +192,7 @@ export default function ReelDetail() {
               <s-checkbox
                 label="Published"
                 name="published"
+                value="true"
                 defaultChecked={reel.published}
               ></s-checkbox>
               <s-button

@@ -166,6 +166,7 @@ export default function WidgetDetail() {
               <s-checkbox
                 label="Published"
                 name="published"
+                value="true"
                 defaultChecked={widget.published}
               ></s-checkbox>
               <s-button
