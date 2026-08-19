@@ -220,9 +220,9 @@ function CreateReelModal() {
             <s-paragraph tone="critical">{fetcher.data.error}</s-paragraph>
           )}
           <s-text-field label="Title" name="title" required></s-text-field>
-          <input type="hidden" name="published" ref={publishedRef} defaultValue="" key={publishedKey} />
+          <input type="hidden" name="published" ref={publishedRef} defaultValue="" key={`published-input-${publishedKey}`} />
           <s-checkbox
-            key={publishedKey}
+            key={`published-checkbox-${publishedKey}`}
             label="Published"
             defaultChecked={false}
             onChange={(event: { currentTarget: { checked: boolean } }) => {

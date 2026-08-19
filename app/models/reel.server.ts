@@ -43,6 +43,19 @@ export function throwOnUserErrors(
   }
 }
 
+// The Admin API's `jsonValue` for this metaobject's boolean-typed "published"
+// field comes back as the STRING "true"/"false", not a JS boolean — despite
+// the field being declared `type = "boolean"` in shopify.app.toml. Every
+// caller that read `node.published.jsonValue` straight into a `boolean`-typed
+// field ended up with a non-empty string, which is truthy regardless of its
+// content — so "false" behaved exactly like "true" everywhere (badges, the
+// publish checkbox, everything). Confirmed live via debug logging: the raw
+// GraphQL response held `"published":{"jsonValue":"false"}` after writing
+// published=false.
+function toBool(value: unknown): boolean {
+  return value === true || value === "true";
+}
+
 export function assertNoGraphqlErrors(json: {
   data: unknown;
   errors?: Array<{ message: string }>;
@@ -104,7 +117,7 @@ export async function upsertReel(
     id: node.id,
     handle: node.handle,
     title: node.title.jsonValue,
-    published: node.published.jsonValue,
+    published: toBool(node.published.jsonValue),
     config: node.config.jsonValue,
   };
 }
@@ -136,7 +149,7 @@ export async function listReels(
     id: node.id,
     handle: node.handle,
     title: node.title.jsonValue,
-    published: node.published.jsonValue,
+    published: toBool(node.published.jsonValue),
     config: node.config.jsonValue,
   }));
 }
@@ -169,7 +182,7 @@ export async function getReel(
     id: node.id,
     handle: node.handle,
     title: node.title.jsonValue,
-    published: node.published.jsonValue,
+    published: toBool(node.published.jsonValue),
     config: node.config.jsonValue,
   };
 }
@@ -235,7 +248,7 @@ export async function updateReelConfig(
     id: node.id,
     handle: node.handle,
     title: node.title.jsonValue,
-    published: node.published.jsonValue,
+    published: toBool(node.published.jsonValue),
     config: node.config.jsonValue,
   };
 }
