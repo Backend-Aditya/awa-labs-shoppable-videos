@@ -163,7 +163,7 @@ function CreateWidgetModal() {
 
   return (
     <s-modal id="create-widget-modal" heading="Create a widget">
-      <fetcher.Form method="post">
+      <fetcher.Form id="create-widget-form" method="post">
         <s-stack gap="base">
           {fetcher.data?.error && (
             <s-paragraph tone="critical">{fetcher.data.error}</s-paragraph>
@@ -172,13 +172,20 @@ function CreateWidgetModal() {
           <input type="hidden" name="type" value={selectedKind} />
           <TemplatePicker value={selectedKind} onChange={setSelectedKind} />
         </s-stack>
-        <s-button slot="primary-action" variant="primary" type="submit" loading={fetcher.state !== "idle"}>
-          Create widget
-        </s-button>
-        <s-button slot="secondary-actions" commandFor="create-widget-modal" command="--hide">
-          Cancel
-        </s-button>
       </fetcher.Form>
+      <s-button
+        slot="primary-action"
+        variant="primary"
+        loading={fetcher.state !== "idle"}
+        onClick={() =>
+          (document.getElementById("create-widget-form") as HTMLFormElement | null)?.requestSubmit()
+        }
+      >
+        Create widget
+      </s-button>
+      <s-button slot="secondary-actions" commandFor="create-widget-modal" command="--hide">
+        Cancel
+      </s-button>
     </s-modal>
   );
 }

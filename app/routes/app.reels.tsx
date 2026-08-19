@@ -133,6 +133,7 @@ function CreateReelModal() {
   const [uploadStatus, setUploadStatus] = useState<
     "idle" | "uploading" | "done" | "error" | "no-file"
   >("idle");
+  const [dropZoneKey, setDropZoneKey] = useState(0);
   // armedRef gates the upload PUT to fire exactly once per submission. Without
   // it, changing the selected file after a completed/failed upload re-runs this
   // effect and re-fires against the STALE one-time uploadURL from the previous
@@ -191,9 +192,11 @@ function CreateReelModal() {
       onHide={() => {
         setFile(null);
         setUploadStatus("idle");
+        setDropZoneKey((k) => k + 1);
       }}
     >
       <fetcher.Form
+        id="create-reel-form"
         method="post"
         onSubmit={(e) => {
           if (!file) {
@@ -213,8 +216,8 @@ function CreateReelModal() {
           <s-text-field label="Title" name="title" required></s-text-field>
           <s-checkbox label="Published" name="published"></s-checkbox>
           <s-drop-zone
+            key={dropZoneKey}
             label="Video file"
-            name="file"
             accept="video/*"
             accessibilityLabel="Video file"
             onChange={(event) => setFile(event.currentTarget.files?.[0] ?? null)}
@@ -229,13 +232,20 @@ function CreateReelModal() {
             <s-paragraph tone="critical">Choose a video file first.</s-paragraph>
           )}
         </s-stack>
-        <s-button slot="primary-action" variant="primary" type="submit" loading={isSubmitting}>
-          Create reel
-        </s-button>
-        <s-button slot="secondary-actions" commandFor="create-reel-modal" command="--hide">
-          Cancel
-        </s-button>
       </fetcher.Form>
+      <s-button
+        slot="primary-action"
+        variant="primary"
+        loading={isSubmitting}
+        onClick={() =>
+          (document.getElementById("create-reel-form") as HTMLFormElement | null)?.requestSubmit()
+        }
+      >
+        Create reel
+      </s-button>
+      <s-button slot="secondary-actions" commandFor="create-reel-modal" command="--hide">
+        Cancel
+      </s-button>
     </s-modal>
   );
 }
