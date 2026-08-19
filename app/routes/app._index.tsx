@@ -7,9 +7,6 @@ import { listReels } from "../models/reel.server";
 import { deriveReelStatus } from "../models/reel-status";
 import { listWidgetsForShop } from "../models/widget.server";
 import { PreserveSearchParams } from "../components/PreserveSearchParams";
-import { PageShell } from "../components/ui/PageShell";
-import { StatTile } from "../components/ui/StatTile";
-import { CARD_INTERACTIVE_CLASSES } from "../components/ui/Card";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -42,11 +39,18 @@ function NavCard({
   description: string;
 }) {
   return (
-    <form method="get" action={to} className="m-0">
+    <form method="get" action={to} style={{ margin: 0 }}>
       <PreserveSearchParams />
-      <button type="submit" className={`block w-full ${CARD_INTERACTIVE_CLASSES}`}>
-        <div className="mb-1.5 font-semibold text-ink">{heading}</div>
-        <div className="text-sm text-muted">{description}</div>
+      <button
+        type="submit"
+        style={{ all: "unset", cursor: "pointer", display: "block", width: "100%" }}
+      >
+        <s-box padding="base" background="subdued" borderRadius="base">
+          <s-stack gap="small-200">
+            <s-text>{heading}</s-text>
+            <s-text color="subdued">{description}</s-text>
+          </s-stack>
+        </s-box>
       </button>
     </form>
   );
@@ -63,18 +67,39 @@ export default function Index() {
   } = useLoaderData<typeof loader>();
 
   return (
-    <PageShell
-      heading="Shoppable Videos"
-      description="An overview of your reels and storefront widgets."
-    >
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
-        <StatTile label="Reels" value={totalReels} sublabel={`${readyReels} ready to play`} />
-        <StatTile label="Widgets" value={totalWidgets} sublabel={`${publishedWidgets} published`} />
-        <StatTile label="Plan" value={plan} sublabel={`${viewCapMonthly.toLocaleString()} views/mo`} />
-      </div>
-      <section>
-        <h2 className="mb-3 text-lg font-semibold text-ink">Get started</h2>
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
+    <s-page heading="Shoppable Videos" inlineSize="large">
+      <s-section>
+        <s-paragraph color="subdued">
+          An overview of your reels and storefront widgets.
+        </s-paragraph>
+      </s-section>
+      <s-section>
+        <s-grid gridTemplateColumns="repeat(auto-fill, minmax(220px, 1fr))" gap="base">
+          <s-box padding="base" background="subdued" borderRadius="base">
+            <s-stack gap="small-200">
+              <s-text color="subdued">Reels</s-text>
+              <s-heading>{totalReels}</s-heading>
+              <s-text color="subdued">{readyReels} ready to play</s-text>
+            </s-stack>
+          </s-box>
+          <s-box padding="base" background="subdued" borderRadius="base">
+            <s-stack gap="small-200">
+              <s-text color="subdued">Widgets</s-text>
+              <s-heading>{totalWidgets}</s-heading>
+              <s-text color="subdued">{publishedWidgets} published</s-text>
+            </s-stack>
+          </s-box>
+          <s-box padding="base" background="subdued" borderRadius="base">
+            <s-stack gap="small-200">
+              <s-text color="subdued">Plan</s-text>
+              <s-heading>{plan}</s-heading>
+              <s-text color="subdued">{viewCapMonthly.toLocaleString()} views/mo</s-text>
+            </s-stack>
+          </s-box>
+        </s-grid>
+      </s-section>
+      <s-section heading="Get started">
+        <s-grid gridTemplateColumns="repeat(auto-fill, minmax(220px, 1fr))" gap="base">
           <NavCard
             to="/app/reels"
             heading="Reels library"
@@ -85,9 +110,9 @@ export default function Index() {
             heading="Widgets"
             description="Manage where reels show up on your storefront"
           />
-        </div>
-      </section>
-    </PageShell>
+        </s-grid>
+      </s-section>
+    </s-page>
   );
 }
 
