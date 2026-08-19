@@ -3,6 +3,7 @@ import type {
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
+import { useEffect, useState } from "react";
 import { Form, redirect, useActionData, useFetcher, useLoaderData, useNavigation } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
@@ -85,7 +86,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   }
 
   const name = String(formData.get("name") ?? "").trim();
-  const published = formData.get("published") != null;
+  const published = formData.get("published") === "true";
 
   if (!name) {
     return { error: "Name is required" };
@@ -107,6 +108,11 @@ export default function WidgetDetail() {
   const targetFetcher = useFetcher<typeof action>();
   const targetRule = (widget.config as unknown as WidgetConfig).targetRule;
   const currentHandles = targetRule.type === "handles" ? targetRule.handles : [];
+  const [published, setPublished] = useState(widget.published);
+
+  useEffect(() => {
+    setPublished(widget.published);
+  }, [widget.published]);
 
   const handlePickProducts = async () => {
     const selected = await shopify.resourcePicker({
@@ -163,11 +169,13 @@ export default function WidgetDetail() {
                 defaultValue={widget.name}
                 required
               ></s-text-field>
+              <input type="hidden" name="published" value={published ? "true" : ""} />
               <s-checkbox
                 label="Published"
-                name="published"
-                value="true"
-                defaultChecked={widget.published}
+                checked={published}
+                onChange={(event: { currentTarget: { checked: boolean } }) =>
+                  setPublished(event.currentTarget.checked)
+                }
               ></s-checkbox>
               <s-button
                 type="submit"

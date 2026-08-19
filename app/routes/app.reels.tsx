@@ -56,7 +56,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   if (intent === "start-upload") {
     const title = String(formData.get("title") ?? "").trim();
-    const published = formData.get("published") != null;
+    const published = formData.get("published") === "true";
     if (!title) {
       return { error: "Title is required", uploadURL: null, reelId: null };
     }
@@ -130,6 +130,7 @@ function CreateReelModal() {
   const failureFetcher = useFetcher();
   const shopify = useAppBridge();
   const formRef = useRef<HTMLFormElement>(null);
+  const [published, setPublished] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState<
     "idle" | "uploading" | "done" | "error" | "no-file"
@@ -195,6 +196,7 @@ function CreateReelModal() {
         setFile(null);
         setUploadStatus("idle");
         setDropZoneKey((k) => k + 1);
+        setPublished(false);
       }}
     >
       <fetcher.Form
@@ -217,7 +219,14 @@ function CreateReelModal() {
             <s-paragraph tone="critical">{fetcher.data.error}</s-paragraph>
           )}
           <s-text-field label="Title" name="title" required></s-text-field>
-          <s-checkbox label="Published" name="published" value="true"></s-checkbox>
+          <input type="hidden" name="published" value={published ? "true" : ""} />
+          <s-checkbox
+            label="Published"
+            checked={published}
+            onChange={(event: { currentTarget: { checked: boolean } }) =>
+              setPublished(event.currentTarget.checked)
+            }
+          ></s-checkbox>
           <s-drop-zone
             key={dropZoneKey}
             label="Video file"
@@ -315,11 +324,16 @@ function ReelDetailModal({
   const productsFetcher = useFetcher<{ error: string | null }>();
   const deleteFetcher = useFetcher();
   const shopify = useAppBridge();
+  const [published, setPublished] = useState(false);
 
   useEffect(() => {
     if (href) detailFetcher.load(href);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [href]);
+
+  useEffect(() => {
+    if (detailFetcher.data?.reel) setPublished(detailFetcher.data.reel.published);
+  }, [detailFetcher.data]);
 
   useEffect(() => {
     if (href && editFetcher.state === "idle" && editFetcher.data) {
@@ -392,11 +406,13 @@ function ReelDetailModal({
                 defaultValue={detailReel.title}
                 required
               ></s-text-field>
+              <input type="hidden" name="published" value={published ? "true" : ""} />
               <s-checkbox
                 label="Published"
-                name="published"
-                value="true"
-                defaultChecked={detailReel.published}
+                checked={published}
+                onChange={(event: { currentTarget: { checked: boolean } }) =>
+                  setPublished(event.currentTarget.checked)
+                }
               ></s-checkbox>
               <s-button type="submit" variant="primary" loading={editFetcher.state !== "idle"}>
                 Save
