@@ -210,16 +210,12 @@ function WidgetDetailModal({
   const reelsFetcher = useFetcher<{ error: string | null }>();
   const deleteFetcher = useFetcher();
   const shopify = useAppBridge();
-  const [published, setPublished] = useState(false);
+  const publishedRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (href) detailFetcher.load(href);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [href]);
-
-  useEffect(() => {
-    if (detailFetcher.data?.widget) setPublished(detailFetcher.data.widget.published);
-  }, [detailFetcher.data]);
 
   useEffect(() => {
     if (href && editFetcher.state === "idle" && editFetcher.data) {
@@ -296,13 +292,22 @@ function WidgetDetailModal({
                 defaultValue={detailWidget.name}
                 required
               ></s-text-field>
-              <input type="hidden" name="published" value={published ? "true" : ""} />
+              <input
+                type="hidden"
+                name="published"
+                ref={publishedRef}
+                key={`published-${detailWidget.id}`}
+                defaultValue={detailWidget.published ? "true" : ""}
+              />
               <s-checkbox
+                key={`checkbox-${detailWidget.id}`}
                 label="Published"
-                checked={published}
-                onChange={(event: { currentTarget: { checked: boolean } }) =>
-                  setPublished(event.currentTarget.checked)
-                }
+                defaultChecked={detailWidget.published}
+                onChange={(event: { currentTarget: { checked: boolean } }) => {
+                  if (publishedRef.current) {
+                    publishedRef.current.value = event.currentTarget.checked ? "true" : "";
+                  }
+                }}
               ></s-checkbox>
               <s-button type="submit" variant="primary" loading={editFetcher.state !== "idle"}>
                 Save

@@ -3,7 +3,7 @@ import type {
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
-import { useEffect, useState } from "react";
+import { useRef } from "react";
 import { Form, redirect, useActionData, useFetcher, useLoaderData, useNavigation } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
@@ -96,11 +96,7 @@ export default function ReelDetail() {
     navigation.formData?.get("intent") == null && navigation.state === "submitting";
   const shopify = useAppBridge();
   const productsFetcher = useFetcher<typeof action>();
-  const [published, setPublished] = useState(reel?.published ?? false);
-
-  useEffect(() => {
-    if (reel) setPublished(reel.published);
-  }, [reel]);
+  const publishedRef = useRef<HTMLInputElement>(null);
 
   const handlePickProducts = async () => {
     const selected = await shopify.resourcePicker({
@@ -187,7 +183,7 @@ export default function ReelDetail() {
           <s-paragraph>
             Status: <s-badge tone={statusTone}>{REEL_STATUS_LABELS[status]}</s-badge>
           </s-paragraph>
-          <Form method="post">
+          <Form method="post" key={reel.id}>
             <s-stack gap="base">
               <s-text-field
                 label="Title"
@@ -195,13 +191,20 @@ export default function ReelDetail() {
                 defaultValue={reel.title}
                 required
               ></s-text-field>
-              <input type="hidden" name="published" value={published ? "true" : ""} />
+              <input
+                type="hidden"
+                name="published"
+                ref={publishedRef}
+                defaultValue={reel.published ? "true" : ""}
+              />
               <s-checkbox
                 label="Published"
-                checked={published}
-                onChange={(event: { currentTarget: { checked: boolean } }) =>
-                  setPublished(event.currentTarget.checked)
-                }
+                defaultChecked={reel.published}
+                onChange={(event: { currentTarget: { checked: boolean } }) => {
+                  if (publishedRef.current) {
+                    publishedRef.current.value = event.currentTarget.checked ? "true" : "";
+                  }
+                }}
               ></s-checkbox>
               <s-button
                 type="submit"

@@ -3,7 +3,7 @@ import type {
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
-import { useEffect, useState } from "react";
+import { useRef } from "react";
 import { Form, redirect, useActionData, useFetcher, useLoaderData, useNavigation } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
@@ -108,11 +108,7 @@ export default function WidgetDetail() {
   const targetFetcher = useFetcher<typeof action>();
   const targetRule = (widget.config as unknown as WidgetConfig).targetRule;
   const currentHandles = targetRule.type === "handles" ? targetRule.handles : [];
-  const [published, setPublished] = useState(widget.published);
-
-  useEffect(() => {
-    setPublished(widget.published);
-  }, [widget.published]);
+  const publishedRef = useRef<HTMLInputElement>(null);
 
   const handlePickProducts = async () => {
     const selected = await shopify.resourcePicker({
@@ -161,7 +157,7 @@ export default function WidgetDetail() {
           <s-paragraph>
             Type: <s-text>{widget.type}</s-text>
           </s-paragraph>
-          <Form method="post">
+          <Form method="post" key={widget.id}>
             <s-stack gap="base">
               <s-text-field
                 label="Name"
@@ -169,13 +165,20 @@ export default function WidgetDetail() {
                 defaultValue={widget.name}
                 required
               ></s-text-field>
-              <input type="hidden" name="published" value={published ? "true" : ""} />
+              <input
+                type="hidden"
+                name="published"
+                ref={publishedRef}
+                defaultValue={widget.published ? "true" : ""}
+              />
               <s-checkbox
                 label="Published"
-                checked={published}
-                onChange={(event: { currentTarget: { checked: boolean } }) =>
-                  setPublished(event.currentTarget.checked)
-                }
+                defaultChecked={widget.published}
+                onChange={(event: { currentTarget: { checked: boolean } }) => {
+                  if (publishedRef.current) {
+                    publishedRef.current.value = event.currentTarget.checked ? "true" : "";
+                  }
+                }}
               ></s-checkbox>
               <s-button
                 type="submit"
