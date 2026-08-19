@@ -174,6 +174,14 @@ export async function getReel(
   };
 }
 
+// Writes ONLY the config (and mirrored tagged_products) fields — never title
+// or published. This is called from places that can race with a merchant's
+// own edit (the Cloudflare webhook, the upload-failure marker): reading
+// title/published here and writing them straight back, as a plain upsertReel
+// call would, can silently revert a publish/unpublish that happened in the
+// gap between this function's read and write. metaobjectUpsert only touches
+// fields present in the mutation's `fields` array, so omitting title/published
+// here leaves whatever the merchant most recently saved untouched.
 export async function updateReelConfig(
   admin: AdminGraphqlClient,
   id: string,
@@ -190,13 +198,46 @@ export async function updateReelConfig(
 
   const mergedConfig: ReelConfig = { ...existing.config, ...definedUpdates };
 
-  return upsertReel(
-    admin,
-    existing.handle,
-    existing.title,
-    existing.published,
-    mergedConfig,
+  const response = await admin.graphql(
+    `#graphql
+    mutation UpdateReelConfig($handle: MetaobjectHandleInput!, $metaobject: MetaobjectUpsertInput!) {
+      metaobjectUpsert(handle: $handle, metaobject: $metaobject) {
+        metaobject {
+          id
+          handle
+          title: field(key: "title") { jsonValue }
+          published: field(key: "published") { jsonValue }
+          config: field(key: "config") { jsonValue }
+        }
+        userErrors { field message }
+      }
+    }`,
+    {
+      variables: {
+        handle: { type: "$app:reel", handle: existing.handle },
+        metaobject: {
+          fields: [
+            { key: "config", value: JSON.stringify(mergedConfig) },
+            { key: "tagged_products", value: JSON.stringify(mergedConfig.productIds) },
+          ],
+        },
+      },
+    },
   );
+
+  const json = await response.json();
+  assertNoGraphqlErrors(json);
+  const result = json.data.metaobjectUpsert;
+  throwOnUserErrors(result.userErrors);
+
+  const node = result.metaobject;
+  return {
+    id: node.id,
+    handle: node.handle,
+    title: node.title.jsonValue,
+    published: node.published.jsonValue,
+    config: node.config.jsonValue,
+  };
 }
 
 export async function deleteReel(
