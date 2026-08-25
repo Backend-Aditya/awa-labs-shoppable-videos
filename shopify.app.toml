@@ -140,6 +140,11 @@ description = "The one reel the REEL_POPS floating bubble plays"
 [auth]
 redirect_urls = [ "https://example.com/api/auth" ]
 
+[app_proxy]
+url = "https://example.com/api"
+subpath = "reels"
+prefix = "apps"
+
 [webhooks]
 api_version = "2026-10"
 

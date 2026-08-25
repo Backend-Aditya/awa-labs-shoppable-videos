@@ -42,6 +42,12 @@
 
     productsList.addEventListener("click", async (event) => {
       const button = event.target.closest("[data-reelup-add-to-cart]");
+      const link = event.target.closest(".reelup-lightbox__product-link");
+      
+      if (dialog.dataset.currentReelId && (button || link)) {
+        window.ReelupLightbox?.trackAnalytics?.(dialog.dataset.currentReelId, "click_product");
+      }
+
       if (!button || button.dataset.state === "loading") return;
 
       const variantId = button.dataset.variantId;
@@ -76,11 +82,31 @@
     return dialog;
   };
 
+  const trackAnalytics = async (reelId, eventType) => {
+    if (!reelId || !window.Shopify?.shop) return;
+    try {
+      await fetch("/apps/reels/analytics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          shopDomain: window.Shopify.shop,
+          reelId,
+          eventType,
+        }),
+      });
+    } catch (e) {
+      console.error("Failed to track", e);
+    }
+  };
+
   const open = async (triggerEl) => {
     const hlsSrc = triggerEl.dataset.hlsSrc;
     if (!hlsSrc) return;
 
     const dialog = buildLightbox();
+    const reelId = triggerEl.dataset.reelId;
+    dialog.dataset.currentReelId = reelId;
+
     const video = dialog.querySelector(".reelup-lightbox__video");
     const title = dialog.querySelector(".reelup-lightbox__title");
     const closeButton = dialog.querySelector("[data-reelup-lightbox-close]");
@@ -112,6 +138,7 @@
     }
 
     dialog.showModal();
+    if (reelId) trackAnalytics(reelId, "view");
 
     try {
       await window.ReelupHls.attach(video, hlsSrc);
@@ -122,5 +149,5 @@
     }
   };
 
-  window.ReelupLightbox = { open };
+  window.ReelupLightbox = { open, trackAnalytics };
 })();

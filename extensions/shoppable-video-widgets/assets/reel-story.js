@@ -112,6 +112,23 @@
     timer = setTimeout(() => requestAdvance(dialog), DURATION_MS);
   };
 
+  const trackAnalytics = async (reelId, eventType) => {
+    if (!reelId || !window.Shopify?.shop) return;
+    try {
+      await fetch("/apps/reels/analytics", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          shopDomain: window.Shopify.shop,
+          reelId,
+          eventType,
+        }),
+      });
+    } catch (e) {
+      console.error("Failed to track", e);
+    }
+  };
+
   const goTo = async (dialog, targetIndex) => {
     const index = Math.max(targetIndex, 0);
     if (index >= reels.length) {
@@ -128,6 +145,11 @@
 
     currentIndex = index;
     const trigger = reels[index];
+    
+    const reelId = trigger.dataset.reelId;
+    dialog.dataset.currentReelId = reelId;
+    if (reelId) trackAnalytics(reelId, "view");
+
     const video = dialog.querySelector(".reelup-story__video");
     const title = dialog.querySelector(".reelup-story__title");
     const closeButton = dialog.querySelector("[data-reelup-story-close]");
@@ -228,6 +250,12 @@
 
     drawerList.addEventListener("click", async (event) => {
       const button = event.target.closest("[data-reelup-add-to-cart]");
+      const link = event.target.closest(".reelup-lightbox__product-link");
+
+      if (dialog.dataset.currentReelId && (button || link)) {
+        trackAnalytics(dialog.dataset.currentReelId, "click_product");
+      }
+
       if (!button || button.dataset.state === "loading") return;
 
       const variantId = button.dataset.variantId;

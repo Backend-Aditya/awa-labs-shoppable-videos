@@ -74,3 +74,13 @@ model Widget {
 
   @@index([shopId])
 }
+
+model ReelEvent {
+  id        String   @id @default(cuid())
+  shopId    String
+  reelId    String
+  eventType String
+  createdAt DateTime @default(now())
+
+  @@index([shopId, reelId])
+}

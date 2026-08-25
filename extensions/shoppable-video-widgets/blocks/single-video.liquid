@@ -36,6 +36,7 @@ any tagged products.
     <div
       class="reelup-trigger"
       data-reelup-trigger
+      data-reel-id="{{ reel.system.id }}"
       data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
       data-poster-url="{{ reel.config.value.posterUrl | escape }}"
       data-title="{{ reel.title.value | escape }}"

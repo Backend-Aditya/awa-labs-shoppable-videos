@@ -46,8 +46,9 @@ via {% content_for %} like a section block.
       aria-label="{{ 'reels.dismiss_label' | t }}"
     >&times;</button>
     <div
-      class="reelup-trigger"
+      class="reelup-trigger reelup-pop__trigger"
       data-reelup-trigger
+      data-reel-id="{{ reel.system.id }}"
       data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
       data-poster-url="{{ reel.config.value.posterUrl | escape }}"
       data-title="{{ reel.title.value | escape }}"

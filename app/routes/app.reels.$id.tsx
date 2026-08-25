@@ -3,14 +3,16 @@ import type {
   HeadersFunction,
   LoaderFunctionArgs,
 } from "react-router";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Form, redirect, useActionData, useFetcher, useLoaderData, useNavigation } from "react-router";
+import { Stream } from "@cloudflare/stream-react";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { deleteReel, getProductsByIds, getReel, syncProductReelMetafields, updateReelConfig, upsertReel } from "../models/reel.server";
 import { deriveReelStatus } from "../models/reel-status";
 import { PreserveSearchParams } from "../components/PreserveSearchParams";
+import prisma from "../db.server";
 
 const REEL_STATUS_LABELS: Record<string, string> = {
   draft: "No video",
@@ -40,10 +42,36 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
         loaderError: `No reel found for id "${params.id}" (looked up as ${toReelGid(params.id!)})`,
         reel: null,
         taggedProducts: [],
+        analytics: { views: 0, clicks: 0 },
       };
     }
     const taggedProducts = await getProductsByIds(admin, reel.config.productIds);
-    return { loaderError: null, reel, taggedProducts };
+    
+    // Fetch analytics
+    const shopSession = await authenticate.admin(request);
+    const shopRecord = await prisma.shop.findUnique({
+      where: { shopDomain: shopSession.session.shop },
+    });
+    
+    let analytics = { views: 0, clicks: 0 };
+    if (shopRecord) {
+      const events = await prisma.reelEvent.groupBy({
+        by: ['eventType'],
+        where: {
+          shopId: shopRecord.id,
+          reelId: toReelGid(params.id!),
+        },
+        _count: {
+          eventType: true,
+        },
+      });
+      
+      const views = events.find(e => e.eventType === 'view')?._count.eventType || 0;
+      const clicks = events.find(e => e.eventType === 'click_product')?._count.eventType || 0;
+      analytics = { views, clicks };
+    }
+
+    return { loaderError: null, reel, taggedProducts, analytics };
   } catch (e) {
     if (e instanceof Response) throw e;
     return {
@@ -89,7 +117,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 };
 
 export default function ReelDetail() {
-  const { loaderError, reel, taggedProducts } = useLoaderData<typeof loader>();
+  const { loaderError, reel, taggedProducts, analytics } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting =
@@ -97,6 +125,8 @@ export default function ReelDetail() {
   const shopify = useAppBridge();
   const productsFetcher = useFetcher<typeof action>();
   const publishedRef = useRef<HTMLInputElement>(null);
+  const streamRef = useRef<any>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const handlePickProducts = async () => {
     const selected = await shopify.resourcePicker({
@@ -164,17 +194,60 @@ export default function ReelDetail() {
       </s-section>
       <s-section heading="Preview">
         {reel.config.cloudflareStreamUid ? (
-          <iframe
-            src={`https://iframe.videodelivery.net/${encodeURIComponent(reel.config.cloudflareStreamUid)}`}
-            title={`Preview of ${reel.title}`}
-            style={{ border: "none", aspectRatio: "9 / 16", width: "100%", maxWidth: "280px" }}
-            allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
-            allowFullScreen
-          ></iframe>
+          <div style={{ position: "relative", width: "100%", maxWidth: "280px", aspectRatio: "9/16", overflow: "hidden" }}>
+            <Stream
+              streamRef={streamRef}
+              src={reel.config.cloudflareStreamUid}
+              controls={false}
+              responsive={true}
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+            />
+            <button
+              onClick={() => {
+                if (streamRef.current) {
+                  if (isPlaying) streamRef.current.pause();
+                  else streamRef.current.play();
+                }
+              }}
+              style={{
+                position: 'absolute',
+                top: '50%',
+                left: '50%',
+                transform: 'translate(-50%, -50%)',
+                zIndex: 10,
+                background: 'rgba(0,0,0,0.6)',
+                color: 'white',
+                border: 'none',
+                borderRadius: '50%',
+                width: '60px',
+                height: '60px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '24px'
+              }}
+            >
+              {isPlaying ? "⏸" : "▶️"}
+            </button>
+          </div>
         ) : (
           <s-paragraph>No video uploaded yet.</s-paragraph>
         )}
       </s-section>
+      
+      <s-section heading="Analytics">
+        <s-stack gap="base">
+          <s-paragraph>
+            <strong>Total Views:</strong> {analytics?.views || 0}
+          </s-paragraph>
+          <s-paragraph>
+            <strong>Product Clicks:</strong> {analytics?.clicks || 0}
+          </s-paragraph>
+        </s-stack>
+      </s-section>
+
       <s-section heading="Details">
         <s-stack gap="base">
           {actionData?.error && (
