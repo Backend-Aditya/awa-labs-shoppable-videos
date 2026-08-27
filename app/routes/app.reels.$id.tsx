@@ -127,6 +127,7 @@ export default function ReelDetail() {
   const publishedRef = useRef<HTMLInputElement>(null);
   const streamRef = useRef<any>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const handlePickProducts = async () => {
     const selected = await shopify.resourcePicker({
@@ -194,7 +195,11 @@ export default function ReelDetail() {
       </s-section>
       <s-section heading="Preview">
         {reel.config.cloudflareStreamUid ? (
-          <div style={{ position: "relative", width: "100%", maxWidth: "280px", aspectRatio: "9/16", overflow: "hidden" }}>
+          <div 
+            style={{ position: "relative", width: "100%", maxWidth: "280px", aspectRatio: "9/16", overflow: "hidden", userSelect: "none", WebkitUserSelect: "none" }}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+          >
             <Stream
               streamRef={streamRef}
               src={reel.config.cloudflareStreamUid}
@@ -220,16 +225,21 @@ export default function ReelDetail() {
                 color: 'white',
                 border: 'none',
                 borderRadius: '50%',
-                width: '60px',
-                height: '60px',
+                width: '64px',
+                height: '64px',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '24px'
+                opacity: isHovered ? 1 : 0,
+                transition: "opacity 0.2s"
               }}
             >
-              {isPlaying ? "⏸" : "▶️"}
+              {isPlaying ? (
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+              ) : (
+                <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              )}
             </button>
           </div>
         ) : (

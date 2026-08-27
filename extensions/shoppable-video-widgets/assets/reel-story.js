@@ -113,13 +113,13 @@
   };
 
   const trackAnalytics = async (reelId, eventType) => {
-    if (!reelId || !window.Shopify?.shop) return;
+    if (!reelId) return;
     try {
       await fetch("/apps/reels/analytics", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          shopDomain: window.Shopify.shop,
+          shopDomain: window.Shopify?.shop,
           reelId,
           eventType,
         }),

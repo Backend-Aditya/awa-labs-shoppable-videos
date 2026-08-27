@@ -34,7 +34,7 @@ lightbox with the video and any tagged products.
 {% endif %}
 
 {% if visible_count > 0 %}
-  <div class="reelup-carousel" {{ block.shopify_attributes }}>
+  <div class="reelup-carousel" data-reelup-story-group {{ block.shopify_attributes }}>
     {% for reel in reels_field.value %}
       {% if reel.published.value and reel.config.value.cloudflareStreamUid != blank and reel.config.value.hlsManifestUrl != blank %}
         <div
@@ -106,8 +106,7 @@ lightbox with the video and any tagged products.
     {% endfor %}
   </div>
   <script src="{{ 'reel-hls.js' | asset_url }}" defer></script>
-  <script src="{{ 'reel-lightbox.js' | asset_url }}" defer></script>
-  <script src="{{ 'reel-trigger.js' | asset_url }}" defer></script>
+  <script src="{{ 'reel-story.js' | asset_url }}" defer></script>
 {% endif %}
 
 {% schema %}

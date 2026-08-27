@@ -36,11 +36,20 @@
     hlsInstance = null;
 
     await new Promise((resolve, reject) => {
-      const hls = new window.Hls();
+      const hls = new window.Hls({
+        capLevelToPlayerSize: false,
+        abrEwmaDefaultEstimate: 5000000, // Assume 5 Mbps to start at high quality
+      });
       hlsInstance = hls;
       hls.loadSource(hlsSrc);
       hls.attachMedia(video);
-      hls.on(window.Hls.Events.MANIFEST_PARSED, () => resolve());
+      hls.on(window.Hls.Events.MANIFEST_PARSED, (event, data) => {
+        // Start at the highest available quality
+        if (data.levels && data.levels.length > 0) {
+          hls.startLevel = data.levels.length - 1;
+        }
+        resolve();
+      });
       hls.on(window.Hls.Events.ERROR, (_event, data) => {
         if (data.fatal) reject(new Error(data.type));
       });

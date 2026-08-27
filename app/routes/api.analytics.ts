@@ -26,7 +26,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   try {
     const payload = await request.json();
-    const { shopDomain, reelId, eventType } = payload;
+    const url = new URL(request.url);
+    const shopDomain = payload.shopDomain || url.searchParams.get("shop");
+    const { reelId, eventType } = payload;
 
     if (!shopDomain || !reelId || !eventType) {
       return Response.json({ error: "Missing required fields" }, { status: 400 });
