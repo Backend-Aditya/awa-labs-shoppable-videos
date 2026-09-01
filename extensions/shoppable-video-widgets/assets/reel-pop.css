@@ -1,8 +1,26 @@
 .reelup-pop {
   position: fixed;
+  z-index: 900;
+}
+
+.reelup-pop--bottom-right {
   right: 20px;
   bottom: 20px;
-  z-index: 900;
+}
+
+.reelup-pop--bottom-left {
+  left: 20px;
+  bottom: 20px;
+}
+
+.reelup-pop--top-right {
+  right: 20px;
+  top: 20px;
+}
+
+.reelup-pop--top-left {
+  left: 20px;
+  top: 20px;
 }
 
 .reelup-pop__dismiss {
@@ -28,14 +46,18 @@
 }
 
 .reelup-pop .reelup-trigger__button {
-  width: 72px;
-  height: 72px;
+  width: var(--reelup-trigger-size, 72px);
+  height: var(--reelup-trigger-size, 72px);
   aspect-ratio: 1 / 1;
   border-radius: 50%;
   border: 3px solid #fff;
   box-sizing: border-box;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
   animation: reelup-pop-in 0.3s ease-out, reelup-pop-pulse 2s ease-in-out 0.5s 2;
+}
+
+.reelup-pop--no-pulse .reelup-trigger__button {
+  animation: reelup-pop-in 0.3s ease-out;
 }
 
 .reelup-pop .reelup-trigger__poster {
