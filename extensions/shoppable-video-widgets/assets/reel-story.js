@@ -1,5 +1,5 @@
 (() => {
-  const DURATION_MS = 15000;
+  let currentDurationMs = 15000;
 
   let reels = [];
   let currentIndex = 0;
@@ -48,7 +48,7 @@
       // of the two inline-style writes batching into one recalculation
       // and jumping straight to 100%.
       void fill.offsetWidth;
-      fill.style.transition = `width ${DURATION_MS}ms linear`;
+      fill.style.transition = `width ${currentDurationMs}ms linear`;
       fill.style.width = "100%";
     } else {
       fill.style.transition = "none";
@@ -59,7 +59,7 @@
   const freezeActiveSegment = (dialog) => {
     const segment = dialog.querySelector(`.reelup-story__segment[data-index="${currentIndex}"]`);
     const fill = segment?.querySelector(".reelup-story__segment-fill");
-    if (!fill) return DURATION_MS;
+    if (!fill) return currentDurationMs;
 
     const segmentWidth = segment.getBoundingClientRect().width;
     const fillWidth = fill.getBoundingClientRect().width;
@@ -68,7 +68,7 @@
     fill.style.transition = "none";
     fill.style.width = `${percent * 100}%`;
 
-    return Math.max(DURATION_MS * (1 - percent), 0);
+    return Math.max(currentDurationMs * (1 - percent), 0);
   };
 
   const resumeActiveSegment = (dialog, remainingMs) => {
@@ -100,7 +100,7 @@
     closeDrawerImmediate(dialog);
     dialog.querySelector(".reelup-story__video").play().catch(() => {});
 
-    const remaining = pausedRemainingMs ?? DURATION_MS;
+    const remaining = pausedRemainingMs ?? currentDurationMs;
     pausedRemainingMs = null;
     resumeActiveSegment(dialog, remaining);
     clearTimer();
@@ -109,7 +109,7 @@
 
   const scheduleAdvance = (dialog) => {
     clearTimer();
-    timer = setTimeout(() => requestAdvance(dialog), DURATION_MS);
+    timer = setTimeout(() => requestAdvance(dialog), currentDurationMs);
   };
 
   const trackAnalytics = async (reelId, eventType) => {
@@ -145,7 +145,9 @@
 
     currentIndex = index;
     const trigger = reels[index];
-    
+
+    currentDurationMs = parseInt(trigger.dataset.storyDuration, 10) || 15000;
+
     const reelId = trigger.dataset.reelId;
     dialog.dataset.currentReelId = reelId;
     if (reelId) trackAnalytics(reelId, "view");
@@ -169,6 +171,8 @@
       video.removeAttribute("poster");
     }
 
+    window.ReelupViewerSettings?.applyDialogSettings(dialog, video, title, trigger);
+
     drawerList.replaceChildren();
     const template = trigger.querySelector("template[data-reelup-products]");
     if (template) {
@@ -177,6 +181,7 @@
       drawerList.appendChild(template.content.cloneNode(true));
       shopButton.hidden = false;
       shopButton.textContent = shopLabel;
+      window.ReelupViewerSettings?.applyProductListSettings(drawerList, trigger);
     } else {
       shopButton.hidden = true;
     }
