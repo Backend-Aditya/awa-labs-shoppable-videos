@@ -59,7 +59,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
         by: ['eventType'],
         where: {
           shopId: shopRecord.id,
-          reelId: toReelGid(params.id!),
+          reelId: params.id!,
         },
         _count: {
           eventType: true,
