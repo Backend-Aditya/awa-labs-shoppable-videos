@@ -18,6 +18,6 @@
 
 .reelup-product-reels__item {
   flex: 0 0 auto;
-  width: 220px;
+  width: var(--reelup-trigger-size, 220px);
   scroll-snap-align: start;
 }
