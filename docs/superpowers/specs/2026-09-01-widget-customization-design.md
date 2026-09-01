@@ -71,7 +71,7 @@ unconfigured block is pixel-identical to today):
 |---|---|---|---|---|
 | `corner_style` | select — **Product page reels, Single video, Stacked carousel only** (Stories/Reel pops triggers are always circular via `border-radius: 50%` and unaffected by this setting) | `sharp` (0px) / `rounded` (12px, current) / `soft` (20px) | `--reelup-corner-radius` | `rounded` |
 | `accent_color` | color, **no default (blank allowed)** | — | `--reelup-accent-color` | blank |
-| `trigger_size` | range | 120–320px, step 10 (px meaning is block-specific: item width for Product page reels/Stacked carousel, avatar diameter for Stories, bubble diameter for Reel pops; Single video keeps its own `max-width` setting instead, see below) | `--reelup-trigger-size` | current per-block hardcoded value |
+| `trigger_size` | range — **Product page reels, Stories, Reel pops only** (Stacked carousel's items size via a responsive CSS grid `1fr`, not a fixed width, so a fixed-px size setting doesn't apply there; Single video keeps its own `video_max_width` setting instead, see below) | 120–320px, step 10 (px meaning is block-specific: item width for Product page reels, avatar diameter for Stories, bubble diameter for Reel pops) | `--reelup-trigger-size` | current per-block hardcoded value |
 
 `accent_color` recolors three surfaces that each have a *different*
 current hardcoded color today (play-icon backdrop `rgba(0,0,0,0.55)`,
@@ -101,7 +101,7 @@ to `data-cta-color`, `data-cta-text-color`, `data-cta-label`,
 | `cta_text_color` | color | `#ffffff` |
 | `cta_label` | text | blank → falls back to the existing `reels.add_to_cart` translation, exactly as today |
 | `show_price` | checkbox | true (current behavior) |
-| `show_title_overlay` | checkbox | true (current behavior) — Product page reels/Stacked carousel don't render a title overlay today so this only affects Single video/Stories/Reel pops, which do |
+| `show_title_overlay` | checkbox | true (current behavior) |
 
 **Behavior — shared where applicable:**
 
