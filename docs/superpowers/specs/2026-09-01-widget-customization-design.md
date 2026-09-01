@@ -69,7 +69,7 @@ unconfigured block is pixel-identical to today):
 
 | Setting id | Type | Options / range | CSS var | Default |
 |---|---|---|---|---|
-| `corner_style` | select | `sharp` (0px) / `rounded` (12px, current) / `soft` (20px) | `--reelup-corner-radius` | `rounded` |
+| `corner_style` | select — **Product page reels, Single video, Stacked carousel only** (Stories/Reel pops triggers are always circular via `border-radius: 50%` and unaffected by this setting) | `sharp` (0px) / `rounded` (12px, current) / `soft` (20px) | `--reelup-corner-radius` | `rounded` |
 | `accent_color` | color, **no default (blank allowed)** | — | `--reelup-accent-color` | blank |
 | `trigger_size` | range | 120–320px, step 10 (px meaning is block-specific: item width for Product page reels/Stacked carousel, avatar diameter for Stories, bubble diameter for Reel pops; Single video keeps its own `max-width` setting instead, see below) | `--reelup-trigger-size` | current per-block hardcoded value |
 
