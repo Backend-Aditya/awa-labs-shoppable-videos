@@ -18,7 +18,7 @@
 
 .reelup-stories__item {
   flex: 0 0 auto;
-  width: 72px;
+  width: calc(var(--reelup-trigger-size, 64px) + 8px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -32,11 +32,11 @@
 }
 
 .reelup-stories .reelup-trigger__button {
-  width: 64px;
-  height: 64px;
+  width: var(--reelup-trigger-size, 64px);
+  height: var(--reelup-trigger-size, 64px);
   aspect-ratio: 1 / 1;
   border-radius: 50%;
-  border: 2px solid #e1306c;
+  border: 2px solid var(--reelup-accent-color, #e1306c);
   padding: 2px;
   background: #fff;
 }
@@ -48,7 +48,7 @@
 .reelup-stories__label {
   font-size: 12px;
   color: #333;
-  max-width: 72px;
+  max-width: calc(var(--reelup-trigger-size, 64px) + 8px);
   text-align: center;
   overflow: hidden;
   text-overflow: ellipsis;
