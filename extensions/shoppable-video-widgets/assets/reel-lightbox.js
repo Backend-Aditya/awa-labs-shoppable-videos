@@ -160,12 +160,15 @@
       video.removeAttribute("poster");
     }
 
+    window.ReelupViewerSettings?.applyDialogSettings(dialog, video, title, triggerEl);
+
     productsList.replaceChildren();
     const template = triggerEl.querySelector("template[data-reelup-products]");
     if (template) {
       productsHeading.textContent = shopLabel;
       productsList.appendChild(template.content.cloneNode(true));
       productsPanel.hidden = false;
+      window.ReelupViewerSettings?.applyProductListSettings(productsList, triggerEl);
     } else {
       productsPanel.hidden = true;
     }
