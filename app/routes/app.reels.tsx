@@ -18,11 +18,50 @@ import {
 import type { Reel } from "../models/reel.server";
 import { deriveReelStatus } from "../models/reel-status";
 import { createDirectUploadUrl, getCloudflareConfig } from "../models/cloudflare-stream.server";
+import prisma from "../db.server";
 
 // Route param is the trailing numeric id only — a raw GID (gid://shopify/Metaobject/123)
 // contains ':' and '/' characters that break single-segment routing/URLs.
 function reelNumericId(reel: Reel): string {
   return reel.id.split("/").pop()!;
+}
+
+// Matches s-image's borderRadius="base" token, so the no-poster placeholder
+// lines up with real thumbnails instead of drifting from a separate value.
+const THUMBNAIL_RADIUS = "8px";
+
+type StatIcon = "video" | "check-circle" | "play-circle" | "hashtag" | "view" | "cursor";
+
+function StatTile({
+  label,
+  value,
+  icon,
+  tone,
+  accent,
+}: {
+  label: string;
+  value: number;
+  icon: StatIcon;
+  tone?: "info" | "success";
+  accent?: boolean;
+}) {
+  return (
+    <s-box
+      padding="base"
+      background={accent ? "base" : "subdued"}
+      border={accent ? "base" : undefined}
+      borderColor={accent ? "strong" : undefined}
+      borderRadius="base"
+    >
+      <s-stack gap="small-200">
+        <s-stack direction="inline" gap="small-200" alignItems="center">
+          <s-icon type={icon} tone={tone ?? "neutral"}></s-icon>
+          <s-text color="subdued">{label}</s-text>
+        </s-stack>
+        <s-heading>{value}</s-heading>
+      </s-stack>
+    </s-box>
+  );
 }
 
 const REEL_STATUS_LABELS: Record<string, string> = {
@@ -33,9 +72,26 @@ const REEL_STATUS_LABELS: Record<string, string> = {
 };
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { admin } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const reels = await listReels(admin, 50);
-  return { reels };
+
+  let totalAnalytics = { views: 0, clicks: 0 };
+  const shopRecord = await prisma.shop.findUnique({
+    where: { shopDomain: session.shop },
+  });
+  if (shopRecord) {
+    const events = await prisma.reelEvent.groupBy({
+      by: ["eventType"],
+      where: { shopId: shopRecord.id },
+      _count: { eventType: true },
+    });
+    totalAnalytics = {
+      views: events.find((e) => e.eventType === "view")?._count.eventType || 0,
+      clicks: events.find((e) => e.eventType === "click_product")?._count.eventType || 0,
+    };
+  }
+
+  return { reels, totalAnalytics };
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -284,25 +340,35 @@ function ReelCard({ reel, onOpen }: { reel: Reel; onOpen: (reel: Reel) => void }
       onClick={() => onOpen(reel)}
     >
       <s-stack gap="small-200">
-        {reel.config.posterUrl && (
+        {reel.config.posterUrl ? (
           <s-image
             src={reel.config.posterUrl}
             alt={reel.title}
             aspectRatio="9/16"
             objectFit="cover"
             loading="lazy"
+            borderRadius="base"
           ></s-image>
+        ) : (
+          <div
+            style={{
+              aspectRatio: "9 / 16",
+              width: "100%",
+              borderRadius: THUMBNAIL_RADIUS,
+              background: "var(--p-color-bg-surface-strong, #d9d9d9)",
+            }}
+          ></div>
         )}
-        <s-text>{reel.title}</s-text>
+        <s-text type="strong">{reel.title}</s-text>
         <s-stack direction="inline" gap="small-200">
           <s-badge tone={reel.published ? "success" : "neutral"}>
             {reel.published ? "Published" : "Draft"}
           </s-badge>
           <s-badge tone={statusTone(status)}>{REEL_STATUS_LABELS[status]}</s-badge>
+          <s-badge tone={productCount > 0 ? "success" : "neutral"}>
+            {productCount > 0 ? `${productCount} tagged` : "Untagged"}
+          </s-badge>
         </s-stack>
-        <s-badge tone={productCount > 0 ? "success" : "neutral"}>
-          {productCount > 0 ? `${productCount} tagged` : "Untagged"}
-        </s-badge>
       </s-stack>
     </s-clickable>
   );
@@ -312,6 +378,7 @@ type ReelDetailLoaderData = {
   loaderError: string | null;
   reel: Reel | null;
   taggedProducts: { id: string; title: string }[];
+  analytics: { views: number; clicks: number };
 };
 
 function ReelDetailModal({
@@ -397,61 +464,98 @@ function ReelDetailModal({
       ) : data.loaderError ? (
         <s-paragraph tone="critical">{data.loaderError}</s-paragraph>
       ) : detailReel ? (
-        <s-stack gap="base">
-          {detailReel.config.cloudflareStreamUid ? (
-            <iframe
-              src={`https://iframe.videodelivery.net/${encodeURIComponent(detailReel.config.cloudflareStreamUid)}`}
-              title={`Preview of ${detailReel.title}`}
-              style={{ border: "none", aspectRatio: "9 / 16", width: "100%", maxWidth: "220px" }}
-              allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
-              allowFullScreen
-            ></iframe>
-          ) : (
-            <s-paragraph>No video uploaded yet.</s-paragraph>
-          )}
-          <s-paragraph>
-            Status: <s-badge tone={statusTone(status)}>{status ? REEL_STATUS_LABELS[status] : ""}</s-badge>
-          </s-paragraph>
+        <s-stack gap="large">
+          <s-stack gap="small-200" alignItems="center">
+            {detailReel.config.cloudflareStreamUid ? (
+              <iframe
+                src={`https://iframe.videodelivery.net/${encodeURIComponent(detailReel.config.cloudflareStreamUid)}`}
+                title={`Preview of ${detailReel.title}`}
+                style={{
+                  border: "none",
+                  borderRadius: "8px",
+                  aspectRatio: "9 / 16",
+                  width: "100%",
+                  maxWidth: "220px",
+                }}
+                allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
+                allowFullScreen
+              ></iframe>
+            ) : (
+              <s-box padding="large" background="subdued" borderRadius="base" inlineSize="100%">
+                <s-paragraph>No video uploaded yet.</s-paragraph>
+              </s-box>
+            )}
+            <s-stack direction="inline" gap="small-200">
+              <s-badge tone={detailReel.published ? "success" : "neutral"}>
+                {detailReel.published ? "Published" : "Draft"}
+              </s-badge>
+              <s-badge tone={statusTone(status)}>{status ? REEL_STATUS_LABELS[status] : ""}</s-badge>
+            </s-stack>
+          </s-stack>
 
           <s-divider></s-divider>
 
-          {editFetcher.data?.error && (
-            <s-paragraph tone="critical">{editFetcher.data.error}</s-paragraph>
-          )}
-          <editFetcher.Form method="post" action={href ?? undefined}>
-            <s-stack gap="base">
-              <s-text-field
-                label="Title"
-                name="title"
-                defaultValue={detailReel.title}
-                required
-              ></s-text-field>
-              <input
-                type="hidden"
-                name="published"
-                ref={publishedRef}
-                key={`published-${detailReel.id}`}
-                defaultValue={detailReel.published ? "true" : ""}
-              />
-              <s-checkbox
-                key={`checkbox-${detailReel.id}`}
-                label="Published"
-                defaultChecked={detailReel.published}
-                onChange={(event: { currentTarget: { checked: boolean } }) => {
-                  if (publishedRef.current) {
-                    publishedRef.current.value = event.currentTarget.checked ? "true" : "";
-                  }
-                }}
-              ></s-checkbox>
-              <s-button type="submit" variant="primary" loading={editFetcher.state !== "idle"}>
-                Save
-              </s-button>
-            </s-stack>
-          </editFetcher.Form>
+          <s-stack gap="small-200">
+            <s-heading>Analytics</s-heading>
+            <s-grid gridTemplateColumns="repeat(2, 1fr)" gap="small-200">
+              <s-box padding="base" background="subdued" borderRadius="base">
+                <s-stack gap="small-200">
+                  <s-text color="subdued">Views</s-text>
+                  <s-heading>{data.analytics?.views || 0}</s-heading>
+                </s-stack>
+              </s-box>
+              <s-box padding="base" background="subdued" borderRadius="base">
+                <s-stack gap="small-200">
+                  <s-text color="subdued">Product clicks</s-text>
+                  <s-heading>{data.analytics?.clicks || 0}</s-heading>
+                </s-stack>
+              </s-box>
+            </s-grid>
+          </s-stack>
 
           <s-divider></s-divider>
 
           <s-stack gap="base">
+            <s-heading>Details</s-heading>
+            {editFetcher.data?.error && (
+              <s-paragraph tone="critical">{editFetcher.data.error}</s-paragraph>
+            )}
+            <editFetcher.Form method="post" action={href ?? undefined}>
+              <s-stack gap="base">
+                <s-text-field
+                  label="Title"
+                  name="title"
+                  defaultValue={detailReel.title}
+                  required
+                ></s-text-field>
+                <input
+                  type="hidden"
+                  name="published"
+                  ref={publishedRef}
+                  key={`published-${detailReel.id}`}
+                  defaultValue={detailReel.published ? "true" : ""}
+                />
+                <s-checkbox
+                  key={`checkbox-${detailReel.id}`}
+                  label="Published"
+                  defaultChecked={detailReel.published}
+                  onChange={(event: { currentTarget: { checked: boolean } }) => {
+                    if (publishedRef.current) {
+                      publishedRef.current.value = event.currentTarget.checked ? "true" : "";
+                    }
+                  }}
+                ></s-checkbox>
+                <s-button type="submit" variant="primary" loading={editFetcher.state !== "idle"}>
+                  Save
+                </s-button>
+              </s-stack>
+            </editFetcher.Form>
+          </s-stack>
+
+          <s-divider></s-divider>
+
+          <s-stack gap="base">
+            <s-heading>Tagged products</s-heading>
             {productsFetcher.data?.error && (
               <s-paragraph tone="critical">{productsFetcher.data.error}</s-paragraph>
             )}
@@ -475,27 +579,30 @@ function ReelDetailModal({
 
           <s-divider></s-divider>
 
-          <deleteFetcher.Form
-            method="post"
-            action={href ?? undefined}
-            onSubmit={(e) => {
-              // Don't call onClose() here — it sets selectedReelId to null
-              // synchronously, which can flip href to null before/while the
-              // fetcher reads this form's action, sending the delete POST
-              // for the wrong (or no) id and 404ing (confirmed live on the
-              // equivalent widgets modal). The modal closes naturally once
-              // the reel disappears from the revalidated list after the
-              // delete redirect completes.
-              if (!confirm("Delete this reel? This can't be undone.")) {
-                e.preventDefault();
-              }
-            }}
-          >
-            <input type="hidden" name="intent" value="delete" />
-            <s-button type="submit" variant="secondary" tone="critical" loading={deleteFetcher.state !== "idle"}>
-              Delete reel
-            </s-button>
-          </deleteFetcher.Form>
+          <s-stack gap="base">
+            <s-heading>Danger zone</s-heading>
+            <deleteFetcher.Form
+              method="post"
+              action={href ?? undefined}
+              onSubmit={(e) => {
+                // Don't call onClose() here — it sets selectedReelId to null
+                // synchronously, which can flip href to null before/while the
+                // fetcher reads this form's action, sending the delete POST
+                // for the wrong (or no) id and 404ing (confirmed live on the
+                // equivalent widgets modal). The modal closes naturally once
+                // the reel disappears from the revalidated list after the
+                // delete redirect completes.
+                if (!confirm("Delete this reel? This can't be undone.")) {
+                  e.preventDefault();
+                }
+              }}
+            >
+              <input type="hidden" name="intent" value="delete" />
+              <s-button type="submit" variant="secondary" tone="critical" loading={deleteFetcher.state !== "idle"}>
+                Delete reel
+              </s-button>
+            </deleteFetcher.Form>
+          </s-stack>
         </s-stack>
       ) : null}
     </s-modal>
@@ -503,7 +610,7 @@ function ReelDetailModal({
 }
 
 export default function ReelsLibrary() {
-  const { reels } = useLoaderData<typeof loader>();
+  const { reels, totalAnalytics } = useLoaderData<typeof loader>();
   const [selectedReelId, setSelectedReelId] = useState<string | null>(null);
   // Re-derived from the live `reels` list (not stored as its own object) so
   // the modal reflects fresh data automatically after the list revalidates.
@@ -523,32 +630,19 @@ export default function ReelsLibrary() {
       <s-button slot="primary-action" variant="primary" commandFor="create-reel-modal" command="--show">
         Create reel
       </s-button>
-      <s-section>
-        <s-grid gridTemplateColumns="repeat(auto-fill, minmax(220px, 1fr))" gap="base">
-          <s-box padding="base" background="subdued" borderRadius="base">
-            <s-stack gap="small-200">
-              <s-text color="subdued">Total reels</s-text>
-              <s-heading>{reels.length}</s-heading>
-            </s-stack>
-          </s-box>
-          <s-box padding="base" background="subdued" borderRadius="base">
-            <s-stack gap="small-200">
-              <s-text color="subdued">Published</s-text>
-              <s-heading>{publishedCount}</s-heading>
-            </s-stack>
-          </s-box>
-          <s-box padding="base" background="subdued" borderRadius="base">
-            <s-stack gap="small-200">
-              <s-text color="subdued">Ready to play</s-text>
-              <s-heading>{readyCount}</s-heading>
-            </s-stack>
-          </s-box>
-          <s-box padding="base" background="subdued" borderRadius="base">
-            <s-stack gap="small-200">
-              <s-text color="subdued">Tagged to products</s-text>
-              <s-heading>{taggedCount}</s-heading>
-            </s-stack>
-          </s-box>
+      <s-section heading="Overview">
+        <s-grid gridTemplateColumns="repeat(4, 1fr)" gap="base">
+          <StatTile label="Total reels" value={reels.length} icon="video" />
+          <StatTile label="Published" value={publishedCount} icon="check-circle" />
+          <StatTile label="Ready to play" value={readyCount} icon="play-circle" />
+          <StatTile label="Tagged to products" value={taggedCount} icon="hashtag" />
+        </s-grid>
+      </s-section>
+
+      <s-section heading="Performance">
+        <s-grid gridTemplateColumns="repeat(2, 1fr)" gap="base">
+          <StatTile label="Total views" value={totalAnalytics.views} icon="view" tone="info" accent />
+          <StatTile label="Product clicks" value={totalAnalytics.clicks} icon="cursor" tone="success" accent />
         </s-grid>
       </s-section>
 

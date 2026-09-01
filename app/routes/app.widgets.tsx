@@ -104,7 +104,7 @@ function WidgetCard({ widget, onOpen }: { widget: Widget; onOpen: (widget: Widge
       onClick={() => onOpen(widget)}
     >
       <s-stack gap="small-200">
-        <s-text>{widget.name}</s-text>
+        <s-text type="strong">{widget.name}</s-text>
         <s-text color="subdued">{meta?.name ?? widget.type}</s-text>
         <s-stack direction="inline" gap="small-200">
           <s-badge tone={widget.published ? "success" : "neutral"}>
@@ -310,48 +310,59 @@ function WidgetDetailModal({
       {!detailWidget ? (
         <s-paragraph>Loading…</s-paragraph>
       ) : (
-        <s-stack gap="base">
-          <s-paragraph>Type: {detailWidget.type}</s-paragraph>
-
-          <s-divider></s-divider>
-
-          {editFetcher.data?.error && (
-            <s-paragraph tone="critical">{editFetcher.data.error}</s-paragraph>
-          )}
-          <editFetcher.Form method="post" action={href ?? undefined}>
-            <s-stack gap="base">
-              <s-text-field
-                label="Name"
-                name="name"
-                defaultValue={detailWidget.name}
-                required
-              ></s-text-field>
-              <input
-                type="hidden"
-                name="published"
-                ref={publishedRef}
-                key={`published-${detailWidget.id}`}
-                defaultValue={detailWidget.published ? "true" : ""}
-              />
-              <s-checkbox
-                key={`checkbox-${detailWidget.id}`}
-                label="Published"
-                defaultChecked={detailWidget.published}
-                onChange={(event: { currentTarget: { checked: boolean } }) => {
-                  if (publishedRef.current) {
-                    publishedRef.current.value = event.currentTarget.checked ? "true" : "";
-                  }
-                }}
-              ></s-checkbox>
-              <s-button type="submit" variant="primary" loading={editFetcher.state !== "idle"}>
-                Save
-              </s-button>
+        <s-stack gap="large">
+          <s-stack gap="small-200">
+            <s-stack direction="inline" gap="small-200">
+              <s-badge tone={detailWidget.published ? "success" : "neutral"}>
+                {detailWidget.published ? "Published" : "Draft"}
+              </s-badge>
+              <s-badge>{detailWidget.type}</s-badge>
             </s-stack>
-          </editFetcher.Form>
+          </s-stack>
 
           <s-divider></s-divider>
 
           <s-stack gap="base">
+            <s-heading>Details</s-heading>
+            {editFetcher.data?.error && (
+              <s-paragraph tone="critical">{editFetcher.data.error}</s-paragraph>
+            )}
+            <editFetcher.Form method="post" action={href ?? undefined}>
+              <s-stack gap="base">
+                <s-text-field
+                  label="Name"
+                  name="name"
+                  defaultValue={detailWidget.name}
+                  required
+                ></s-text-field>
+                <input
+                  type="hidden"
+                  name="published"
+                  ref={publishedRef}
+                  key={`published-${detailWidget.id}`}
+                  defaultValue={detailWidget.published ? "true" : ""}
+                />
+                <s-checkbox
+                  key={`checkbox-${detailWidget.id}`}
+                  label="Published"
+                  defaultChecked={detailWidget.published}
+                  onChange={(event: { currentTarget: { checked: boolean } }) => {
+                    if (publishedRef.current) {
+                      publishedRef.current.value = event.currentTarget.checked ? "true" : "";
+                    }
+                  }}
+                ></s-checkbox>
+                <s-button type="submit" variant="primary" loading={editFetcher.state !== "idle"}>
+                  Save
+                </s-button>
+              </s-stack>
+            </editFetcher.Form>
+          </s-stack>
+
+          <s-divider></s-divider>
+
+          <s-stack gap="base">
+            <s-heading>Target products</s-heading>
             {targetFetcher.data?.error && (
               <s-paragraph tone="critical">{targetFetcher.data.error}</s-paragraph>
             )}
@@ -385,11 +396,11 @@ function WidgetDetailModal({
             <>
               <s-divider></s-divider>
               <s-stack gap="base">
+                <s-heading>Featured reel</s-heading>
                 {featuredReelFetcher.data?.error && (
                   <s-paragraph tone="critical">{featuredReelFetcher.data.error}</s-paragraph>
                 )}
                 <s-paragraph>
-                  Featured reel:{" "}
                   {(() => {
                     const featuredReelId = (detailWidget.config as unknown as WidgetConfig)
                       .featuredReelId;
@@ -427,11 +438,12 @@ function WidgetDetailModal({
             <>
               <s-divider></s-divider>
               <s-stack gap="base">
+                <s-heading>Reels</s-heading>
                 {reelsFetcher.data?.error && (
                   <s-paragraph tone="critical">{reelsFetcher.data.error}</s-paragraph>
                 )}
                 <s-paragraph>
-                  Reels shown by this widget (same set on every targeted product page):
+                  Shown by this widget, same set on every targeted product page.
                 </s-paragraph>
                 <s-stack gap="small-200">
                   {(detailData?.reels ?? []).map((reel) => (
@@ -469,26 +481,29 @@ function WidgetDetailModal({
 
           <s-divider></s-divider>
 
-          <deleteFetcher.Form
-            method="post"
-            action={href ?? undefined}
-            onSubmit={(e) => {
-              // Don't call onClose() here — it sets selectedWidgetId to
-              // null synchronously, which can flip href to null before/while
-              // the fetcher reads this form's action, sending the delete
-              // POST for the wrong (or no) id and 404ing (confirmed live).
-              // The modal closes naturally once the widget disappears from
-              // the revalidated list after the delete redirect completes.
-              if (!confirm("Delete this widget? This can't be undone.")) {
-                e.preventDefault();
-              }
-            }}
-          >
-            <input type="hidden" name="intent" value="delete" />
-            <s-button type="submit" variant="secondary" tone="critical" loading={deleteFetcher.state !== "idle"}>
-              Delete widget
-            </s-button>
-          </deleteFetcher.Form>
+          <s-stack gap="base">
+            <s-heading>Danger zone</s-heading>
+            <deleteFetcher.Form
+              method="post"
+              action={href ?? undefined}
+              onSubmit={(e) => {
+                // Don't call onClose() here — it sets selectedWidgetId to
+                // null synchronously, which can flip href to null before/while
+                // the fetcher reads this form's action, sending the delete
+                // POST for the wrong (or no) id and 404ing (confirmed live).
+                // The modal closes naturally once the widget disappears from
+                // the revalidated list after the delete redirect completes.
+                if (!confirm("Delete this widget? This can't be undone.")) {
+                  e.preventDefault();
+                }
+              }}
+            >
+              <input type="hidden" name="intent" value="delete" />
+              <s-button type="submit" variant="secondary" tone="critical" loading={deleteFetcher.state !== "idle"}>
+                Delete widget
+              </s-button>
+            </deleteFetcher.Form>
+          </s-stack>
         </s-stack>
       )}
     </s-modal>
