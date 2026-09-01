@@ -73,17 +73,21 @@ unconfigured block is pixel-identical to today):
 | `accent_color` | color, **no default (blank allowed)** | — | `--reelup-accent-color` | blank |
 | `trigger_size` | range — **Product page reels, Stories, Reel pops only** (Stacked carousel's items size via a responsive CSS grid `1fr`, not a fixed width, so a fixed-px size setting doesn't apply there; Single video keeps its own `video_max_width` setting instead, see below) | 120–320px, step 10 (px meaning is block-specific: item width for Product page reels, avatar diameter for Stories, bubble diameter for Reel pops) | `--reelup-trigger-size` | current per-block hardcoded value |
 
-`accent_color` recolors three surfaces that each have a *different*
+`accent_color` recolors two surfaces that each have a *different*
 current hardcoded color today (play-icon backdrop `rgba(0,0,0,0.55)`,
-story ring `#e1306c`, reel-pop pulse `rgba(255,255,255,0.5)`). A single
-literal default couldn't reproduce all three, so the setting itself
-defaults to blank and the block only emits the `--reelup-accent-color`
-inline style when the merchant actually picks a color (`{% unless
-block.settings.accent_color == blank %}`). Left untouched, each surface
-keeps its own current color via its own `var(--reelup-accent-color,
-<that surface's current value>)` fallback; once set, one accent color
-applies uniformly across all three — a deliberate "brand accent"
-control, not three independent color pickers.
+story ring `#e1306c`). A single literal default couldn't reproduce
+both, so the setting itself defaults to blank and the block only emits
+the `--reelup-accent-color` inline style when the merchant actually
+picks a color (`{% unless block.settings.accent_color == blank %}`).
+Left untouched, each surface keeps its own current color via its own
+`var(--reelup-accent-color, <that surface's current value>)` fallback;
+once set, one accent color applies uniformly across both — a
+deliberate "brand accent" control, not two independent color pickers.
+The reel-pop bubble's arrival pulse stays a fixed white glow rather
+than picking up this color: its fade-to-transparent keyframe needs
+alpha-channel math CSS custom properties can't do on their own
+(`color-mix()` would work but adds real complexity for a glow that's
+barely visible regardless of hue), so it's left out of scope here.
 
 Single video is the one block where "trigger size" means the whole
 block's max-width (it's not a row of items), so it gets its own
