@@ -27,8 +27,8 @@
 }
 
 .reelup-stories__avatar {
-  width: 64px;
-  height: 64px;
+  width: var(--reelup-trigger-size, 64px);
+  height: var(--reelup-trigger-size, 64px);
 }
 
 .reelup-stories .reelup-trigger__button {
