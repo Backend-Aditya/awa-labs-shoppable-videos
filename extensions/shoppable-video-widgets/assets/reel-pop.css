@@ -19,6 +19,7 @@
   font-size: 14px;
   line-height: 1;
   cursor: pointer;
+  transition: background 0.15s ease;
 }
 
 .reelup-pop__dismiss:hover,
@@ -34,7 +35,7 @@
   border: 3px solid #fff;
   box-sizing: border-box;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-  animation: reelup-pop-in 0.3s ease-out;
+  animation: reelup-pop-in 0.3s ease-out, reelup-pop-pulse 2s ease-in-out 0.5s 2;
 }
 
 .reelup-pop .reelup-trigger__poster {
@@ -49,6 +50,15 @@
   to {
     transform: scale(1);
     opacity: 1;
+  }
+}
+
+@keyframes reelup-pop-pulse {
+  0%, 100% {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), 0 0 0 0 rgba(255, 255, 255, 0.5);
+  }
+  50% {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25), 0 0 0 8px rgba(255, 255, 255, 0);
   }
 }
 

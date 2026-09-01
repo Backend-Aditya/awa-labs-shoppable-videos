@@ -3,9 +3,21 @@
   gap: 12px;
   overflow-x: auto;
   padding-block: 12px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+
+.reelup-product-reels::-webkit-scrollbar {
+  height: 6px;
+}
+
+.reelup-product-reels::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 999px;
 }
 
 .reelup-product-reels__item {
   flex: 0 0 auto;
   width: 220px;
+  scroll-snap-align: start;
 }

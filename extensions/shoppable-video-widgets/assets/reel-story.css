@@ -3,6 +3,17 @@
   gap: 16px;
   overflow-x: auto;
   padding-block: 12px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+
+.reelup-stories::-webkit-scrollbar {
+  height: 6px;
+}
+
+.reelup-stories::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 999px;
 }
 
 .reelup-stories__item {
@@ -12,6 +23,7 @@
   flex-direction: column;
   align-items: center;
   gap: 6px;
+  scroll-snap-align: start;
 }
 
 .reelup-stories__avatar {

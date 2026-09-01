@@ -17,6 +17,28 @@
   border-radius: 12px;
   overflow: hidden;
   background: #111;
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease;
+}
+
+.reelup-trigger__button:hover,
+.reelup-trigger__button:focus-visible {
+  transform: scale(1.02);
+}
+
+.reelup-trigger__button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(0, 0, 0, 0.55);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reelup-trigger__button {
+    transition: box-shadow 0.2s ease;
+  }
+
+  .reelup-trigger__button:hover,
+  .reelup-trigger__button:focus-visible {
+    transform: none;
+  }
 }
 
 .reelup-trigger__poster {
@@ -181,6 +203,18 @@
   gap: 12px;
   text-decoration: none;
   color: inherit;
+  border-radius: 8px;
+  transition: background 0.15s ease;
+}
+
+.reelup-lightbox__product-link:hover,
+.reelup-lightbox__product-link:focus-visible {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.reelup-lightbox__product-link:focus-visible {
+  outline: 2px solid #111;
+  outline-offset: 2px;
 }
 
 .reelup-lightbox__product-image {
@@ -223,6 +257,21 @@
   color: #fff;
   cursor: pointer;
   white-space: nowrap;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.reelup-lightbox__add-to-cart:hover,
+.reelup-lightbox__add-to-cart:focus-visible {
+  background: #2b2b2b;
+}
+
+.reelup-lightbox__add-to-cart:active {
+  transform: scale(0.96);
+}
+
+.reelup-lightbox__add-to-cart:focus-visible {
+  outline: 2px solid #111;
+  outline-offset: 2px;
 }
 
 .reelup-lightbox__add-to-cart[data-state="loading"] {
@@ -232,6 +281,16 @@
 
 .reelup-lightbox__add-to-cart[data-state="added"] {
   background: #1f9d55;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reelup-lightbox__add-to-cart {
+    transition: background 0.15s ease;
+  }
+
+  .reelup-lightbox__add-to-cart:active {
+    transform: none;
+  }
 }
 
 @media (min-width: 720px) {
