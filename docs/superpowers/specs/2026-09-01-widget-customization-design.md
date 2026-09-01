@@ -112,6 +112,19 @@ to `data-cta-color`, `data-cta-text-color`, `data-cta-label`,
 | `loop` | checkbox | all | false (current) |
 | `story_duration` | range, 5–30s | Insta-style stories only | 15 (current `DURATION_MS`) |
 
+`autoplay_mode`'s `hover_preview` option is scoped out of the first
+implementation plan for this spec. Every other setting here is a CSS
+var or a data-attribute the existing dialogs already read — genuinely
+small, uniform units of work. `hover_preview` is not: it requires
+injecting an actual `<video>` element into the trigger itself, wiring
+`reel-hls.js` playback on hover/mouseenter, tearing it down on
+mouseleave, and deciding a touch-device fallback (hover doesn't exist
+on mobile, which is most storefront traffic) — a distinct feature with
+its own design questions, not a same-shaped unit alongside the rest of
+this list. The setting itself ships in a follow-up plan once that's
+designed; this plan does not add `autoplay_mode` to any block's schema
+at all (never a merchant-facing option that silently does nothing).
+
 **Reel pops only:**
 
 | Setting id | Type | Default |
