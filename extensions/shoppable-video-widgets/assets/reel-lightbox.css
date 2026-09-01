@@ -14,7 +14,7 @@
   padding: 0;
   margin: 0;
   cursor: pointer;
-  border-radius: 12px;
+  border-radius: var(--reelup-corner-radius, 12px);
   overflow: hidden;
   background: #111;
   transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease;
@@ -56,7 +56,7 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--reelup-accent-color, rgba(0, 0, 0, 0.55));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -75,7 +75,7 @@
 
 .reelup-trigger__button:hover .reelup-trigger__play-icon,
 .reelup-trigger__button:focus-visible .reelup-trigger__play-icon {
-  background: rgba(0, 0, 0, 0.75);
+  background: var(--reelup-accent-hover-color, rgba(0, 0, 0, 0.75));
 }
 
 .reelup-lightbox {
@@ -253,8 +253,8 @@
   padding: 9px 14px;
   border-radius: 999px;
   border: none;
-  background: #111;
-  color: #fff;
+  background: var(--reelup-cta-color, #111);
+  color: var(--reelup-cta-text-color, #fff);
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s ease, transform 0.15s ease;
@@ -262,7 +262,7 @@
 
 .reelup-lightbox__add-to-cart:hover,
 .reelup-lightbox__add-to-cart:focus-visible {
-  background: #2b2b2b;
+  background: var(--reelup-cta-hover-color, #2b2b2b);
 }
 
 .reelup-lightbox__add-to-cart:active {
@@ -318,4 +318,10 @@
   .reelup-lightbox__products-list {
     max-height: none;
   }
+}
+
+.reelup-widget-heading {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 600;
 }
