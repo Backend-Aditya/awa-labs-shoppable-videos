@@ -283,8 +283,8 @@ export default function ReelDetail() {
               <s-checkbox
                 label="Published"
                 defaultChecked={reel.published}
-                onChange={(event: { currentTarget: { checked: boolean } }) => {
-                  if (publishedRef.current) {
+                onChange={(event: { currentTarget: { checked: boolean } | null }) => {
+                  if (publishedRef.current && event.currentTarget) {
                     publishedRef.current.value = event.currentTarget.checked ? "true" : "";
                   }
                 }}

@@ -281,8 +281,8 @@ function CreateReelModal() {
             key={`published-checkbox-${publishedKey}`}
             label="Published"
             defaultChecked={false}
-            onChange={(event: { currentTarget: { checked: boolean } }) => {
-              if (publishedRef.current) {
+            onChange={(event: { currentTarget: { checked: boolean } | null }) => {
+              if (publishedRef.current && event.currentTarget) {
                 publishedRef.current.value = event.currentTarget.checked ? "true" : "";
               }
             }}
@@ -539,8 +539,8 @@ function ReelDetailModal({
                   key={`checkbox-${detailReel.id}`}
                   label="Published"
                   defaultChecked={detailReel.published}
-                  onChange={(event: { currentTarget: { checked: boolean } }) => {
-                    if (publishedRef.current) {
+                  onChange={(event: { currentTarget: { checked: boolean } | null }) => {
+                    if (publishedRef.current && event.currentTarget) {
                       publishedRef.current.value = event.currentTarget.checked ? "true" : "";
                     }
                   }}

@@ -346,8 +346,8 @@ function WidgetDetailModal({
                   key={`checkbox-${detailWidget.id}`}
                   label="Published"
                   defaultChecked={detailWidget.published}
-                  onChange={(event: { currentTarget: { checked: boolean } }) => {
-                    if (publishedRef.current) {
+                  onChange={(event: { currentTarget: { checked: boolean } | null }) => {
+                    if (publishedRef.current && event.currentTarget) {
                       publishedRef.current.value = event.currentTarget.checked ? "true" : "";
                     }
                   }}
@@ -451,10 +451,12 @@ function WidgetDetailModal({
                       key={`${detailWidget.id}-${reel.id}`}
                       label={reel.title}
                       defaultChecked={selectedReelIds.has(reel.id)}
-                      onChange={(event: { currentTarget: { checked: boolean } }) => {
+                      onChange={(event: { currentTarget: { checked: boolean } | null }) => {
+                        if (!event.currentTarget) return;
+                        const checked = event.currentTarget.checked;
                         setSelectedReelIds((prev) => {
                           const next = new Set(prev);
-                          if (event.currentTarget.checked) next.add(reel.id);
+                          if (checked) next.add(reel.id);
                           else next.delete(reel.id);
                           return next;
                         });
