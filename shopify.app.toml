@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "9ea31b9c552028b42fe272081db2b3e3"
-application_url = "https://example.com"
+application_url = "https://awa-shoppable-videos.onrender.com"
 embedded = true
 name = "AWAlabs Shoppable Videos"
 
@@ -138,10 +138,10 @@ description = "The one reel the REEL_POPS floating bubble plays"
   storefront = "public_read"
 
 [auth]
-redirect_urls = [ "https://example.com/api/auth" ]
+redirect_urls = [ "https://awa-shoppable-videos.onrender.com/api/auth" ]
 
 [app_proxy]
-url = "https://example.com/api"
+url = "https://awa-shoppable-videos.onrender.com/api"
 subpath = "reels"
 prefix = "apps"
 
