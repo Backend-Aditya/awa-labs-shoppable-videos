@@ -176,8 +176,21 @@
     dialog.showModal();
     if (reelId) trackAnalytics(reelId, "view");
 
+    // Unmuted autoplay is only allowed inside the transient-activation window
+    // from the click that opened this dialog. attach() below can await a
+    // network fetch (hls.js itself, then the HLS manifest) that easily
+    // outlasts that window, so unmuted play() after it resolves can be
+    // silently rejected by the browser. Muted play is always allowed, so we
+    // start playback muted immediately (still inside the gesture), then
+    // restore the real mute state once attach() resolves — browsers permit
+    // unmuting already-playing media without a fresh gesture.
+    const desiredMuted = video.muted;
+    video.muted = true;
+    video.play().catch(() => {});
+
     try {
       await window.ReelupHls.attach(video, hlsSrc);
+      video.muted = desiredMuted;
       await video.play();
     } catch {
       // Playback failed to initialize; the lightbox stays open with the

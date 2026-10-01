@@ -33,8 +33,10 @@ model Session {
   refreshTokenExpires DateTime?
 }
 
-// SQLite has no native Prisma enum support, so plan/type are plain strings
-// constrained by TS union types in app/models/*.server.ts, not DB enums.
+// plan/type are plain strings constrained by TS union types in
+// app/models/*.server.ts rather than DB enums, left over from when this
+// schema targeted SQLite (no native enum support); kept as-is after the
+// Postgres migration since nothing forces enum columns now.
 model Shop {
   id             String   @id @default(cuid())
   shopDomain     String   @unique
@@ -44,6 +46,7 @@ model Shop {
   updatedAt      DateTime @updatedAt
   billingCycles  BillingCycle[]
   widgets        Widget[]
+  reelEvents     ReelEvent[]
 }
 
 model BillingCycle {
@@ -77,6 +80,7 @@ model Widget {
 
 model ReelEvent {
   id        String   @id @default(cuid())
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
   shopId    String
   reelId    String
   eventType String

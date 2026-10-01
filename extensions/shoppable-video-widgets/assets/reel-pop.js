@@ -3,8 +3,13 @@
     if (pop.dataset.reelupPopBound) return;
     pop.dataset.reelupPopBound = "true";
 
+    // Keyed by block id, not just reel id — block.id is always unique per
+    // app-embed instance, so two reel-pop blocks (e.g. on different pages
+    // via theme-section visibility, or a merchant with two embeds enabled)
+    // never share a dismissal key even if `data-reel-id` is ever blank.
     const reelId = pop.dataset.reelId || "default";
-    const storageKey = `reelup-pop-dismissed-${reelId}`;
+    const blockId = pop.dataset.blockId || "default";
+    const storageKey = `reelup-pop-dismissed-${blockId}-${reelId}`;
 
     let alreadyDismissed = false;
     try {

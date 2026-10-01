@@ -127,6 +127,7 @@ describe("cloudflare-stream.server", () => {
       rawBody,
       `time=${time},sig1=${signature}`,
       secret,
+      1700000000,
     );
     expect(valid).toBe(true);
   });
@@ -142,6 +143,7 @@ describe("cloudflare-stream.server", () => {
       JSON.stringify({ uid: "tampered" }),
       `time=${time},sig1=${signature}`,
       secret,
+      1700000000,
     );
     expect(valid).toBe(false);
   });
@@ -156,6 +158,24 @@ describe("cloudflare-stream.server", () => {
       "{}",
       "time=1700000000,sig1=ab",
       "secret",
+    );
+    expect(valid).toBe(false);
+  });
+
+  it("rejects an otherwise-valid signature whose time is outside the replay window", () => {
+    const secret = "whsec_test";
+    const rawBody = JSON.stringify({ uid: "abc123" });
+    const time = "1700000000";
+    const signature = createHmac("sha256", secret)
+      .update(`${time}.${rawBody}`)
+      .digest("hex");
+
+    // No explicit `now` passed — falls back to Date.now(), which is nowhere
+    // near 1700000000, so a captured-and-replayed payload must be rejected.
+    const valid = verifyWebhookSignature(
+      rawBody,
+      `time=${time},sig1=${signature}`,
+      secret,
     );
     expect(valid).toBe(false);
   });

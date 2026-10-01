@@ -54,14 +54,17 @@ export async function setWidgetPublished(
   return prisma.widget.update({ where: { id }, data: { published } });
 }
 
-export async function deleteWidget(admin: AdminGraphqlClient, id: string): Promise<void> {
-  const existing = await prisma.widget.findUnique({ where: { id } });
+export async function deleteWidget(
+  admin: AdminGraphqlClient,
+  shopId: string,
+  id: string,
+): Promise<void> {
+  const existing = await prisma.widget.findFirst({ where: { id, shopId } });
+  if (!existing) return;
   await prisma.widget.delete({ where: { id } });
-  if (existing) {
-    await syncShopWidgetState(admin, existing.shopId, existing.type as WidgetKind, {
-      force: true,
-    });
-  }
+  await syncShopWidgetState(admin, existing.shopId, existing.type as WidgetKind, {
+    force: true,
+  });
 }
 
 export async function getWidget(
@@ -73,29 +76,31 @@ export async function getWidget(
 
 export async function updateWidget(
   admin: AdminGraphqlClient,
+  shopId: string,
   id: string,
   updates: { name?: string; published?: boolean },
 ): Promise<Widget> {
-  const current = await prisma.widget.findUniqueOrThrow({ where: { id } });
+  const current = await prisma.widget.findFirstOrThrow({ where: { id, shopId } });
 
-  if (updates.published === true && !current.published) {
-    const siblings = await prisma.widget.findMany({
-      where: {
-        shopId: current.shopId,
-        type: current.type,
-        published: true,
-        id: { not: id },
-      },
-    });
-    for (const sibling of siblings) {
-      await prisma.widget.update({
-        where: { id: sibling.id },
+  // Sibling-unpublish + this widget's own update run in one transaction so a
+  // concurrent publish of two widgets of the same kind can't both land as
+  // `published: true` — without this, two overlapping requests could each
+  // read the old sibling list before either write lands, violating the
+  // one-published-widget-per-kind invariant that syncShopWidgetState relies on.
+  const widget = await prisma.$transaction(async (tx) => {
+    if (updates.published === true && !current.published) {
+      await tx.widget.updateMany({
+        where: {
+          shopId: current.shopId,
+          type: current.type,
+          published: true,
+          id: { not: id },
+        },
         data: { published: false },
       });
     }
-  }
-
-  const widget = await prisma.widget.update({ where: { id }, data: updates });
+    return tx.widget.update({ where: { id }, data: updates });
+  });
   // Single sync after all DB writes — it re-derives from the DB, so the
   // sibling unpublishes above don't need their own sync calls.
   await syncShopWidgetState(admin, widget.shopId, widget.type as WidgetKind);
@@ -104,10 +109,11 @@ export async function updateWidget(
 
 export async function updateWidgetTargetRule(
   admin: AdminGraphqlClient,
+  shopId: string,
   id: string,
   targetRule: WidgetConfig["targetRule"],
 ): Promise<Widget> {
-  const existing = await prisma.widget.findUniqueOrThrow({ where: { id } });
+  const existing = await prisma.widget.findFirstOrThrow({ where: { id, shopId } });
   const existingConfig = existing.config as unknown as WidgetConfig;
   const mergedConfig: WidgetConfig = { ...existingConfig, targetRule };
 
@@ -253,10 +259,11 @@ export async function syncShopWidgetState(
 
 export async function updateWidgetFeaturedReel(
   admin: AdminGraphqlClient,
+  shopId: string,
   id: string,
   featuredReelId: string,
 ): Promise<Widget> {
-  const existing = await prisma.widget.findUniqueOrThrow({ where: { id } });
+  const existing = await prisma.widget.findFirstOrThrow({ where: { id, shopId } });
   const existingConfig = existing.config as unknown as WidgetConfig;
   const mergedConfig: WidgetConfig = { ...existingConfig, featuredReelId };
 
@@ -270,10 +277,11 @@ export async function updateWidgetFeaturedReel(
 
 export async function updateWidgetReels(
   admin: AdminGraphqlClient,
+  shopId: string,
   id: string,
   reelIds: string[],
 ): Promise<Widget> {
-  const existing = await prisma.widget.findUniqueOrThrow({ where: { id } });
+  const existing = await prisma.widget.findFirstOrThrow({ where: { id, shopId } });
   const existingConfig = existing.config as unknown as WidgetConfig;
   const mergedConfig: WidgetConfig = { ...existingConfig, reelIds };
 

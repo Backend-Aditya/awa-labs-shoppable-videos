@@ -128,10 +128,17 @@ export async function getVideoDetails(
   };
 }
 
+// A valid signature over an old `time` would otherwise verify forever —
+// anyone who captures one signed payload (e.g. from logs, a proxy, or a
+// browser network panel) could replay it indefinitely. 5 minutes comfortably
+// covers normal delivery/retry latency without leaving a long replay window.
+const WEBHOOK_MAX_AGE_SECONDS = 300;
+
 export function verifyWebhookSignature(
   rawBody: string,
   signatureHeader: string,
   secret: string,
+  nowSeconds: number = Math.floor(Date.now() / 1000),
 ): boolean {
   const parts: Record<string, string> = {};
   for (const pair of signatureHeader.split(",")) {
@@ -151,5 +158,9 @@ export function verifyWebhookSignature(
   const actualBuffer = Buffer.from(signature, "hex");
   if (expectedBuffer.length !== actualBuffer.length) return false;
 
-  return timingSafeEqual(expectedBuffer, actualBuffer);
+  if (!timingSafeEqual(expectedBuffer, actualBuffer)) return false;
+
+  const timeSeconds = Number(time);
+  if (!Number.isFinite(timeSeconds)) return false;
+  return Math.abs(nowSeconds - timeSeconds) <= WEBHOOK_MAX_AGE_SECONDS;
 }

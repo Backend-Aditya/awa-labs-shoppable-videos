@@ -48,12 +48,12 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     const handles = formData.getAll("productHandle").map(String).filter(Boolean);
     const targetRule: WidgetConfig["targetRule"] =
       handles.length > 0 ? { type: "handles", handles } : { type: "all_products" };
-    await updateWidgetTargetRule(admin, widget.id, targetRule);
+    await updateWidgetTargetRule(admin, shop.id, widget.id, targetRule);
     return { error: null };
   }
 
   if (intent === "clear-target") {
-    await updateWidgetTargetRule(admin, widget.id, { type: "all_products" });
+    await updateWidgetTargetRule(admin, shop.id, widget.id, { type: "all_products" });
     return { error: null };
   }
 
@@ -62,7 +62,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     if (!featuredReelId) {
       return { error: "Choose a reel first" };
     }
-    await updateWidgetFeaturedReel(admin, widget.id, featuredReelId);
+    await updateWidgetFeaturedReel(admin, shop.id, widget.id, featuredReelId);
     return { error: null };
   }
 
@@ -76,12 +76,12 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     // metafieldsSet call as the widget's published/targetRule state).
     const validReelIds = new Set((await listReels(admin, 50)).map((reel) => reel.id));
     const reelIds = submittedReelIds.filter((reelId) => validReelIds.has(reelId));
-    await updateWidgetReels(admin, widget.id, reelIds);
+    await updateWidgetReels(admin, shop.id, widget.id, reelIds);
     return { error: null };
   }
 
   if (intent === "delete") {
-    await deleteWidget(admin, widget.id);
+    await deleteWidget(admin, shop.id, widget.id);
     return redirect("/app/widgets");
   }
 
@@ -92,7 +92,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     return { error: "Name is required" };
   }
 
-  await updateWidget(admin, widget.id, { name, published });
+  await updateWidget(admin, shop.id, widget.id, { name, published });
   return { error: null };
 };
 

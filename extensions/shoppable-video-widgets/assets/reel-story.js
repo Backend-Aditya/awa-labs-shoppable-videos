@@ -188,8 +188,18 @@
 
     setSegmentState(dialog, index, "active");
 
+    // See reel-lightbox.js's open() for why: attach() can await a network
+    // fetch that outlasts the transient-activation window from the
+    // triggering click, so unmuted play() after it resolves can be silently
+    // rejected. Start muted (always allowed), restore the real mute state
+    // once attach() resolves.
+    const desiredMuted = video.muted;
+    video.muted = true;
+    video.play().catch(() => {});
+
     try {
       await window.ReelupHls.attach(video, trigger.dataset.hlsSrc);
+      video.muted = desiredMuted;
       await video.play();
     } catch {
       // Playback failed to initialize; still advance on schedule below so

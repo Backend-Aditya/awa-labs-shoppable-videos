@@ -106,7 +106,7 @@ describe("widget.server", () => {
     const published = await setWidgetPublished(widget.id, true);
     expect(published.published).toBe(true);
 
-    await deleteWidget(admin, widget.id);
+    await deleteWidget(admin, shop.id, widget.id);
     const remaining = await listWidgetsForShop(shop.id);
     expect(remaining).toHaveLength(0);
   });
@@ -129,11 +129,40 @@ describe("widget.server", () => {
       },
     };
 
-    await deleteWidget(admin, widget.id);
+    await deleteWidget(admin, shop.id, widget.id);
 
     expect(capturedSetVariables).toEqual(
       expectedMetafields({ published: false, targetRule: { type: "all_products" } }),
     );
+  });
+
+  it("refuses to update, delete, or retarget a widget belonging to a different shop", async () => {
+    const shopA = await getOrCreateShop("widget-idor-a.myshopify.com");
+    const shopB = await getOrCreateShop("widget-idor-b.myshopify.com");
+    const widget = await createWidget(shopA.id, "CAROUSEL", "A's widget", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+    });
+    const { admin } = createRecordingAdmin();
+
+    await expect(
+      updateWidget(admin, shopB.id, widget.id, { name: "Hijacked" }),
+    ).rejects.toThrow();
+    await expect(
+      updateWidgetTargetRule(admin, shopB.id, widget.id, { type: "all_products" }),
+    ).rejects.toThrow();
+    await expect(
+      updateWidgetFeaturedReel(admin, shopB.id, widget.id, "gid://shopify/Metaobject/1"),
+    ).rejects.toThrow();
+    await expect(
+      updateWidgetReels(admin, shopB.id, widget.id, []),
+    ).rejects.toThrow();
+    // deleteWidget is a no-op (not a throw) for a widget outside the given
+    // shop, since the route always 404s before reaching it anyway.
+    await deleteWidget(admin, shopB.id, widget.id);
+
+    const stillThere = await getWidget(shopA.id, widget.id);
+    expect(stillThere?.name).toBe("A's widget");
   });
 
   it("gets a widget scoped to its shop, returns null for a different shop or missing id", async () => {
@@ -162,7 +191,7 @@ describe("widget.server", () => {
     });
     const { admin } = createRecordingAdmin();
 
-    const updated = await updateWidget(admin, widget.id, {
+    const updated = await updateWidget(admin, shop.id, widget.id, {
       name: "Renamed carousel",
       published: true,
     });
@@ -179,7 +208,7 @@ describe("widget.server", () => {
     });
     const { admin } = createRecordingAdmin();
 
-    const updated = await updateWidget(admin, widget.id, { published: true });
+    const updated = await updateWidget(admin, shop.id, widget.id, { published: true });
 
     expect(updated.name).toBe("Keep my name");
     expect(updated.published).toBe(true);
@@ -197,12 +226,14 @@ describe("widget.server", () => {
     });
     await updateWidget(
       { graphql: async () => ({ json: async () => ({ data: { shop: { id: "gid://shopify/Shop/1" }, metafieldsSet: { userErrors: [] } } }) }) },
+      shop.id,
       first.id,
       { published: true },
     );
 
     const secondPublishedResult = await updateWidget(
       { graphql: async () => ({ json: async () => ({ data: { shop: { id: "gid://shopify/Shop/1" }, metafieldsSet: { userErrors: [] } } }) }) },
+      shop.id,
       second.id,
       { published: true },
     );
@@ -231,7 +262,7 @@ describe("widget.server", () => {
     });
     const admin = { graphql: async () => ({ json: async () => ({ data: { shop: { id: "gid://shopify/Shop/1" }, metafieldsSet: { userErrors: [] } } }) }) };
 
-    await updateWidget(admin, target.id, { published: true });
+    await updateWidget(admin, shopA.id, target.id, { published: true });
 
     const sameShopDifferentTypeAfter = await getWidget(shopA.id, sameShopDifferentType.id);
     const differentShopAfter = await getWidget(shopB.id, differentShop.id);
@@ -247,7 +278,7 @@ describe("widget.server", () => {
     });
     const { admin } = createRecordingAdmin();
 
-    const updated = await updateWidgetTargetRule(admin, widget.id, {
+    const updated = await updateWidgetTargetRule(admin, shop.id, widget.id, {
       type: "handles",
       handles: ["blue-shirt", "red-hat"],
     });
@@ -266,7 +297,7 @@ describe("widget.server", () => {
     });
     const { admin } = createRecordingAdmin();
 
-    const updated = await updateWidgetTargetRule(admin, widget.id, { type: "all_products" });
+    const updated = await updateWidgetTargetRule(admin, shop.id, widget.id, { type: "all_products" });
 
     expect(updated.config).toEqual({
       templateStyle: "bold",
@@ -292,7 +323,7 @@ describe("widget.server", () => {
       },
     };
 
-    await updateWidgetTargetRule(admin, widget.id, {
+    await updateWidgetTargetRule(admin, shop.id, widget.id, {
       type: "handles",
       handles: ["blue-shirt"],
     });
@@ -326,19 +357,19 @@ describe("widget.server", () => {
     };
 
     it("renaming an unrelated draft widget does not clobber the live widget's state", async () => {
-      const { draft } = await seedLiveAndDraft("widget-clobber-rename.myshopify.com");
+      const { shop, draft } = await seedLiveAndDraft("widget-clobber-rename.myshopify.com");
       const { admin, recorder } = createRecordingAdmin();
 
-      await updateWidget(admin, draft.id, { name: "Draft B renamed" });
+      await updateWidget(admin, shop.id, draft.id, { name: "Draft B renamed" });
 
       expect(recorder.variables).toEqual(expectedMetafields(liveValue));
     });
 
     it("changing an unrelated draft widget's targetRule does not clobber the live widget's state", async () => {
-      const { draft } = await seedLiveAndDraft("widget-clobber-target.myshopify.com");
+      const { shop, draft } = await seedLiveAndDraft("widget-clobber-target.myshopify.com");
       const { admin, recorder } = createRecordingAdmin();
 
-      await updateWidgetTargetRule(admin, draft.id, {
+      await updateWidgetTargetRule(admin, shop.id, draft.id, {
         type: "handles",
         handles: ["some-other-product"],
       });
@@ -347,10 +378,10 @@ describe("widget.server", () => {
     });
 
     it("deleting an unrelated draft widget does not clobber the live widget's state", async () => {
-      const { draft } = await seedLiveAndDraft("widget-clobber-delete.myshopify.com");
+      const { shop, draft } = await seedLiveAndDraft("widget-clobber-delete.myshopify.com");
       const { admin, recorder } = createRecordingAdmin();
 
-      await deleteWidget(admin, draft.id);
+      await deleteWidget(admin, shop.id, draft.id);
 
       expect(recorder.variables).toEqual(expectedMetafields(liveValue));
     });
@@ -363,7 +394,7 @@ describe("widget.server", () => {
       });
       const { admin, recorder } = createRecordingAdmin();
 
-      await updateWidget(admin, carousel.id, { name: "Renamed carousel", published: true });
+      await updateWidget(admin, shop.id, carousel.id, { name: "Renamed carousel", published: true });
 
       // Sync is scoped per-kind now, so publishing the carousel writes only
       // the carousel's own metafield — it never touches (and so can't
@@ -648,7 +679,7 @@ describe("syncShopWidgetState", () => {
     await setWidgetPublished(widget.id, true);
     const { admin, recorder } = createRecordingAdmin();
 
-    await updateWidgetReels(admin, widget.id, []);
+    await updateWidgetReels(admin, shop.id, widget.id, []);
 
     expect(recorder.variables).toEqual({
       metafields: [
@@ -718,7 +749,7 @@ describe("updateWidgetFeaturedReel", () => {
     await setWidgetPublished(widget.id, true);
     const { admin, recorder } = createRecordingAdmin();
 
-    const updated = await updateWidgetFeaturedReel(admin, widget.id, "gid://shopify/Metaobject/42");
+    const updated = await updateWidgetFeaturedReel(admin, shop.id, widget.id, "gid://shopify/Metaobject/42");
 
     expect((updated.config as { featuredReelId?: string }).featuredReelId).toBe(
       "gid://shopify/Metaobject/42",
@@ -759,7 +790,7 @@ describe("updateWidgetReels", () => {
     await setWidgetPublished(widget.id, true);
     const { admin, recorder } = createRecordingAdmin();
 
-    const updated = await updateWidgetReels(admin, widget.id, [
+    const updated = await updateWidgetReels(admin, shop.id, widget.id, [
       "gid://shopify/Metaobject/2",
       "gid://shopify/Metaobject/1",
     ]);
@@ -796,7 +827,7 @@ describe("updateWidgetReels", () => {
     });
     const { admin, recorder } = createRecordingAdmin();
 
-    await updateWidgetReels(admin, widget.id, ["gid://shopify/Metaobject/5"]);
+    await updateWidgetReels(admin, shop.id, widget.id, ["gid://shopify/Metaobject/5"]);
 
     // Widget was never published, so syncShopWidgetState finds no "live"
     // widget for this kind — it writes published:false and, since `live`
