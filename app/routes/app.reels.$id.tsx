@@ -13,6 +13,7 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 import { deleteReel, getProductsByIds, getReel, syncProductReelMetafields, updateReelConfig, upsertReel } from "../models/reel.server";
 import { deriveReelStatus } from "../models/reel-status";
 import { PreserveSearchParams } from "../components/PreserveSearchParams";
+import { TaggedProductRow } from "../components/TaggedProductRow";
 import prisma from "../db.server";
 
 const REEL_STATUS_LABELS: Record<string, string> = {
@@ -309,11 +310,13 @@ export default function ReelDetail() {
           {taggedProducts.length === 0 ? (
             <s-paragraph>No products tagged yet.</s-paragraph>
           ) : (
-            <s-stack gap="small">
-              {taggedProducts.map((product) => (
-                <s-paragraph key={product.id}>{product.title}</s-paragraph>
-              ))}
-            </s-stack>
+            <s-box padding="small-200" background="subdued" borderRadius="base">
+              <s-stack gap="small-200">
+                {taggedProducts.map((product) => (
+                  <TaggedProductRow key={product.id} product={product} />
+                ))}
+              </s-stack>
+            </s-box>
           )}
           <s-button
             onClick={handlePickProducts}

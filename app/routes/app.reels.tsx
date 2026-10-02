@@ -15,7 +15,8 @@ import {
   updateReelConfig,
   upsertReel,
 } from "../models/reel.server";
-import type { Reel } from "../models/reel.server";
+import type { Reel, ProductSummary } from "../models/reel.server";
+import { TaggedProductRow } from "../components/TaggedProductRow";
 import { deriveReelStatus } from "../models/reel-status";
 import { createDirectUploadUrl, getCloudflareConfig } from "../models/cloudflare-stream.server";
 import { StatTile } from "../components/StatTile";
@@ -395,9 +396,10 @@ function ReelCard({ reel, onOpen }: { reel: Reel; onOpen: (reel: Reel) => void }
 type ReelDetailLoaderData = {
   loaderError: string | null;
   reel: Reel | null;
-  taggedProducts: { id: string; title: string }[];
+  taggedProducts: ProductSummary[];
   analytics: { views: number; clicks: number };
 };
+
 
 function ReelDetailModal({
   reel,
@@ -556,11 +558,13 @@ function ReelDetailModal({
             {data.taggedProducts.length === 0 ? (
               <s-paragraph color="subdued">No products tagged yet.</s-paragraph>
             ) : (
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--p-space-200, 8px)" }}>
-                {data.taggedProducts.map((product) => (
-                  <s-badge key={product.id}>{product.title}</s-badge>
-                ))}
-              </div>
+              <s-box padding="small-200" background="subdued" borderRadius="base">
+                <s-stack gap="small-200">
+                  {data.taggedProducts.map((product) => (
+                    <TaggedProductRow key={product.id} product={product} />
+                  ))}
+                </s-stack>
+              </s-box>
             )}
           </s-stack>
 

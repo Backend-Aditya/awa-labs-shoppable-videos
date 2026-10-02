@@ -391,7 +391,16 @@ describe("reel.server", () => {
             json: async () => ({
               data: {
                 nodes: [
-                  { id: "gid://shopify/Product/1", title: "Blue Shirt", handle: "blue-shirt" },
+                  {
+                    id: "gid://shopify/Product/1",
+                    title: "Blue Shirt",
+                    handle: "blue-shirt",
+                    featuredImage: { url: "https://cdn.shopify.com/blue-shirt.jpg" },
+                    priceRangeV2: {
+                      minVariantPrice: { amount: "19.99", currencyCode: "USD" },
+                      maxVariantPrice: { amount: "24.99", currencyCode: "USD" },
+                    },
+                  },
                   null,
                 ],
               },
@@ -406,7 +415,13 @@ describe("reel.server", () => {
       ]);
 
       expect(products).toEqual([
-        { id: "gid://shopify/Product/1", title: "Blue Shirt", handle: "blue-shirt" },
+        {
+          id: "gid://shopify/Product/1",
+          title: "Blue Shirt",
+          handle: "blue-shirt",
+          imageUrl: "https://cdn.shopify.com/blue-shirt.jpg",
+          priceRange: { min: "19.99", max: "24.99", currencyCode: "USD" },
+        },
       ]);
       expect(capturedVariables).toEqual({
         ids: ["gid://shopify/Product/1", "gid://shopify/Product/999"],

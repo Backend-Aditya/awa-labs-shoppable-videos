@@ -284,6 +284,8 @@ export interface ProductSummary {
   id: string;
   title: string;
   handle: string;
+  imageUrl: string | null;
+  priceRange: { min: string; max: string; currencyCode: string } | null;
 }
 
 export async function getProductsByIds(
@@ -300,6 +302,13 @@ export async function getProductsByIds(
           id
           title
           handle
+          featuredImage {
+            url
+          }
+          priceRangeV2 {
+            minVariantPrice { amount currencyCode }
+            maxVariantPrice { amount currencyCode }
+          }
         }
       }
     }`,
@@ -309,8 +318,23 @@ export async function getProductsByIds(
   const json = await response.json();
   assertNoGraphqlErrors(json);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- GraphQL response shape varies per query; this is the external Admin API boundary
-  return json.data.nodes.filter((node: any) => node?.id != null);
+  return json.data.nodes
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- GraphQL response shape varies per query; this is the external Admin API boundary
+    .filter((node: any) => node?.id != null)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- same boundary as the filter above
+    .map((node: any) => ({
+      id: node.id,
+      title: node.title,
+      handle: node.handle,
+      imageUrl: node.featuredImage?.url ?? null,
+      priceRange: node.priceRangeV2
+        ? {
+            min: node.priceRangeV2.minVariantPrice.amount,
+            max: node.priceRangeV2.maxVariantPrice.amount,
+            currencyCode: node.priceRangeV2.minVariantPrice.currencyCode,
+          }
+        : null,
+    }));
 }
 
 export async function syncProductReelMetafields(
