@@ -4,9 +4,14 @@
 // so there's no way to wire this into `shopify app deploy` automatically —
 // `npm run deploy` runs this first, but a bare `shopify app deploy` won't.
 //
-// assets-src/*.js is the source of truth (commented, readable) — edit
-// there, never edit extensions/shoppable-video-widgets/assets/*.js
-// directly, since this script overwrites it on every run.
+// scripts/extension-assets-src/*.js is the source of truth (commented,
+// readable) — edit there, never edit
+// extensions/shoppable-video-widgets/assets/*.js directly, since this
+// script overwrites it on every run. It lives outside the extension's own
+// directory because Shopify's theme-extension validator rejects any
+// directory other than assets/blocks/locales/snippets inside an
+// extension folder (confirmed via `shopify app deploy`, which refuses to
+// bundle the extension if an assets-src/ sits alongside assets/).
 //
 // hls.min.js is vendored third-party and already minified; it isn't part
 // of this pipeline.
@@ -16,9 +21,8 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
-const extensionDir = path.join(root, "..", "extensions", "shoppable-video-widgets");
-const srcDir = path.join(extensionDir, "assets-src");
-const outDir = path.join(extensionDir, "assets");
+const srcDir = path.join(root, "extension-assets-src");
+const outDir = path.join(root, "..", "extensions", "shoppable-video-widgets", "assets");
 
 const entryPoints = readdirSync(srcDir)
   .filter((name) => name.endsWith(".js"))
