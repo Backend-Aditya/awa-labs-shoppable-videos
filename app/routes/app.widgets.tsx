@@ -22,7 +22,7 @@ interface WidgetTemplateMeta {
   kind: WidgetKind;
   name: string;
   description: string;
-  icon: "layout-rows-2" | "play-circle" | "layout-columns-3" | "images" | "layout-popup";
+  icon: "layout-rows-2" | "play-circle" | "layout-columns-3" | "images" | "layout-popup" | "cart";
 }
 
 const WIDGET_TEMPLATES: WidgetTemplateMeta[] = [
@@ -55,6 +55,12 @@ const WIDGET_TEMPLATES: WidgetTemplateMeta[] = [
     name: "Reel pops",
     description: "A site-wide floating bubble that expands into a video.",
     icon: "layout-popup",
+  },
+  {
+    kind: "ADD_TO_CART_VIDEO",
+    name: "Add-to-cart video",
+    description: "One featured video, inline right below the add-to-cart button.",
+    icon: "cart",
   },
 ];
 
@@ -118,7 +124,8 @@ function WidgetCard({
       : `${handleCount} product${handleCount === 1 ? "" : "s"}`;
   const reelCount = config.reelIds?.length ?? 0;
   const hasFeaturedReel = Boolean(config.featuredReelId);
-  const showsFeaturedReel = kind === "SINGLE_VIDEO" || kind === "REEL_POPS";
+  const showsFeaturedReel =
+    kind === "SINGLE_VIDEO" || kind === "REEL_POPS" || kind === "ADD_TO_CART_VIDEO";
   const showsReelCount = kind === "PRODUCT_PAGE_REELS" || kind === "CAROUSEL" || kind === "STORIES";
 
   return (
@@ -223,7 +230,10 @@ function CreateWidgetModal({ reels }: { reels: PickableReel[] }) {
     }
   }, [fetcher.state, fetcher.data, shopify]);
 
-  const showsFeaturedReel = selectedKind === "SINGLE_VIDEO" || selectedKind === "REEL_POPS";
+  const showsFeaturedReel =
+    selectedKind === "SINGLE_VIDEO" ||
+    selectedKind === "REEL_POPS" ||
+    selectedKind === "ADD_TO_CART_VIDEO";
   const showsReelList =
     selectedKind === "PRODUCT_PAGE_REELS" || selectedKind === "CAROUSEL" || selectedKind === "STORIES";
 
@@ -522,7 +532,10 @@ function WidgetDetailModal({
   };
 
   const meta = detailWidget ? WIDGET_TEMPLATES.find((t) => t.kind === detailWidget.type) : undefined;
-  const showsFeaturedReel = detailWidget?.type === "SINGLE_VIDEO" || detailWidget?.type === "REEL_POPS";
+  const showsFeaturedReel =
+    detailWidget?.type === "SINGLE_VIDEO" ||
+    detailWidget?.type === "REEL_POPS" ||
+    detailWidget?.type === "ADD_TO_CART_VIDEO";
   const showsReelList =
     detailWidget?.type === "PRODUCT_PAGE_REELS" ||
     detailWidget?.type === "CAROUSEL" ||

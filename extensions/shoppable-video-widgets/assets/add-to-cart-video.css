@@ -1,0 +1,61 @@
+.reelup-atc-video {
+  width: 100%;
+  margin-block: 12px;
+}
+
+/* .reelup-trigger__button's base rule (reel-lightbox.css) sizes itself as a
+   full-width 9:16 poster block for the other widgets' centered-video look —
+   this widget is meant to sit inline right under the add-to-cart button, so
+   it overrides that into a compact horizontal row instead. */
+.reelup-atc-video__button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: auto;
+  height: auto;
+  aspect-ratio: auto;
+  padding: 8px 16px 8px 8px;
+  border-radius: 999px;
+  background: var(--reelup-atc-pill-color, #f4f4f5);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.reelup-atc-video__button:hover,
+.reelup-atc-video__button:focus-visible {
+  transform: none;
+  background: var(--reelup-atc-pill-hover-color, #e4e4e7);
+}
+
+.reelup-atc-video__thumb {
+  position: relative;
+  flex-shrink: 0;
+  width: var(--reelup-atc-thumb-size, 72px);
+  height: var(--reelup-atc-thumb-size, 72px);
+  border-radius: 50%;
+  overflow: hidden;
+  background: #111;
+}
+
+.reelup-atc-video__thumb img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.reelup-atc-video__thumb .reelup-trigger__play-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.reelup-atc-video__thumb .reelup-trigger__play-icon::before {
+  border-width: 6px 0 6px 10px;
+}
+
+.reelup-atc-video__label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--reelup-atc-label-color, inherit);
+  white-space: nowrap;
+}

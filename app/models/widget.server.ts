@@ -9,7 +9,8 @@ export type WidgetKind =
   | "GRID"
   | "STORIES"
   | "REEL_POPS"
-  | "SINGLE_VIDEO";
+  | "SINGLE_VIDEO"
+  | "ADD_TO_CART_VIDEO";
 
 export interface WidgetConfig {
   templateStyle: string;
@@ -156,6 +157,10 @@ const WIDGET_KIND_SYNC_CONFIG: Partial<Record<WidgetKind, WidgetKindSyncConfig>>
   REEL_POPS: {
     metafieldKey: "reel_pops_widget",
     featuredReelMetafieldKey: "reel_pops_featured_reel",
+  },
+  ADD_TO_CART_VIDEO: {
+    metafieldKey: "add_to_cart_video_widget",
+    featuredReelMetafieldKey: "add_to_cart_video_featured_reel",
   },
 };
 
