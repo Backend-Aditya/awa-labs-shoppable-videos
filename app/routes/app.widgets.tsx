@@ -184,19 +184,29 @@ function CreateWidgetModal() {
   }, [fetcher.state, fetcher.data, shopify]);
 
   return (
-    <s-modal id="create-widget-modal" heading="Create a widget" accessibilityLabel="Create a widget">
+    <s-modal
+      id="create-widget-modal"
+      heading="Create a widget"
+      accessibilityLabel="Create a widget"
+      size="large"
+    >
       <fetcher.Form id="create-widget-form" ref={formRef} method="post">
         <s-stack gap="large">
           {fetcher.data?.error && (
             <s-paragraph tone="critical">{fetcher.data.error}</s-paragraph>
           )}
-          <s-text-field label="Name" name="name" required></s-text-field>
-          <input type="hidden" name="type" value={selectedKind} />
+
+          <s-stack gap="base">
+            <s-heading>Details</s-heading>
+            <s-text-field label="Name" name="name" required></s-text-field>
+            <input type="hidden" name="type" value={selectedKind} />
+          </s-stack>
 
           <s-divider></s-divider>
 
           <s-stack gap="small-200">
             <s-heading>Template</s-heading>
+            <s-paragraph color="subdued">Choose how this widget shows your reels.</s-paragraph>
             <TemplatePicker value={selectedKind} onChange={setSelectedKind} />
           </s-stack>
         </s-stack>
