@@ -18,6 +18,13 @@ via {% content_for %} like a section block.
 {{ 'reel-pop.css' | asset_url | stylesheet_tag }}
 
 {% assign reel_namespace = 'app--404281098241' %}
+{% comment %}
+  Master storefront-wide switch, set from the app's Settings page. Missing
+  (merchant hasn't visited Settings since this shipped, or a brand new
+  install before its first sync) is treated as enabled — only an explicit
+  `false` suppresses every widget.
+{% endcomment %}
+{% assign shop_enabled = shop.metafields[reel_namespace].enabled.value %}
 
 {% assign position_class = 'reelup-pop--' | append: block.settings.position | replace: '_', '-' %}
 {% unless block.settings.show_pulse %}
@@ -34,7 +41,7 @@ via {% content_for %} like a section block.
 {% assign featured_reel = shop.metafields[reel_namespace].reel_pops_featured_reel %}
 
 {% assign widget_matches_product = false %}
-{% if widget_field.value.published %}
+{% if widget_field.value.published and shop_enabled != false %}
   {% if widget_field.value.targetRule.type == "all_products" %}
     {% assign widget_matches_product = true %}
   {% elsif widget_field.value.targetRule.type == "handles" and product and widget_field.value.targetRule.handles contains product.handle %}
