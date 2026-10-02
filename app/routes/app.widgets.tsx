@@ -106,15 +106,19 @@ function WidgetCard({ widget, onOpen }: { widget: Widget; onOpen: (widget: Widge
     <s-clickable
       padding="base"
       background="subdued"
+      border="base"
       borderRadius="base"
       commandFor="widget-detail-modal"
       command="--show"
       onClick={() => onOpen(widget)}
     >
       <s-stack gap="small-200">
-        <s-text type="strong">{widget.name}</s-text>
+        <s-stack direction="inline" gap="small-200" alignItems="center">
+          {meta && <s-icon type={meta.icon} tone="neutral"></s-icon>}
+          <s-text type="strong">{widget.name}</s-text>
+        </s-stack>
         <s-text color="subdued">{meta?.name ?? widget.type}</s-text>
-        <s-stack direction="inline" gap="small-200">
+        <s-stack direction="inline" gap="small-100">
           <s-badge tone={widget.published ? "success" : "neutral"}>
             {widget.published ? "Published" : "Draft"}
           </s-badge>

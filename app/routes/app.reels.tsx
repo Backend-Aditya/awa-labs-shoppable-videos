@@ -346,6 +346,7 @@ function ReelCard({ reel, onOpen }: { reel: Reel; onOpen: (reel: Reel) => void }
     <s-clickable
       padding="base"
       background="subdued"
+      border="base"
       borderRadius="base"
       commandFor="reel-detail-modal"
       command="--show"
@@ -368,11 +369,16 @@ function ReelCard({ reel, onOpen }: { reel: Reel; onOpen: (reel: Reel) => void }
               width: "100%",
               borderRadius: THUMBNAIL_RADIUS,
               background: "var(--p-color-bg-surface-strong, #d9d9d9)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
-          ></div>
+          >
+            <s-icon type="play-circle" tone="neutral"></s-icon>
+          </div>
         )}
         <s-text type="strong">{reel.title}</s-text>
-        <s-stack direction="inline" gap="small-200">
+        <s-stack direction="inline" gap="small-100">
           <s-badge tone={reel.published ? "success" : "neutral"}>
             {reel.published ? "Published" : "Draft"}
           </s-badge>
