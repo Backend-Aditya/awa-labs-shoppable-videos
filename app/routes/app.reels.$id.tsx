@@ -6,6 +6,7 @@ import type {
 import { useRef, useState } from "react";
 import { Form, redirect, useActionData, useFetcher, useLoaderData, useNavigation } from "react-router";
 import { Stream } from "@cloudflare/stream-react";
+import type { StreamPlayerApi } from "@cloudflare/stream-react";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
@@ -125,7 +126,7 @@ export default function ReelDetail() {
   const shopify = useAppBridge();
   const productsFetcher = useFetcher<typeof action>();
   const publishedRef = useRef<HTMLInputElement>(null);
-  const streamRef = useRef<any>(null);
+  const streamRef = useRef<StreamPlayerApi | undefined>(undefined);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -147,12 +148,12 @@ export default function ReelDetail() {
 
   if (!reel) {
     return (
-      <s-page heading="Reel detail — error">
+      <s-page heading="Reel detail — error" inlineSize="large">
         <s-section>
           <form method="get" action="/app/reels" style={{ margin: 0 }}>
             <button
               type="submit"
-              style={{ all: "unset", cursor: "pointer", color: "#2c6ecb", textDecoration: "underline" }}
+              style={{ all: "unset", cursor: "pointer", color: "var(--p-color-text-link, #2c6ecb)", textDecoration: "underline" }}
             >
               Back to reels
             </button>
@@ -176,7 +177,7 @@ export default function ReelDetail() {
           : "neutral";
 
   return (
-    <s-page heading={reel.title}>
+    <s-page heading={reel.title} inlineSize="large">
       <s-section>
         <form method="get" action="/app/reels" style={{ margin: 0 }}>
           <PreserveSearchParams />
@@ -185,7 +186,7 @@ export default function ReelDetail() {
             style={{
               all: "unset",
               cursor: "pointer",
-              color: "#2c6ecb",
+              color: "var(--p-color-text-link, #2c6ecb)",
               textDecoration: "underline",
             }}
           >

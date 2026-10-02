@@ -18,6 +18,8 @@ import {
 import type { Reel } from "../models/reel.server";
 import { deriveReelStatus } from "../models/reel-status";
 import { createDirectUploadUrl, getCloudflareConfig } from "../models/cloudflare-stream.server";
+import { StatTile } from "../components/StatTile";
+import { useResourceDetail } from "../components/useResourceDetail";
 import prisma from "../db.server";
 
 // Route param is the trailing numeric id only — a raw GID (gid://shopify/Metaobject/123)
@@ -29,40 +31,6 @@ function reelNumericId(reel: Reel): string {
 // Matches s-image's borderRadius="base" token, so the no-poster placeholder
 // lines up with real thumbnails instead of drifting from a separate value.
 const THUMBNAIL_RADIUS = "8px";
-
-type StatIcon = "video" | "check-circle" | "play-circle" | "hashtag" | "view" | "cursor";
-
-function StatTile({
-  label,
-  value,
-  icon,
-  tone,
-  accent,
-}: {
-  label: string;
-  value: number;
-  icon: StatIcon;
-  tone?: "info" | "success";
-  accent?: boolean;
-}) {
-  return (
-    <s-box
-      padding="base"
-      background={accent ? "base" : "subdued"}
-      border={accent ? "base" : undefined}
-      borderColor={accent ? "strong" : undefined}
-      borderRadius="base"
-    >
-      <s-stack gap="small-200">
-        <s-stack direction="inline" gap="small-200" alignItems="center">
-          <s-icon type={icon} tone={tone ?? "neutral"}></s-icon>
-          <s-text color="subdued">{label}</s-text>
-        </s-stack>
-        <s-heading>{value}</s-heading>
-      </s-stack>
-    </s-box>
-  );
-}
 
 const REEL_STATUS_LABELS: Record<string, string> = {
   draft: "No video",
@@ -390,58 +358,22 @@ function ReelDetailModal({
   href: string | null;
   onClose: () => void;
 }) {
-  const detailFetcher = useFetcher<ReelDetailLoaderData>();
   const editFetcher = useFetcher<{ error: string | null }>();
   const productsFetcher = useFetcher<{ error: string | null }>();
   const deleteFetcher = useFetcher();
   const shopify = useAppBridge();
   const publishedRef = useRef<HTMLInputElement>(null);
-  // This modal instance is shared across every reel — detailFetcher.data
-  // doesn't clear when href changes, it keeps the PREVIOUS reel's data until
-  // the new load resolves. Without this gate, opening reel B right after
-  // editing reel A briefly renders reel A's published/title/products under
-  // reel B's heading (the checkbox in particular looked "stuck" from the
-  // last reel touched). pendingHrefRef records which href is in flight;
-  // resolvedHref is only set once that load actually completes, so `data`
-  // below is exposed only when it truly belongs to the current href.
-  const pendingHrefRef = useRef<string | null>(null);
-  const [resolvedHref, setResolvedHref] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (href) {
-      pendingHrefRef.current = href;
-      detailFetcher.load(href);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [href]);
-
-  useEffect(() => {
-    if (detailFetcher.state === "idle" && detailFetcher.data) {
-      setResolvedHref(pendingHrefRef.current);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [detailFetcher.state, detailFetcher.data]);
-
-  useEffect(() => {
-    if (href && editFetcher.state === "idle" && editFetcher.data) {
-      detailFetcher.load(href);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editFetcher.state, editFetcher.data]);
-
-  useEffect(() => {
-    if (href && productsFetcher.state === "idle" && productsFetcher.data) {
-      detailFetcher.load(href);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [productsFetcher.state, productsFetcher.data]);
+  const { data, isLoading } = useResourceDetail<ReelDetailLoaderData>(href, [
+    editFetcher,
+    productsFetcher,
+  ]);
 
   const handlePickProducts = async () => {
     if (!href) return;
     const selected = await shopify.resourcePicker({
       type: "product",
       multiple: true,
-      selectionIds: (detailFetcher.data?.taggedProducts ?? []).map((p) => ({ id: p.id })),
+      selectionIds: (data?.taggedProducts ?? []).map((p) => ({ id: p.id })),
     });
     if (!selected) return;
 
@@ -453,13 +385,12 @@ function ReelDetailModal({
     productsFetcher.submit(formData, { method: "post", action: href });
   };
 
-  const data = resolvedHref === href ? detailFetcher.data : undefined;
   const detailReel = data?.reel ?? null;
   const status = detailReel ? deriveReelStatus(detailReel.config) : null;
 
   return (
     <s-modal id="reel-detail-modal" heading={reel?.title ?? "Reel"} accessibilityLabel={reel?.title ?? "Reel"} onHide={onClose}>
-      {!data ? (
+      {isLoading || !data ? (
         <s-paragraph>Loading…</s-paragraph>
       ) : data.loaderError ? (
         <s-paragraph tone="critical">{data.loaderError}</s-paragraph>

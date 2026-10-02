@@ -14,7 +14,7 @@ export default function Settings() {
   const { plan } = useLoaderData<typeof loader>();
 
   return (
-    <s-page heading="Settings">
+    <s-page heading="Settings" inlineSize="large">
       <s-section heading="Account">
         <s-paragraph>
           Current plan: <s-text>{plan}</s-text>

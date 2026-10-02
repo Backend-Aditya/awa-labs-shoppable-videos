@@ -12,6 +12,8 @@ import { getOrCreateShop } from "../models/shop.server";
 import { createWidget, listWidgetsForShop } from "../models/widget.server";
 import type { WidgetConfig, WidgetKind } from "../models/widget.server";
 import type { Widget } from "@prisma/client";
+import { useResourceDetail } from "../components/useResourceDetail";
+import { StatTile } from "../components/StatTile";
 
 interface WidgetTemplateMeta {
   kind: WidgetKind;
@@ -203,7 +205,6 @@ function WidgetDetailModal({
   href: string | null;
   onClose: () => void;
 }) {
-  const detailFetcher = useFetcher<WidgetDetailLoaderData>();
   const editFetcher = useFetcher<{ error: string | null }>();
   const targetFetcher = useFetcher<{ error: string | null }>();
   const featuredReelFetcher = useFetcher<{ error: string | null }>();
@@ -211,57 +212,12 @@ function WidgetDetailModal({
   const deleteFetcher = useFetcher();
   const shopify = useAppBridge();
   const publishedRef = useRef<HTMLInputElement>(null);
-  // Shared modal instance across every widget — see the identical comment in
-  // ReelDetailModal (app.reels.tsx): without this gate, opening widget B
-  // right after editing widget A briefly renders widget A's stale
-  // published/name/target under widget B's heading.
-  const pendingHrefRef = useRef<string | null>(null);
-  const [resolvedHref, setResolvedHref] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (href) {
-      pendingHrefRef.current = href;
-      detailFetcher.load(href);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [href]);
-
-  useEffect(() => {
-    if (detailFetcher.state === "idle" && detailFetcher.data) {
-      setResolvedHref(pendingHrefRef.current);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [detailFetcher.state, detailFetcher.data]);
-
-  useEffect(() => {
-    if (href && editFetcher.state === "idle" && editFetcher.data) {
-      detailFetcher.load(href);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editFetcher.state, editFetcher.data]);
-
-  useEffect(() => {
-    if (href && targetFetcher.state === "idle" && targetFetcher.data) {
-      detailFetcher.load(href);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [targetFetcher.state, targetFetcher.data]);
-
-  useEffect(() => {
-    if (href && featuredReelFetcher.state === "idle" && featuredReelFetcher.data) {
-      detailFetcher.load(href);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [featuredReelFetcher.state, featuredReelFetcher.data]);
-
-  useEffect(() => {
-    if (href && reelsFetcher.state === "idle" && reelsFetcher.data) {
-      detailFetcher.load(href);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [reelsFetcher.state, reelsFetcher.data]);
-
-  const detailData = resolvedHref === href ? detailFetcher.data : undefined;
+  const { data: detailData } = useResourceDetail<WidgetDetailLoaderData>(href, [
+    editFetcher,
+    targetFetcher,
+    featuredReelFetcher,
+    reelsFetcher,
+  ]);
   const detailWidget = detailData?.widget ?? null;
   const targetRule = detailWidget
     ? (detailWidget.config as unknown as WidgetConfig).targetRule
@@ -524,20 +480,10 @@ export default function Widgets() {
       <s-button slot="primary-action" variant="primary" commandFor="create-widget-modal" command="--show">
         Create widget
       </s-button>
-      <s-section>
+      <s-section heading="Overview">
         <s-grid gridTemplateColumns="repeat(auto-fill, minmax(220px, 1fr))" gap="base">
-          <s-box padding="base" background="subdued" borderRadius="base">
-            <s-stack gap="small-200">
-              <s-text color="subdued">Total widgets</s-text>
-              <s-heading>{widgets.length}</s-heading>
-            </s-stack>
-          </s-box>
-          <s-box padding="base" background="subdued" borderRadius="base">
-            <s-stack gap="small-200">
-              <s-text color="subdued">Published</s-text>
-              <s-heading>{publishedCount}</s-heading>
-            </s-stack>
-          </s-box>
+          <StatTile label="Total widgets" value={widgets.length} icon="hashtag" />
+          <StatTile label="Published" value={publishedCount} icon="check-circle" />
         </s-grid>
       </s-section>
 

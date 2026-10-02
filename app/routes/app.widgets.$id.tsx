@@ -132,7 +132,7 @@ export default function WidgetDetail() {
   };
 
   return (
-    <s-page heading={widget.name}>
+    <s-page heading={widget.name} inlineSize="large">
       <s-section>
         <form method="get" action="/app/widgets" style={{ margin: 0 }}>
           <PreserveSearchParams />
@@ -141,7 +141,7 @@ export default function WidgetDetail() {
             style={{
               all: "unset",
               cursor: "pointer",
-              color: "#2c6ecb",
+              color: "var(--p-color-text-link, #2c6ecb)",
               textDecoration: "underline",
             }}
           >
