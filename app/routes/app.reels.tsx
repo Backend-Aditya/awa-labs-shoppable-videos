@@ -439,14 +439,20 @@ function ReelDetailModal({
   const status = detailReel ? deriveReelStatus(detailReel.config) : null;
 
   return (
-    <s-modal id="reel-detail-modal" heading={reel?.title ?? "Reel"} accessibilityLabel={reel?.title ?? "Reel"} onHide={onClose}>
+    <s-modal
+      id="reel-detail-modal"
+      heading={reel?.title ?? "Reel"}
+      accessibilityLabel={reel?.title ?? "Reel"}
+      size="large"
+      onHide={onClose}
+    >
       {isLoading || !data ? (
         <s-paragraph>Loading…</s-paragraph>
       ) : data.loaderError ? (
         <s-paragraph tone="critical">{data.loaderError}</s-paragraph>
       ) : detailReel ? (
         <s-stack gap="large">
-          <s-stack gap="small-200" alignItems="center">
+          <s-grid gridTemplateColumns="minmax(120px, 160px) 1fr" gap="base">
             {detailReel.config.cloudflareStreamUid ? (
               <iframe
                 src={`https://iframe.videodelivery.net/${encodeURIComponent(detailReel.config.cloudflareStreamUid)}`}
@@ -456,43 +462,39 @@ function ReelDetailModal({
                   borderRadius: "8px",
                   aspectRatio: "9 / 16",
                   width: "100%",
-                  maxWidth: "220px",
                 }}
                 allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
                 allowFullScreen
               ></iframe>
             ) : (
-              <s-box padding="large" background="subdued" borderRadius="base" inlineSize="100%">
-                <s-paragraph>No video uploaded yet.</s-paragraph>
-              </s-box>
+              <div
+                style={{
+                  aspectRatio: "9 / 16",
+                  width: "100%",
+                  borderRadius: "8px",
+                  background: "var(--p-color-bg-surface-strong, #d9d9d9)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <s-icon type="play-circle" tone="neutral"></s-icon>
+              </div>
             )}
-            <s-stack direction="inline" gap="small-200">
-              <s-badge tone={detailReel.published ? "success" : "neutral"}>
-                {detailReel.published ? "Published" : "Draft"}
-              </s-badge>
-              <s-badge tone={statusTone(status)}>{status ? REEL_STATUS_LABELS[status] : ""}</s-badge>
+
+            <s-stack gap="base">
+              <s-stack direction="inline" gap="small-100">
+                <s-badge tone={detailReel.published ? "success" : "neutral"}>
+                  {detailReel.published ? "Published" : "Draft"}
+                </s-badge>
+                <s-badge tone={statusTone(status)}>{status ? REEL_STATUS_LABELS[status] : ""}</s-badge>
+              </s-stack>
+              <s-grid gridTemplateColumns="repeat(2, 1fr)" gap="small-200">
+                <StatTile label="Views" value={data.analytics?.views || 0} icon="view" tone="info" />
+                <StatTile label="Product clicks" value={data.analytics?.clicks || 0} icon="cursor" tone="success" />
+              </s-grid>
             </s-stack>
-          </s-stack>
-
-          <s-divider></s-divider>
-
-          <s-stack gap="small-200">
-            <s-heading>Analytics</s-heading>
-            <s-grid gridTemplateColumns="repeat(2, 1fr)" gap="small-200">
-              <s-box padding="base" background="subdued" borderRadius="base">
-                <s-stack gap="small-200">
-                  <s-text color="subdued">Views</s-text>
-                  <s-heading>{data.analytics?.views || 0}</s-heading>
-                </s-stack>
-              </s-box>
-              <s-box padding="base" background="subdued" borderRadius="base">
-                <s-stack gap="small-200">
-                  <s-text color="subdued">Product clicks</s-text>
-                  <s-heading>{data.analytics?.clicks || 0}</s-heading>
-                </s-stack>
-              </s-box>
-            </s-grid>
-          </s-stack>
+          </s-grid>
 
           <s-divider></s-divider>
 
@@ -536,32 +538,36 @@ function ReelDetailModal({
           <s-divider></s-divider>
 
           <s-stack gap="base">
-            <s-heading>Tagged products</s-heading>
+            <s-stack direction="inline" gap="small-200" alignItems="center" justifyContent="space-between">
+              <s-heading>
+                Tagged products{data.taggedProducts.length > 0 ? ` (${data.taggedProducts.length})` : ""}
+              </s-heading>
+              <s-button
+                variant="secondary"
+                onClick={handlePickProducts}
+                loading={productsFetcher.state !== "idle"}
+              >
+                {data.taggedProducts.length === 0 ? "Tag products" : "Edit"}
+              </s-button>
+            </s-stack>
             {productsFetcher.data?.error && (
               <s-paragraph tone="critical">{productsFetcher.data.error}</s-paragraph>
             )}
             {data.taggedProducts.length === 0 ? (
-              <s-paragraph>No products tagged yet.</s-paragraph>
+              <s-paragraph color="subdued">No products tagged yet.</s-paragraph>
             ) : (
-              <s-stack gap="small-200">
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--p-space-200, 8px)" }}>
                 {data.taggedProducts.map((product) => (
-                  <s-paragraph key={product.id}>{product.title}</s-paragraph>
+                  <s-badge key={product.id}>{product.title}</s-badge>
                 ))}
-              </s-stack>
+              </div>
             )}
-            <s-button
-              variant="secondary"
-              onClick={handlePickProducts}
-              loading={productsFetcher.state !== "idle"}
-            >
-              {data.taggedProducts.length === 0 ? "Tag products" : "Edit tagged products"}
-            </s-button>
           </s-stack>
 
           <s-divider></s-divider>
 
-          <s-stack gap="base">
-            <s-heading>Danger zone</s-heading>
+          <s-stack direction="inline" gap="base" alignItems="center" justifyContent="space-between">
+            <s-text color="subdued">Deleting a reel can&rsquo;t be undone.</s-text>
             <deleteFetcher.Form
               method="post"
               action={href ?? undefined}
@@ -579,7 +585,7 @@ function ReelDetailModal({
               }}
             >
               <input type="hidden" name="intent" value="delete" />
-              <s-button type="submit" variant="secondary" tone="critical" loading={deleteFetcher.state !== "idle"}>
+              <s-button type="submit" variant="tertiary" tone="critical" loading={deleteFetcher.state !== "idle"}>
                 Delete reel
               </s-button>
             </deleteFetcher.Form>
