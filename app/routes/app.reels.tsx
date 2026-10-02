@@ -32,6 +32,18 @@ function reelNumericId(reel: Reel): string {
 // lines up with real thumbnails instead of drifting from a separate value.
 const THUMBNAIL_RADIUS = "8px";
 
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ["KB", "MB", "GB"];
+  let value = bytes / 1024;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  return `${value.toFixed(1)} ${units[unitIndex]}`;
+}
+
 const REEL_STATUS_LABELS: Record<string, string> = {
   draft: "No video",
   processing: "Processing",
@@ -239,38 +251,70 @@ function CreateReelModal() {
         }}
       >
         <input type="hidden" name="intent" value="start-upload" />
-        <s-stack gap="base">
+        <s-stack gap="large">
           {fetcher.data?.error && (
             <s-paragraph tone="critical">{fetcher.data.error}</s-paragraph>
           )}
-          <s-text-field label="Title" name="title" required></s-text-field>
-          <input type="hidden" name="published" ref={publishedRef} defaultValue="" key={`published-input-${publishedKey}`} />
-          <s-checkbox
-            key={`published-checkbox-${publishedKey}`}
-            label="Published"
-            defaultChecked={false}
-            onChange={(event: { currentTarget: { checked: boolean } | null }) => {
-              if (publishedRef.current && event.currentTarget) {
-                publishedRef.current.value = event.currentTarget.checked ? "true" : "";
-              }
-            }}
-          ></s-checkbox>
-          <s-drop-zone
-            key={dropZoneKey}
-            label="Video file"
-            accept="video/*"
-            accessibilityLabel="Video file"
-            onChange={(event) => setFile(event.currentTarget.files?.[0] ?? null)}
-          ></s-drop-zone>
-          {uploadStatus === "uploading" && (
-            <s-paragraph>Uploading to Cloudflare…</s-paragraph>
-          )}
-          {uploadStatus === "error" && (
-            <s-paragraph tone="critical">Upload failed. Try again.</s-paragraph>
-          )}
-          {uploadStatus === "no-file" && (
-            <s-paragraph tone="critical">Choose a video file first.</s-paragraph>
-          )}
+
+          <s-stack gap="base">
+            <s-text-field label="Title" name="title" required></s-text-field>
+            <input type="hidden" name="published" ref={publishedRef} defaultValue="" key={`published-input-${publishedKey}`} />
+            <s-checkbox
+              key={`published-checkbox-${publishedKey}`}
+              label="Published"
+              defaultChecked={false}
+              onChange={(event: { currentTarget: { checked: boolean } | null }) => {
+                if (publishedRef.current && event.currentTarget) {
+                  publishedRef.current.value = event.currentTarget.checked ? "true" : "";
+                }
+              }}
+            ></s-checkbox>
+          </s-stack>
+
+          <s-divider></s-divider>
+
+          <s-stack gap="small-200">
+            <s-heading>Video</s-heading>
+            {file ? (
+              <s-box padding="base" background="subdued" borderRadius="base">
+                <s-stack direction="inline" gap="base" alignItems="center">
+                  <s-icon type="play-circle" tone="info"></s-icon>
+                  <s-stack gap="small-100">
+                    <s-text type="strong">{file.name}</s-text>
+                    <s-text color="subdued">{formatBytes(file.size)}</s-text>
+                  </s-stack>
+                  <s-button
+                    type="button"
+                    variant="tertiary"
+                    tone="critical"
+                    onClick={() => {
+                      setFile(null);
+                      setDropZoneKey((k) => k + 1);
+                    }}
+                  >
+                    Remove
+                  </s-button>
+                </s-stack>
+              </s-box>
+            ) : (
+              <s-drop-zone
+                key={dropZoneKey}
+                label="Video file"
+                accept="video/*"
+                accessibilityLabel="Video file"
+                onChange={(event) => setFile(event.currentTarget.files?.[0] ?? null)}
+              ></s-drop-zone>
+            )}
+            {uploadStatus === "uploading" && (
+              <s-paragraph>Uploading to Cloudflare…</s-paragraph>
+            )}
+            {uploadStatus === "error" && (
+              <s-paragraph tone="critical">Upload failed. Try again.</s-paragraph>
+            )}
+            {uploadStatus === "no-file" && (
+              <s-paragraph tone="critical">Choose a video file first.</s-paragraph>
+            )}
+          </s-stack>
         </s-stack>
       </fetcher.Form>
       <s-button

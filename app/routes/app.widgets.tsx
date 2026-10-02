@@ -19,6 +19,7 @@ interface WidgetTemplateMeta {
   kind: WidgetKind;
   name: string;
   description: string;
+  icon: "layout-rows-2" | "play-circle" | "layout-columns-3" | "images" | "layout-popup";
 }
 
 const WIDGET_TEMPLATES: WidgetTemplateMeta[] = [
@@ -26,26 +27,31 @@ const WIDGET_TEMPLATES: WidgetTemplateMeta[] = [
     kind: "PRODUCT_PAGE_REELS",
     name: "Product page reels",
     description: "A row of tagged reels on the product page.",
+    icon: "layout-rows-2",
   },
   {
     kind: "SINGLE_VIDEO",
     name: "Single video",
     description: "One featured video, no carousel.",
+    icon: "play-circle",
   },
   {
     kind: "CAROUSEL",
     name: "Stacked carousel",
     description: "Tagged reels as a swipeable stacked deck.",
+    icon: "layout-columns-3",
   },
   {
     kind: "STORIES",
     name: "Insta-style stories",
     description: "Circular avatars that open a full-screen story viewer.",
+    icon: "images",
   },
   {
     kind: "REEL_POPS",
     name: "Reel pops",
     description: "A site-wide floating bubble that expands into a video.",
+    icon: "layout-popup",
   },
 ];
 
@@ -133,21 +139,30 @@ function TemplatePicker({
   onChange: (kind: WidgetKind) => void;
 }) {
   return (
-    <s-grid gridTemplateColumns="repeat(auto-fill, minmax(160px, 1fr))" gap="small-200">
-      {WIDGET_TEMPLATES.map((template) => (
-        <s-clickable
-          key={template.kind}
-          padding="base"
-          background={template.kind === value ? "strong" : "subdued"}
-          borderRadius="base"
-          onClick={() => onChange(template.kind)}
-        >
-          <s-stack gap="small-200">
-            <s-text>{template.name}</s-text>
-            <s-text color="subdued">{template.description}</s-text>
-          </s-stack>
-        </s-clickable>
-      ))}
+    <s-grid gridTemplateColumns="repeat(auto-fill, minmax(180px, 1fr))" gap="small-200">
+      {WIDGET_TEMPLATES.map((template) => {
+        const selected = template.kind === value;
+        return (
+          <s-clickable
+            key={template.kind}
+            padding="base"
+            background={selected ? "strong" : "subdued"}
+            border="base"
+            borderColor={selected ? "strong" : undefined}
+            borderRadius="base"
+            onClick={() => onChange(template.kind)}
+          >
+            <s-stack gap="small-200">
+              <s-stack direction="inline" gap="small-200" alignItems="center" justifyContent="space-between">
+                <s-icon type={template.icon} tone={selected ? "info" : "neutral"}></s-icon>
+                {selected && <s-icon type="check-circle-filled" tone="info"></s-icon>}
+              </s-stack>
+              <s-text type="strong">{template.name}</s-text>
+              <s-text color="subdued">{template.description}</s-text>
+            </s-stack>
+          </s-clickable>
+        );
+      })}
     </s-grid>
   );
 }
@@ -167,13 +182,19 @@ function CreateWidgetModal() {
   return (
     <s-modal id="create-widget-modal" heading="Create a widget" accessibilityLabel="Create a widget">
       <fetcher.Form id="create-widget-form" ref={formRef} method="post">
-        <s-stack gap="base">
+        <s-stack gap="large">
           {fetcher.data?.error && (
             <s-paragraph tone="critical">{fetcher.data.error}</s-paragraph>
           )}
           <s-text-field label="Name" name="name" required></s-text-field>
           <input type="hidden" name="type" value={selectedKind} />
-          <TemplatePicker value={selectedKind} onChange={setSelectedKind} />
+
+          <s-divider></s-divider>
+
+          <s-stack gap="small-200">
+            <s-heading>Template</s-heading>
+            <TemplatePicker value={selectedKind} onChange={setSelectedKind} />
+          </s-stack>
         </s-stack>
       </fetcher.Form>
       <s-button
