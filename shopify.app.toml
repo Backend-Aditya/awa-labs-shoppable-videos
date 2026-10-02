@@ -183,17 +183,10 @@ api_version = "2026-10"
   uri = "/webhooks/app/scopes_update"
   topics = [ "app/scopes_update" ]
 
-  [[webhooks.subscriptions]]
-  uri = "/webhooks/customers/data_request"
-  topics = [ "customers/data_request" ]
-
-  [[webhooks.subscriptions]]
-  uri = "/webhooks/customers/redact"
-  topics = [ "customers/redact" ]
-
-  [[webhooks.subscriptions]]
-  uri = "/webhooks/shop/redact"
-  topics = [ "shop/redact" ]
+  [webhooks.privacy_compliance]
+  customer_data_request_url = "https://awa-shoppable-videos.onrender.com/webhooks/customers/data_request"
+  customer_deletion_url = "https://awa-shoppable-videos.onrender.com/webhooks/customers/redact"
+  shop_deletion_url = "https://awa-shoppable-videos.onrender.com/webhooks/shop/redact"
 
 [build]
 automatically_update_urls_on_dev = true
