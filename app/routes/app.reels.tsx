@@ -466,10 +466,24 @@ function ReelCard({
         </s-stack>
       </s-stack>
       </s-clickable>
-      <div style={{ position: "absolute", top: "8px", right: "8px" }}>
+      {/* Inset to match s-clickable's own padding="base" (16px) so this
+          lands right on the poster image's corner, not floating above it
+          relative to the card's outer edge. A solid background chip (not
+          "tertiary", which is transparent) keeps the icon legible over an
+          arbitrary photo. */}
+      <div
+        style={{
+          position: "absolute",
+          top: "16px",
+          right: "16px",
+          borderRadius: "999px",
+          boxShadow: "0 1px 4px rgba(0, 0, 0, 0.25)",
+          overflow: "hidden",
+        }}
+      >
         <s-button
           icon="menu-horizontal"
-          variant="tertiary"
+          variant="secondary"
           accessibilityLabel={`More actions for ${reel.title}`}
           commandFor="reel-delete-modal"
           command="--show"
