@@ -14,6 +14,8 @@ import type { WidgetConfig, WidgetKind } from "../models/widget.server";
 import type { Widget } from "@prisma/client";
 import { useResourceDetail } from "../components/useResourceDetail";
 import { StatTile } from "../components/StatTile";
+import { deriveReelStatus } from "../models/reel-status";
+import type { ReelConfig } from "../models/reel.server";
 
 interface WidgetTemplateMeta {
   kind: WidgetKind;
@@ -226,10 +228,93 @@ function CreateWidgetModal() {
   );
 }
 
+type PickableReel = {
+  id: string;
+  title: string;
+  config: Pick<ReelConfig, "posterUrl" | "hlsManifestUrl" | "cloudflareStreamUid" | "uploadFailedAt">;
+};
+
 type WidgetDetailLoaderData = {
   widget: Widget;
-  reels: { id: string; title: string }[];
+  reels: PickableReel[];
 };
+
+const REEL_STATUS_TONE: Record<string, "success" | "critical" | "info" | "neutral"> = {
+  ready: "success",
+  failed: "critical",
+  processing: "info",
+  draft: "neutral",
+};
+
+const REEL_STATUS_LABEL: Record<string, string> = {
+  ready: "Ready",
+  failed: "Failed",
+  processing: "Processing",
+  draft: "No video",
+};
+
+// Reels aren't a real Shopify resource, so there's no native resourcePicker
+// for them (unlike products, which use shopify.resourcePicker directly) —
+// this is the closest equivalent: a thumbnail + title + status row that
+// toggles selection on click, used for both the single-select "Featured
+// reel" picker and the multi-select "Reels" picker, instead of a bare
+// <select> or a plain checkbox-per-line list.
+function ReelPickerRow({
+  reel,
+  selected,
+  onToggle,
+}: {
+  reel: PickableReel;
+  selected: boolean;
+  onToggle: () => void;
+}) {
+  const status = deriveReelStatus(reel.config as ReelConfig);
+  return (
+    <s-clickable
+      type="button"
+      padding="small-200"
+      background={selected ? "strong" : "transparent"}
+      borderRadius="base"
+      onClick={onToggle}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--p-space-base, 12px)" }}>
+        <div style={{ width: "32px", flexShrink: 0, aspectRatio: "9 / 16" }}>
+          {reel.config.posterUrl ? (
+            <s-image
+              src={reel.config.posterUrl}
+              alt={reel.title}
+              aspectRatio="9/16"
+              objectFit="cover"
+              inlineSize="fill"
+              borderRadius="small-100"
+            ></s-image>
+          ) : (
+            <div
+              style={{
+                width: "100%",
+                height: "100%",
+                borderRadius: "4px",
+                background: "var(--p-color-bg-surface-strong, #d9d9d9)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <s-icon type="play-circle" tone="neutral"></s-icon>
+            </div>
+          )}
+        </div>
+        <div style={{ flexGrow: 1, minWidth: 0 }}>
+          <s-stack gap="small-100">
+            <s-text type="strong">{reel.title}</s-text>
+            <s-badge tone={REEL_STATUS_TONE[status]}>{REEL_STATUS_LABEL[status]}</s-badge>
+          </s-stack>
+        </div>
+        {selected && <s-icon type="check-circle-filled" tone="info"></s-icon>}
+      </div>
+    </s-clickable>
+  );
+}
 
 function WidgetDetailModal({
   widget,
@@ -267,11 +352,12 @@ function WidgetDetailModal({
   // widget identity changes, not on every unrelated detailFetcher reload, so
   // in-progress selection edits survive an unrelated Save.
   const [selectedReelIds, setSelectedReelIds] = useState<Set<string>>(new Set());
+  const [selectedFeaturedReelId, setSelectedFeaturedReelId] = useState<string | null>(null);
   useEffect(() => {
     if (detailWidget) {
-      setSelectedReelIds(
-        new Set((detailWidget.config as unknown as WidgetConfig).reelIds ?? []),
-      );
+      const config = detailWidget.config as unknown as WidgetConfig;
+      setSelectedReelIds(new Set(config.reelIds ?? []));
+      setSelectedFeaturedReelId(config.featuredReelId ?? null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detailWidget?.id]);
@@ -413,38 +499,40 @@ function WidgetDetailModal({
             <>
               <s-divider></s-divider>
               <s-stack gap="base">
-                <s-heading>Featured reel</s-heading>
-                {featuredReelFetcher.data?.error && (
-                  <s-paragraph tone="critical">{featuredReelFetcher.data.error}</s-paragraph>
-                )}
-                <s-paragraph color="subdued">
-                  {(() => {
-                    const featuredReelId = (detailWidget.config as unknown as WidgetConfig)
-                      .featuredReelId;
-                    const reels = detailData?.reels ?? [];
-                    const featured = reels.find((r) => r.id === featuredReelId);
-                    return featured ? featured.title : "None chosen yet";
-                  })()}
-                </s-paragraph>
-                <featuredReelFetcher.Form method="post" action={href ?? undefined}>
-                  <input type="hidden" name="intent" value="set-featured-reel" />
-                  <s-stack gap="base">
-                    <s-select label="Choose reel" name="featuredReelId" required>
-                      {(detailData?.reels ?? []).map((reel) => (
-                        <s-option key={reel.id} value={reel.id}>
-                          {reel.title}
-                        </s-option>
-                      ))}
-                    </s-select>
+                <s-stack direction="inline" gap="small-200" alignItems="center" justifyContent="space-between">
+                  <s-heading>Featured reel</s-heading>
+                  <featuredReelFetcher.Form method="post" action={href ?? undefined}>
+                    <input type="hidden" name="intent" value="set-featured-reel" />
+                    <input type="hidden" name="featuredReelId" value={selectedFeaturedReelId ?? ""} />
                     <s-button
                       type="submit"
                       variant="secondary"
+                      disabled={!selectedFeaturedReelId}
                       loading={featuredReelFetcher.state !== "idle"}
                     >
-                      Save featured reel
+                      Save
                     </s-button>
-                  </s-stack>
-                </featuredReelFetcher.Form>
+                  </featuredReelFetcher.Form>
+                </s-stack>
+                {featuredReelFetcher.data?.error && (
+                  <s-paragraph tone="critical">{featuredReelFetcher.data.error}</s-paragraph>
+                )}
+                {(detailData?.reels.length ?? 0) === 0 ? (
+                  <s-paragraph color="subdued">No reels yet — create one from the Reels library first.</s-paragraph>
+                ) : (
+                  <s-box padding="small-200" background="subdued" borderRadius="base">
+                    <s-stack gap="small-100">
+                      {(detailData?.reels ?? []).map((reel) => (
+                        <ReelPickerRow
+                          key={reel.id}
+                          reel={reel}
+                          selected={selectedFeaturedReelId === reel.id}
+                          onToggle={() => setSelectedFeaturedReelId(reel.id)}
+                        />
+                      ))}
+                    </s-stack>
+                  </s-box>
+                )}
               </s-stack>
             </>
           )}
@@ -473,29 +561,31 @@ function WidgetDetailModal({
                   <s-paragraph tone="critical">{reelsFetcher.data.error}</s-paragraph>
                 )}
                 <s-paragraph color="subdued">
-                  Shown by this widget, same set on every targeted product page.
+                  Shown by this widget, same set on every targeted product page. Click a reel to toggle it.
                 </s-paragraph>
-                <s-box padding="base" background="subdued" borderRadius="base">
-                  <s-stack gap="small-200">
-                    {(detailData?.reels ?? []).map((reel) => (
-                      <s-checkbox
-                        key={`${detailWidget.id}-${reel.id}`}
-                        label={reel.title}
-                        defaultChecked={selectedReelIds.has(reel.id)}
-                        onChange={(event: { currentTarget: { checked: boolean } | null }) => {
-                          if (!event.currentTarget) return;
-                          const checked = event.currentTarget.checked;
-                          setSelectedReelIds((prev) => {
-                            const next = new Set(prev);
-                            if (checked) next.add(reel.id);
-                            else next.delete(reel.id);
-                            return next;
-                          });
-                        }}
-                      ></s-checkbox>
-                    ))}
-                  </s-stack>
-                </s-box>
+                {(detailData?.reels.length ?? 0) === 0 ? (
+                  <s-paragraph color="subdued">No reels yet — create one from the Reels library first.</s-paragraph>
+                ) : (
+                  <s-box padding="small-200" background="subdued" borderRadius="base">
+                    <s-stack gap="small-100">
+                      {(detailData?.reels ?? []).map((reel) => (
+                        <ReelPickerRow
+                          key={reel.id}
+                          reel={reel}
+                          selected={selectedReelIds.has(reel.id)}
+                          onToggle={() => {
+                            setSelectedReelIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(reel.id)) next.delete(reel.id);
+                              else next.add(reel.id);
+                              return next;
+                            });
+                          }}
+                        />
+                      ))}
+                    </s-stack>
+                  </s-box>
+                )}
               </s-stack>
             </>
           )}
