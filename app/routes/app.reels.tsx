@@ -617,6 +617,31 @@ function ReelDetailModal({
                     }
                   }}
                 ></s-checkbox>
+
+                <s-divider></s-divider>
+
+                <s-stack gap="small-100">
+                  <s-heading>Video SEO</s-heading>
+                  <s-paragraph color="subdued">
+                    Used for this video&rsquo;s schema.org metadata on the storefront, for search engines indexing it as video content.
+                  </s-paragraph>
+                </s-stack>
+                <s-text-field
+                  key={`seo-title-${detailReel.id}`}
+                  label="SEO title"
+                  name="seoTitle"
+                  defaultValue={detailReel.config.seoTitle ?? ""}
+                  placeholder={detailReel.title}
+                  maxLength={70}
+                ></s-text-field>
+                <s-text-area
+                  key={`seo-description-${detailReel.id}`}
+                  label="SEO description"
+                  name="seoDescription"
+                  defaultValue={detailReel.config.seoDescription ?? ""}
+                  maxLength={160}
+                  rows={3}
+                ></s-text-area>
               </s-stack>
             </editFetcher.Form>
           </s-stack>

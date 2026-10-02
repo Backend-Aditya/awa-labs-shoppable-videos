@@ -1,0 +1,31 @@
+{% doc %}
+Renders a schema.org VideoObject JSON-LD script tag for one rendered reel,
+so search engines can index it for video rich results. Call once per
+rendered reel trigger, right alongside its markup — JSON-LD doesn't need
+to be in <head> for crawlers to read it.
+
+@param reel {metaobject} - the reel metaobject being rendered (same
+  variable every block already has in scope at the point it renders a
+  trigger: reel.title.value, reel.config.value.*, reel.system.id)
+
+@example
+{% render 'reel-video-schema', reel: reel %}
+{% enddoc %}
+
+{%- liquid
+  assign seo_title = reel.config.value.seoTitle | default: reel.title.value
+  assign seo_description = reel.config.value.seoDescription | default: reel.title.value
+-%}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "VideoObject",
+  "name": {{ seo_title | json }},
+  "description": {{ seo_description | json }},
+  "contentUrl": {{ reel.config.value.hlsManifestUrl | json }},
+  "embedUrl": {{ reel.config.value.hlsManifestUrl | json }}{% if reel.config.value.posterUrl != blank %},
+  "thumbnailUrl": [{{ reel.config.value.posterUrl | json }}]{% endif %}{% if reel.config.value.durationSeconds %},
+  "duration": "PT{{ reel.config.value.durationSeconds | round }}S"{% endif %}{% if reel.system.created_at != blank %},
+  "uploadDate": {{ reel.system.created_at | json }}{% endif %}
+}
+</script>

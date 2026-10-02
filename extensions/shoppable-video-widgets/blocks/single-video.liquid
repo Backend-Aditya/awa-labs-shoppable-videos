@@ -53,6 +53,7 @@ any tagged products.
 {% endif %}
 
 {% if show_reel %}
+  {% render 'reel-video-schema', reel: reel %}
   <div class="reelup-single-video" style="{{ wrapper_style | strip_newlines | strip }} max-width: {{ block.settings.video_max_width }}px;" {{ block.shopify_attributes }}>
     <div
       class="reelup-trigger"

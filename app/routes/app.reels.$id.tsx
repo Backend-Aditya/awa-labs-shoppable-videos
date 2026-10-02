@@ -109,12 +109,18 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
   const title = String(formData.get("title") ?? "").trim();
   const published = formData.get("published") === "true";
+  const seoTitle = String(formData.get("seoTitle") ?? "").trim();
+  const seoDescription = String(formData.get("seoDescription") ?? "").trim();
 
   if (!title) {
     return { error: "Title is required" };
   }
 
-  await upsertReel(admin, reel.handle, title, published, reel.config);
+  await upsertReel(admin, reel.handle, title, published, {
+    ...reel.config,
+    seoTitle: seoTitle || undefined,
+    seoDescription: seoDescription || undefined,
+  });
   return { error: null };
 };
 
@@ -291,6 +297,30 @@ export default function ReelDetail() {
                   }
                 }}
               ></s-checkbox>
+
+              <s-divider></s-divider>
+
+              <s-stack gap="small-100">
+                <s-heading>Video SEO</s-heading>
+                <s-paragraph color="subdued">
+                  Used for this video&rsquo;s schema.org metadata on the storefront, for search engines indexing it as video content.
+                </s-paragraph>
+              </s-stack>
+              <s-text-field
+                label="SEO title"
+                name="seoTitle"
+                defaultValue={reel.config.seoTitle ?? ""}
+                placeholder={reel.title}
+                maxLength={70}
+              ></s-text-field>
+              <s-text-area
+                label="SEO description"
+                name="seoDescription"
+                defaultValue={reel.config.seoDescription ?? ""}
+                maxLength={160}
+                rows={3}
+              ></s-text-area>
+
               <s-button
                 type="submit"
                 variant="primary"

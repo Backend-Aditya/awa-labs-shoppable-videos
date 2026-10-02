@@ -8,6 +8,12 @@ export interface ReelConfig {
   productIds: string[];
   interactions: { ctaLabel?: string; ctaUrl?: string };
   source: { type: "upload" | "instagram" | "tiktok"; originalUrl?: string };
+  // Feeds the storefront's VideoObject JSON-LD (schema.org) for this reel —
+  // falls back to the reel's title/an empty description when unset. Kept in
+  // config rather than as separate metaobject fields since nothing else
+  // needs to query by them.
+  seoTitle?: string;
+  seoDescription?: string;
 }
 
 export interface Reel {

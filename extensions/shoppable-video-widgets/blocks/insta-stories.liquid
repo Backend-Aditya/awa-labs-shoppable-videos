@@ -54,6 +54,7 @@ other reel blocks.
   <div class="reelup-stories" data-reelup-story-group style="{{ wrapper_style | strip_newlines | strip }}" {{ block.shopify_attributes }}>
     {% for reel in reels_field.value %}
       {% if reel.published.value and reel.config.value.cloudflareStreamUid != blank and reel.config.value.hlsManifestUrl != blank %}
+        {% render 'reel-video-schema', reel: reel %}
         <div class="reelup-stories__item">
           <div
             class="reelup-trigger reelup-stories__avatar"

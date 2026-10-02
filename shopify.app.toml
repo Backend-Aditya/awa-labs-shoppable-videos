@@ -31,7 +31,7 @@ required = true
 name = "Config"
 type = "json"
 required = true
-description = "cloudflareStreamUid, posterUrl, durationSeconds, productIds, interactions {ctaLabel, ctaUrl}, source {type, originalUrl}"
+description = "cloudflareStreamUid, posterUrl, durationSeconds, productIds, interactions {ctaLabel, ctaUrl}, source {type, originalUrl}, seoTitle, seoDescription"
 
 [metaobjects.app.reel.fields.tagged_products]
 name = "Tagged products"

@@ -74,6 +74,7 @@ Liquid at render time, no runtime API call.
   <div class="reelup-product-reels" data-reelup-story-group style="{{ wrapper_style | strip_newlines | strip }}" {{ block.shopify_attributes }}>
     {% for reel in reels_field.value %}
       {% if reel.published.value and reel.config.value.cloudflareStreamUid != blank and reel.config.value.hlsManifestUrl != blank %}
+        {% render 'reel-video-schema', reel: reel %}
         <div class="reelup-product-reels__item">
           <div
             class="reelup-trigger"

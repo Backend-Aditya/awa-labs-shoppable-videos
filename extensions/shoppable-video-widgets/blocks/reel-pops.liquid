@@ -49,6 +49,7 @@ via {% content_for %} like a section block.
 {% endif %}
 
 {% if show_reel %}
+  {% render 'reel-video-schema', reel: reel %}
   <div class="reelup-pop {{ position_class }}" data-reelup-pop data-reel-id="{{ reel.system.id }}" data-block-id="{{ block.id }}" style="{{ wrapper_style }}">
     <button
       type="button"
