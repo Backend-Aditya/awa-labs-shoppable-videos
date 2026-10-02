@@ -1,8 +1,11 @@
 {% doc %}
 Renders a schema.org VideoObject JSON-LD script tag for one rendered reel,
-so search engines can index it for video rich results. Call once per
-rendered reel trigger, right alongside its markup — JSON-LD doesn't need
-to be in <head> for crawlers to read it.
+so search engines can index it for video rich results, plus a preconnect
+hint for its Cloudflare Stream origin so the DNS/TLS handshake is already
+warm by the time a shopper clicks the trigger. Call once per rendered reel
+trigger, right alongside its markup — JSON-LD doesn't need to be in <head>
+for crawlers to read it, and a <link rel="preconnect"> works anywhere in
+the document.
 
 @param reel {metaobject} - the reel metaobject being rendered (same
   variable every block already has in scope at the point it renders a
@@ -15,7 +18,22 @@ to be in <head> for crawlers to read it.
 {%- liquid
   assign seo_title = reel.config.value.seoTitle | default: reel.title.value
   assign seo_description = reel.config.value.seoDescription | default: reel.title.value
+
+  # Every reel in a shop shares the same Cloudflare Stream account, so this
+  # origin is identical across every reel on the page — browsers dedupe
+  # repeated identical preconnect hints, so emitting it once per trigger
+  # (rather than threading a "have we already done this" flag through 6
+  # different block files) costs nothing and stays correct if that ever
+  # changes.
+  assign manifest_url_parts = reel.config.value.hlsManifestUrl | split: '/'
+  assign stream_origin = ''
+  if manifest_url_parts.size >= 3
+    assign stream_origin = manifest_url_parts[0] | append: '//' | append: manifest_url_parts[2]
+  endif
 -%}
+{% if stream_origin != '' %}
+  <link rel="preconnect" href="{{ stream_origin }}" crossorigin>
+{% endif %}
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
