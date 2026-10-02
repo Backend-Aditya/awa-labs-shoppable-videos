@@ -286,22 +286,47 @@ function WidgetDetailModal({
     targetFetcher.submit(formData, { method: "post", action: href });
   };
 
+  const meta = detailWidget ? WIDGET_TEMPLATES.find((t) => t.kind === detailWidget.type) : undefined;
+  const showsFeaturedReel = detailWidget?.type === "SINGLE_VIDEO" || detailWidget?.type === "REEL_POPS";
+  const showsReelList =
+    detailWidget?.type === "PRODUCT_PAGE_REELS" ||
+    detailWidget?.type === "CAROUSEL" ||
+    detailWidget?.type === "STORIES";
+
   return (
-    <s-modal id="widget-detail-modal" heading={widget?.name ?? "Widget"} accessibilityLabel={widget?.name ?? "Widget"} onHide={onClose}>
+    <s-modal
+      id="widget-detail-modal"
+      heading={widget?.name ?? "Widget"}
+      accessibilityLabel={widget?.name ?? "Widget"}
+      size="large"
+      onHide={onClose}
+    >
       {!detailWidget ? (
         <s-paragraph>Loading…</s-paragraph>
       ) : (
         <s-stack gap="large">
-          <s-stack gap="small-200">
-            <s-stack direction="inline" gap="small-200">
-              <s-badge tone={detailWidget.published ? "success" : "neutral"}>
-                {detailWidget.published ? "Published" : "Draft"}
-              </s-badge>
-              <s-badge>{detailWidget.type}</s-badge>
+          <s-box padding="base" background="subdued" borderRadius="base">
+            <s-stack direction="inline" gap="base" alignItems="center">
+              {meta && (
+                <s-box padding="small-200" background="base" borderRadius="base">
+                  <s-icon type={meta.icon} tone="info"></s-icon>
+                </s-box>
+              )}
+              <s-stack gap="small-100">
+                <s-text type="strong">{meta?.name ?? detailWidget.type}</s-text>
+                <s-stack direction="inline" gap="small-100">
+                  <s-badge tone={detailWidget.published ? "success" : "neutral"}>
+                    {detailWidget.published ? "Published" : "Draft"}
+                  </s-badge>
+                  <s-badge tone="neutral">
+                    {targetRule?.type === "all_products"
+                      ? "All products"
+                      : `${currentHandles.length} product${currentHandles.length === 1 ? "" : "s"}`}
+                  </s-badge>
+                </s-stack>
+              </s-stack>
             </s-stack>
-          </s-stack>
-
-          <s-divider></s-divider>
+          </s-box>
 
           <s-stack gap="base">
             <s-heading>Details</s-heading>
@@ -343,37 +368,38 @@ function WidgetDetailModal({
           <s-divider></s-divider>
 
           <s-stack gap="base">
-            <s-heading>Target products</s-heading>
+            <s-stack direction="inline" gap="small-200" alignItems="center" justifyContent="space-between">
+              <s-heading>Target products</s-heading>
+              <s-stack direction="inline" gap="small-200">
+                <s-button
+                  variant="secondary"
+                  onClick={handlePickProducts}
+                  loading={targetFetcher.state !== "idle"}
+                >
+                  Choose products
+                </s-button>
+                {targetRule?.type === "handles" && (
+                  <s-button type="button" variant="tertiary" onClick={handleClearTarget}>
+                    Target all instead
+                  </s-button>
+                )}
+              </s-stack>
+            </s-stack>
             {targetFetcher.data?.error && (
               <s-paragraph tone="critical">{targetFetcher.data.error}</s-paragraph>
             )}
             {targetRule?.type === "all_products" ? (
-              <s-paragraph>Showing on all products.</s-paragraph>
+              <s-paragraph color="subdued">Showing on all products.</s-paragraph>
             ) : (
-              <s-stack gap="small-200">
-                <s-paragraph>Targeting {currentHandles.length} product(s):</s-paragraph>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--p-space-200, 8px)" }}>
                 {currentHandles.map((handle) => (
-                  <s-paragraph key={handle}>{handle}</s-paragraph>
+                  <s-badge key={handle}>{handle}</s-badge>
                 ))}
-              </s-stack>
+              </div>
             )}
-            <s-stack direction="inline" gap="small-200">
-              <s-button
-                variant="secondary"
-                onClick={handlePickProducts}
-                loading={targetFetcher.state !== "idle"}
-              >
-                Choose products
-              </s-button>
-              {targetRule?.type === "handles" && (
-                <s-button variant="tertiary" onClick={handleClearTarget}>
-                  Target all products instead
-                </s-button>
-              )}
-            </s-stack>
           </s-stack>
 
-          {(detailWidget.type === "SINGLE_VIDEO" || detailWidget.type === "REEL_POPS") && (
+          {showsFeaturedReel && (
             <>
               <s-divider></s-divider>
               <s-stack gap="base">
@@ -381,7 +407,7 @@ function WidgetDetailModal({
                 {featuredReelFetcher.data?.error && (
                   <s-paragraph tone="critical">{featuredReelFetcher.data.error}</s-paragraph>
                 )}
-                <s-paragraph>
+                <s-paragraph color="subdued">
                   {(() => {
                     const featuredReelId = (detailWidget.config as unknown as WidgetConfig)
                       .featuredReelId;
@@ -413,59 +439,61 @@ function WidgetDetailModal({
             </>
           )}
 
-          {(detailWidget.type === "PRODUCT_PAGE_REELS" ||
-            detailWidget.type === "CAROUSEL" ||
-            detailWidget.type === "STORIES") && (
+          {showsReelList && (
             <>
               <s-divider></s-divider>
               <s-stack gap="base">
-                <s-heading>Reels</s-heading>
+                <s-stack direction="inline" gap="small-200" alignItems="center" justifyContent="space-between">
+                  <s-heading>Reels ({selectedReelIds.size})</s-heading>
+                  <s-button
+                    variant="secondary"
+                    loading={reelsFetcher.state !== "idle"}
+                    onClick={() => {
+                      if (!href) return;
+                      const formData = new FormData();
+                      formData.set("intent", "set-reels");
+                      for (const id of selectedReelIds) formData.append("reelId", id);
+                      reelsFetcher.submit(formData, { method: "post", action: href });
+                    }}
+                  >
+                    Save
+                  </s-button>
+                </s-stack>
                 {reelsFetcher.data?.error && (
                   <s-paragraph tone="critical">{reelsFetcher.data.error}</s-paragraph>
                 )}
-                <s-paragraph>
+                <s-paragraph color="subdued">
                   Shown by this widget, same set on every targeted product page.
                 </s-paragraph>
-                <s-stack gap="small-200">
-                  {(detailData?.reels ?? []).map((reel) => (
-                    <s-checkbox
-                      key={`${detailWidget.id}-${reel.id}`}
-                      label={reel.title}
-                      defaultChecked={selectedReelIds.has(reel.id)}
-                      onChange={(event: { currentTarget: { checked: boolean } | null }) => {
-                        if (!event.currentTarget) return;
-                        const checked = event.currentTarget.checked;
-                        setSelectedReelIds((prev) => {
-                          const next = new Set(prev);
-                          if (checked) next.add(reel.id);
-                          else next.delete(reel.id);
-                          return next;
-                        });
-                      }}
-                    ></s-checkbox>
-                  ))}
-                </s-stack>
-                <s-button
-                  variant="secondary"
-                  loading={reelsFetcher.state !== "idle"}
-                  onClick={() => {
-                    if (!href) return;
-                    const formData = new FormData();
-                    formData.set("intent", "set-reels");
-                    for (const id of selectedReelIds) formData.append("reelId", id);
-                    reelsFetcher.submit(formData, { method: "post", action: href });
-                  }}
-                >
-                  Save reels
-                </s-button>
+                <s-box padding="base" background="subdued" borderRadius="base">
+                  <s-stack gap="small-200">
+                    {(detailData?.reels ?? []).map((reel) => (
+                      <s-checkbox
+                        key={`${detailWidget.id}-${reel.id}`}
+                        label={reel.title}
+                        defaultChecked={selectedReelIds.has(reel.id)}
+                        onChange={(event: { currentTarget: { checked: boolean } | null }) => {
+                          if (!event.currentTarget) return;
+                          const checked = event.currentTarget.checked;
+                          setSelectedReelIds((prev) => {
+                            const next = new Set(prev);
+                            if (checked) next.add(reel.id);
+                            else next.delete(reel.id);
+                            return next;
+                          });
+                        }}
+                      ></s-checkbox>
+                    ))}
+                  </s-stack>
+                </s-box>
               </s-stack>
             </>
           )}
 
           <s-divider></s-divider>
 
-          <s-stack gap="base">
-            <s-heading>Danger zone</s-heading>
+          <s-stack direction="inline" gap="base" alignItems="center" justifyContent="space-between">
+            <s-text color="subdued">Deleting a widget can&rsquo;t be undone.</s-text>
             <deleteFetcher.Form
               method="post"
               action={href ?? undefined}
@@ -482,7 +510,7 @@ function WidgetDetailModal({
               }}
             >
               <input type="hidden" name="intent" value="delete" />
-              <s-button type="submit" variant="secondary" tone="critical" loading={deleteFetcher.state !== "idle"}>
+              <s-button type="submit" variant="tertiary" tone="critical" loading={deleteFetcher.state !== "idle"}>
                 Delete widget
               </s-button>
             </deleteFetcher.Form>
