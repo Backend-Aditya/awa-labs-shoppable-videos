@@ -92,6 +92,24 @@ description = "The one reel the SINGLE_VIDEO widget plays"
   admin = "merchant_read"
   storefront = "public_read"
 
+[shop.metafields.app.add_to_cart_video_widget]
+type = "json"
+name = "Add-to-cart video widget"
+description = "Published state and target rule for the ADD_TO_CART_VIDEO widget"
+
+  [shop.metafields.app.add_to_cart_video_widget.access]
+  admin = "merchant_read"
+  storefront = "public_read"
+
+[shop.metafields.app.add_to_cart_video_featured_reel]
+type = "metaobject_reference<$app:reel>"
+name = "Add-to-cart video featured reel"
+description = "The one reel the ADD_TO_CART_VIDEO widget plays"
+
+  [shop.metafields.app.add_to_cart_video_featured_reel.access]
+  admin = "merchant_read"
+  storefront = "public_read"
+
 [shop.metafields.app.stacked_carousel_widget]
 type = "json"
 name = "Stacked carousel widget"

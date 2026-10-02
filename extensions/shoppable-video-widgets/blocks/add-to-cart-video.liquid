@@ -1,0 +1,167 @@
+{% doc %}
+Renders the shop's ADD_TO_CART_VIDEO widget: one merchant-picked featured
+reel as a compact, inline click-to-open trigger meant to sit directly
+below a product form's add-to-cart button (hence target: "section", not
+a theme-settings app embed — the merchant drags it into the product
+form's block list at the exact position they want). Same widget-gating
+pattern as single-video.liquid, which this is otherwise a close copy of;
+the only real difference is the compact/inline markup and CSS instead of
+a large centered portrait poster.
+@example
+{% content_for 'block', type: 'add-to-cart-video', id: 'add-to-cart-video' %}
+{% enddoc %}
+
+{{ 'reel-lightbox.css' | asset_url | stylesheet_tag }}
+{{ 'add-to-cart-video.css' | asset_url | stylesheet_tag }}
+
+{% assign reel_namespace = 'app--404281098241' %}
+{% comment %}
+  Master storefront-wide switch, set from the app's Settings page. Missing
+  (merchant hasn't visited Settings since this shipped, or a brand new
+  install before its first sync) is treated as enabled — only an explicit
+  `false` suppresses every widget.
+{% endcomment %}
+{% assign shop_enabled = shop.metafields[reel_namespace].enabled.value %}
+
+{% comment %}
+  Deliberately NOT using --reelup-accent-color/--reelup-accent-hover-color
+  here — reel-lightbox.css already binds those to .reelup-trigger__play-icon
+  globally, so reusing them for this pill's background would make the play
+  icon disappear against a matching accent color. Separate var names instead.
+{% endcomment %}
+{% capture wrapper_style %}
+  --reelup-atc-thumb-size: {{ block.settings.thumb_size }}px;
+  {% unless block.settings.accent_color == blank %}
+    --reelup-atc-pill-color: {{ block.settings.accent_color }};
+    --reelup-atc-pill-hover-color: {{ block.settings.accent_color | color_darken: 15 }};
+  {% endunless %}
+{% endcapture %}
+
+{% capture cta_hover_color %}
+  {% unless block.settings.cta_color == blank %}{{ block.settings.cta_color | color_lighten: 15 }}{% endunless %}
+{% endcapture %}
+
+{% assign widget_field = shop.metafields[reel_namespace].add_to_cart_video_widget %}
+{% assign featured_reel = shop.metafields[reel_namespace].add_to_cart_video_featured_reel %}
+
+{% assign widget_matches_product = false %}
+{% if widget_field.value.published and shop_enabled != false %}
+  {% if widget_field.value.targetRule.type == "all_products" %}
+    {% assign widget_matches_product = true %}
+  {% elsif widget_field.value.targetRule.type == "handles" and widget_field.value.targetRule.handles contains product.handle %}
+    {% assign widget_matches_product = true %}
+  {% endif %}
+{% endif %}
+
+{% assign reel = featured_reel.value %}
+{% assign show_reel = false %}
+{% if widget_matches_product and reel and reel.published.value and reel.config.value.cloudflareStreamUid != blank and reel.config.value.hlsManifestUrl != blank %}
+  {% assign show_reel = true %}
+{% endif %}
+
+{% if show_reel %}
+  {% render 'reel-video-schema', reel: reel %}
+  <div class="reelup-atc-video" style="{{ wrapper_style | strip_newlines | strip }}" {{ block.shopify_attributes }}>
+    <div
+      class="reelup-trigger reelup-atc-video__trigger"
+      data-reelup-trigger
+      data-reel-id="{{ reel.system.id }}"
+      data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
+      data-poster-url="{{ reel.config.value.posterUrl | escape }}"
+      data-title="{{ reel.title.value | escape }}"
+      data-close-label="{{ 'reels.close_label' | t }}"
+      data-shop-label="{{ 'reels.shop_this_video_label' | t }}"
+      data-cta-color="{{ block.settings.cta_color }}"
+      data-cta-text-color="{{ block.settings.cta_text_color }}"
+      data-cta-hover-color="{{ cta_hover_color | strip }}"
+      data-cta-label="{{ block.settings.cta_label | escape }}"
+      data-show-price="{{ block.settings.show_price }}"
+      data-show-title="{{ block.settings.show_title_overlay }}"
+      data-muted-default="{{ block.settings.muted_default }}"
+      data-loop="{{ block.settings.loop }}"
+    >
+      <button
+        type="button"
+        class="reelup-trigger__button reelup-atc-video__button"
+        aria-label="{{ 'reels.play_label' | t }}"
+      >
+        <span class="reelup-atc-video__thumb">
+          {% if reel.config.value.posterUrl != blank %}
+            <img
+              src="{{ reel.config.value.posterUrl | escape }}"
+              alt="{{ reel.title.value | escape }}"
+              loading="lazy"
+              width="120"
+              height="120"
+            >
+          {% endif %}
+          <span class="reelup-trigger__play-icon" aria-hidden="true"></span>
+        </span>
+        {% unless block.settings.watch_label == blank %}
+          <span class="reelup-atc-video__label">{{ block.settings.watch_label }}</span>
+        {% endunless %}
+      </button>
+      {% if reel.tagged_products.value.size > 0 %}
+        <template data-reelup-products>
+          {% for product in reel.tagged_products.value %}
+            {% assign variant = product.selected_or_first_available_variant %}
+            <div class="reelup-lightbox__product">
+              <a class="reelup-lightbox__product-link" href="{{ product.url }}">
+                {% if product.featured_image %}
+                  <img
+                    class="reelup-lightbox__product-image"
+                    src="{{ product.featured_image | image_url: width: 160 }}"
+                    alt="{{ product.title | escape }}"
+                    loading="lazy"
+                    width="56"
+                    height="56"
+                  >
+                {% endif %}
+                <span class="reelup-lightbox__product-info">
+                  <span class="reelup-lightbox__product-title">{{ product.title }}</span>
+                  <span class="reelup-lightbox__product-price">{{ product.price | money }}</span>
+                </span>
+              </a>
+              {% if variant %}
+                <button
+                  type="button"
+                  class="reelup-lightbox__add-to-cart"
+                  data-reelup-add-to-cart
+                  data-variant-id="{{ variant.id }}"
+                  data-add-label="{{ 'reels.add_to_cart' | t }}"
+                  data-added-label="{{ 'reels.added_to_cart' | t }}"
+                >
+                  {{ 'reels.add_to_cart' | t }}
+                </button>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </template>
+      {% endif %}
+    </div>
+  </div>
+  <script src="{{ 'reel-hls.js' | asset_url }}" defer></script>
+  <script src="{{ 'reel-viewer-settings.js' | asset_url }}" defer></script>
+  <script src="{{ 'reel-lightbox.js' | asset_url }}" defer></script>
+  <script src="{{ 'reel-trigger.js' | asset_url }}" defer></script>
+{% endif %}
+
+{% schema %}
+{
+  "name": "Add-to-cart video",
+  "target": "section",
+  "settings": [
+    { "type": "product", "id": "product", "label": "Product", "autofill": true },
+    { "type": "text", "id": "watch_label", "label": "Label text", "default": "Watch video", "info": "Leave blank to show just the thumbnail" },
+    { "type": "color", "id": "accent_color", "label": "Accent color", "info": "Leave blank to use the theme default" },
+    { "type": "range", "id": "thumb_size", "label": "Thumbnail size", "min": 48, "max": 160, "step": 8, "unit": "px", "default": 72 },
+    { "type": "color", "id": "cta_color", "label": "Add to cart button color", "info": "Leave blank to use the theme default" },
+    { "type": "color", "id": "cta_text_color", "label": "Add to cart text color", "default": "#ffffff" },
+    { "type": "text", "id": "cta_label", "label": "Add to cart button text", "info": "Leave blank to use the default label" },
+    { "type": "checkbox", "id": "show_price", "label": "Show product price", "default": true },
+    { "type": "checkbox", "id": "show_title_overlay", "label": "Show video title", "default": true },
+    { "type": "checkbox", "id": "muted_default", "label": "Mute video by default", "default": false },
+    { "type": "checkbox", "id": "loop", "label": "Loop video", "default": false }
+  ]
+}
+{% endschema %}
