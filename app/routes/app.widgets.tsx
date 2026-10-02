@@ -15,6 +15,7 @@ import type { Widget } from "@prisma/client";
 import { useResourceDetail } from "../components/useResourceDetail";
 import { StatTile } from "../components/StatTile";
 import { deriveReelStatus } from "../models/reel-status";
+import { listReels } from "../models/reel.server";
 import type { ReelConfig } from "../models/reel.server";
 
 interface WidgetTemplateMeta {
@@ -60,10 +61,13 @@ const WIDGET_TEMPLATES: WidgetTemplateMeta[] = [
 const WIDGET_KINDS: WidgetKind[] = WIDGET_TEMPLATES.map((t) => t.kind);
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const shop = await getOrCreateShop(session.shop);
-  const widgets = await listWidgetsForShop(shop.id);
-  return { widgets };
+  const [widgets, reels] = await Promise.all([
+    listWidgetsForShop(shop.id),
+    listReels(admin, 50),
+  ]);
+  return { widgets, reels };
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -77,15 +81,32 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return { error: "Name and a valid widget type are required" };
   }
 
-  await createWidget(shop.id, type as WidgetKind, name, {
+  const productHandles = formData.getAll("productHandle").map(String).filter(Boolean);
+  const reelIds = formData.getAll("reelId").map(String).filter(Boolean);
+  const featuredReelId = String(formData.get("featuredReelId") ?? "").trim();
+
+  const config: WidgetConfig = {
     templateStyle: "classic",
-    targetRule: { type: "all_products" },
-  });
+    targetRule:
+      productHandles.length > 0 ? { type: "handles", handles: productHandles } : { type: "all_products" },
+    ...(reelIds.length > 0 ? { reelIds } : {}),
+    ...(featuredReelId ? { featuredReelId } : {}),
+  };
+
+  await createWidget(shop.id, type as WidgetKind, name, config);
 
   return { error: null };
 };
 
-function WidgetCard({ widget, onOpen }: { widget: Widget; onOpen: (widget: Widget) => void }) {
+function WidgetCard({
+  widget,
+  onOpen,
+  onDeleteClick,
+}: {
+  widget: Widget;
+  onOpen: (widget: Widget) => void;
+  onDeleteClick: (widget: Widget) => void;
+}) {
   const config = widget.config as unknown as WidgetConfig;
   const kind = widget.type as WidgetKind;
   const meta = WIDGET_TEMPLATES.find((t) => t.kind === kind);
@@ -101,39 +122,50 @@ function WidgetCard({ widget, onOpen }: { widget: Widget; onOpen: (widget: Widge
   const showsReelCount = kind === "PRODUCT_PAGE_REELS" || kind === "CAROUSEL" || kind === "STORIES";
 
   return (
-    // Opens a popup instead of navigating — see ReelCard in app.reels.tsx for
-    // why: full-page navigation inside the embedded admin iframe repeatedly
-    // failed to reach the detail route, while fetcher requests (used here)
-    // go through App Bridge's patched fetch() and carry a session token.
-    <s-clickable
-      padding="base"
-      background="subdued"
-      border="base"
-      borderRadius="base"
-      commandFor="widget-detail-modal"
-      command="--show"
-      onClick={() => onOpen(widget)}
-    >
-      <s-stack gap="small-200">
-        <s-stack direction="inline" gap="small-200" alignItems="center">
-          {meta && <s-icon type={meta.icon} tone="neutral"></s-icon>}
-          <s-text type="strong">{widget.name}</s-text>
+    // See ReelCard in app.reels.tsx for why the kebab button below is a DOM
+    // sibling rather than nested inside this s-clickable, and why this opens
+    // a popup instead of navigating.
+    <div style={{ position: "relative" }}>
+      <s-clickable
+        padding="base"
+        background="subdued"
+        border="base"
+        borderRadius="base"
+        commandFor="widget-detail-modal"
+        command="--show"
+        onClick={() => onOpen(widget)}
+      >
+        <s-stack gap="small-200">
+          <s-stack direction="inline" gap="small-200" alignItems="center">
+            {meta && <s-icon type={meta.icon} tone="neutral"></s-icon>}
+            <s-text type="strong">{widget.name}</s-text>
+          </s-stack>
+          <s-text color="subdued">{meta?.name ?? widget.type}</s-text>
+          <s-stack direction="inline" gap="small-100">
+            <s-badge tone={widget.published ? "success" : "neutral"}>
+              {widget.published ? "Published" : "Draft"}
+            </s-badge>
+            <s-badge tone="neutral">{targetSummary}</s-badge>
+          </s-stack>
+          {(showsFeaturedReel || showsReelCount) && (
+            <s-text color="subdued">
+              {showsFeaturedReel && (hasFeaturedReel ? "Featured reel set" : "No featured reel yet")}
+              {showsReelCount && `${reelCount} reel${reelCount === 1 ? "" : "s"} selected`}
+            </s-text>
+          )}
         </s-stack>
-        <s-text color="subdued">{meta?.name ?? widget.type}</s-text>
-        <s-stack direction="inline" gap="small-100">
-          <s-badge tone={widget.published ? "success" : "neutral"}>
-            {widget.published ? "Published" : "Draft"}
-          </s-badge>
-          <s-badge tone="neutral">{targetSummary}</s-badge>
-        </s-stack>
-        {(showsFeaturedReel || showsReelCount) && (
-          <s-text color="subdued">
-            {showsFeaturedReel && (hasFeaturedReel ? "Featured reel set" : "No featured reel yet")}
-            {showsReelCount && `${reelCount} reel${reelCount === 1 ? "" : "s"} selected`}
-          </s-text>
-        )}
-      </s-stack>
-    </s-clickable>
+      </s-clickable>
+      <div style={{ position: "absolute", top: "8px", right: "8px" }}>
+        <s-button
+          icon="menu-horizontal"
+          variant="tertiary"
+          accessibilityLabel={`More actions for ${widget.name}`}
+          commandFor="widget-delete-modal"
+          command="--show"
+          onClick={() => onDeleteClick(widget)}
+        ></s-button>
+      </div>
+    </div>
   );
 }
 
@@ -173,17 +205,37 @@ function TemplatePicker({
   );
 }
 
-function CreateWidgetModal() {
+function CreateWidgetModal({ reels }: { reels: PickableReel[] }) {
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
   const formRef = useRef<HTMLFormElement>(null);
   const [selectedKind, setSelectedKind] = useState<WidgetKind>("PRODUCT_PAGE_REELS");
+  const [targetProducts, setTargetProducts] = useState<{ id: string; title: string; handle: string }[]>([]);
+  const [selectedReelIds, setSelectedReelIds] = useState<Set<string>>(new Set());
+  const [selectedFeaturedReelId, setSelectedFeaturedReelId] = useState<string | null>(null);
 
   useEffect(() => {
     if (fetcher.state === "idle" && fetcher.data && !fetcher.data.error) {
       shopify.modal.hide("create-widget-modal");
+      setTargetProducts([]);
+      setSelectedReelIds(new Set());
+      setSelectedFeaturedReelId(null);
     }
   }, [fetcher.state, fetcher.data, shopify]);
+
+  const showsFeaturedReel = selectedKind === "SINGLE_VIDEO" || selectedKind === "REEL_POPS";
+  const showsReelList =
+    selectedKind === "PRODUCT_PAGE_REELS" || selectedKind === "CAROUSEL" || selectedKind === "STORIES";
+
+  const handlePickTargetProducts = async () => {
+    const selected = await shopify.resourcePicker({
+      type: "product",
+      multiple: true,
+      selectionIds: targetProducts.map((p) => ({ id: p.id })),
+    });
+    if (!selected) return;
+    setTargetProducts(selected.map((p) => ({ id: p.id, title: p.title, handle: p.handle })));
+  };
 
   return (
     <s-modal
@@ -211,6 +263,93 @@ function CreateWidgetModal() {
             <s-paragraph color="subdued">Choose how this widget shows your reels.</s-paragraph>
             <TemplatePicker value={selectedKind} onChange={setSelectedKind} />
           </s-stack>
+
+          <s-divider></s-divider>
+
+          <s-stack gap="small-200">
+            <s-stack direction="inline" gap="small-200" alignItems="center" justifyContent="space-between">
+              <s-heading>Target products (optional)</s-heading>
+              <s-button type="button" variant="secondary" onClick={handlePickTargetProducts}>
+                {targetProducts.length === 0 ? "Choose products" : "Edit"}
+              </s-button>
+            </s-stack>
+            {targetProducts.length === 0 ? (
+              <s-paragraph color="subdued">Shows on all products by default.</s-paragraph>
+            ) : (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--p-space-200, 8px)" }}>
+                {targetProducts.map((product) => (
+                  <s-badge key={product.id}>{product.title}</s-badge>
+                ))}
+              </div>
+            )}
+            {targetProducts.map((product) => (
+              <input key={product.id} type="hidden" name="productHandle" value={product.handle} />
+            ))}
+          </s-stack>
+
+          {showsFeaturedReel && (
+            <>
+              <s-divider></s-divider>
+              <s-stack gap="small-200">
+                <s-heading>Featured reel (optional)</s-heading>
+                <input type="hidden" name="featuredReelId" value={selectedFeaturedReelId ?? ""} />
+                {reels.length === 0 ? (
+                  <s-paragraph color="subdued">No reels yet — create one from the Reels library first.</s-paragraph>
+                ) : (
+                  <s-box padding="small-200" background="subdued" borderRadius="base">
+                    <s-stack gap="small-100">
+                      {reels.map((reel) => (
+                        <ReelPickerRow
+                          key={reel.id}
+                          reel={reel}
+                          selected={selectedFeaturedReelId === reel.id}
+                          onToggle={() =>
+                            setSelectedFeaturedReelId((prev) => (prev === reel.id ? null : reel.id))
+                          }
+                        />
+                      ))}
+                    </s-stack>
+                  </s-box>
+                )}
+              </s-stack>
+            </>
+          )}
+
+          {showsReelList && (
+            <>
+              <s-divider></s-divider>
+              <s-stack gap="small-200">
+                <s-heading>Reels ({selectedReelIds.size})</s-heading>
+                <s-paragraph color="subdued">Optional — you can also pick these after creating the widget.</s-paragraph>
+                {Array.from(selectedReelIds).map((id) => (
+                  <input key={id} type="hidden" name="reelId" value={id} />
+                ))}
+                {reels.length === 0 ? (
+                  <s-paragraph color="subdued">No reels yet — create one from the Reels library first.</s-paragraph>
+                ) : (
+                  <s-box padding="small-200" background="subdued" borderRadius="base">
+                    <s-stack gap="small-100">
+                      {reels.map((reel) => (
+                        <ReelPickerRow
+                          key={reel.id}
+                          reel={reel}
+                          selected={selectedReelIds.has(reel.id)}
+                          onToggle={() => {
+                            setSelectedReelIds((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(reel.id)) next.delete(reel.id);
+                              else next.add(reel.id);
+                              return next;
+                            });
+                          }}
+                        />
+                      ))}
+                    </s-stack>
+                  </s-box>
+                )}
+              </s-stack>
+            </>
+          )}
         </s-stack>
       </fetcher.Form>
       <s-button
@@ -329,9 +468,9 @@ function WidgetDetailModal({
   const targetFetcher = useFetcher<{ error: string | null }>();
   const featuredReelFetcher = useFetcher<{ error: string | null }>();
   const reelsFetcher = useFetcher<{ error: string | null }>();
-  const deleteFetcher = useFetcher();
   const shopify = useAppBridge();
   const publishedRef = useRef<HTMLInputElement>(null);
+  const editFormRef = useRef<HTMLFormElement>(null);
   const { data: detailData } = useResourceDetail<WidgetDetailLoaderData>(href, [
     editFetcher,
     targetFetcher,
@@ -429,7 +568,7 @@ function WidgetDetailModal({
             {editFetcher.data?.error && (
               <s-paragraph tone="critical">{editFetcher.data.error}</s-paragraph>
             )}
-            <editFetcher.Form method="post" action={href ?? undefined}>
+            <editFetcher.Form method="post" action={href ?? undefined} ref={editFormRef}>
               <s-stack gap="base">
                 <s-text-field
                   label="Name"
@@ -454,9 +593,6 @@ function WidgetDetailModal({
                     }
                   }}
                 ></s-checkbox>
-                <s-button type="submit" variant="primary" loading={editFetcher.state !== "idle"}>
-                  Save
-                </s-button>
               </s-stack>
             </editFetcher.Form>
           </s-stack>
@@ -590,41 +726,86 @@ function WidgetDetailModal({
             </>
           )}
 
-          <s-divider></s-divider>
-
-          <s-stack direction="inline" gap="base" alignItems="center" justifyContent="space-between">
-            <s-text color="subdued">Deleting a widget can&rsquo;t be undone.</s-text>
-            <deleteFetcher.Form
-              method="post"
-              action={href ?? undefined}
-              onSubmit={(e) => {
-                // Don't call onClose() here — it sets selectedWidgetId to
-                // null synchronously, which can flip href to null before/while
-                // the fetcher reads this form's action, sending the delete
-                // POST for the wrong (or no) id and 404ing (confirmed live).
-                // The modal closes naturally once the widget disappears from
-                // the revalidated list after the delete redirect completes.
-                if (!confirm("Delete this widget? This can't be undone.")) {
-                  e.preventDefault();
-                }
-              }}
-            >
-              <input type="hidden" name="intent" value="delete" />
-              <s-button type="submit" variant="tertiary" tone="critical" loading={deleteFetcher.state !== "idle"}>
-                Delete widget
-              </s-button>
-            </deleteFetcher.Form>
-          </s-stack>
         </s-stack>
       )}
+      {detailWidget && (
+        <s-button
+          slot="primary-action"
+          variant="primary"
+          loading={editFetcher.state !== "idle"}
+          onClick={() => editFormRef.current?.requestSubmit()}
+        >
+          Save
+        </s-button>
+      )}
+      <s-button slot="secondary-actions" commandFor="widget-detail-modal" command="--hide">
+        Close
+      </s-button>
+    </s-modal>
+  );
+}
+
+// Small, dedicated confirm-delete modal — separate from the (large) detail
+// modal so deleting a widget doesn't require opening its full detail view
+// first. Triggered from the kebab button on each WidgetCard.
+function WidgetDeleteModal({
+  widget,
+  onClose,
+}: {
+  widget: Widget | null;
+  onClose: () => void;
+}) {
+  const deleteFetcher = useFetcher();
+  const shopify = useAppBridge();
+  const submittedRef = useRef(false);
+  const href = widget ? `/app/widgets/${encodeURIComponent(widget.id)}` : null;
+
+  useEffect(() => {
+    if (submittedRef.current && deleteFetcher.state === "idle") {
+      submittedRef.current = false;
+      shopify.modal.hide("widget-delete-modal");
+      onClose();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deleteFetcher.state]);
+
+  return (
+    <s-modal
+      id="widget-delete-modal"
+      heading="Delete widget"
+      accessibilityLabel="Delete widget"
+      onHide={onClose}
+    >
+      <s-paragraph>
+        Delete {widget ? <strong>{widget.name}</strong> : "this widget"}? This can&rsquo;t be undone.
+      </s-paragraph>
+      <s-button
+        slot="primary-action"
+        variant="primary"
+        tone="critical"
+        loading={deleteFetcher.state !== "idle"}
+        onClick={() => {
+          if (!href) return;
+          submittedRef.current = true;
+          const formData = new FormData();
+          formData.set("intent", "delete");
+          deleteFetcher.submit(formData, { method: "post", action: href });
+        }}
+      >
+        Delete widget
+      </s-button>
+      <s-button slot="secondary-actions" commandFor="widget-delete-modal" command="--hide">
+        Cancel
+      </s-button>
     </s-modal>
   );
 }
 
 export default function Widgets() {
-  const { widgets } = useLoaderData<typeof loader>();
+  const { widgets, reels } = useLoaderData<typeof loader>();
   const publishedCount = widgets.filter((w) => w.published).length;
   const [selectedWidgetId, setSelectedWidgetId] = useState<string | null>(null);
+  const [widgetPendingDelete, setWidgetPendingDelete] = useState<Widget | null>(null);
   const selectedWidget = widgets.find((w) => w.id === selectedWidgetId) ?? null;
   const href = selectedWidget ? `/app/widgets/${encodeURIComponent(selectedWidget.id)}` : null;
 
@@ -646,14 +827,20 @@ export default function Widgets() {
         ) : (
           <s-grid gridTemplateColumns="repeat(auto-fill, minmax(220px, 1fr))" gap="base">
             {widgets.map((widget) => (
-              <WidgetCard key={widget.id} widget={widget} onOpen={(w) => setSelectedWidgetId(w.id)} />
+              <WidgetCard
+                key={widget.id}
+                widget={widget}
+                onOpen={(w) => setSelectedWidgetId(w.id)}
+                onDeleteClick={(w) => setWidgetPendingDelete(w)}
+              />
             ))}
           </s-grid>
         )}
       </s-section>
 
-      <CreateWidgetModal />
+      <CreateWidgetModal reels={reels} />
       <WidgetDetailModal widget={selectedWidget} href={href} onClose={() => setSelectedWidgetId(null)} />
+      <WidgetDeleteModal widget={widgetPendingDelete} onClose={() => setWidgetPendingDelete(null)} />
     </s-page>
   );
 }

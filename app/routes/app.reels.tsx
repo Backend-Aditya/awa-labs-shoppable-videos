@@ -12,6 +12,7 @@ import {
   deleteReel,
   generateReelHandle,
   listReels,
+  syncProductReelMetafields,
   updateReelConfig,
   upsertReel,
 } from "../models/reel.server";
@@ -94,16 +95,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (intent === "start-upload") {
     const title = String(formData.get("title") ?? "").trim();
     const published = formData.get("published") === "true";
+    const productIds = formData.getAll("productId").map(String);
     if (!title) {
       return { error: "Title is required", uploadURL: null, reelId: null };
     }
 
     try {
       const reel = await upsertReel(admin, generateReelHandle(title), title, published, {
-        productIds: [],
+        productIds,
         interactions: {},
         source: { type: "upload" },
       });
+      if (productIds.length > 0) {
+        await syncProductReelMetafields(admin, reel.id, [], productIds);
+      }
 
       try {
         const { uid, uploadURL } = await createDirectUploadUrl(
@@ -124,6 +129,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         return { error: null, uploadURL, reelId: reel.id };
       } catch {
         try {
+          if (productIds.length > 0) {
+            // Clear the reel reference these products' metafields now hold
+            // before the reel itself is gone — otherwise they'd point at a
+            // deleted metaobject.
+            await syncProductReelMetafields(admin, reel.id, productIds, []);
+          }
           await deleteReel(admin, reel.id);
         } catch {
           // best-effort cleanup; the original error below is what the merchant sees
@@ -174,6 +185,9 @@ function CreateReelModal() {
     "idle" | "uploading" | "done" | "error" | "no-file"
   >("idle");
   const [dropZoneKey, setDropZoneKey] = useState(0);
+  const [taggedProducts, setTaggedProducts] = useState<
+    { id: string; title: string; imageUrl: string | null }[]
+  >([]);
   // armedRef gates the upload PUT to fire exactly once per submission. Without
   // it, changing the selected file after a completed/failed upload re-runs this
   // effect and re-fires against the STALE one-time uploadURL from the previous
@@ -235,6 +249,7 @@ function CreateReelModal() {
         setUploadStatus("idle");
         setDropZoneKey((k) => k + 1);
         setPublishedKey((k) => k + 1);
+        setTaggedProducts([]);
       }}
     >
       <fetcher.Form
@@ -316,6 +331,52 @@ function CreateReelModal() {
               <s-paragraph tone="critical">Choose a video file first.</s-paragraph>
             )}
           </s-stack>
+
+          <s-divider></s-divider>
+
+          <s-stack gap="small-200">
+            <s-stack direction="inline" gap="small-200" alignItems="center" justifyContent="space-between">
+              <s-heading>
+                Tag products{taggedProducts.length > 0 ? ` (${taggedProducts.length})` : " (optional)"}
+              </s-heading>
+              <s-button
+                type="button"
+                variant="secondary"
+                onClick={async () => {
+                  const selected = await shopify.resourcePicker({
+                    type: "product",
+                    multiple: true,
+                    selectionIds: taggedProducts.map((p) => ({ id: p.id })),
+                  });
+                  if (!selected) return;
+                  setTaggedProducts(
+                    selected.map((p) => ({
+                      id: p.id,
+                      title: p.title,
+                      imageUrl: p.images?.[0]?.originalSrc ?? null,
+                    })),
+                  );
+                }}
+              >
+                {taggedProducts.length === 0 ? "Choose products" : "Edit"}
+              </s-button>
+            </s-stack>
+            {taggedProducts.length > 0 && (
+              <s-box padding="small-200" background="subdued" borderRadius="base">
+                <s-stack gap="small-200">
+                  {taggedProducts.map((product) => (
+                    <TaggedProductRow
+                      key={product.id}
+                      product={{ ...product, handle: "", priceRange: null }}
+                    />
+                  ))}
+                </s-stack>
+              </s-box>
+            )}
+            {taggedProducts.map((product) => (
+              <input key={product.id} type="hidden" name="productId" value={product.id} />
+            ))}
+          </s-stack>
         </s-stack>
       </fetcher.Form>
       <s-button
@@ -333,26 +394,41 @@ function CreateReelModal() {
   );
 }
 
-function ReelCard({ reel, onOpen }: { reel: Reel; onOpen: (reel: Reel) => void }) {
+function ReelCard({
+  reel,
+  onOpen,
+  onDeleteClick,
+}: {
+  reel: Reel;
+  onOpen: (reel: Reel) => void;
+  onDeleteClick: (reel: Reel) => void;
+}) {
   const status = deriveReelStatus(reel.config);
   const productCount = reel.config.productIds?.length ?? 0;
 
   return (
-    // Opens a popup instead of navigating — full-page navigation inside the
-    // embedded admin iframe repeatedly failed to reach the detail route (see
-    // git history). A click handler that loads detail data via useFetcher()
-    // sidesteps that: fetcher requests go through App Bridge's patched
-    // fetch(), which attaches a session-token header, so authenticate.admin()
-    // never falls back to needing shop/host params.
-    <s-clickable
-      padding="base"
-      background="subdued"
-      border="base"
-      borderRadius="base"
-      commandFor="reel-detail-modal"
-      command="--show"
-      onClick={() => onOpen(reel)}
-    >
+    // The kebab button below is a DOM sibling of this s-clickable, not a
+    // descendant — nesting an interactive element inside a commandFor-driven
+    // clickable risks its click also bubbling into the outer element's own
+    // native command handling (opening the detail modal) before React's
+    // synthetic stopPropagation can run. Keeping them as siblings, with the
+    // kebab absolutely positioned on top, sidesteps that entirely.
+    <div style={{ position: "relative" }}>
+      {/* Opens a popup instead of navigating — full-page navigation inside the
+      embedded admin iframe repeatedly failed to reach the detail route (see
+      git history). A click handler that loads detail data via useFetcher()
+      sidesteps that: fetcher requests go through App Bridge's patched
+      fetch(), which attaches a session-token header, so authenticate.admin()
+      never falls back to needing shop/host params. */}
+      <s-clickable
+        padding="base"
+        background="subdued"
+        border="base"
+        borderRadius="base"
+        commandFor="reel-detail-modal"
+        command="--show"
+        onClick={() => onOpen(reel)}
+      >
       <s-stack gap="small-200">
         {reel.config.posterUrl ? (
           <s-image
@@ -389,7 +465,18 @@ function ReelCard({ reel, onOpen }: { reel: Reel; onOpen: (reel: Reel) => void }
           </s-badge>
         </s-stack>
       </s-stack>
-    </s-clickable>
+      </s-clickable>
+      <div style={{ position: "absolute", top: "8px", right: "8px" }}>
+        <s-button
+          icon="menu-horizontal"
+          variant="tertiary"
+          accessibilityLabel={`More actions for ${reel.title}`}
+          commandFor="reel-delete-modal"
+          command="--show"
+          onClick={() => onDeleteClick(reel)}
+        ></s-button>
+      </div>
+    </div>
   );
 }
 
@@ -412,9 +499,9 @@ function ReelDetailModal({
 }) {
   const editFetcher = useFetcher<{ error: string | null }>();
   const productsFetcher = useFetcher<{ error: string | null }>();
-  const deleteFetcher = useFetcher();
   const shopify = useAppBridge();
   const publishedRef = useRef<HTMLInputElement>(null);
+  const editFormRef = useRef<HTMLFormElement>(null);
   const { data, isLoading } = useResourceDetail<ReelDetailLoaderData>(href, [
     editFetcher,
     productsFetcher,
@@ -505,7 +592,7 @@ function ReelDetailModal({
             {editFetcher.data?.error && (
               <s-paragraph tone="critical">{editFetcher.data.error}</s-paragraph>
             )}
-            <editFetcher.Form method="post" action={href ?? undefined}>
+            <editFetcher.Form method="post" action={href ?? undefined} ref={editFormRef}>
               <s-stack gap="base">
                 <s-text-field
                   label="Title"
@@ -530,9 +617,6 @@ function ReelDetailModal({
                     }
                   }}
                 ></s-checkbox>
-                <s-button type="submit" variant="primary" loading={editFetcher.state !== "idle"}>
-                  Save
-                </s-button>
               </s-stack>
             </editFetcher.Form>
           </s-stack>
@@ -567,35 +651,77 @@ function ReelDetailModal({
               </s-box>
             )}
           </s-stack>
-
-          <s-divider></s-divider>
-
-          <s-stack direction="inline" gap="base" alignItems="center" justifyContent="space-between">
-            <s-text color="subdued">Deleting a reel can&rsquo;t be undone.</s-text>
-            <deleteFetcher.Form
-              method="post"
-              action={href ?? undefined}
-              onSubmit={(e) => {
-                // Don't call onClose() here — it sets selectedReelId to null
-                // synchronously, which can flip href to null before/while the
-                // fetcher reads this form's action, sending the delete POST
-                // for the wrong (or no) id and 404ing (confirmed live on the
-                // equivalent widgets modal). The modal closes naturally once
-                // the reel disappears from the revalidated list after the
-                // delete redirect completes.
-                if (!confirm("Delete this reel? This can't be undone.")) {
-                  e.preventDefault();
-                }
-              }}
-            >
-              <input type="hidden" name="intent" value="delete" />
-              <s-button type="submit" variant="tertiary" tone="critical" loading={deleteFetcher.state !== "idle"}>
-                Delete reel
-              </s-button>
-            </deleteFetcher.Form>
-          </s-stack>
         </s-stack>
       ) : null}
+      {detailReel && (
+        <s-button
+          slot="primary-action"
+          variant="primary"
+          loading={editFetcher.state !== "idle"}
+          onClick={() => editFormRef.current?.requestSubmit()}
+        >
+          Save
+        </s-button>
+      )}
+      <s-button slot="secondary-actions" commandFor="reel-detail-modal" command="--hide">
+        Close
+      </s-button>
+    </s-modal>
+  );
+}
+
+// Small, dedicated confirm-delete modal — separate from the (large) detail
+// modal so deleting a reel doesn't require opening its full detail view
+// first. Triggered from the kebab button on each ReelCard.
+function ReelDeleteModal({
+  reel,
+  onClose,
+}: {
+  reel: Reel | null;
+  onClose: () => void;
+}) {
+  const deleteFetcher = useFetcher();
+  const shopify = useAppBridge();
+  const submittedRef = useRef(false);
+  const href = reel ? `/app/reels/${reelNumericId(reel)}` : null;
+
+  useEffect(() => {
+    if (submittedRef.current && deleteFetcher.state === "idle") {
+      submittedRef.current = false;
+      shopify.modal.hide("reel-delete-modal");
+      onClose();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deleteFetcher.state]);
+
+  return (
+    <s-modal
+      id="reel-delete-modal"
+      heading="Delete reel"
+      accessibilityLabel="Delete reel"
+      onHide={onClose}
+    >
+      <s-paragraph>
+        Delete {reel ? <strong>{reel.title}</strong> : "this reel"}? This can&rsquo;t be undone.
+      </s-paragraph>
+      <s-button
+        slot="primary-action"
+        variant="primary"
+        tone="critical"
+        loading={deleteFetcher.state !== "idle"}
+        onClick={() => {
+          if (!href) return;
+          submittedRef.current = true;
+          const formData = new FormData();
+          formData.set("intent", "delete");
+          deleteFetcher.submit(formData, { method: "post", action: href });
+        }}
+      >
+        Delete reel
+      </s-button>
+      <s-button slot="secondary-actions" commandFor="reel-delete-modal" command="--hide">
+        Cancel
+      </s-button>
     </s-modal>
   );
 }
@@ -603,6 +729,7 @@ function ReelDetailModal({
 export default function ReelsLibrary() {
   const { reels, totalAnalytics } = useLoaderData<typeof loader>();
   const [selectedReelId, setSelectedReelId] = useState<string | null>(null);
+  const [reelPendingDelete, setReelPendingDelete] = useState<Reel | null>(null);
   // Re-derived from the live `reels` list (not stored as its own object) so
   // the modal reflects fresh data automatically after the list revalidates.
   const selectedReel = reels.find((r) => r.id === selectedReelId) ?? null;
@@ -643,7 +770,12 @@ export default function ReelsLibrary() {
         ) : (
           <s-grid gridTemplateColumns="repeat(auto-fill, minmax(220px, 1fr))" gap="base">
             {reels.map((reel) => (
-              <ReelCard key={reel.id} reel={reel} onOpen={(r) => setSelectedReelId(r.id)} />
+              <ReelCard
+                key={reel.id}
+                reel={reel}
+                onOpen={(r) => setSelectedReelId(r.id)}
+                onDeleteClick={(r) => setReelPendingDelete(r)}
+              />
             ))}
           </s-grid>
         )}
@@ -651,6 +783,7 @@ export default function ReelsLibrary() {
 
       <CreateReelModal />
       <ReelDetailModal reel={selectedReel} href={href} onClose={() => setSelectedReelId(null)} />
+      <ReelDeleteModal reel={reelPendingDelete} onClose={() => setReelPendingDelete(null)} />
     </s-page>
   );
 }
