@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import prisma from "../db.server";
-import { getOrCreateShop, updateShopPlan, setShopEnabled, PLAN_VIEW_CAPS } from "./shop.server";
+import { getOrCreateShop, updateShopPlan, PLAN_VIEW_CAPS } from "./shop.server";
 
 describe("shop.server", () => {
   beforeEach(async () => {
@@ -33,39 +33,5 @@ describe("shop.server", () => {
     const updated = await updateShopPlan("test-shop.myshopify.com", "PREMIUM");
     expect(updated.plan).toBe("PREMIUM");
     expect(updated.viewCapMonthly).toBe(PLAN_VIEW_CAPS.PREMIUM);
-  });
-
-  it("defaults a new shop to enabled", async () => {
-    const shop = await getOrCreateShop("test-shop.myshopify.com");
-    expect(shop.enabled).toBe(true);
-  });
-
-  it("setShopEnabled updates the DB flag and syncs the shop.metafields.$app.enabled metafield", async () => {
-    await getOrCreateShop("test-shop.myshopify.com");
-    let capturedVariables: Record<string, unknown> | undefined;
-    const admin = {
-      graphql: async (query: string, options?: { variables?: Record<string, unknown> }) => {
-        if (query.includes("GetShopId")) {
-          return { json: async () => ({ data: { shop: { id: "gid://shopify/Shop/1" } } }) };
-        }
-        capturedVariables = options?.variables;
-        return { json: async () => ({ data: { metafieldsSet: { userErrors: [] } } }) };
-      },
-    };
-
-    const updated = await setShopEnabled(admin, "test-shop.myshopify.com", false);
-
-    expect(updated.enabled).toBe(false);
-    expect(capturedVariables).toEqual({
-      metafields: [
-        {
-          ownerId: "gid://shopify/Shop/1",
-          namespace: "$app",
-          key: "enabled",
-          type: "boolean",
-          value: "false",
-        },
-      ],
-    });
   });
 });

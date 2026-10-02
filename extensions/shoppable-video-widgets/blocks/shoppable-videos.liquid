@@ -1,30 +1,42 @@
 {% doc %}
-Renders the shop's REEL_POPS widget: one merchant-picked featured reel as
-a site-wide floating bubble. Unlike the other reel blocks, this is an app
-embed (target: "body") — merchants enable it once under Theme Settings >
-App embeds and it then appears on every eligible page, not manually
-placed into a section. Reuses the already-shipped lightbox stack
-entirely: clicking the bubble is handled by the same reel-trigger.js
-every other block uses, opening the same reel-lightbox.js viewer with
-the video and any tagged products. The only new behavior here is the
-dismiss button (reel-pop.js), which hides the bubble for the rest of the
-shopper's session.
+The one master switch for this app: a Shopify app embed (target: "body"),
+enabled once by the merchant under Theme Settings > App embeds — not
+manually placed into a section like the other 5 reel blocks. No custom
+on/off mechanism needed; Shopify already gives every app embed its own
+native enable/disable toggle for free, so this uses THAT instead of a
+custom shop metafield + admin settings page (an earlier version of this
+app built exactly that, which was redundant with what the platform
+already provides and has since been removed).
+
+Two jobs:
+1. Script loader. reel-hls.js, reel-viewer-settings.js, reel-lightbox.js,
+   reel-trigger.js, reel-story.js, and reel-pop.js are ALL loaded here,
+   unconditionally, the moment this embed is active — not duplicated
+   across the other 5 blocks anymore. If the merchant never enables this
+   embed, none of those scripts ever load, so a trigger element from any
+   other block — even one a merchant dragged into a section — renders
+   its markup but does nothing when clicked. That's the real "enable the
+   app once, it works everywhere" behavior: it isn't a flag Liquid checks,
+   it's simply that no JS exists to make anything interactive yet.
+2. Renders the REEL_POPS widget's floating bubble (unchanged from when
+   this file was reel-pops.liquid) — reuses the same lightbox stack the
+   script loader above just loaded.
 @example
 Enabled by the merchant under Theme Settings > App embeds — not invoked
 via {% content_for %} like a section block.
 {% enddoc %}
 
+<script src="{{ 'reel-hls.js' | asset_url }}" defer></script>
+<script src="{{ 'reel-viewer-settings.js' | asset_url }}" defer></script>
+<script src="{{ 'reel-lightbox.js' | asset_url }}" defer></script>
+<script src="{{ 'reel-trigger.js' | asset_url }}" defer></script>
+<script src="{{ 'reel-story.js' | asset_url }}" defer></script>
+<script src="{{ 'reel-pop.js' | asset_url }}" defer></script>
+
 {{ 'reel-lightbox.css' | asset_url | stylesheet_tag }}
 {{ 'reel-pop.css' | asset_url | stylesheet_tag }}
 
 {% assign reel_namespace = 'app--404281098241' %}
-{% comment %}
-  Master storefront-wide switch, set from the app's Settings page. Missing
-  (merchant hasn't visited Settings since this shipped, or a brand new
-  install before its first sync) is treated as enabled — only an explicit
-  `false` suppresses every widget.
-{% endcomment %}
-{% assign shop_enabled = shop.metafields[reel_namespace].enabled.value %}
 
 {% assign position_class = 'reelup-pop--' | append: block.settings.position | replace: '_', '-' %}
 {% unless block.settings.show_pulse %}
@@ -41,7 +53,7 @@ via {% content_for %} like a section block.
 {% assign featured_reel = shop.metafields[reel_namespace].reel_pops_featured_reel %}
 
 {% assign widget_matches_product = false %}
-{% if widget_field.value.published and shop_enabled != false %}
+{% if widget_field.value.published %}
   {% if widget_field.value.targetRule.type == "all_products" %}
     {% assign widget_matches_product = true %}
   {% elsif widget_field.value.targetRule.type == "handles" and product and widget_field.value.targetRule.handles contains product.handle %}
@@ -137,22 +149,21 @@ via {% content_for %} like a section block.
       {% endif %}
     </div>
   </div>
-  <script src="{{ 'reel-hls.js' | asset_url }}" defer></script>
-  <script src="{{ 'reel-viewer-settings.js' | asset_url }}" defer></script>
-  <script src="{{ 'reel-lightbox.js' | asset_url }}" defer></script>
-  <script src="{{ 'reel-trigger.js' | asset_url }}" defer></script>
-  <script src="{{ 'reel-pop.js' | asset_url }}" defer></script>
 {% endif %}
 
 {% schema %}
 {
-  "name": "Reel pop",
+  "name": "Shoppable Videos",
   "target": "body",
   "settings": [
     {
+      "type": "paragraph",
+      "content": "Enabling this turns on every shoppable video block you've added elsewhere in your theme — product page reels, carousel, stories, single video, add-to-cart video — plus the floating bubble below, if you've set one up in the app."
+    },
+    {
       "type": "select",
       "id": "position",
-      "label": "Position",
+      "label": "Bubble position",
       "options": [
         { "value": "bottom_right", "label": "Bottom right" },
         { "value": "bottom_left", "label": "Bottom left" },

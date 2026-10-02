@@ -1,10 +1,5 @@
 import type { Shop } from "@prisma/client";
 import prisma from "../db.server";
-import { assertNoGraphqlErrors, throwOnUserErrors } from "./reel.server";
-import type { AdminGraphqlClient } from "./reel.server";
-import { getShopGid } from "./widget.server";
-
-const SHOP_METAFIELD_NAMESPACE = "$app";
 
 export type PlanTier = "FREE" | "BASIC" | "PREMIUM" | "ELITE";
 
@@ -37,53 +32,4 @@ export async function updateShopPlan(
     where: { shopDomain },
     data: { plan, viewCapMonthly: PLAN_VIEW_CAPS[plan] },
   });
-}
-
-// Pushes the shop's master enable flag to shop.metafields.$app.enabled —
-// every storefront block reads this one metafield in addition to its own
-// widget-level published state, so flipping it off hides everything at
-// once without touching each widget individually.
-export async function syncShopEnabledState(
-  admin: AdminGraphqlClient,
-  shopGid: string,
-  enabled: boolean,
-): Promise<void> {
-  const response = await admin.graphql(
-    `#graphql
-    mutation SetShopEnabledMetafield($metafields: [MetafieldsSetInput!]!) {
-      metafieldsSet(metafields: $metafields) {
-        userErrors { field message }
-      }
-    }`,
-    {
-      variables: {
-        metafields: [
-          {
-            ownerId: shopGid,
-            namespace: SHOP_METAFIELD_NAMESPACE,
-            key: "enabled",
-            type: "boolean",
-            value: enabled ? "true" : "false",
-          },
-        ],
-      },
-    },
-  );
-  const json = await response.json();
-  assertNoGraphqlErrors(json);
-  throwOnUserErrors(json.data.metafieldsSet.userErrors);
-}
-
-export async function setShopEnabled(
-  admin: AdminGraphqlClient,
-  shopDomain: string,
-  enabled: boolean,
-): Promise<Shop> {
-  const shop = await prisma.shop.update({
-    where: { shopDomain },
-    data: { enabled },
-  });
-  const shopGid = await getShopGid(admin);
-  await syncShopEnabledState(admin, shopGid, enabled);
-  return shop;
 }

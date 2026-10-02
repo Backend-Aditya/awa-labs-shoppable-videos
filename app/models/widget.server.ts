@@ -164,7 +164,7 @@ const WIDGET_KIND_SYNC_CONFIG: Partial<Record<WidgetKind, WidgetKindSyncConfig>>
   },
 };
 
-export async function getShopGid(admin: AdminGraphqlClient): Promise<string> {
+async function getShopGid(admin: AdminGraphqlClient): Promise<string> {
   const response = await admin.graphql(
     `#graphql
     query GetShopId {

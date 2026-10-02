@@ -22,13 +22,6 @@ Liquid at render time, no runtime API call.
   sync with reel-namespace.liquid (single source of truth for the string).
 {% endcomment %}
 {% assign reel_namespace = 'app--404281098241' %}
-{% comment %}
-  Master storefront-wide switch, set from the app's Settings page. Missing
-  (merchant hasn't visited Settings since this shipped, or a brand new
-  install before its first sync) is treated as enabled — only an explicit
-  `false` suppresses every widget.
-{% endcomment %}
-{% assign shop_enabled = shop.metafields[reel_namespace].enabled.value %}
 
 {% case block.settings.corner_style %}
   {% when 'sharp' %}
@@ -55,7 +48,7 @@ Liquid at render time, no runtime API call.
 {% assign widget_field = shop.metafields[reel_namespace].product_page_reels_widget %}
 
 {% assign widget_matches_product = false %}
-{% if widget_field.value.published and shop_enabled != false %}
+{% if widget_field.value.published %}
   {% if widget_field.value.targetRule.type == "all_products" %}
     {% assign widget_matches_product = true %}
   {% elsif widget_field.value.targetRule.type == "handles" and widget_field.value.targetRule.handles contains product.handle %}
@@ -160,9 +153,6 @@ Liquid at render time, no runtime API call.
       {% endif %}
     {% endfor %}
   </div>
-  <script src="{{ 'reel-hls.js' | asset_url }}" defer></script>
-  <script src="{{ 'reel-viewer-settings.js' | asset_url }}" defer></script>
-  <script src="{{ 'reel-story.js' | asset_url }}" defer></script>
 {% endif %}
 
 {% schema %}

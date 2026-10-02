@@ -11,13 +11,6 @@ lightbox with the video and any tagged products.
 {{ 'stacked-carousel.css' | asset_url | stylesheet_tag }}
 
 {% assign reel_namespace = 'app--404281098241' %}
-{% comment %}
-  Master storefront-wide switch, set from the app's Settings page. Missing
-  (merchant hasn't visited Settings since this shipped, or a brand new
-  install before its first sync) is treated as enabled — only an explicit
-  `false` suppresses every widget.
-{% endcomment %}
-{% assign shop_enabled = shop.metafields[reel_namespace].enabled.value %}
 
 {% case block.settings.corner_style %}
   {% when 'sharp' %}
@@ -42,7 +35,7 @@ lightbox with the video and any tagged products.
 
 {% assign widget_field = shop.metafields[reel_namespace].stacked_carousel_widget %}
 {% assign widget_matches_product = false %}
-{% if widget_field.value.published and shop_enabled != false %}
+{% if widget_field.value.published %}
   {% if widget_field.value.targetRule.type == "all_products" %}
     {% assign widget_matches_product = true %}
   {% elsif widget_field.value.targetRule.type == "handles" and widget_field.value.targetRule.handles contains product.handle %}
@@ -145,9 +138,6 @@ lightbox with the video and any tagged products.
       {% endif %}
     {% endfor %}
   </div>
-  <script src="{{ 'reel-hls.js' | asset_url }}" defer></script>
-  <script src="{{ 'reel-viewer-settings.js' | asset_url }}" defer></script>
-  <script src="{{ 'reel-story.js' | asset_url }}" defer></script>
 {% endif %}
 
 {% schema %}

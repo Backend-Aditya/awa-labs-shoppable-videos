@@ -47,15 +47,6 @@ description = "Reels tagged to this product, referenced by metaobject ID"
   admin = "merchant_read_write"
   storefront = "public_read"
 
-[shop.metafields.app.enabled]
-type = "boolean"
-name = "Shoppable videos enabled"
-description = "Master on/off switch for every storefront widget, set from the app's Settings page"
-
-  [shop.metafields.app.enabled.access]
-  admin = "merchant_read"
-  storefront = "public_read"
-
 [shop.metafields.app.product_page_reels_widget]
 type = "json"
 name = "Product page reels widget"
