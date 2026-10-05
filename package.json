@@ -6,7 +6,7 @@
     "dev": "shopify app dev",
     "config:link": "shopify app config link",
     "generate": "shopify app generate",
-    "build:extension": "node scripts/build-extension-assets.mjs",
+    "build:extension": "node scripts/check-reel-namespace.mjs && node scripts/build-extension-assets.mjs",
     "deploy": "npm run build:extension && shopify app deploy",
     "config:use": "shopify app config use",
     "env": "shopify app env",

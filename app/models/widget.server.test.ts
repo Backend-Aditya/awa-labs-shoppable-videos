@@ -606,6 +606,38 @@ describe("syncShopWidgetState", () => {
     });
   });
 
+  it("includes the featured-reel reference field for ADD_TO_CART_VIDEO when one is set", async () => {
+    const shop = await getOrCreateShop("sync-state-add-to-cart-video.myshopify.com");
+    const widget = await createWidget(shop.id, "ADD_TO_CART_VIDEO", "ATC video", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+      featuredReelId: "gid://shopify/Metaobject/777",
+    });
+    await setWidgetPublished(widget.id, true);
+    const { admin, recorder } = createRecordingAdmin();
+
+    await syncShopWidgetState(admin, shop.id, "ADD_TO_CART_VIDEO");
+
+    expect(recorder.variables).toEqual({
+      metafields: [
+        {
+          ownerId: "gid://shopify/Shop/1",
+          namespace: "$app",
+          key: "add_to_cart_video_widget",
+          type: "json",
+          value: JSON.stringify({ published: true, targetRule: { type: "all_products" } }),
+        },
+        {
+          ownerId: "gid://shopify/Shop/1",
+          namespace: "$app",
+          key: "add_to_cart_video_featured_reel",
+          type: "metaobject_reference",
+          value: "gid://shopify/Metaobject/777",
+        },
+      ],
+    });
+  });
+
   it("includes the reel-list reference field for PRODUCT_PAGE_REELS when non-empty", async () => {
     const shop = await getOrCreateShop("sync-state-reel-list.myshopify.com");
     const widget = await createWidget(shop.id, "PRODUCT_PAGE_REELS", "Curated", {

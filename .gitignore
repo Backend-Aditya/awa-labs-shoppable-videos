@@ -20,7 +20,6 @@ database.sqlite
 
 .env
 .env.*
-!.env.test
 !.env.example
 
 
