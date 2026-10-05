@@ -11,6 +11,7 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 import {
   deleteReel,
   generateReelHandle,
+  getReel,
   listReels,
   syncProductReelMetafields,
   updateReelConfig,
@@ -158,6 +159,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         reelId: null,
       };
     }
+  }
+
+  if (intent === "bulk-publish" || intent === "bulk-unpublish") {
+    const published = intent === "bulk-publish";
+    const reelIds = formData.getAll("reelId").map(String);
+    for (const id of reelIds) {
+      const reel = await getReel(admin, id);
+      if (!reel) continue;
+      await upsertReel(admin, reel.handle, reel.title, published, reel.config);
+    }
+    return { error: null, uploadURL: null, reelId: null };
+  }
+
+  if (intent === "bulk-delete") {
+    const reelIds = formData.getAll("reelId").map(String);
+    for (const id of reelIds) {
+      await deleteReel(admin, id);
+    }
+    return { error: null, uploadURL: null, reelId: null };
   }
 
   return { error: "Unknown request", uploadURL: null, reelId: null };
@@ -398,36 +418,45 @@ function ReelCard({
   reel,
   onOpen,
   onDeleteClick,
+  selectionMode,
+  selected,
+  onToggleSelect,
 }: {
   reel: Reel;
   onOpen: (reel: Reel) => void;
   onDeleteClick: (reel: Reel) => void;
+  selectionMode: boolean;
+  selected: boolean;
+  onToggleSelect: (reel: Reel) => void;
 }) {
   const status = deriveReelStatus(reel.config);
   const productCount = reel.config.productIds?.length ?? 0;
 
   return (
-    // The kebab button below is a DOM sibling of this s-clickable, not a
+    // The kebab/checkbox below is a DOM sibling of this s-clickable, not a
     // descendant — nesting an interactive element inside a commandFor-driven
     // clickable risks its click also bubbling into the outer element's own
     // native command handling (opening the detail modal) before React's
-    // synthetic stopPropagation can run. Keeping them as siblings, with the
-    // kebab absolutely positioned on top, sidesteps that entirely.
+    // synthetic stopPropagation can run. Keeping them as siblings, with it
+    // absolutely positioned on top, sidesteps that entirely.
     <div style={{ position: "relative" }}>
       {/* Opens a popup instead of navigating — full-page navigation inside the
       embedded admin iframe repeatedly failed to reach the detail route (see
       git history). A click handler that loads detail data via useFetcher()
       sidesteps that: fetcher requests go through App Bridge's patched
       fetch(), which attaches a session-token header, so authenticate.admin()
-      never falls back to needing shop/host params. */}
+      never falls back to needing shop/host params.
+      In selection mode, clicking toggles the checkbox instead — commandFor
+      is omitted entirely rather than left pointing at a modal we don't want
+      to open while bulk-selecting. */}
       <s-clickable
         padding="base"
-        background="subdued"
+        background={selected ? "strong" : "subdued"}
         border="base"
+        borderColor={selected ? "strong" : undefined}
         borderRadius="base"
-        commandFor="reel-detail-modal"
-        command="--show"
-        onClick={() => onOpen(reel)}
+        onClick={() => (selectionMode ? onToggleSelect(reel) : onOpen(reel))}
+        {...(selectionMode ? {} : { commandFor: "reel-detail-modal", command: "--show" })}
       >
       <s-stack gap="small-200">
         {reel.config.posterUrl ? (
@@ -481,14 +510,32 @@ function ReelCard({
           overflow: "hidden",
         }}
       >
-        <s-button
-          icon="menu-horizontal"
-          variant="secondary"
-          accessibilityLabel={`More actions for ${reel.title}`}
-          commandFor="reel-delete-modal"
-          command="--show"
-          onClick={() => onDeleteClick(reel)}
-        ></s-button>
+        {selectionMode ? (
+          <div
+            style={{
+              background: "white",
+              width: "28px",
+              height: "28px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <s-icon
+              type={selected ? "check-circle-filled" : "circle"}
+              tone={selected ? "info" : "neutral"}
+            ></s-icon>
+          </div>
+        ) : (
+          <s-button
+            icon="menu-horizontal"
+            variant="secondary"
+            accessibilityLabel={`More actions for ${reel.title}`}
+            commandFor="reel-delete-modal"
+            command="--show"
+            onClick={() => onDeleteClick(reel)}
+          ></s-button>
+        )}
       </div>
     </div>
   );
@@ -795,6 +842,62 @@ function ReelDeleteModal({
   );
 }
 
+// Bulk-delete confirmation — separate from the single-reel ReelDeleteModal
+// since it needs its own modal id (both could otherwise be open/targeted
+// at once from the same page) and submits a list of ids to the list
+// route's own action instead of a per-reel detail route.
+function BulkDeleteReelsModal({
+  reelIds,
+  onDone,
+}: {
+  reelIds: string[];
+  onDone: () => void;
+}) {
+  const fetcher = useFetcher();
+  const shopify = useAppBridge();
+  const submittedRef = useRef(false);
+
+  useEffect(() => {
+    if (submittedRef.current && fetcher.state === "idle") {
+      submittedRef.current = false;
+      shopify.modal.hide("bulk-delete-reels-modal");
+      onDone();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetcher.state]);
+
+  return (
+    <s-modal
+      id="bulk-delete-reels-modal"
+      heading="Delete reels"
+      accessibilityLabel="Delete reels"
+    >
+      <s-paragraph>
+        Delete {reelIds.length} reel{reelIds.length === 1 ? "" : "s"}? This can&rsquo;t be undone.
+      </s-paragraph>
+      <s-button
+        slot="primary-action"
+        variant="primary"
+        tone="critical"
+        loading={fetcher.state !== "idle"}
+        onClick={() => {
+          if (reelIds.length === 0) return;
+          submittedRef.current = true;
+          const formData = new FormData();
+          formData.set("intent", "bulk-delete");
+          for (const id of reelIds) formData.append("reelId", id);
+          fetcher.submit(formData, { method: "post" });
+        }}
+      >
+        Delete {reelIds.length} reel{reelIds.length === 1 ? "" : "s"}
+      </s-button>
+      <s-button slot="secondary-actions" commandFor="bulk-delete-reels-modal" command="--hide">
+        Cancel
+      </s-button>
+    </s-modal>
+  );
+}
+
 const REEL_STATUS_FILTER_OPTIONS: { value: "all" | ReturnType<typeof deriveReelStatus>; label: string }[] = [
   { value: "all", label: "All statuses" },
   { value: "draft", label: "No video" },
@@ -809,10 +912,27 @@ export default function ReelsLibrary() {
   const [reelPendingDelete, setReelPendingDelete] = useState<Reel | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | ReturnType<typeof deriveReelStatus>>("all");
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkSelectedIds, setBulkSelectedIds] = useState<Set<string>>(new Set());
+  const bulkFetcher = useFetcher();
   // Re-derived from the live `reels` list (not stored as its own object) so
   // the modal reflects fresh data automatically after the list revalidates.
   const selectedReel = reels.find((r) => r.id === selectedReelId) ?? null;
   const href = selectedReel ? `/app/reels/${reelNumericId(selectedReel)}` : null;
+
+  const exitBulkMode = () => {
+    setBulkMode(false);
+    setBulkSelectedIds(new Set());
+  };
+
+  const submitBulk = (intent: "bulk-publish" | "bulk-unpublish") => {
+    if (bulkSelectedIds.size === 0) return;
+    const formData = new FormData();
+    formData.set("intent", intent);
+    for (const id of bulkSelectedIds) formData.append("reelId", id);
+    bulkFetcher.submit(formData, { method: "post" });
+    exitBulkMode();
+  };
 
   const publishedCount = reels.filter((r) => r.published).length;
   const readyCount = reels.filter(
@@ -856,33 +976,80 @@ export default function ReelsLibrary() {
           <s-paragraph>No reels yet. Use Create reel to add your first one.</s-paragraph>
         ) : (
           <s-stack gap="base">
-            <s-stack direction="inline" gap="small-200">
-              <s-text-field
-                label="Search"
-                labelAccessibilityVisibility="exclusive"
-                placeholder="Search reels by title"
-                value={searchQuery}
-                onChange={(event: { currentTarget: { value: string } | null }) => {
-                  if (event.currentTarget) setSearchQuery(event.currentTarget.value);
-                }}
-              ></s-text-field>
-              <s-select
-                label="Status"
-                labelAccessibilityVisibility="exclusive"
-                value={statusFilter}
-                onChange={(event: { currentTarget: { value: string } | null }) => {
-                  if (event.currentTarget) {
-                    setStatusFilter(event.currentTarget.value as typeof statusFilter);
-                  }
-                }}
+            <s-stack direction="inline" gap="small-200" alignItems="center" justifyContent="space-between">
+              <s-stack direction="inline" gap="small-200">
+                <s-text-field
+                  label="Search"
+                  labelAccessibilityVisibility="exclusive"
+                  placeholder="Search reels by title"
+                  value={searchQuery}
+                  onChange={(event: { currentTarget: { value: string } | null }) => {
+                    if (event.currentTarget) setSearchQuery(event.currentTarget.value);
+                  }}
+                ></s-text-field>
+                <s-select
+                  label="Status"
+                  labelAccessibilityVisibility="exclusive"
+                  value={statusFilter}
+                  onChange={(event: { currentTarget: { value: string } | null }) => {
+                    if (event.currentTarget) {
+                      setStatusFilter(event.currentTarget.value as typeof statusFilter);
+                    }
+                  }}
+                >
+                  {REEL_STATUS_FILTER_OPTIONS.map((option) => (
+                    <s-option key={option.value} value={option.value}>
+                      {option.label}
+                    </s-option>
+                  ))}
+                </s-select>
+              </s-stack>
+              <s-button
+                type="button"
+                variant="tertiary"
+                onClick={() => (bulkMode ? exitBulkMode() : setBulkMode(true))}
               >
-                {REEL_STATUS_FILTER_OPTIONS.map((option) => (
-                  <s-option key={option.value} value={option.value}>
-                    {option.label}
-                  </s-option>
-                ))}
-              </s-select>
+                {bulkMode ? "Cancel selection" : "Select"}
+              </s-button>
             </s-stack>
+
+            {bulkMode && (
+              <s-box padding="base" background="subdued" borderRadius="base">
+                <s-stack direction="inline" gap="base" alignItems="center" justifyContent="space-between">
+                  <s-text>{bulkSelectedIds.size} selected</s-text>
+                  <s-stack direction="inline" gap="small-200">
+                    <s-button
+                      type="button"
+                      variant="secondary"
+                      disabled={bulkSelectedIds.size === 0}
+                      loading={bulkFetcher.state !== "idle"}
+                      onClick={() => submitBulk("bulk-publish")}
+                    >
+                      Publish
+                    </s-button>
+                    <s-button
+                      type="button"
+                      variant="secondary"
+                      disabled={bulkSelectedIds.size === 0}
+                      loading={bulkFetcher.state !== "idle"}
+                      onClick={() => submitBulk("bulk-unpublish")}
+                    >
+                      Unpublish
+                    </s-button>
+                    <s-button
+                      type="button"
+                      variant="secondary"
+                      tone="critical"
+                      disabled={bulkSelectedIds.size === 0}
+                      commandFor="bulk-delete-reels-modal"
+                      command="--show"
+                    >
+                      Delete
+                    </s-button>
+                  </s-stack>
+                </s-stack>
+              </s-box>
+            )}
 
             {filteredReels.length === 0 ? (
               <s-stack gap="small-200">
@@ -912,6 +1079,16 @@ export default function ReelsLibrary() {
                       reel={reel}
                       onOpen={(r) => setSelectedReelId(r.id)}
                       onDeleteClick={(r) => setReelPendingDelete(r)}
+                      selectionMode={bulkMode}
+                      selected={bulkSelectedIds.has(reel.id)}
+                      onToggleSelect={(r) => {
+                        setBulkSelectedIds((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(r.id)) next.delete(r.id);
+                          else next.add(r.id);
+                          return next;
+                        });
+                      }}
                     />
                   ))}
                 </s-grid>
@@ -924,6 +1101,7 @@ export default function ReelsLibrary() {
       <CreateReelModal />
       <ReelDetailModal reel={selectedReel} href={href} onClose={() => setSelectedReelId(null)} />
       <ReelDeleteModal reel={reelPendingDelete} onClose={() => setReelPendingDelete(null)} />
+      <BulkDeleteReelsModal reelIds={[...bulkSelectedIds]} onDone={exitBulkMode} />
     </s-page>
   );
 }
