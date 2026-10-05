@@ -489,6 +489,7 @@ function WidgetDetailModal({
   const targetFetcher = useFetcher<{ error: string | null }>();
   const featuredReelFetcher = useFetcher<{ error: string | null }>();
   const reelsFetcher = useFetcher<{ error: string | null }>();
+  const duplicateFetcher = useFetcher();
   const shopify = useAppBridge();
   const publishedRef = useRef<HTMLInputElement>(null);
   const editFormRef = useRef<HTMLFormElement>(null);
@@ -499,6 +500,18 @@ function WidgetDetailModal({
     reelsFetcher,
   ]);
   const detailWidget = detailData?.widget ?? null;
+
+  // See the identical pattern/comment in ReelDetailModal (app.reels.tsx):
+  // the duplicate action redirects to /app/widgets (the list we're already
+  // on), so the fetcher returning to idle is the signal to close.
+  const duplicateSubmittedRef = useRef(false);
+  useEffect(() => {
+    if (duplicateSubmittedRef.current && duplicateFetcher.state === "idle") {
+      duplicateSubmittedRef.current = false;
+      onClose();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [duplicateFetcher.state]);
   const targetRule = detailWidget
     ? (detailWidget.config as unknown as WidgetConfig).targetRule
     : null;
@@ -760,6 +773,22 @@ function WidgetDetailModal({
           onClick={() => editFormRef.current?.requestSubmit()}
         >
           Save
+        </s-button>
+      )}
+      {detailWidget && (
+        <s-button
+          slot="secondary-actions"
+          variant="tertiary"
+          loading={duplicateFetcher.state !== "idle"}
+          onClick={() => {
+            if (!href) return;
+            duplicateSubmittedRef.current = true;
+            const formData = new FormData();
+            formData.set("intent", "duplicate");
+            duplicateFetcher.submit(formData, { method: "post", action: href });
+          }}
+        >
+          Duplicate
         </s-button>
       )}
       <s-button slot="secondary-actions" commandFor="widget-detail-modal" command="--hide">

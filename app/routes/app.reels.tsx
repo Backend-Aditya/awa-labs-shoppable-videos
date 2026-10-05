@@ -513,6 +513,7 @@ function ReelDetailModal({
 }) {
   const editFetcher = useFetcher<{ error: string | null }>();
   const productsFetcher = useFetcher<{ error: string | null }>();
+  const duplicateFetcher = useFetcher();
   const shopify = useAppBridge();
   const publishedRef = useRef<HTMLInputElement>(null);
   const editFormRef = useRef<HTMLFormElement>(null);
@@ -520,6 +521,19 @@ function ReelDetailModal({
     editFetcher,
     productsFetcher,
   ]);
+
+  // The duplicate action redirects to /app/reels (the list we're already
+  // on), so the fetcher's own state going back to idle after a submit is
+  // the signal it's done — close the modal so the newly-revalidated list
+  // (with the new "(copy)" reel in it) is what the merchant sees next.
+  const duplicateSubmittedRef = useRef(false);
+  useEffect(() => {
+    if (duplicateSubmittedRef.current && duplicateFetcher.state === "idle") {
+      duplicateSubmittedRef.current = false;
+      onClose();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [duplicateFetcher.state]);
 
   const handlePickProducts = async () => {
     if (!href) return;
@@ -702,6 +716,22 @@ function ReelDetailModal({
           Save
         </s-button>
       )}
+      {detailReel && (
+        <s-button
+          slot="secondary-actions"
+          variant="tertiary"
+          loading={duplicateFetcher.state !== "idle"}
+          onClick={() => {
+            if (!href) return;
+            duplicateSubmittedRef.current = true;
+            const formData = new FormData();
+            formData.set("intent", "duplicate");
+            duplicateFetcher.submit(formData, { method: "post", action: href });
+          }}
+        >
+          Duplicate
+        </s-button>
+      )}
       <s-button slot="secondary-actions" commandFor="reel-detail-modal" command="--hide">
         Close
       </s-button>
@@ -765,10 +795,20 @@ function ReelDeleteModal({
   );
 }
 
+const REEL_STATUS_FILTER_OPTIONS: { value: "all" | ReturnType<typeof deriveReelStatus>; label: string }[] = [
+  { value: "all", label: "All statuses" },
+  { value: "draft", label: "No video" },
+  { value: "processing", label: "Processing" },
+  { value: "ready", label: "Ready" },
+  { value: "failed", label: "Failed" },
+];
+
 export default function ReelsLibrary() {
   const { reels, totalAnalytics } = useLoaderData<typeof loader>();
   const [selectedReelId, setSelectedReelId] = useState<string | null>(null);
   const [reelPendingDelete, setReelPendingDelete] = useState<Reel | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | ReturnType<typeof deriveReelStatus>>("all");
   // Re-derived from the live `reels` list (not stored as its own object) so
   // the modal reflects fresh data automatically after the list revalidates.
   const selectedReel = reels.find((r) => r.id === selectedReelId) ?? null;
@@ -781,6 +821,14 @@ export default function ReelsLibrary() {
   const taggedCount = reels.filter(
     (r) => (r.config.productIds?.length ?? 0) > 0,
   ).length;
+
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const filteredReels = reels.filter((reel) => {
+    if (statusFilter !== "all" && deriveReelStatus(reel.config) !== statusFilter) return false;
+    if (normalizedQuery && !reel.title.toLowerCase().includes(normalizedQuery)) return false;
+    return true;
+  });
+  const isFiltered = normalizedQuery !== "" || statusFilter !== "all";
 
   return (
     <s-page heading="Reels library" inlineSize="large">
@@ -807,16 +855,69 @@ export default function ReelsLibrary() {
         {reels.length === 0 ? (
           <s-paragraph>No reels yet. Use Create reel to add your first one.</s-paragraph>
         ) : (
-          <s-grid gridTemplateColumns="repeat(auto-fill, minmax(220px, 1fr))" gap="base">
-            {reels.map((reel) => (
-              <ReelCard
-                key={reel.id}
-                reel={reel}
-                onOpen={(r) => setSelectedReelId(r.id)}
-                onDeleteClick={(r) => setReelPendingDelete(r)}
-              />
-            ))}
-          </s-grid>
+          <s-stack gap="base">
+            <s-stack direction="inline" gap="small-200">
+              <s-text-field
+                label="Search"
+                labelAccessibilityVisibility="exclusive"
+                placeholder="Search reels by title"
+                value={searchQuery}
+                onChange={(event: { currentTarget: { value: string } | null }) => {
+                  if (event.currentTarget) setSearchQuery(event.currentTarget.value);
+                }}
+              ></s-text-field>
+              <s-select
+                label="Status"
+                labelAccessibilityVisibility="exclusive"
+                value={statusFilter}
+                onChange={(event: { currentTarget: { value: string } | null }) => {
+                  if (event.currentTarget) {
+                    setStatusFilter(event.currentTarget.value as typeof statusFilter);
+                  }
+                }}
+              >
+                {REEL_STATUS_FILTER_OPTIONS.map((option) => (
+                  <s-option key={option.value} value={option.value}>
+                    {option.label}
+                  </s-option>
+                ))}
+              </s-select>
+            </s-stack>
+
+            {filteredReels.length === 0 ? (
+              <s-stack gap="small-200">
+                <s-paragraph color="subdued">No reels match your search.</s-paragraph>
+                <s-button
+                  type="button"
+                  variant="tertiary"
+                  onClick={() => {
+                    setSearchQuery("");
+                    setStatusFilter("all");
+                  }}
+                >
+                  Clear filters
+                </s-button>
+              </s-stack>
+            ) : (
+              <>
+                {isFiltered && (
+                  <s-text color="subdued">
+                    {filteredReels.length} of {reels.length} reels
+                  </s-text>
+                )}
+                <s-grid gridTemplateColumns="repeat(auto-fill, minmax(220px, 1fr))" gap="base">
+                  {filteredReels.map((reel) => (
+                    <ReelCard
+                      key={reel.id}
+                      reel={reel}
+                      onOpen={(r) => setSelectedReelId(r.id)}
+                      onDeleteClick={(r) => setReelPendingDelete(r)}
+                    />
+                  ))}
+                </s-grid>
+              </>
+            )}
+          </s-stack>
         )}
       </s-section>
 

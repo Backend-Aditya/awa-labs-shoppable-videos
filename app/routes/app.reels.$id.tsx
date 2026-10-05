@@ -10,7 +10,7 @@ import type { StreamPlayerApi } from "@cloudflare/stream-react";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { deleteReel, getProductsByIds, getReel, syncProductReelMetafields, updateReelConfig, upsertReel } from "../models/reel.server";
+import { deleteReel, generateReelHandle, getProductsByIds, getReel, syncProductReelMetafields, updateReelConfig, upsertReel } from "../models/reel.server";
 import { deriveReelStatus } from "../models/reel-status";
 import { PreserveSearchParams } from "../components/PreserveSearchParams";
 import { TaggedProductRow } from "../components/TaggedProductRow";
@@ -104,6 +104,25 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
   if (intent === "delete") {
     await deleteReel(admin, reel.id);
+    return redirect("/app/reels");
+  }
+
+  if (intent === "duplicate") {
+    // Shares the same Cloudflare Stream asset (cloudflareStreamUid/
+    // hlsManifestUrl/posterUrl) rather than re-uploading — a duplicate is a
+    // separate catalog entry (own title, own publish state, own product
+    // tags), not a separate video file. Published false by default: an
+    // accidental double-publish of the same video isn't a useful default.
+    const duplicate = await upsertReel(
+      admin,
+      generateReelHandle(`${reel.title} copy`),
+      `${reel.title} (copy)`,
+      false,
+      reel.config,
+    );
+    if (reel.config.productIds.length > 0) {
+      await syncProductReelMetafields(admin, duplicate.id, [], reel.config.productIds);
+    }
     return redirect("/app/reels");
   }
 

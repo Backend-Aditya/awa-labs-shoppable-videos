@@ -9,9 +9,9 @@ import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { getOrCreateShop } from "../models/shop.server";
-import { deleteWidget, getWidget, updateWidget, updateWidgetFeaturedReel, updateWidgetReels, updateWidgetTargetRule } from "../models/widget.server";
+import { createWidget, deleteWidget, getWidget, updateWidget, updateWidgetFeaturedReel, updateWidgetReels, updateWidgetTargetRule } from "../models/widget.server";
+import type { WidgetConfig, WidgetKind } from "../models/widget.server";
 import { listReels } from "../models/reel.server";
-import type { WidgetConfig } from "../models/widget.server";
 import { PreserveSearchParams } from "../components/PreserveSearchParams";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
@@ -82,6 +82,22 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
   if (intent === "delete") {
     await deleteWidget(admin, shop.id, widget.id);
+    return redirect("/app/widgets");
+  }
+
+  if (intent === "duplicate") {
+    // Published false by default — the one-published-widget-per-kind
+    // invariant means a duplicate can't come in already published without
+    // silently unpublishing the original (see updateWidget's sibling-
+    // unpublish logic). No Shopify sync needed: createWidget never writes
+    // the shop metafield, matching how creating any new unpublished widget
+    // already works.
+    await createWidget(
+      shop.id,
+      widget.type as WidgetKind,
+      `${widget.name} (copy)`,
+      widget.config as unknown as WidgetConfig,
+    );
     return redirect("/app/widgets");
   }
 
