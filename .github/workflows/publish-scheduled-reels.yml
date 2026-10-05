@@ -1,0 +1,30 @@
+name: Publish scheduled reels
+
+# The whole scheduling mechanism for "publish this reel at a future time" —
+# this app has no background worker, so a free scheduled GitHub Actions run
+# hitting the app's own cron endpoint is the trigger. See
+# app/routes/api.cron.publish-scheduled-reels.ts for what it actually does.
+#
+# Requires a repo secret CRON_SECRET matching the CRON_SECRET env var set
+# on the Render service — set both to the same value.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  publish-scheduled-reels:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call publish-scheduled-reels endpoint
+        run: |
+          status=$(curl -s -o /tmp/response.json -w "%{http_code}" \
+            -X POST \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "https://awa-shoppable-videos.onrender.com/api/cron/publish-scheduled-reels")
+          echo "HTTP status: $status"
+          cat /tmp/response.json
+          if [ "$status" -ge 300 ]; then
+            exit 1
+          fi

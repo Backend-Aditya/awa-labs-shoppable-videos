@@ -14,6 +14,12 @@ export interface ReelConfig {
   // needs to query by them.
   seoTitle?: string;
   seoDescription?: string;
+  // ISO datetime. When set and the reel is NOT yet published, a scheduled
+  // cron job (see app/routes/api.cron.publish-scheduled-reels.ts) flips
+  // `published` to true once this time has passed and clears this field.
+  // Manually checking "Published" always takes priority over any pending
+  // schedule — this only ever moves draft -> published, never the reverse.
+  publishAt?: string;
 }
 
 export interface Reel {

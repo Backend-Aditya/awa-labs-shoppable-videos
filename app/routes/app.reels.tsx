@@ -47,6 +47,16 @@ function formatBytes(bytes: number): string {
   return `${value.toFixed(1)} ${units[unitIndex]}`;
 }
 
+// <input type="datetime-local"> wants "YYYY-MM-DDTHH:mm" in the browser's
+// local timezone, no offset suffix — new Date(iso) already converts a
+// stored UTC ISO string to local time for getHours()/getMinutes(), so this
+// just needs to format it, not convert it again.
+function toDatetimeLocalValue(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 const REEL_STATUS_LABELS: Record<string, string> = {
   draft: "No video",
   processing: "Processing",
@@ -485,8 +495,8 @@ function ReelCard({
         )}
         <s-text type="strong">{reel.title}</s-text>
         <s-stack direction="inline" gap="small-100">
-          <s-badge tone={reel.published ? "success" : "neutral"}>
-            {reel.published ? "Published" : "Draft"}
+          <s-badge tone={reel.published ? "success" : reel.config.publishAt ? "info" : "neutral"}>
+            {reel.published ? "Published" : reel.config.publishAt ? "Scheduled" : "Draft"}
           </s-badge>
           <s-badge tone={statusTone(status)}>{REEL_STATUS_LABELS[status]}</s-badge>
           <s-badge tone={productCount > 0 ? "success" : "neutral"}>
@@ -648,8 +658,8 @@ function ReelDetailModal({
 
             <s-stack gap="base">
               <s-stack direction="inline" gap="small-100">
-                <s-badge tone={detailReel.published ? "success" : "neutral"}>
-                  {detailReel.published ? "Published" : "Draft"}
+                <s-badge tone={detailReel.published ? "success" : detailReel.config.publishAt ? "info" : "neutral"}>
+                  {detailReel.published ? "Published" : detailReel.config.publishAt ? "Scheduled" : "Draft"}
                 </s-badge>
                 <s-badge tone={statusTone(status)}>{status ? REEL_STATUS_LABELS[status] : ""}</s-badge>
               </s-stack>
@@ -692,6 +702,36 @@ function ReelDetailModal({
                     }
                   }}
                 ></s-checkbox>
+
+                <s-stack gap="small-100">
+                  <label htmlFor={`publish-at-${detailReel.id}`}>
+                    <s-text>Schedule publish (optional)</s-text>
+                  </label>
+                  <input
+                    id={`publish-at-${detailReel.id}`}
+                    type="datetime-local"
+                    name="publishAt"
+                    key={`publish-at-${detailReel.id}`}
+                    defaultValue={
+                      detailReel.config.publishAt ? toDatetimeLocalValue(detailReel.config.publishAt) : ""
+                    }
+                    style={{
+                      padding: "8px 10px",
+                      borderRadius: "8px",
+                      border: "1px solid var(--p-color-border, #c9cccf)",
+                      fontSize: "14px",
+                      fontFamily: "inherit",
+                      width: "100%",
+                      boxSizing: "border-box",
+                    }}
+                  />
+                  {detailReel.config.publishAt && !detailReel.published && (
+                    <s-text color="subdued">
+                      Publishes automatically at the scheduled time — checking &ldquo;Published&rdquo;
+                      above instead publishes it immediately and clears the schedule.
+                    </s-text>
+                  )}
+                </s-stack>
 
                 <s-divider></s-divider>
 

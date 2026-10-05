@@ -23,6 +23,16 @@ const REEL_STATUS_LABELS: Record<string, string> = {
   failed: "Failed",
 };
 
+// <input type="datetime-local"> wants "YYYY-MM-DDTHH:mm" in the browser's
+// local timezone, no offset suffix — new Date(iso) already converts a
+// stored UTC ISO string to local time for getHours()/getMinutes(), so this
+// just needs to format it, not convert it again.
+function toDatetimeLocalValue(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 // The route param is the trailing numeric id only (see app.reels.tsx's
 // href construction) — the full GID is reconstructed here, server-side,
 // so the URL never has to carry ':' or '/' characters.
@@ -130,15 +140,21 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   const published = formData.get("published") === "true";
   const seoTitle = String(formData.get("seoTitle") ?? "").trim();
   const seoDescription = String(formData.get("seoDescription") ?? "").trim();
+  const publishAtInput = String(formData.get("publishAt") ?? "").trim();
 
   if (!title) {
     return { error: "Title is required" };
   }
 
+  // Checking Published directly always wins over any pending schedule —
+  // it's already live, there's nothing left to schedule.
+  const publishAt = published || !publishAtInput ? undefined : new Date(publishAtInput).toISOString();
+
   await upsertReel(admin, reel.handle, title, published, {
     ...reel.config,
     seoTitle: seoTitle || undefined,
     seoDescription: seoDescription || undefined,
+    publishAt,
   });
   return { error: null };
 };
@@ -316,6 +332,33 @@ export default function ReelDetail() {
                   }
                 }}
               ></s-checkbox>
+
+              <s-stack gap="small-100">
+                <label htmlFor="publish-at">
+                  <s-text>Schedule publish (optional)</s-text>
+                </label>
+                <input
+                  id="publish-at"
+                  type="datetime-local"
+                  name="publishAt"
+                  defaultValue={reel.config.publishAt ? toDatetimeLocalValue(reel.config.publishAt) : ""}
+                  style={{
+                    padding: "8px 10px",
+                    borderRadius: "8px",
+                    border: "1px solid var(--p-color-border, #c9cccf)",
+                    fontSize: "14px",
+                    fontFamily: "inherit",
+                    width: "100%",
+                    boxSizing: "border-box",
+                  }}
+                />
+                {reel.config.publishAt && !reel.published && (
+                  <s-text color="subdued">
+                    Publishes automatically at the scheduled time — checking &ldquo;Published&rdquo;
+                    above instead publishes it immediately and clears the schedule.
+                  </s-text>
+                )}
+              </s-stack>
 
               <s-divider></s-divider>
 
