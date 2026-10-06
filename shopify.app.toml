@@ -174,9 +174,17 @@ api_version = "2026-10"
   uri = "/webhooks/app/scopes_update"
   topics = [ "app/scopes_update" ]
 
-  [[webhooks.subscriptions]]
-  uri = "/webhooks/orders/paid"
-  topics = [ "orders/paid" ]
+  # orders/paid is a "protected customer data" webhook topic — Shopify
+  # rejects the whole app version if it's declared without prior approval
+  # (Partner Dashboard > App setup > Protected customer data access).
+  # The handler (webhooks.orders.paid.tsx) and its model code are already
+  # shipped; re-add this subscription once that approval comes through,
+  # then redeploy — no other changes needed. Until then, add-to-cart
+  # tagging is live but nothing captures it yet, so there's nothing to
+  # backfill once this re-enables, only orders placed after it does.
+  # [[webhooks.subscriptions]]
+  # uri = "/webhooks/orders/paid"
+  # topics = [ "orders/paid" ]
 
   [webhooks.privacy_compliance]
   customer_data_request_url = "https://awa-shoppable-videos.onrender.com/webhooks/customers/data_request"
