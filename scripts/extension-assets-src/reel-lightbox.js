@@ -90,10 +90,20 @@
       button.dataset.state = "loading";
 
       try {
+        // _reelup_reel_id is a hidden line-item property (underscore prefix
+        // hides it from the customer-facing cart/checkout/order UI, a
+        // Shopify convention) — it rides along through checkout onto the
+        // order itself, and the orders/paid webhook reads it back off to
+        // attribute revenue to this reel. No cookie or session tracking
+        // needed; the data travels with the order.
+        const body = { id: variantId, quantity: 1 };
+        if (dialog.dataset.currentReelId) {
+          body.properties = { _reelup_reel_id: dialog.dataset.currentReelId };
+        }
         const response = await fetch("/cart/add.js", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: variantId, quantity: 1 }),
+          body: JSON.stringify(body),
         });
         if (!response.ok) throw new Error("Add to cart failed");
 

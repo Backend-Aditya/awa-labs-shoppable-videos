@@ -14,6 +14,7 @@ import { deleteReel, generateReelHandle, getProductsByIds, getReel, syncProductR
 import { deriveReelStatus } from "../models/reel-status";
 import { PreserveSearchParams } from "../components/PreserveSearchParams";
 import { TaggedProductRow } from "../components/TaggedProductRow";
+import { getReelRevenueStats } from "../models/order-attribution.server";
 import prisma from "../db.server";
 
 const REEL_STATUS_LABELS: Record<string, string> = {
@@ -27,6 +28,16 @@ const REEL_STATUS_LABELS: Record<string, string> = {
 // local timezone, no offset suffix — new Date(iso) already converts a
 // stored UTC ISO string to local time for getHours()/getMinutes(), so this
 // just needs to format it, not convert it again.
+function formatMoney(amount: string, currencyCode: string): string {
+  try {
+    return new Intl.NumberFormat(undefined, { style: "currency", currency: currencyCode }).format(
+      Number(amount),
+    );
+  } catch {
+    return `${amount} ${currencyCode}`;
+  }
+}
+
 function toDatetimeLocalValue(iso: string): string {
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -55,6 +66,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
         reel: null,
         taggedProducts: [],
         analytics: { views: 0, clicks: 0 },
+        revenueStats: [],
       };
     }
     const taggedProducts = await getProductsByIds(admin, reel.config.productIds);
@@ -83,7 +95,9 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
       analytics = { views, clicks };
     }
 
-    return { loaderError: null, reel, taggedProducts, analytics };
+    const revenueStats = shopRecord ? await getReelRevenueStats(shopRecord.id, reel.id) : [];
+
+    return { loaderError: null, reel, taggedProducts, analytics, revenueStats };
   } catch (e) {
     if (e instanceof Response) throw e;
     return {
@@ -160,7 +174,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 };
 
 export default function ReelDetail() {
-  const { loaderError, reel, taggedProducts, analytics } = useLoaderData<typeof loader>();
+  const { loaderError, reel, taggedProducts, analytics, revenueStats } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting =
@@ -298,6 +312,18 @@ export default function ReelDetail() {
           <s-paragraph>
             <strong>Product Clicks:</strong> {analytics?.clicks || 0}
           </s-paragraph>
+          {(revenueStats ?? []).length === 0 ? (
+            <s-paragraph>
+              <strong>Revenue:</strong> $0.00
+            </s-paragraph>
+          ) : (
+            (revenueStats ?? []).map((stat) => (
+              <s-paragraph key={stat.currencyCode ?? "unknown"}>
+                <strong>Revenue:</strong> {formatMoney(stat.revenue, stat.currencyCode ?? "USD")} from{" "}
+                {stat.orderCount} order{stat.orderCount === 1 ? "" : "s"}
+              </s-paragraph>
+            ))
+          )}
         </s-stack>
       </s-section>
 

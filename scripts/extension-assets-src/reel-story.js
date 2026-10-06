@@ -280,10 +280,17 @@
       button.dataset.state = "loading";
 
       try {
+        // See the identical comment in reel-lightbox.js: a hidden line-item
+        // property that rides along through checkout onto the order, read
+        // back off by the orders/paid webhook for revenue attribution.
+        const body = { id: variantId, quantity: 1 };
+        if (dialog.dataset.currentReelId) {
+          body.properties = { _reelup_reel_id: dialog.dataset.currentReelId };
+        }
         const response = await fetch("/cart/add.js", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: variantId, quantity: 1 }),
+          body: JSON.stringify(body),
         });
         if (!response.ok) throw new Error("Add to cart failed");
 

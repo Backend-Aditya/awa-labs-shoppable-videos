@@ -3,7 +3,15 @@
 // slightly differently (some with an icon, some without), so updating the
 // design's spacing/tone meant hunting across three files. One component,
 // used everywhere a page shows a labeled count.
-export type StatIcon = "video" | "check-circle" | "play-circle" | "hashtag" | "view" | "cursor";
+export type StatIcon =
+  | "video"
+  | "check-circle"
+  | "play-circle"
+  | "hashtag"
+  | "view"
+  | "cursor"
+  | "order"
+  | "money";
 
 export function StatTile({
   label,

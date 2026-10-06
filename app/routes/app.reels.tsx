@@ -23,6 +23,8 @@ import { deriveReelStatus } from "../models/reel-status";
 import { createDirectUploadUrl, getCloudflareConfig } from "../models/cloudflare-stream.server";
 import { StatTile } from "../components/StatTile";
 import { useResourceDetail } from "../components/useResourceDetail";
+import { getShopRevenueTotals } from "../models/order-attribution.server";
+import type { ShopRevenueTotals } from "../models/order-attribution.server";
 import prisma from "../db.server";
 
 // Route param is the trailing numeric id only — a raw GID (gid://shopify/Metaobject/123)
@@ -57,6 +59,26 @@ function toDatetimeLocalValue(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+function formatMoney(amount: string, currencyCode: string): string {
+  try {
+    return new Intl.NumberFormat(undefined, { style: "currency", currency: currencyCode }).format(
+      Number(amount),
+    );
+  } catch {
+    // Intl throws on an unrecognized currency code — fall back to the raw
+    // string rather than crashing the page over a display formatting issue.
+    return `${amount} ${currencyCode}`;
+  }
+}
+
+// Multi-currency shops can have more than one entry; joins them rather
+// than silently picking one, since summing across currencies would be
+// meaningless.
+function formatRevenueTotals(totals: { currencyCode: string; revenue: string }[]): string {
+  if (totals.length === 0) return "—";
+  return totals.map((t) => formatMoney(t.revenue, t.currencyCode)).join(", ");
+}
+
 const REEL_STATUS_LABELS: Record<string, string> = {
   draft: "No video",
   processing: "Processing",
@@ -69,6 +91,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const reels = await listReels(admin, 50);
 
   let totalAnalytics = { views: 0, clicks: 0 };
+  let revenueTotals: ShopRevenueTotals = { totalOrderCount: 0, totalsByCurrency: [] };
   const shopRecord = await prisma.shop.findUnique({
     where: { shopDomain: session.shop },
   });
@@ -82,9 +105,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       views: events.find((e) => e.eventType === "view")?._count.eventType || 0,
       clicks: events.find((e) => e.eventType === "click_product")?._count.eventType || 0,
     };
+    revenueTotals = await getShopRevenueTotals(shopRecord.id);
   }
 
-  return { reels, totalAnalytics };
+  return { reels, totalAnalytics, revenueTotals };
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -556,6 +580,7 @@ type ReelDetailLoaderData = {
   reel: Reel | null;
   taggedProducts: ProductSummary[];
   analytics: { views: number; clicks: number };
+  revenueStats: { orderCount: number; revenue: string; currencyCode: string | null }[];
 };
 
 
@@ -666,6 +691,23 @@ function ReelDetailModal({
               <s-grid gridTemplateColumns="repeat(2, 1fr)" gap="small-200">
                 <StatTile label="Views" value={data.analytics?.views || 0} icon="view" tone="info" />
                 <StatTile label="Product clicks" value={data.analytics?.clicks || 0} icon="cursor" tone="success" />
+                <StatTile
+                  label="Orders"
+                  value={data.revenueStats?.reduce((sum, s) => sum + s.orderCount, 0) ?? 0}
+                  icon="order"
+                  tone="success"
+                />
+                <StatTile
+                  label="Revenue"
+                  value={formatRevenueTotals(
+                    (data.revenueStats ?? [])
+                      .filter((s): s is { orderCount: number; revenue: string; currencyCode: string } =>
+                        s.currencyCode !== null,
+                      ),
+                  )}
+                  icon="money"
+                  tone="success"
+                />
               </s-grid>
             </s-stack>
           </s-grid>
@@ -947,7 +989,7 @@ const REEL_STATUS_FILTER_OPTIONS: { value: "all" | ReturnType<typeof deriveReelS
 ];
 
 export default function ReelsLibrary() {
-  const { reels, totalAnalytics } = useLoaderData<typeof loader>();
+  const { reels, totalAnalytics, revenueTotals } = useLoaderData<typeof loader>();
   const [selectedReelId, setSelectedReelId] = useState<string | null>(null);
   const [reelPendingDelete, setReelPendingDelete] = useState<Reel | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -1005,9 +1047,17 @@ export default function ReelsLibrary() {
       </s-section>
 
       <s-section heading="Performance">
-        <s-grid gridTemplateColumns="repeat(2, 1fr)" gap="base">
+        <s-grid gridTemplateColumns="repeat(4, 1fr)" gap="base">
           <StatTile label="Total views" value={totalAnalytics.views} icon="view" tone="info" accent />
           <StatTile label="Product clicks" value={totalAnalytics.clicks} icon="cursor" tone="success" accent />
+          <StatTile label="Orders" value={revenueTotals.totalOrderCount} icon="order" tone="success" accent />
+          <StatTile
+            label="Revenue"
+            value={formatRevenueTotals(revenueTotals.totalsByCurrency)}
+            icon="money"
+            tone="success"
+            accent
+          />
         </s-grid>
       </s-section>
 

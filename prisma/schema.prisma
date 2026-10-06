@@ -20,21 +20,21 @@ datasource db {
 }
 
 model Session {
-  id            String    @id
-  shop          String
-  state         String
-  isOnline      Boolean   @default(false)
-  scope         String?
-  expires       DateTime?
-  accessToken   String
-  userId        BigInt?
-  firstName     String?
-  lastName      String?
-  email         String?
-  accountOwner  Boolean   @default(false)
-  locale        String?
-  collaborator  Boolean?  @default(false)
-  emailVerified Boolean?  @default(false)
+  id                  String    @id
+  shop                String
+  state               String
+  isOnline            Boolean   @default(false)
+  scope               String?
+  expires             DateTime?
+  accessToken         String
+  userId              BigInt?
+  firstName           String?
+  lastName            String?
+  email               String?
+  accountOwner        Boolean   @default(false)
+  locale              String?
+  collaborator        Boolean?  @default(false)
+  emailVerified       Boolean?  @default(false)
   refreshToken        String?
   refreshTokenExpires DateTime?
 }
@@ -44,14 +44,15 @@ model Session {
 // schema targeted SQLite (no native enum support); kept as-is after the
 // Postgres migration since nothing forces enum columns now.
 model Shop {
-  id             String   @id @default(cuid())
-  shopDomain     String   @unique
-  plan           String   @default("FREE")
-  viewCapMonthly Int      @default(200)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  widgets        Widget[]
-  reelEvents     ReelEvent[]
+  id                String             @id @default(cuid())
+  shopDomain        String             @unique
+  plan              String             @default("FREE")
+  viewCapMonthly    Int                @default(200)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  widgets           Widget[]
+  reelEvents        ReelEvent[]
+  orderAttributions OrderAttribution[]
 }
 
 model Widget {
@@ -76,5 +77,35 @@ model ReelEvent {
   eventType String
   createdAt DateTime @default(now())
 
+  @@index([shopId, reelId])
+}
+
+// Revenue attribution: recorded from the orders/paid webhook when a line
+// item carries the hidden `_reelup_reel_id` property that reel-lightbox.js/
+// reel-story.js attach on add-to-cart. Deliberately holds no customer PII
+// (no email, name, or address) even though the webhook payload it's built
+// from contains plenty — only orderId/productId/variantId/quantity/revenue
+// are extracted and kept, so there's nothing new to purge on a
+// customers/redact webhook.
+//
+// @@unique on (orderId, lineItemId) makes processing idempotent: Shopify
+// webhooks are at-least-once delivery, so the same order can legitimately
+// arrive twice.
+model OrderAttribution {
+  id            String   @id @default(cuid())
+  shop          Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  shopId        String
+  reelId        String
+  orderId       String
+  orderName     String
+  lineItemId    String
+  productId     String?
+  variantId     String?
+  quantity      Int
+  revenueAmount Decimal  @db.Decimal(12, 2)
+  currencyCode  String
+  createdAt     DateTime @default(now())
+
+  @@unique([orderId, lineItemId])
   @@index([shopId, reelId])
 }
