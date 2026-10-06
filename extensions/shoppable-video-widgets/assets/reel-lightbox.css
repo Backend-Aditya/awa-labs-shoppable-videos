@@ -49,6 +49,15 @@
   object-fit: cover;
 }
 
+.reelup-trigger__preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
+}
+
 .reelup-trigger__play-icon {
   position: absolute;
   inset: 0;
@@ -364,4 +373,68 @@
   margin: 0 0 12px;
   font-size: 16px;
   font-weight: 600;
+}
+
+/* Shared utility classes applied by every widget block's wrapper element —
+   centralized here (loaded first by every block) since none of the
+   per-widget stylesheets define box-shadow or display on these elements
+   themselves, so there's no cascade-order conflict to worry about. */
+.reelup-shadow--soft {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+}
+
+.reelup-shadow--bold {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+@media (max-width: 749px) {
+  .reelup-hide-mobile {
+    display: none !important;
+  }
+}
+
+@media (min-width: 750px) {
+  .reelup-hide-desktop {
+    display: none !important;
+  }
+}
+
+/* CTA button style variants — toggled via a class reel-trigger.js applies
+   to the lightbox root from each trigger's data-cta-style attribute. */
+.reelup-lightbox--cta-square .reelup-lightbox__add-to-cart {
+  border-radius: 6px;
+}
+
+.reelup-lightbox--cta-text-link .reelup-lightbox__add-to-cart {
+  background: transparent;
+  color: var(--reelup-cta-color, #111);
+  padding: 9px 4px;
+  text-decoration: underline;
+}
+
+.reelup-lightbox--cta-text-link .reelup-lightbox__add-to-cart:hover,
+.reelup-lightbox--cta-text-link .reelup-lightbox__add-to-cart:focus-visible {
+  background: transparent;
+  color: var(--reelup-cta-hover-color, #2b2b2b);
+}
+
+/* Tap-to-reveal product tags — hidden until the products-heading is
+   tapped/clicked, toggling --visible (see setUpTapReveal in
+   reel-viewer-settings.js). Heading stays visible as the tap target;
+   only the list of product rows underneath is hidden/shown. */
+.reelup-lightbox__products-list--tap {
+  display: none;
+}
+
+.reelup-lightbox__products-list--tap.reelup-lightbox__products--visible {
+  display: flex;
+}
+
+.reelup-lightbox__products-heading {
+  cursor: default;
+}
+
+[data-reelup-lightbox-products-heading]:has(+ .reelup-lightbox__products-list--tap),
+[data-reelup-story-drawer-heading]:has(+ .reelup-lightbox__products-list--tap) {
+  cursor: pointer;
 }

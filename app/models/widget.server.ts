@@ -12,13 +12,54 @@ export type WidgetKind =
   | "SINGLE_VIDEO"
   | "ADD_TO_CART_VIDEO";
 
+// Every appearance/behavior field across all 6 storefront widgets, merged
+// into one bag. Each widget kind only shows/reads the subset relevant to it
+// (see WIDGET_STYLE_FIELDS in app.widgets.tsx for which); storing them all
+// in one shape means the metafield sync and the Liquid read side never need
+// a per-kind type, just one optional-everything object.
+export interface WidgetStyleConfig {
+  heading?: string;
+  watchLabel?: string;
+  accentColor?: string;
+  triggerSize?: number;
+  cornerStyle?: "sharp" | "rounded" | "soft";
+  ctaColor?: string;
+  ctaTextColor?: string;
+  ctaLabel?: string;
+  showPrice?: boolean;
+  showTitleOverlay?: boolean;
+  mutedDefault?: boolean;
+  loop?: boolean;
+  storyDuration?: number;
+  position?: "bottom_right" | "bottom_left" | "top_right" | "top_left";
+  showPulse?: boolean;
+  // Theming
+  backgroundColor?: string;
+  textColor?: string;
+  shadowPreset?: "none" | "soft" | "bold";
+  // Layout
+  layoutMode?: "carousel" | "grid";
+  columns?: number;
+  playTrigger?: "click" | "hover";
+  autoplayOnScroll?: boolean;
+  // CTA / product UI
+  ctaStyle?: "pill" | "square" | "text-link";
+  showProductImage?: boolean;
+  tagRevealMode?: "always" | "tap";
+}
+
 export interface WidgetConfig {
   templateStyle: string;
   targetRule:
     | { type: "all_products" }
-    | { type: "handles"; handles: string[] };
+    | { type: "handles"; handles: string[] }
+    | { type: "collections"; handles: string[] };
+  // Display concern, not a style sub-field, so it survives independent of
+  // the style form's merge-on-save (see updateWidgetStyle).
+  deviceVisibility?: "all" | "desktop" | "mobile";
   featuredReelId?: string;
   reelIds?: string[];
+  style?: WidgetStyleConfig;
 }
 
 export async function createWidget(
@@ -126,9 +167,29 @@ export async function updateWidgetTargetRule(
   return widget;
 }
 
+export async function updateWidgetDeviceVisibility(
+  admin: AdminGraphqlClient,
+  shopId: string,
+  id: string,
+  deviceVisibility: WidgetConfig["deviceVisibility"],
+): Promise<Widget> {
+  const existing = await prisma.widget.findFirstOrThrow({ where: { id, shopId } });
+  const existingConfig = existing.config as unknown as WidgetConfig;
+  const mergedConfig: WidgetConfig = { ...existingConfig, deviceVisibility };
+
+  const widget = await prisma.widget.update({
+    where: { id },
+    data: { config: mergedConfig as unknown as Prisma.InputJsonValue },
+  });
+  await syncShopWidgetState(admin, widget.shopId, widget.type as WidgetKind);
+  return widget;
+}
+
 interface WidgetMetafieldValue {
   published: boolean;
   targetRule: WidgetConfig["targetRule"];
+  style: WidgetStyleConfig;
+  deviceVisibility: WidgetConfig["deviceVisibility"];
 }
 
 interface WidgetKindSyncConfig {
@@ -212,8 +273,13 @@ export async function syncShopWidgetState(
 
   const liveConfig = live ? (live.config as unknown as WidgetConfig) : null;
   const value: WidgetMetafieldValue = liveConfig
-    ? { published: true, targetRule: liveConfig.targetRule }
-    : { published: false, targetRule: { type: "all_products" } };
+    ? {
+        published: true,
+        targetRule: liveConfig.targetRule,
+        style: liveConfig.style ?? {},
+        deviceVisibility: liveConfig.deviceVisibility ?? "all",
+      }
+    : { published: false, targetRule: { type: "all_products" }, style: {}, deviceVisibility: "all" };
 
   const shopGid = await getShopGid(admin);
 
@@ -271,6 +337,24 @@ export async function updateWidgetFeaturedReel(
   const existing = await prisma.widget.findFirstOrThrow({ where: { id, shopId } });
   const existingConfig = existing.config as unknown as WidgetConfig;
   const mergedConfig: WidgetConfig = { ...existingConfig, featuredReelId };
+
+  const widget = await prisma.widget.update({
+    where: { id },
+    data: { config: mergedConfig as unknown as Prisma.InputJsonValue },
+  });
+  await syncShopWidgetState(admin, widget.shopId, widget.type as WidgetKind);
+  return widget;
+}
+
+export async function updateWidgetStyle(
+  admin: AdminGraphqlClient,
+  shopId: string,
+  id: string,
+  style: WidgetStyleConfig,
+): Promise<Widget> {
+  const existing = await prisma.widget.findFirstOrThrow({ where: { id, shopId } });
+  const existingConfig = existing.config as unknown as WidgetConfig;
+  const mergedConfig: WidgetConfig = { ...existingConfig, style };
 
   const widget = await prisma.widget.update({
     where: { id },

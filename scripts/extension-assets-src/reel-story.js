@@ -368,14 +368,24 @@
     goTo(dialog, startIndex);
   };
 
+  const hoverCapable = window.matchMedia?.("(hover: hover) and (pointer: fine)").matches ?? false;
+
   document.querySelectorAll("[data-reelup-story-group]").forEach((group) => {
     if (group.dataset.reelupStoryGroupBound) return;
     group.dataset.reelupStoryGroupBound = "true";
 
     Array.from(group.querySelectorAll("[data-reelup-trigger]")).forEach((trigger, index) => {
-      trigger
-        .querySelector(".reelup-trigger__button")
-        ?.addEventListener("click", () => openViewer(group, index));
+      const button = trigger.querySelector(".reelup-trigger__button");
+      if (!button) return;
+      const open = () => openViewer(group, index);
+
+      // Same hover-capable guard as reel-trigger.js's standalone triggers —
+      // touch devices keep the default click-to-open.
+      if (trigger.dataset.playTrigger === "hover" && hoverCapable) {
+        button.addEventListener("mouseenter", open);
+      } else {
+        button.addEventListener("click", open);
+      }
     });
   });
 })();

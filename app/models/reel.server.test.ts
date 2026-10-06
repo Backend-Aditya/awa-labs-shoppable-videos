@@ -19,6 +19,48 @@ describe("reel.server", () => {
     source: { type: "upload" },
   };
 
+  it("round-trips a reel imported from a social URL, preserving source.type and originalUrl", async () => {
+    const importedConfig: ReelConfig = {
+      productIds: [],
+      interactions: {},
+      source: { type: "instagram", originalUrl: "https://www.instagram.com/reel/abc123/" },
+    };
+    let capturedVariables: Record<string, unknown> | undefined;
+    const admin = {
+      graphql: async (_query: string, options?: { variables?: Record<string, unknown> }) => {
+        capturedVariables = options?.variables;
+        return {
+          json: async () => ({
+            data: {
+              metaobjectUpsert: {
+                metaobject: {
+                  id: "gid://shopify/Metaobject/2",
+                  handle: "imported-reel",
+                  title: { jsonValue: "Imported Reel" },
+                  published: { jsonValue: "false" },
+                  config: { jsonValue: importedConfig },
+                },
+                userErrors: [],
+              },
+            },
+          }),
+        };
+      },
+    };
+
+    const reel = await upsertReel(admin, "imported-reel", "Imported Reel", false, importedConfig);
+
+    expect(reel.config.source).toEqual({
+      type: "instagram",
+      originalUrl: "https://www.instagram.com/reel/abc123/",
+    });
+    expect(capturedVariables?.metaobject).toMatchObject({
+      fields: expect.arrayContaining([
+        { key: "config", value: JSON.stringify(importedConfig) },
+      ]),
+    });
+  });
+
   it("generates a URL-safe handle from a title", () => {
     const handle = generateReelHandle("Summer Look #1!");
     expect(handle).toMatch(/^summer-look-1-[a-z0-9-]+$/);

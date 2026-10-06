@@ -4,6 +4,7 @@ import type {
   LoaderFunctionArgs,
 } from "react-router";
 import { useEffect, useRef, useState } from "react";
+import type { RefObject } from "react";
 import { useFetcher, useLoaderData } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
@@ -14,6 +15,8 @@ import type { WidgetConfig, WidgetKind } from "../models/widget.server";
 import type { Widget } from "@prisma/client";
 import { useResourceDetail } from "../components/useResourceDetail";
 import { StatTile } from "../components/StatTile";
+import { EmptyState } from "../components/EmptyState";
+import { ColorField, FIELD_INPUT_STYLE, NumberField, SelectField } from "../components/form-fields";
 import { deriveReelStatus } from "../models/reel-status";
 import { listReels } from "../models/reel.server";
 import type { ReelConfig } from "../models/reel.server";
@@ -66,6 +69,149 @@ const WIDGET_TEMPLATES: WidgetTemplateMeta[] = [
 
 const WIDGET_KINDS: WidgetKind[] = WIDGET_TEMPLATES.map((t) => t.kind);
 
+type StyleFieldKey =
+  | "heading"
+  | "watchLabel"
+  | "accentColor"
+  | "triggerSize"
+  | "cornerStyle"
+  | "ctaColor"
+  | "ctaTextColor"
+  | "ctaLabel"
+  | "showPrice"
+  | "showTitleOverlay"
+  | "mutedDefault"
+  | "loop"
+  | "storyDuration"
+  | "position"
+  | "showPulse"
+  | "backgroundColor"
+  | "textColor"
+  | "shadowPreset"
+  | "layoutMode"
+  | "columns"
+  | "playTrigger"
+  | "autoplayOnScroll"
+  | "ctaStyle"
+  | "showProductImage"
+  | "tagRevealMode";
+
+// Which of the full WidgetStyleConfig fields each kind actually shows, plus
+// the per-kind label/range for the one generic "size" slider (thumbnail
+// width, avatar size, bubble size, video width — same field, different
+// meaning per kind) and defaults matching what each Liquid block used to
+// hardcode in its own theme-editor schema before those settings moved here.
+const WIDGET_STYLE_FIELDS: Record<
+  WidgetKind,
+  {
+    fields: StyleFieldKey[];
+    accentColorLabel: string;
+    sizeLabel: string;
+    sizeDefault: number;
+    sizeMin: number;
+    sizeMax: number;
+    mutedDefault: boolean;
+  }
+> = {
+  PRODUCT_PAGE_REELS: {
+    fields: ["heading", "cornerStyle", "accentColor", "triggerSize", "ctaColor", "ctaTextColor", "ctaLabel", "showPrice", "showTitleOverlay", "mutedDefault", "loop", "backgroundColor", "textColor", "shadowPreset", "layoutMode", "columns", "playTrigger", "autoplayOnScroll", "ctaStyle", "showProductImage", "tagRevealMode"],
+    accentColorLabel: "Accent color",
+    sizeLabel: "Thumbnail width (px)",
+    sizeDefault: 220,
+    sizeMin: 120,
+    sizeMax: 320,
+    mutedDefault: true,
+  },
+  SINGLE_VIDEO: {
+    fields: ["cornerStyle", "accentColor", "triggerSize", "ctaColor", "ctaTextColor", "ctaLabel", "showPrice", "showTitleOverlay", "mutedDefault", "loop", "backgroundColor", "shadowPreset", "playTrigger", "ctaStyle", "showProductImage", "tagRevealMode"],
+    accentColorLabel: "Accent color",
+    sizeLabel: "Video width (px)",
+    sizeDefault: 320,
+    sizeMin: 240,
+    sizeMax: 480,
+    mutedDefault: false,
+  },
+  CAROUSEL: {
+    fields: ["heading", "cornerStyle", "accentColor", "ctaColor", "ctaTextColor", "ctaLabel", "showPrice", "showTitleOverlay", "mutedDefault", "loop", "backgroundColor", "textColor", "shadowPreset", "layoutMode", "columns", "autoplayOnScroll", "ctaStyle", "showProductImage", "tagRevealMode"],
+    accentColorLabel: "Accent color",
+    sizeLabel: "",
+    sizeDefault: 0,
+    sizeMin: 0,
+    sizeMax: 0,
+    mutedDefault: true,
+  },
+  STORIES: {
+    fields: ["heading", "accentColor", "triggerSize", "storyDuration", "ctaColor", "ctaTextColor", "ctaLabel", "showPrice", "showTitleOverlay", "mutedDefault", "loop"],
+    accentColorLabel: "Ring color",
+    sizeLabel: "Avatar size (px)",
+    sizeDefault: 64,
+    sizeMin: 40,
+    sizeMax: 320,
+    mutedDefault: true,
+  },
+  REEL_POPS: {
+    fields: ["position", "showPulse", "triggerSize", "ctaColor", "ctaTextColor", "ctaLabel", "showPrice", "showTitleOverlay", "mutedDefault", "loop"],
+    accentColorLabel: "Accent color",
+    sizeLabel: "Bubble size (px)",
+    sizeDefault: 72,
+    sizeMin: 40,
+    sizeMax: 320,
+    mutedDefault: false,
+  },
+  ADD_TO_CART_VIDEO: {
+    fields: ["watchLabel", "accentColor", "triggerSize", "ctaColor", "ctaTextColor", "ctaLabel", "showPrice", "showTitleOverlay", "mutedDefault", "loop", "backgroundColor", "textColor", "shadowPreset", "playTrigger", "ctaStyle", "showProductImage", "tagRevealMode"],
+    accentColorLabel: "Accent color",
+    sizeLabel: "Thumbnail size (px)",
+    sizeDefault: 72,
+    sizeMin: 48,
+    sizeMax: 160,
+    mutedDefault: false,
+  },
+  GRID: {
+    fields: [],
+    accentColorLabel: "Accent color",
+    sizeLabel: "",
+    sizeDefault: 0,
+    sizeMin: 0,
+    sizeMax: 0,
+    mutedDefault: false,
+  },
+};
+
+// s-checkbox's ElementInternals form participation doesn't reliably clear
+// on uncheck (see the identical note on the Published checkbox below), so
+// every boolean style field pairs a real s-checkbox with a hidden input
+// this component keeps in sync imperatively via ref instead of trusting the
+// checkbox's own name/value to submit correctly.
+function StyleCheckboxField({
+  name,
+  label,
+  defaultChecked,
+  resetKey,
+}: {
+  name: string;
+  label: string;
+  defaultChecked: boolean;
+  resetKey: string;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  return (
+    <>
+      <input type="hidden" name={name} ref={ref} key={`${name}-hidden-${resetKey}`} defaultValue={defaultChecked ? "true" : ""} />
+      <s-checkbox
+        key={`${name}-checkbox-${resetKey}`}
+        label={label}
+        defaultChecked={defaultChecked}
+        onChange={(event: { currentTarget: { checked: boolean } | null }) => {
+          if (ref.current && event.currentTarget) {
+            ref.current.value = event.currentTarget.checked ? "true" : "";
+          }
+        }}
+      ></s-checkbox>
+    </>
+  );
+}
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
   const shop = await getOrCreateShop(session.shop);
@@ -88,13 +234,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   const productHandles = formData.getAll("productHandle").map(String).filter(Boolean);
+  const collectionHandles = formData.getAll("collectionHandle").map(String).filter(Boolean);
   const reelIds = formData.getAll("reelId").map(String).filter(Boolean);
   const featuredReelId = String(formData.get("featuredReelId") ?? "").trim();
 
   const config: WidgetConfig = {
     templateStyle: "classic",
     targetRule:
-      productHandles.length > 0 ? { type: "handles", handles: productHandles } : { type: "all_products" },
+      productHandles.length > 0
+        ? { type: "handles", handles: productHandles }
+        : collectionHandles.length > 0
+          ? { type: "collections", handles: collectionHandles }
+          : { type: "all_products" },
     ...(reelIds.length > 0 ? { reelIds } : {}),
     ...(featuredReelId ? { featuredReelId } : {}),
   };
@@ -229,6 +380,7 @@ function CreateWidgetModal({ reels }: { reels: PickableReel[] }) {
   const formRef = useRef<HTMLFormElement>(null);
   const [selectedKind, setSelectedKind] = useState<WidgetKind>("PRODUCT_PAGE_REELS");
   const [targetProducts, setTargetProducts] = useState<{ id: string; title: string; handle: string }[]>([]);
+  const [targetCollections, setTargetCollections] = useState<{ id: string; title: string; handle: string }[]>([]);
   const [selectedReelIds, setSelectedReelIds] = useState<Set<string>>(new Set());
   const [selectedFeaturedReelId, setSelectedFeaturedReelId] = useState<string | null>(null);
 
@@ -236,6 +388,7 @@ function CreateWidgetModal({ reels }: { reels: PickableReel[] }) {
     if (fetcher.state === "idle" && fetcher.data && !fetcher.data.error) {
       shopify.modal.hide("create-widget-modal");
       setTargetProducts([]);
+      setTargetCollections([]);
       setSelectedReelIds(new Set());
       setSelectedFeaturedReelId(null);
     }
@@ -256,6 +409,18 @@ function CreateWidgetModal({ reels }: { reels: PickableReel[] }) {
     });
     if (!selected) return;
     setTargetProducts(selected.map((p) => ({ id: p.id, title: p.title, handle: p.handle })));
+    setTargetCollections([]);
+  };
+
+  const handlePickTargetCollections = async () => {
+    const selected = await shopify.resourcePicker({
+      type: "collection",
+      multiple: true,
+      selectionIds: targetCollections.map((c) => ({ id: c.id })),
+    });
+    if (!selected) return;
+    setTargetCollections(selected.map((c) => ({ id: c.id, title: c.title, handle: c.handle })));
+    setTargetProducts([]);
   };
 
   return (
@@ -289,22 +454,33 @@ function CreateWidgetModal({ reels }: { reels: PickableReel[] }) {
 
           <s-stack gap="small-200">
             <s-stack direction="inline" gap="small-200" alignItems="center" justifyContent="space-between">
-              <s-heading>Target products (optional)</s-heading>
-              <s-button type="button" variant="secondary" onClick={handlePickTargetProducts}>
-                {targetProducts.length === 0 ? "Choose products" : "Edit"}
-              </s-button>
+              <s-heading>Target (optional)</s-heading>
+              <s-stack direction="inline" gap="small-200">
+                <s-button type="button" variant="secondary" onClick={handlePickTargetProducts}>
+                  {targetProducts.length === 0 ? "Choose products" : "Edit products"}
+                </s-button>
+                <s-button type="button" variant="secondary" onClick={handlePickTargetCollections}>
+                  {targetCollections.length === 0 ? "Choose collections" : "Edit collections"}
+                </s-button>
+              </s-stack>
             </s-stack>
-            {targetProducts.length === 0 ? (
+            {targetProducts.length === 0 && targetCollections.length === 0 ? (
               <s-paragraph color="subdued">Shows on all products by default.</s-paragraph>
             ) : (
               <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--p-space-200, 8px)" }}>
                 {targetProducts.map((product) => (
                   <s-badge key={product.id}>{product.title}</s-badge>
                 ))}
+                {targetCollections.map((collection) => (
+                  <s-badge key={collection.id}>{collection.title}</s-badge>
+                ))}
               </div>
             )}
             {targetProducts.map((product) => (
               <input key={product.id} type="hidden" name="productHandle" value={product.handle} />
+            ))}
+            {targetCollections.map((collection) => (
+              <input key={collection.id} type="hidden" name="collectionHandle" value={collection.handle} />
             ))}
           </s-stack>
 
@@ -476,6 +652,240 @@ function ReelPickerRow({
   );
 }
 
+// Full styling/behavior editor for one widget — colors, sizes, labels,
+// mute/loop, corner style, etc. Every field this app's 6 storefront blocks
+// used to expose only in the theme editor now lives here instead, so a
+// merchant customizes a widget once, in the admin, without ever opening the
+// theme editor (see WIDGET_STYLE_FIELDS for which fields each kind shows).
+function StyleSection({
+  widget,
+  href,
+  styleFetcher,
+  styleFormRef,
+}: {
+  widget: Widget;
+  href: string | null;
+  styleFetcher: ReturnType<typeof useFetcher<{ error: string | null }>>;
+  styleFormRef: RefObject<HTMLFormElement>;
+}) {
+  const kind = widget.type as WidgetKind;
+  const fieldConfig = WIDGET_STYLE_FIELDS[kind];
+  const style = (widget.config as unknown as WidgetConfig).style ?? {};
+  const has = (key: StyleFieldKey) => fieldConfig.fields.includes(key);
+  const resetKey = widget.id;
+
+  return (
+    <s-stack gap="base">
+      <s-stack direction="inline" gap="small-200" alignItems="center" justifyContent="space-between">
+        <s-heading>Appearance</s-heading>
+        <s-button
+          type="button"
+          variant="secondary"
+          loading={styleFetcher.state !== "idle"}
+          onClick={() => styleFormRef.current?.requestSubmit()}
+        >
+          Save
+        </s-button>
+      </s-stack>
+      {styleFetcher.data?.error && <s-paragraph tone="critical">{styleFetcher.data.error}</s-paragraph>}
+      <styleFetcher.Form method="post" action={href ?? undefined} ref={styleFormRef} key={resetKey}>
+        <input type="hidden" name="intent" value="set-style" />
+        <s-stack gap="base">
+          {has("heading") && (
+            <s-text-field label="Heading" name="heading" defaultValue={style.heading ?? ""} placeholder="Leave blank to hide"></s-text-field>
+          )}
+          {has("watchLabel") && (
+            <s-text-field label="Label text" name="watchLabel" defaultValue={style.watchLabel ?? "Watch video"}></s-text-field>
+          )}
+          {has("cornerStyle") && (
+            <SelectField
+              id={`cornerStyle-${resetKey}`}
+              name="cornerStyle"
+              label="Corner style"
+              defaultValue={style.cornerStyle ?? "rounded"}
+              options={[
+                { value: "sharp", label: "Sharp" },
+                { value: "rounded", label: "Rounded" },
+                { value: "soft", label: "Soft" },
+              ]}
+            />
+          )}
+          {has("position") && (
+            <SelectField
+              id={`position-${resetKey}`}
+              name="position"
+              label="Bubble position"
+              defaultValue={style.position ?? "bottom_right"}
+              options={[
+                { value: "bottom_right", label: "Bottom right" },
+                { value: "bottom_left", label: "Bottom left" },
+                { value: "top_right", label: "Top right" },
+                { value: "top_left", label: "Top left" },
+              ]}
+            />
+          )}
+          {has("accentColor") && (
+            <ColorField
+              id={`accentColor-${resetKey}`}
+              name="accentColor"
+              label={fieldConfig.accentColorLabel}
+              defaultValue={style.accentColor || "#111111"}
+            />
+          )}
+          {has("triggerSize") && (
+            <NumberField
+              id={`triggerSize-${resetKey}`}
+              name="triggerSize"
+              label={fieldConfig.sizeLabel}
+              min={fieldConfig.sizeMin}
+              max={fieldConfig.sizeMax}
+              defaultValue={style.triggerSize ?? fieldConfig.sizeDefault}
+            />
+          )}
+          {has("storyDuration") && (
+            <NumberField
+              id={`storyDuration-${resetKey}`}
+              name="storyDuration"
+              label="Seconds per story"
+              min={5}
+              max={30}
+              defaultValue={style.storyDuration ?? 15}
+            />
+          )}
+          {has("ctaColor") && (
+            <ColorField
+              id={`ctaColor-${resetKey}`}
+              name="ctaColor"
+              label="Add to cart button color"
+              defaultValue={style.ctaColor || "#111111"}
+            />
+          )}
+          {has("ctaTextColor") && (
+            <ColorField
+              id={`ctaTextColor-${resetKey}`}
+              name="ctaTextColor"
+              label="Add to cart text color"
+              defaultValue={style.ctaTextColor || "#ffffff"}
+            />
+          )}
+          {has("ctaLabel") && (
+            <s-text-field label="Add to cart button text" name="ctaLabel" defaultValue={style.ctaLabel ?? ""} placeholder="Leave blank to use the default label"></s-text-field>
+          )}
+          {has("showPulse") && (
+            <StyleCheckboxField name="showPulse" label="Pulse to draw attention" defaultChecked={style.showPulse ?? true} resetKey={resetKey} />
+          )}
+          {has("showPrice") && (
+            <StyleCheckboxField name="showPrice" label="Show product price" defaultChecked={style.showPrice ?? true} resetKey={resetKey} />
+          )}
+          {has("showTitleOverlay") && (
+            <StyleCheckboxField name="showTitleOverlay" label="Show video title" defaultChecked={style.showTitleOverlay ?? true} resetKey={resetKey} />
+          )}
+          {has("mutedDefault") && (
+            <StyleCheckboxField name="mutedDefault" label="Mute video by default" defaultChecked={style.mutedDefault ?? fieldConfig.mutedDefault} resetKey={resetKey} />
+          )}
+          {has("loop") && (
+            <StyleCheckboxField name="loop" label="Loop video" defaultChecked={style.loop ?? false} resetKey={resetKey} />
+          )}
+          {has("backgroundColor") && (
+            <ColorField
+              id={`backgroundColor-${resetKey}`}
+              name="backgroundColor"
+              label="Background color"
+              defaultValue={style.backgroundColor || "#ffffff"}
+            />
+          )}
+          {has("textColor") && (
+            <ColorField
+              id={`textColor-${resetKey}`}
+              name="textColor"
+              label="Text color"
+              defaultValue={style.textColor || "#111111"}
+            />
+          )}
+          {has("shadowPreset") && (
+            <SelectField
+              id={`shadowPreset-${resetKey}`}
+              name="shadowPreset"
+              label="Shadow"
+              defaultValue={style.shadowPreset ?? "none"}
+              options={[
+                { value: "none", label: "None" },
+                { value: "soft", label: "Soft" },
+                { value: "bold", label: "Bold" },
+              ]}
+            />
+          )}
+          {has("layoutMode") && (
+            <SelectField
+              id={`layoutMode-${resetKey}`}
+              name="layoutMode"
+              label="Layout"
+              defaultValue={style.layoutMode ?? "carousel"}
+              options={[
+                { value: "carousel", label: "Carousel" },
+                { value: "grid", label: "Grid" },
+              ]}
+            />
+          )}
+          {has("columns") && (
+            <NumberField
+              id={`columns-${resetKey}`}
+              name="columns"
+              label="Grid columns"
+              min={2}
+              max={5}
+              defaultValue={style.columns ?? 3}
+            />
+          )}
+          {has("playTrigger") && (
+            <SelectField
+              id={`playTrigger-${resetKey}`}
+              name="playTrigger"
+              label="Play on"
+              defaultValue={style.playTrigger ?? "click"}
+              options={[
+                { value: "click", label: "Click" },
+                { value: "hover", label: "Hover (desktop)" },
+              ]}
+            />
+          )}
+          {has("autoplayOnScroll") && (
+            <StyleCheckboxField name="autoplayOnScroll" label="Autoplay muted when scrolled into view" defaultChecked={style.autoplayOnScroll ?? false} resetKey={resetKey} />
+          )}
+          {has("ctaStyle") && (
+            <SelectField
+              id={`ctaStyle-${resetKey}`}
+              name="ctaStyle"
+              label="Add to cart button style"
+              defaultValue={style.ctaStyle ?? "pill"}
+              options={[
+                { value: "pill", label: "Pill" },
+                { value: "square", label: "Square" },
+                { value: "text-link", label: "Text link" },
+              ]}
+            />
+          )}
+          {has("showProductImage") && (
+            <StyleCheckboxField name="showProductImage" label="Show product image in tags" defaultChecked={style.showProductImage ?? true} resetKey={resetKey} />
+          )}
+          {has("tagRevealMode") && (
+            <SelectField
+              id={`tagRevealMode-${resetKey}`}
+              name="tagRevealMode"
+              label="Product tags"
+              defaultValue={style.tagRevealMode ?? "always"}
+              options={[
+                { value: "always", label: "Always visible" },
+                { value: "tap", label: "Tap to reveal" },
+              ]}
+            />
+          )}
+        </s-stack>
+      </styleFetcher.Form>
+    </s-stack>
+  );
+}
+
 function WidgetDetailModal({
   widget,
   href,
@@ -489,15 +899,20 @@ function WidgetDetailModal({
   const targetFetcher = useFetcher<{ error: string | null }>();
   const featuredReelFetcher = useFetcher<{ error: string | null }>();
   const reelsFetcher = useFetcher<{ error: string | null }>();
+  const styleFetcher = useFetcher<{ error: string | null }>();
+  const deviceVisibilityFetcher = useFetcher<{ error: string | null }>();
   const duplicateFetcher = useFetcher();
   const shopify = useAppBridge();
   const publishedRef = useRef<HTMLInputElement>(null);
   const editFormRef = useRef<HTMLFormElement>(null);
+  const styleFormRef = useRef<HTMLFormElement>(null);
   const { data: detailData } = useResourceDetail<WidgetDetailLoaderData>(href, [
     editFetcher,
     targetFetcher,
     featuredReelFetcher,
     reelsFetcher,
+    styleFetcher,
+    deviceVisibilityFetcher,
   ]);
   const detailWidget = detailData?.widget ?? null;
 
@@ -516,6 +931,10 @@ function WidgetDetailModal({
     ? (detailWidget.config as unknown as WidgetConfig).targetRule
     : null;
   const currentHandles = targetRule?.type === "handles" ? targetRule.handles : [];
+  const currentCollectionHandles = targetRule?.type === "collections" ? targetRule.handles : [];
+  const deviceVisibility = detailWidget
+    ? ((detailWidget.config as unknown as WidgetConfig).deviceVisibility ?? "all")
+    : "all";
 
   // Tracked in JS rather than relied on via each checkbox's native name/value
   // — s-checkbox's ElementInternals form participation doesn't reliably clear
@@ -553,6 +972,27 @@ function WidgetDetailModal({
     const formData = new FormData();
     formData.set("intent", "clear-target");
     targetFetcher.submit(formData, { method: "post", action: href });
+  };
+
+  const handlePickCollections = async () => {
+    if (!href) return;
+    const selected = await shopify.resourcePicker({ type: "collection", multiple: true });
+    if (!selected) return;
+
+    const formData = new FormData();
+    formData.set("intent", "set-target-collections");
+    for (const collection of selected) {
+      formData.append("collectionHandle", collection.handle);
+    }
+    targetFetcher.submit(formData, { method: "post", action: href });
+  };
+
+  const handleDeviceVisibilityChange = (value: string) => {
+    if (!href) return;
+    const formData = new FormData();
+    formData.set("intent", "set-device-visibility");
+    formData.set("deviceVisibility", value);
+    deviceVisibilityFetcher.submit(formData, { method: "post", action: href });
   };
 
   const meta = detailWidget ? WIDGET_TEMPLATES.find((t) => t.kind === detailWidget.type) : undefined;
@@ -638,7 +1078,7 @@ function WidgetDetailModal({
 
           <s-stack gap="base">
             <s-stack direction="inline" gap="small-200" alignItems="center" justifyContent="space-between">
-              <s-heading>Target products</s-heading>
+              <s-heading>Target</s-heading>
               <s-stack direction="inline" gap="small-200">
                 <s-button
                   variant="secondary"
@@ -647,7 +1087,14 @@ function WidgetDetailModal({
                 >
                   Choose products
                 </s-button>
-                {targetRule?.type === "handles" && (
+                <s-button
+                  variant="secondary"
+                  onClick={handlePickCollections}
+                  loading={targetFetcher.state !== "idle"}
+                >
+                  Choose collections
+                </s-button>
+                {targetRule?.type !== "all_products" && (
                   <s-button type="button" variant="tertiary" onClick={handleClearTarget}>
                     Target all instead
                   </s-button>
@@ -659,6 +1106,12 @@ function WidgetDetailModal({
             )}
             {targetRule?.type === "all_products" ? (
               <s-paragraph color="subdued">Showing on all products.</s-paragraph>
+            ) : targetRule?.type === "collections" ? (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--p-space-200, 8px)" }}>
+                {currentCollectionHandles.map((handle) => (
+                  <s-badge key={handle}>{handle}</s-badge>
+                ))}
+              </div>
             ) : (
               <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--p-space-200, 8px)" }}>
                 {currentHandles.map((handle) => (
@@ -666,7 +1119,37 @@ function WidgetDetailModal({
                 ))}
               </div>
             )}
+            {/* Plain <select> with its own onChange rather than SelectField —
+                this one saves immediately on change (like the button-driven
+                target pickers above) instead of needing a separate submit
+                step, so it doesn't fit SelectField's form-field contract. */}
+            <s-stack gap="small-100">
+              <label htmlFor={`deviceVisibility-${detailWidget.id}`}>
+                <s-text>Show on</s-text>
+              </label>
+              <select
+                id={`deviceVisibility-${detailWidget.id}`}
+                key={`deviceVisibility-${detailWidget.id}`}
+                defaultValue={deviceVisibility}
+                onChange={(e) => handleDeviceVisibilityChange(e.currentTarget.value)}
+                style={FIELD_INPUT_STYLE}
+              >
+                <option value="all">All devices</option>
+                <option value="desktop">Desktop only</option>
+                <option value="mobile">Mobile only</option>
+              </select>
+            </s-stack>
+            {deviceVisibilityFetcher.data?.error && (
+              <s-paragraph tone="critical">{deviceVisibilityFetcher.data.error}</s-paragraph>
+            )}
           </s-stack>
+
+          {detailWidget && WIDGET_STYLE_FIELDS[detailWidget.type as WidgetKind].fields.length > 0 && (
+            <>
+              <s-divider></s-divider>
+              <StyleSection widget={detailWidget} href={href} styleFetcher={styleFetcher} styleFormRef={styleFormRef} />
+            </>
+          )}
 
           {showsFeaturedReel && (
             <>
@@ -876,7 +1359,13 @@ export default function Widgets() {
 
       <s-section heading="All widgets">
         {widgets.length === 0 ? (
-          <s-paragraph>No widgets yet. Use Create widget to add your first one.</s-paragraph>
+          <EmptyState
+            icon="apps"
+            heading="No widgets yet"
+            body="Create a widget to decide where and how your reels show up on your storefront."
+            actionLabel="Create widget"
+            actionCommandFor="create-widget-modal"
+          />
         ) : (
           <s-grid gridTemplateColumns="repeat(auto-fill, minmax(220px, 1fr))" gap="base">
             {widgets.map((widget) => (

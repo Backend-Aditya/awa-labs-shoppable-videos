@@ -16,3 +16,26 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+.reelup-carousel.reelup-layout--grid {
+  grid-template-columns: repeat(var(--reelup-columns, 4), 1fr);
+}
+
+.reelup-carousel.reelup-layout--carousel {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+
+.reelup-carousel.reelup-layout--carousel .reelup-trigger {
+  flex: 0 0 auto;
+  width: 220px;
+  scroll-snap-align: start;
+}
+
+.reelup-carousel[style*="--reelup-bg-color"] {
+  background: var(--reelup-bg-color);
+  border-radius: var(--reelup-corner-radius, 12px);
+  padding: 12px;
+}

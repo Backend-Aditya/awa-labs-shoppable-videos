@@ -59,3 +59,7 @@
   color: var(--reelup-atc-label-color, inherit);
   white-space: nowrap;
 }
+
+.reelup-atc-video[style*="--reelup-bg-color"] .reelup-atc-video__button {
+  background: var(--reelup-bg-color);
+}

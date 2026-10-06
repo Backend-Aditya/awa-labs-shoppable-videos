@@ -21,3 +21,19 @@
   width: var(--reelup-trigger-size, 220px);
   scroll-snap-align: start;
 }
+
+.reelup-product-reels.reelup-layout--grid {
+  display: grid;
+  grid-template-columns: repeat(var(--reelup-columns, 3), 1fr);
+  overflow-x: visible;
+}
+
+.reelup-product-reels.reelup-layout--grid .reelup-product-reels__item {
+  width: 100%;
+}
+
+.reelup-product-reels[style*="--reelup-bg-color"] {
+  background: var(--reelup-bg-color);
+  border-radius: var(--reelup-corner-radius, 12px);
+  padding: 12px;
+}

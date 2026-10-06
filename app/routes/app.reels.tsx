@@ -20,8 +20,12 @@ import {
 import type { Reel, ProductSummary } from "../models/reel.server";
 import { TaggedProductRow } from "../components/TaggedProductRow";
 import { deriveReelStatus } from "../models/reel-status";
-import { createDirectUploadUrl, getCloudflareConfig } from "../models/cloudflare-stream.server";
+import { createDirectUploadUrl, getCloudflareConfig, uploadBufferToDirectUploadUrl } from "../models/cloudflare-stream.server";
+import { fetchSocialVideo, parseSocialVideoUrl, resolveVideoSourceUrl, SocialImportError } from "../models/social-import.server";
 import { StatTile } from "../components/StatTile";
+import { EmptyState } from "../components/EmptyState";
+import { DateTimeField } from "../components/form-fields";
+import { formatRevenueTotals, toDatetimeLocalValue } from "../components/format";
 import { useResourceDetail } from "../components/useResourceDetail";
 import { getShopRevenueTotals } from "../models/order-attribution.server";
 import type { ShopRevenueTotals } from "../models/order-attribution.server";
@@ -47,36 +51,6 @@ function formatBytes(bytes: number): string {
     unitIndex += 1;
   }
   return `${value.toFixed(1)} ${units[unitIndex]}`;
-}
-
-// <input type="datetime-local"> wants "YYYY-MM-DDTHH:mm" in the browser's
-// local timezone, no offset suffix — new Date(iso) already converts a
-// stored UTC ISO string to local time for getHours()/getMinutes(), so this
-// just needs to format it, not convert it again.
-function toDatetimeLocalValue(iso: string): string {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-function formatMoney(amount: string, currencyCode: string): string {
-  try {
-    return new Intl.NumberFormat(undefined, { style: "currency", currency: currencyCode }).format(
-      Number(amount),
-    );
-  } catch {
-    // Intl throws on an unrecognized currency code — fall back to the raw
-    // string rather than crashing the page over a display formatting issue.
-    return `${amount} ${currencyCode}`;
-  }
-}
-
-// Multi-currency shops can have more than one entry; joins them rather
-// than silently picking one, since summing across currencies would be
-// meaningless.
-function formatRevenueTotals(totals: { currencyCode: string; revenue: string }[]): string {
-  if (totals.length === 0) return "—";
-  return totals.map((t) => formatMoney(t.revenue, t.currencyCode)).join(", ");
 }
 
 const REEL_STATUS_LABELS: Record<string, string> = {
@@ -195,6 +169,67 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }
 
+  if (intent === "start-import") {
+    const title = String(formData.get("title") ?? "").trim();
+    const published = formData.get("published") === "true";
+    const sourceUrl = String(formData.get("sourceUrl") ?? "").trim();
+    const productIds = formData.getAll("productId").map(String);
+    if (!title) {
+      return { error: "Title is required", uploadURL: null, reelId: null };
+    }
+
+    const parsed = parseSocialVideoUrl(sourceUrl);
+    if (!parsed) {
+      return {
+        error: "Paste a public Instagram or TikTok video link.",
+        uploadURL: null,
+        reelId: null,
+      };
+    }
+
+    let reel;
+    try {
+      reel = await upsertReel(admin, generateReelHandle(title), title, published, {
+        productIds,
+        interactions: {},
+        source: { type: parsed.platform, originalUrl: sourceUrl },
+      });
+      if (productIds.length > 0) {
+        await syncProductReelMetafields(admin, reel.id, [], productIds);
+      }
+    } catch (e) {
+      if (e instanceof Response) throw e;
+      return { error: "Could not create the reel. Try again.", uploadURL: null, reelId: null };
+    }
+
+    try {
+      const resolved = await resolveVideoSourceUrl(parsed.platform, sourceUrl);
+      const videoResponse = await fetchSocialVideo(resolved.videoUrl, sourceUrl);
+      const { uid, uploadURL } = await createDirectUploadUrl(
+        getCloudflareConfig(),
+        3600,
+        { reelId: reel.id, shop: session.shop },
+      );
+      await uploadBufferToDirectUploadUrl(uploadURL, videoResponse, `${reel.handle}.mp4`);
+      await updateReelConfig(admin, reel.id, { cloudflareStreamUid: uid });
+      return { error: null, uploadURL: null, reelId: reel.id };
+    } catch (e) {
+      try {
+        if (productIds.length > 0) {
+          await syncProductReelMetafields(admin, reel.id, productIds, []);
+        }
+        await deleteReel(admin, reel.id);
+      } catch {
+        // best-effort cleanup; the original error below is what the merchant sees
+      }
+      const message =
+        e instanceof SocialImportError
+          ? e.message
+          : "Couldn't import that video. Try again or upload the file directly.";
+      return { error: message, uploadURL: null, reelId: null };
+    }
+  }
+
   if (intent === "bulk-publish" || intent === "bulk-unpublish") {
     const published = intent === "bulk-publish";
     const reelIds = formData.getAll("reelId").map(String);
@@ -239,6 +274,8 @@ function CreateReelModal() {
     "idle" | "uploading" | "done" | "error" | "no-file"
   >("idle");
   const [dropZoneKey, setDropZoneKey] = useState(0);
+  const [videoMode, setVideoMode] = useState<"upload" | "import">("upload");
+  const [sourceUrl, setSourceUrl] = useState("");
   const [taggedProducts, setTaggedProducts] = useState<
     { id: string; title: string; imageUrl: string | null }[]
   >([]);
@@ -250,6 +287,20 @@ function CreateReelModal() {
   // not drop `fetcher.state` from the dependency array (it closes a ~1-3s race
   // during an in-flight submission).
   const armedRef = useRef(false);
+  // Import mode has no client-side PUT step — the action does the whole
+  // fetch-and-upload server-side, so the fetcher returning to idle with no
+  // error IS the completion signal (same role uploadStatus === "done" plays
+  // for the upload-mode effect below).
+  const importSubmittedRef = useRef(false);
+
+  useEffect(() => {
+    if (importSubmittedRef.current && fetcher.state === "idle") {
+      importSubmittedRef.current = false;
+      if (!fetcher.data?.error) {
+        shopify.modal.hide("create-reel-modal");
+      }
+    }
+  }, [fetcher.state, fetcher.data, shopify]);
 
   useEffect(() => {
     if (
@@ -304,6 +355,8 @@ function CreateReelModal() {
         setDropZoneKey((k) => k + 1);
         setPublishedKey((k) => k + 1);
         setTaggedProducts([]);
+        setVideoMode("upload");
+        setSourceUrl("");
       }}
     >
       <fetcher.Form
@@ -311,16 +364,24 @@ function CreateReelModal() {
         ref={formRef}
         method="post"
         onSubmit={(e) => {
-          if (!file) {
-            e.preventDefault();
-            setUploadStatus("no-file");
-            return;
+          if (videoMode === "upload") {
+            if (!file) {
+              e.preventDefault();
+              setUploadStatus("no-file");
+              return;
+            }
+            armedRef.current = true;
+            setUploadStatus("idle");
+          } else {
+            if (!sourceUrl.trim()) {
+              e.preventDefault();
+              return;
+            }
+            importSubmittedRef.current = true;
           }
-          armedRef.current = true;
-          setUploadStatus("idle");
         }}
       >
-        <input type="hidden" name="intent" value="start-upload" />
+        <input type="hidden" name="intent" value={videoMode === "upload" ? "start-upload" : "start-import"} />
         <s-stack gap="large">
           {fetcher.data?.error && (
             <s-paragraph tone="critical">{fetcher.data.error}</s-paragraph>
@@ -344,45 +405,84 @@ function CreateReelModal() {
           <s-divider></s-divider>
 
           <s-stack gap="small-200">
-            <s-heading>Video</s-heading>
-            {file ? (
-              <s-box padding="base" background="subdued" borderRadius="base">
-                <s-stack direction="inline" gap="base" alignItems="center">
-                  <s-icon type="play-circle" tone="info"></s-icon>
-                  <s-stack gap="small-100">
-                    <s-text type="strong">{file.name}</s-text>
-                    <s-text color="subdued">{formatBytes(file.size)}</s-text>
-                  </s-stack>
-                  <s-button
-                    type="button"
-                    variant="tertiary"
-                    tone="critical"
-                    onClick={() => {
-                      setFile(null);
-                      setDropZoneKey((k) => k + 1);
-                    }}
-                  >
-                    Remove
-                  </s-button>
-                </s-stack>
-              </s-box>
+            <s-stack direction="inline" gap="small-200" alignItems="center" justifyContent="space-between">
+              <s-heading>Video</s-heading>
+              <s-stack direction="inline" gap="small-200">
+                <s-button
+                  type="button"
+                  variant={videoMode === "upload" ? "primary" : "tertiary"}
+                  onClick={() => setVideoMode("upload")}
+                >
+                  Upload a file
+                </s-button>
+                <s-button
+                  type="button"
+                  variant={videoMode === "import" ? "primary" : "tertiary"}
+                  onClick={() => setVideoMode("import")}
+                >
+                  Import from a link
+                </s-button>
+              </s-stack>
+            </s-stack>
+            {videoMode === "upload" ? (
+              <>
+                {file ? (
+                  <s-box padding="base" background="subdued" borderRadius="base">
+                    <s-stack direction="inline" gap="base" alignItems="center">
+                      <s-icon type="play-circle" tone="info"></s-icon>
+                      <s-stack gap="small-100">
+                        <s-text type="strong">{file.name}</s-text>
+                        <s-text color="subdued">{formatBytes(file.size)}</s-text>
+                      </s-stack>
+                      <s-button
+                        type="button"
+                        variant="tertiary"
+                        tone="critical"
+                        onClick={() => {
+                          setFile(null);
+                          setDropZoneKey((k) => k + 1);
+                        }}
+                      >
+                        Remove
+                      </s-button>
+                    </s-stack>
+                  </s-box>
+                ) : (
+                  <s-drop-zone
+                    key={dropZoneKey}
+                    label="Video file"
+                    accept="video/*"
+                    accessibilityLabel="Video file"
+                    onChange={(event) => setFile(event.currentTarget.files?.[0] ?? null)}
+                  ></s-drop-zone>
+                )}
+                {uploadStatus === "uploading" && (
+                  <s-paragraph>Uploading to Cloudflare…</s-paragraph>
+                )}
+                {uploadStatus === "error" && (
+                  <s-paragraph tone="critical">Upload failed. Try again.</s-paragraph>
+                )}
+                {uploadStatus === "no-file" && (
+                  <s-paragraph tone="critical">Choose a video file first.</s-paragraph>
+                )}
+              </>
             ) : (
-              <s-drop-zone
-                key={dropZoneKey}
-                label="Video file"
-                accept="video/*"
-                accessibilityLabel="Video file"
-                onChange={(event) => setFile(event.currentTarget.files?.[0] ?? null)}
-              ></s-drop-zone>
-            )}
-            {uploadStatus === "uploading" && (
-              <s-paragraph>Uploading to Cloudflare…</s-paragraph>
-            )}
-            {uploadStatus === "error" && (
-              <s-paragraph tone="critical">Upload failed. Try again.</s-paragraph>
-            )}
-            {uploadStatus === "no-file" && (
-              <s-paragraph tone="critical">Choose a video file first.</s-paragraph>
+              <>
+                <s-text-field
+                  label="Video link"
+                  name="sourceUrl"
+                  placeholder="https://www.instagram.com/reel/... or https://www.tiktok.com/.../video/..."
+                  value={sourceUrl}
+                  onChange={(e: { currentTarget: { value: string } }) => setSourceUrl(e.currentTarget.value)}
+                ></s-text-field>
+                <s-text color="subdued">
+                  Only works on public posts. Instagram/TikTok have no official API for this, so it can
+                  occasionally fail to find a video even on a public post.
+                </s-text>
+                {fetcher.state !== "idle" && videoMode === "import" && (
+                  <s-paragraph>Fetching video…</s-paragraph>
+                )}
+              </>
             )}
           </s-stack>
 
@@ -688,6 +788,19 @@ function ReelDetailModal({
                 </s-badge>
                 <s-badge tone={statusTone(status)}>{status ? REEL_STATUS_LABELS[status] : ""}</s-badge>
               </s-stack>
+              {detailReel.config.source.type !== "upload" && (
+                <s-paragraph color="subdued">
+                  Imported from {detailReel.config.source.type === "instagram" ? "Instagram" : "TikTok"}
+                  {detailReel.config.source.originalUrl && (
+                    <>
+                      {" — "}
+                      <a href={detailReel.config.source.originalUrl} target="_blank" rel="noreferrer">
+                        view original
+                      </a>
+                    </>
+                  )}
+                </s-paragraph>
+              )}
               <s-grid gridTemplateColumns="repeat(2, 1fr)" gap="small-200">
                 <StatTile label="Views" value={data.analytics?.views || 0} icon="view" tone="info" />
                 <StatTile label="Product clicks" value={data.analytics?.clicks || 0} icon="cursor" tone="success" />
@@ -745,35 +858,18 @@ function ReelDetailModal({
                   }}
                 ></s-checkbox>
 
-                <s-stack gap="small-100">
-                  <label htmlFor={`publish-at-${detailReel.id}`}>
-                    <s-text>Schedule publish (optional)</s-text>
-                  </label>
-                  <input
-                    id={`publish-at-${detailReel.id}`}
-                    type="datetime-local"
-                    name="publishAt"
-                    key={`publish-at-${detailReel.id}`}
-                    defaultValue={
-                      detailReel.config.publishAt ? toDatetimeLocalValue(detailReel.config.publishAt) : ""
-                    }
-                    style={{
-                      padding: "8px 10px",
-                      borderRadius: "8px",
-                      border: "1px solid var(--p-color-border, #c9cccf)",
-                      fontSize: "14px",
-                      fontFamily: "inherit",
-                      width: "100%",
-                      boxSizing: "border-box",
-                    }}
-                  />
-                  {detailReel.config.publishAt && !detailReel.published && (
-                    <s-text color="subdued">
-                      Publishes automatically at the scheduled time — checking &ldquo;Published&rdquo;
-                      above instead publishes it immediately and clears the schedule.
-                    </s-text>
-                  )}
-                </s-stack>
+                <DateTimeField
+                  key={`publish-at-${detailReel.id}`}
+                  id={`publish-at-${detailReel.id}`}
+                  name="publishAt"
+                  label="Schedule publish (optional)"
+                  defaultValue={detailReel.config.publishAt ? toDatetimeLocalValue(detailReel.config.publishAt) : ""}
+                  helpText={
+                    detailReel.config.publishAt && !detailReel.published
+                      ? "Publishes automatically at the scheduled time — checking “Published” above instead publishes it immediately and clears the schedule."
+                      : undefined
+                  }
+                />
 
                 <s-divider></s-divider>
 
@@ -1062,7 +1158,13 @@ export default function ReelsLibrary() {
 
       <s-section heading="All reels">
         {reels.length === 0 ? (
-          <s-paragraph>No reels yet. Use Create reel to add your first one.</s-paragraph>
+          <EmptyState
+            icon="video"
+            heading="No reels yet"
+            body="Upload your first video, tag the products it features, and it's ready to add to a widget."
+            actionLabel="Create reel"
+            actionCommandFor="create-reel-modal"
+          />
         ) : (
           <s-stack gap="base">
             <div

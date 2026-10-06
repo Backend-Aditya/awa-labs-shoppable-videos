@@ -13,7 +13,11 @@ any tagged products.
 
 {% assign reel_namespace = 'app--404281098241' %}
 
-{% case block.settings.corner_style %}
+{% assign widget_field = shop.metafields[reel_namespace].single_video_widget %}
+{% assign featured_reel = shop.metafields[reel_namespace].single_video_featured_reel %}
+{% assign widget_style = widget_field.value.style %}
+
+{% case widget_style.cornerStyle %}
   {% when 'sharp' %}
     {% assign corner_radius_px = '0px' %}
   {% when 'soft' %}
@@ -22,20 +26,46 @@ any tagged products.
     {% assign corner_radius_px = '12px' %}
 {% endcase %}
 
+{% assign style_video_width = widget_style.triggerSize | default: 320 %}
+
 {% capture wrapper_style %}
   --reelup-corner-radius: {{ corner_radius_px }};
-  {% unless block.settings.accent_color == blank %}
-    --reelup-accent-color: {{ block.settings.accent_color }};
-    --reelup-accent-hover-color: {{ block.settings.accent_color | color_darken: 15 }};
+  {% unless widget_style.accentColor == blank %}
+    --reelup-accent-color: {{ widget_style.accentColor }};
+    --reelup-accent-hover-color: {{ widget_style.accentColor | color_darken: 15 }};
+  {% endunless %}
+  {% unless widget_style.backgroundColor == blank %}
+    --reelup-bg-color: {{ widget_style.backgroundColor }};
+  {% endunless %}
+  {% unless widget_style.textColor == blank %}
+    --reelup-text-color: {{ widget_style.textColor }};
   {% endunless %}
 {% endcapture %}
 
+{% assign shadow_class = 'reelup-shadow--none' %}
+{% if widget_style.shadowPreset == 'soft' or widget_style.shadowPreset == 'bold' %}
+  {% assign shadow_class = 'reelup-shadow--' | append: widget_style.shadowPreset %}
+{% endif %}
+
+{% assign visibility_class = '' %}
+{% if widget_field.value.deviceVisibility == 'desktop' %}
+  {% assign visibility_class = 'reelup-hide-mobile' %}
+{% elsif widget_field.value.deviceVisibility == 'mobile' %}
+  {% assign visibility_class = 'reelup-hide-desktop' %}
+{% endif %}
+
 {% capture cta_hover_color %}
-  {% unless block.settings.cta_color == blank %}{{ block.settings.cta_color | color_lighten: 15 }}{% endunless %}
+  {% unless widget_style.ctaColor == blank %}{{ widget_style.ctaColor | color_lighten: 15 }}{% endunless %}
 {% endcapture %}
 
-{% assign widget_field = shop.metafields[reel_namespace].single_video_widget %}
-{% assign featured_reel = shop.metafields[reel_namespace].single_video_featured_reel %}
+{% assign style_show_price = true %}
+{% if widget_style.showPrice == false %}{% assign style_show_price = false %}{% endif %}
+{% assign style_show_title_overlay = true %}
+{% if widget_style.showTitleOverlay == false %}{% assign style_show_title_overlay = false %}{% endif %}
+{% assign style_muted_default = false %}
+{% if widget_style.mutedDefault %}{% assign style_muted_default = true %}{% endif %}
+{% assign style_loop = false %}
+{% if widget_style.loop %}{% assign style_loop = true %}{% endif %}
 
 {% assign widget_matches_product = false %}
 {% if widget_field.value.published %}
@@ -43,6 +73,12 @@ any tagged products.
     {% assign widget_matches_product = true %}
   {% elsif widget_field.value.targetRule.type == "handles" and widget_field.value.targetRule.handles contains product.handle %}
     {% assign widget_matches_product = true %}
+  {% elsif widget_field.value.targetRule.type == "collections" %}
+    {% for collection in product.collections %}
+      {% if widget_field.value.targetRule.handles contains collection.handle %}
+        {% assign widget_matches_product = true %}
+      {% endif %}
+    {% endfor %}
   {% endif %}
 {% endif %}
 
@@ -54,7 +90,7 @@ any tagged products.
 
 {% if show_reel %}
   {% render 'reel-video-schema', reel: reel %}
-  <div class="reelup-single-video" style="{{ wrapper_style | strip_newlines | strip }} max-width: {{ block.settings.video_max_width }}px;" {{ block.shopify_attributes }}>
+  <div class="reelup-single-video {{ shadow_class }} {{ visibility_class }}" style="{{ wrapper_style | strip_newlines | strip }} max-width: {{ style_video_width }}px;" {{ block.shopify_attributes }}>
     <div
       class="reelup-trigger"
       data-reelup-trigger
@@ -66,14 +102,18 @@ any tagged products.
       data-play-label="{{ 'reels.play_label' | t }}"
       data-pause-label="{{ 'reels.pause_label' | t }}"
       data-shop-label="{{ 'reels.shop_this_video_label' | t }}"
-      data-cta-color="{{ block.settings.cta_color }}"
-      data-cta-text-color="{{ block.settings.cta_text_color }}"
+      data-cta-color="{{ widget_style.ctaColor }}"
+      data-cta-text-color="{{ widget_style.ctaTextColor | default: '#ffffff' }}"
       data-cta-hover-color="{{ cta_hover_color | strip }}"
-      data-cta-label="{{ block.settings.cta_label | escape }}"
-      data-show-price="{{ block.settings.show_price }}"
-      data-show-title="{{ block.settings.show_title_overlay }}"
-      data-muted-default="{{ block.settings.muted_default }}"
-      data-loop="{{ block.settings.loop }}"
+      data-cta-label="{{ widget_style.ctaLabel | escape }}"
+      data-cta-style="{{ widget_style.ctaStyle | default: 'pill' }}"
+      data-show-price="{{ style_show_price }}"
+      data-show-title="{{ style_show_title_overlay }}"
+      data-show-product-image="{{ widget_style.showProductImage | default: true }}"
+      data-tag-reveal-mode="{{ widget_style.tagRevealMode | default: 'always' }}"
+      data-muted-default="{{ style_muted_default }}"
+      data-loop="{{ style_loop }}"
+      data-play-trigger="{{ widget_style.playTrigger | default: 'click' }}"
     >
       <button
         type="button"
@@ -140,25 +180,9 @@ any tagged products.
   "settings": [
     { "type": "product", "id": "product", "label": "Product", "autofill": true },
     {
-      "type": "select",
-      "id": "corner_style",
-      "label": "Corner style",
-      "options": [
-        { "value": "sharp", "label": "Sharp" },
-        { "value": "rounded", "label": "Rounded" },
-        { "value": "soft", "label": "Soft" }
-      ],
-      "default": "rounded"
-    },
-    { "type": "color", "id": "accent_color", "label": "Accent color", "info": "Leave blank to use the theme default" },
-    { "type": "range", "id": "video_max_width", "label": "Video width", "min": 240, "max": 480, "step": 10, "unit": "px", "default": 320 },
-    { "type": "color", "id": "cta_color", "label": "Add to cart button color", "info": "Leave blank to use the theme default" },
-    { "type": "color", "id": "cta_text_color", "label": "Add to cart text color", "default": "#ffffff" },
-    { "type": "text", "id": "cta_label", "label": "Add to cart button text", "info": "Leave blank to use the default label" },
-    { "type": "checkbox", "id": "show_price", "label": "Show product price", "default": true },
-    { "type": "checkbox", "id": "show_title_overlay", "label": "Show video title", "default": true },
-    { "type": "checkbox", "id": "muted_default", "label": "Mute video by default", "default": false },
-    { "type": "checkbox", "id": "loop", "label": "Loop video", "default": false }
+      "type": "paragraph",
+      "content": "Appearance, labels, and behavior for this widget are set in the app's Widgets page, not here — open the widget's Appearance tab to customize it."
+    }
   ]
 }
 {% endschema %}

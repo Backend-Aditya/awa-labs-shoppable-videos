@@ -8,6 +8,7 @@ import {
   deleteWidget,
   getWidget,
   updateWidget,
+  updateWidgetDeviceVisibility,
   updateWidgetTargetRule,
   updateWidgetFeaturedReel,
   updateWidgetReels,
@@ -36,7 +37,10 @@ function createRecordingAdmin() {
 // PRODUCT_PAGE_REELS always writes its reel-list field alongside its json
 // state field (an empty array when the live widget has no curated reels),
 // so this helper defaults to that shape unless a test overrides reelIds.
-function expectedMetafields(value: unknown, reelIds: string[] = []) {
+function expectedMetafields(
+  value: { published: boolean; targetRule: unknown; style?: unknown; deviceVisibility?: string },
+  reelIds: string[] = [],
+) {
   return {
     metafields: [
       {
@@ -44,7 +48,12 @@ function expectedMetafields(value: unknown, reelIds: string[] = []) {
         namespace: "$app",
         key: "product_page_reels_widget",
         type: "json",
-        value: JSON.stringify(value),
+        value: JSON.stringify({
+          published: value.published,
+          targetRule: value.targetRule,
+          style: value.style ?? {},
+          deviceVisibility: value.deviceVisibility ?? "all",
+        }),
       },
       {
         ownerId: "gid://shopify/Shop/1",
@@ -289,6 +298,25 @@ describe("widget.server", () => {
     });
   });
 
+  it("updates a widget's targetRule to specific collection handles", async () => {
+    const shop = await getOrCreateShop("widget-target-collections.myshopify.com");
+    const widget = await createWidget(shop.id, "REEL_POPS", "Targeted pop", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+    });
+    const { admin } = createRecordingAdmin();
+
+    const updated = await updateWidgetTargetRule(admin, shop.id, widget.id, {
+      type: "collections",
+      handles: ["summer-sale", "new-arrivals"],
+    });
+
+    expect(updated.config).toEqual({
+      templateStyle: "classic",
+      targetRule: { type: "collections", handles: ["summer-sale", "new-arrivals"] },
+    });
+  });
+
   it("resets a widget's targetRule to all_products, preserving other config keys", async () => {
     const shop = await getOrCreateShop("widget-target-reset.myshopify.com");
     const widget = await createWidget(shop.id, "REEL_POPS", "Reset pop", {
@@ -406,7 +434,7 @@ describe("widget.server", () => {
             namespace: "$app",
             key: "stacked_carousel_widget",
             type: "json",
-            value: JSON.stringify({ published: true, targetRule: { type: "all_products" } }),
+            value: JSON.stringify({ published: true, targetRule: { type: "all_products" }, style: {}, deviceVisibility: "all" }),
           },
           {
             ownerId: "gid://shopify/Shop/1",
@@ -524,7 +552,7 @@ describe("syncShopWidgetState", () => {
           namespace: "$app",
           key: "stacked_carousel_widget",
           type: "json",
-          value: JSON.stringify({ published: true, targetRule: { type: "all_products" } }),
+          value: JSON.stringify({ published: true, targetRule: { type: "all_products" }, style: {}, deviceVisibility: "all" }),
         },
         {
           ownerId: "gid://shopify/Shop/1",
@@ -569,7 +597,7 @@ describe("syncShopWidgetState", () => {
           namespace: "$app",
           key: "single_video_widget",
           type: "json",
-          value: JSON.stringify({ published: true, targetRule: { type: "all_products" } }),
+          value: JSON.stringify({ published: true, targetRule: { type: "all_products" }, style: {}, deviceVisibility: "all" }),
         },
         {
           ownerId: "gid://shopify/Shop/1",
@@ -600,7 +628,7 @@ describe("syncShopWidgetState", () => {
           namespace: "$app",
           key: "single_video_widget",
           type: "json",
-          value: JSON.stringify({ published: true, targetRule: { type: "all_products" } }),
+          value: JSON.stringify({ published: true, targetRule: { type: "all_products" }, style: {}, deviceVisibility: "all" }),
         },
       ],
     });
@@ -625,7 +653,7 @@ describe("syncShopWidgetState", () => {
           namespace: "$app",
           key: "add_to_cart_video_widget",
           type: "json",
-          value: JSON.stringify({ published: true, targetRule: { type: "all_products" } }),
+          value: JSON.stringify({ published: true, targetRule: { type: "all_products" }, style: {}, deviceVisibility: "all" }),
         },
         {
           ownerId: "gid://shopify/Shop/1",
@@ -657,7 +685,7 @@ describe("syncShopWidgetState", () => {
           namespace: "$app",
           key: "product_page_reels_widget",
           type: "json",
-          value: JSON.stringify({ published: true, targetRule: { type: "all_products" } }),
+          value: JSON.stringify({ published: true, targetRule: { type: "all_products" }, style: {}, deviceVisibility: "all" }),
         },
         {
           ownerId: "gid://shopify/Shop/1",
@@ -688,7 +716,7 @@ describe("syncShopWidgetState", () => {
           namespace: "$app",
           key: "product_page_reels_widget",
           type: "json",
-          value: JSON.stringify({ published: true, targetRule: { type: "all_products" } }),
+          value: JSON.stringify({ published: true, targetRule: { type: "all_products" }, style: {}, deviceVisibility: "all" }),
         },
         {
           ownerId: "gid://shopify/Shop/1",
@@ -720,7 +748,7 @@ describe("syncShopWidgetState", () => {
           namespace: "$app",
           key: "product_page_reels_widget",
           type: "json",
-          value: JSON.stringify({ published: true, targetRule: { type: "all_products" } }),
+          value: JSON.stringify({ published: true, targetRule: { type: "all_products" }, style: {}, deviceVisibility: "all" }),
         },
         {
           ownerId: "gid://shopify/Shop/1",
@@ -752,7 +780,7 @@ describe("syncShopWidgetState", () => {
           namespace: "$app",
           key: "stacked_carousel_widget",
           type: "json",
-          value: JSON.stringify({ published: true, targetRule: { type: "all_products" } }),
+          value: JSON.stringify({ published: true, targetRule: { type: "all_products" }, style: {}, deviceVisibility: "all" }),
         },
         {
           ownerId: "gid://shopify/Shop/1",
@@ -793,7 +821,7 @@ describe("updateWidgetFeaturedReel", () => {
           namespace: "$app",
           key: "single_video_widget",
           type: "json",
-          value: JSON.stringify({ published: true, targetRule: { type: "all_products" } }),
+          value: JSON.stringify({ published: true, targetRule: { type: "all_products" }, style: {}, deviceVisibility: "all" }),
         },
         {
           ownerId: "gid://shopify/Shop/1",
@@ -801,6 +829,43 @@ describe("updateWidgetFeaturedReel", () => {
           key: "single_video_featured_reel",
           type: "metaobject_reference",
           value: "gid://shopify/Metaobject/42",
+        },
+      ],
+    });
+  });
+});
+
+describe("updateWidgetDeviceVisibility", () => {
+  beforeEach(async () => {
+    await prisma.widget.deleteMany();
+    await prisma.shop.deleteMany();
+  });
+
+  it("sets deviceVisibility on the widget's config and syncs it into the metafield", async () => {
+    const shop = await getOrCreateShop("device-visibility.myshopify.com");
+    const widget = await createWidget(shop.id, "SINGLE_VIDEO", "Desktop only", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+    });
+    await setWidgetPublished(widget.id, true);
+    const { admin, recorder } = createRecordingAdmin();
+
+    const updated = await updateWidgetDeviceVisibility(admin, shop.id, widget.id, "desktop");
+
+    expect((updated.config as { deviceVisibility?: string }).deviceVisibility).toBe("desktop");
+    expect(recorder.variables).toEqual({
+      metafields: [
+        {
+          ownerId: "gid://shopify/Shop/1",
+          namespace: "$app",
+          key: "single_video_widget",
+          type: "json",
+          value: JSON.stringify({
+            published: true,
+            targetRule: { type: "all_products" },
+            style: {},
+            deviceVisibility: "desktop",
+          }),
         },
       ],
     });
@@ -838,7 +903,7 @@ describe("updateWidgetReels", () => {
           namespace: "$app",
           key: "stacked_carousel_widget",
           type: "json",
-          value: JSON.stringify({ published: true, targetRule: { type: "all_products" } }),
+          value: JSON.stringify({ published: true, targetRule: { type: "all_products" }, style: {}, deviceVisibility: "all" }),
         },
         {
           ownerId: "gid://shopify/Shop/1",
@@ -875,7 +940,7 @@ describe("updateWidgetReels", () => {
           namespace: "$app",
           key: "stacked_carousel_widget",
           type: "json",
-          value: JSON.stringify({ published: false, targetRule: { type: "all_products" } }),
+          value: JSON.stringify({ published: false, targetRule: { type: "all_products" }, style: {}, deviceVisibility: "all" }),
         },
         {
           ownerId: "gid://shopify/Shop/1",

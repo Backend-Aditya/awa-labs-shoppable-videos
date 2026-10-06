@@ -9,8 +9,8 @@ import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { getOrCreateShop } from "../models/shop.server";
-import { createWidget, deleteWidget, getWidget, updateWidget, updateWidgetFeaturedReel, updateWidgetReels, updateWidgetTargetRule } from "../models/widget.server";
-import type { WidgetConfig, WidgetKind } from "../models/widget.server";
+import { createWidget, deleteWidget, getWidget, updateWidget, updateWidgetDeviceVisibility, updateWidgetFeaturedReel, updateWidgetReels, updateWidgetStyle, updateWidgetTargetRule } from "../models/widget.server";
+import type { WidgetConfig, WidgetKind, WidgetStyleConfig } from "../models/widget.server";
 import { listReels } from "../models/reel.server";
 import { PreserveSearchParams } from "../components/PreserveSearchParams";
 
@@ -52,8 +52,22 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     return { error: null };
   }
 
+  if (intent === "set-target-collections") {
+    const handles = formData.getAll("collectionHandle").map(String).filter(Boolean);
+    const targetRule: WidgetConfig["targetRule"] =
+      handles.length > 0 ? { type: "collections", handles } : { type: "all_products" };
+    await updateWidgetTargetRule(admin, shop.id, widget.id, targetRule);
+    return { error: null };
+  }
+
   if (intent === "clear-target") {
     await updateWidgetTargetRule(admin, shop.id, widget.id, { type: "all_products" });
+    return { error: null };
+  }
+
+  if (intent === "set-device-visibility") {
+    const deviceVisibility = String(formData.get("deviceVisibility") ?? "all") as WidgetConfig["deviceVisibility"];
+    await updateWidgetDeviceVisibility(admin, shop.id, widget.id, deviceVisibility);
     return { error: null };
   }
 
@@ -77,6 +91,48 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     const validReelIds = new Set((await listReels(admin, 50)).map((reel) => reel.id));
     const reelIds = submittedReelIds.filter((reelId) => validReelIds.has(reelId));
     await updateWidgetReels(admin, shop.id, widget.id, reelIds);
+    return { error: null };
+  }
+
+  if (intent === "set-style") {
+    const str = (key: string) => {
+      const value = String(formData.get(key) ?? "").trim();
+      return value ? value : undefined;
+    };
+    const num = (key: string) => {
+      const value = Number(formData.get(key));
+      return Number.isFinite(value) && value > 0 ? value : undefined;
+    };
+    const bool = (key: string) => formData.get(key) === "true";
+
+    const style: WidgetStyleConfig = {
+      heading: str("heading"),
+      watchLabel: str("watchLabel"),
+      accentColor: str("accentColor"),
+      triggerSize: num("triggerSize"),
+      cornerStyle: str("cornerStyle") as WidgetStyleConfig["cornerStyle"],
+      ctaColor: str("ctaColor"),
+      ctaTextColor: str("ctaTextColor"),
+      ctaLabel: str("ctaLabel"),
+      showPrice: bool("showPrice"),
+      showTitleOverlay: bool("showTitleOverlay"),
+      mutedDefault: bool("mutedDefault"),
+      loop: bool("loop"),
+      storyDuration: num("storyDuration"),
+      position: str("position") as WidgetStyleConfig["position"],
+      showPulse: bool("showPulse"),
+      backgroundColor: str("backgroundColor"),
+      textColor: str("textColor"),
+      shadowPreset: str("shadowPreset") as WidgetStyleConfig["shadowPreset"],
+      layoutMode: str("layoutMode") as WidgetStyleConfig["layoutMode"],
+      columns: num("columns"),
+      playTrigger: str("playTrigger") as WidgetStyleConfig["playTrigger"],
+      autoplayOnScroll: bool("autoplayOnScroll"),
+      ctaStyle: str("ctaStyle") as WidgetStyleConfig["ctaStyle"],
+      showProductImage: bool("showProductImage"),
+      tagRevealMode: str("tagRevealMode") as WidgetStyleConfig["tagRevealMode"],
+    };
+    await updateWidgetStyle(admin, shop.id, widget.id, style);
     return { error: null };
   }
 

@@ -197,6 +197,7 @@
       productsList.appendChild(template.content.cloneNode(true));
       productsPanel.hidden = false;
       window.ReelupViewerSettings?.applyProductListSettings(productsList, triggerEl);
+      window.ReelupViewerSettings?.setUpTapReveal(productsList, productsHeading, triggerEl);
     } else {
       productsPanel.hidden = true;
     }

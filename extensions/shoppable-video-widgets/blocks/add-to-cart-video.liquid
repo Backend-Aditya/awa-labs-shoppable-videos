@@ -22,20 +22,48 @@ a large centered portrait poster.
   globally, so reusing them for this pill's background would make the play
   icon disappear against a matching accent color. Separate var names instead.
 {% endcomment %}
+{% assign widget_field = shop.metafields[reel_namespace].add_to_cart_video_widget %}
+{% assign featured_reel = shop.metafields[reel_namespace].add_to_cart_video_featured_reel %}
+{% assign widget_style = widget_field.value.style %}
+
 {% capture wrapper_style %}
-  --reelup-atc-thumb-size: {{ block.settings.thumb_size }}px;
-  {% unless block.settings.accent_color == blank %}
-    --reelup-atc-pill-color: {{ block.settings.accent_color }};
-    --reelup-atc-pill-hover-color: {{ block.settings.accent_color | color_darken: 15 }};
+  --reelup-atc-thumb-size: {{ widget_style.triggerSize | default: 72 }}px;
+  {% unless widget_style.accentColor == blank %}
+    --reelup-atc-pill-color: {{ widget_style.accentColor }};
+    --reelup-atc-pill-hover-color: {{ widget_style.accentColor | color_darken: 15 }};
+  {% endunless %}
+  {% unless widget_style.backgroundColor == blank %}
+    --reelup-bg-color: {{ widget_style.backgroundColor }};
+  {% endunless %}
+  {% unless widget_style.textColor == blank %}
+    --reelup-text-color: {{ widget_style.textColor }};
   {% endunless %}
 {% endcapture %}
 
 {% capture cta_hover_color %}
-  {% unless block.settings.cta_color == blank %}{{ block.settings.cta_color | color_lighten: 15 }}{% endunless %}
+  {% unless widget_style.ctaColor == blank %}{{ widget_style.ctaColor | color_lighten: 15 }}{% endunless %}
 {% endcapture %}
 
-{% assign widget_field = shop.metafields[reel_namespace].add_to_cart_video_widget %}
-{% assign featured_reel = shop.metafields[reel_namespace].add_to_cart_video_featured_reel %}
+{% assign style_show_price = true %}
+{% if widget_style.showPrice == false %}{% assign style_show_price = false %}{% endif %}
+{% assign style_show_title_overlay = true %}
+{% if widget_style.showTitleOverlay == false %}{% assign style_show_title_overlay = false %}{% endif %}
+{% assign style_muted_default = false %}
+{% if widget_style.mutedDefault %}{% assign style_muted_default = true %}{% endif %}
+{% assign style_loop = false %}
+{% if widget_style.loop %}{% assign style_loop = true %}{% endif %}
+
+{% assign shadow_class = 'reelup-shadow--none' %}
+{% if widget_style.shadowPreset == 'soft' or widget_style.shadowPreset == 'bold' %}
+  {% assign shadow_class = 'reelup-shadow--' | append: widget_style.shadowPreset %}
+{% endif %}
+
+{% assign visibility_class = '' %}
+{% if widget_field.value.deviceVisibility == 'desktop' %}
+  {% assign visibility_class = 'reelup-hide-mobile' %}
+{% elsif widget_field.value.deviceVisibility == 'mobile' %}
+  {% assign visibility_class = 'reelup-hide-desktop' %}
+{% endif %}
 
 {% assign widget_matches_product = false %}
 {% if widget_field.value.published %}
@@ -43,6 +71,12 @@ a large centered portrait poster.
     {% assign widget_matches_product = true %}
   {% elsif widget_field.value.targetRule.type == "handles" and widget_field.value.targetRule.handles contains product.handle %}
     {% assign widget_matches_product = true %}
+  {% elsif widget_field.value.targetRule.type == "collections" %}
+    {% for collection in product.collections %}
+      {% if widget_field.value.targetRule.handles contains collection.handle %}
+        {% assign widget_matches_product = true %}
+      {% endif %}
+    {% endfor %}
   {% endif %}
 {% endif %}
 
@@ -54,7 +88,7 @@ a large centered portrait poster.
 
 {% if show_reel %}
   {% render 'reel-video-schema', reel: reel %}
-  <div class="reelup-atc-video" style="{{ wrapper_style | strip_newlines | strip }}" {{ block.shopify_attributes }}>
+  <div class="reelup-atc-video {{ shadow_class }} {{ visibility_class }}" style="{{ wrapper_style | strip_newlines | strip }}" {{ block.shopify_attributes }}>
     <div
       class="reelup-trigger reelup-atc-video__trigger"
       data-reelup-trigger
@@ -66,14 +100,18 @@ a large centered portrait poster.
       data-play-label="{{ 'reels.play_label' | t }}"
       data-pause-label="{{ 'reels.pause_label' | t }}"
       data-shop-label="{{ 'reels.shop_this_video_label' | t }}"
-      data-cta-color="{{ block.settings.cta_color }}"
-      data-cta-text-color="{{ block.settings.cta_text_color }}"
+      data-cta-color="{{ widget_style.ctaColor }}"
+      data-cta-text-color="{{ widget_style.ctaTextColor | default: '#ffffff' }}"
       data-cta-hover-color="{{ cta_hover_color | strip }}"
-      data-cta-label="{{ block.settings.cta_label | escape }}"
-      data-show-price="{{ block.settings.show_price }}"
-      data-show-title="{{ block.settings.show_title_overlay }}"
-      data-muted-default="{{ block.settings.muted_default }}"
-      data-loop="{{ block.settings.loop }}"
+      data-cta-label="{{ widget_style.ctaLabel | escape }}"
+      data-cta-style="{{ widget_style.ctaStyle | default: 'pill' }}"
+      data-show-price="{{ style_show_price }}"
+      data-show-title="{{ style_show_title_overlay }}"
+      data-show-product-image="{{ widget_style.showProductImage | default: true }}"
+      data-tag-reveal-mode="{{ widget_style.tagRevealMode | default: 'always' }}"
+      data-muted-default="{{ style_muted_default }}"
+      data-loop="{{ style_loop }}"
+      data-play-trigger="{{ widget_style.playTrigger | default: 'click' }}"
     >
       <button
         type="button"
@@ -92,8 +130,8 @@ a large centered portrait poster.
           {% endif %}
           <span class="reelup-trigger__play-icon" aria-hidden="true"></span>
         </span>
-        {% unless block.settings.watch_label == blank %}
-          <span class="reelup-atc-video__label">{{ block.settings.watch_label }}</span>
+        {% unless widget_style.watchLabel == blank %}
+          <span class="reelup-atc-video__label"{% unless widget_style.textColor == blank %} style="color: {{ widget_style.textColor }};"{% endunless %}>{{ widget_style.watchLabel }}</span>
         {% endunless %}
       </button>
       {% if reel.tagged_products.value.size > 0 %}
@@ -143,16 +181,10 @@ a large centered portrait poster.
   "target": "section",
   "settings": [
     { "type": "product", "id": "product", "label": "Product", "autofill": true },
-    { "type": "text", "id": "watch_label", "label": "Label text", "default": "Watch video", "info": "Leave blank to show just the thumbnail" },
-    { "type": "color", "id": "accent_color", "label": "Accent color", "info": "Leave blank to use the theme default" },
-    { "type": "range", "id": "thumb_size", "label": "Thumbnail size", "min": 48, "max": 160, "step": 8, "unit": "px", "default": 72 },
-    { "type": "color", "id": "cta_color", "label": "Add to cart button color", "info": "Leave blank to use the theme default" },
-    { "type": "color", "id": "cta_text_color", "label": "Add to cart text color", "default": "#ffffff" },
-    { "type": "text", "id": "cta_label", "label": "Add to cart button text", "info": "Leave blank to use the default label" },
-    { "type": "checkbox", "id": "show_price", "label": "Show product price", "default": true },
-    { "type": "checkbox", "id": "show_title_overlay", "label": "Show video title", "default": true },
-    { "type": "checkbox", "id": "muted_default", "label": "Mute video by default", "default": false },
-    { "type": "checkbox", "id": "loop", "label": "Loop video", "default": false }
+    {
+      "type": "paragraph",
+      "content": "Appearance, labels, and behavior for this widget are set in the app's Widgets page, not here — open the widget's Appearance tab to customize it."
+    }
   ]
 }
 {% endschema %}

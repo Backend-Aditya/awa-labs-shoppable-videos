@@ -92,6 +92,31 @@ export async function createDirectUploadUrl(
   return { uid: json.result.uid, uploadURL: json.result.uploadURL };
 }
 
+// Fills a Cloudflare-issued direct-upload URL with a video fetched
+// server-side instead of a browser's file input PUT — same endpoint, same
+// multipart "file" field, just sourced from fetch(videoUrl) (the social
+// import flow) rather than a <input type="file">. Buffers the whole
+// response rather than streaming it through, since FormData's "file" entry
+// needs a Blob/File, not an arbitrary ReadableStream.
+export async function uploadBufferToDirectUploadUrl(
+  uploadURL: string,
+  videoResponse: Response,
+  filename: string,
+): Promise<void> {
+  const bytes = await videoResponse.arrayBuffer();
+  const body = new FormData();
+  body.append(
+    "file",
+    new Blob([bytes], { type: videoResponse.headers.get("content-type") ?? "video/mp4" }),
+    filename,
+  );
+
+  const response = await fetch(uploadURL, { method: "POST", body });
+  if (!response.ok) {
+    throw new Error(`Cloudflare direct upload failed with status ${response.status}`);
+  }
+}
+
 export async function getVideoDetails(
   config: CloudflareStreamConfig,
   uid: string,
