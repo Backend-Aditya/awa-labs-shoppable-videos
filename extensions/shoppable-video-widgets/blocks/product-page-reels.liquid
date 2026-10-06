@@ -98,6 +98,18 @@ Liquid at render time, no runtime API call.
   {% endif %}
 {% endif %}
 
+{% capture current_page_type %}{{ template }}{% endcapture %}
+{% assign page_type_ok = true %}
+{% if widget_field.value.pageTypes.size > 0 %}
+  {% assign page_type_ok = false %}
+  {% if widget_field.value.pageTypes contains current_page_type %}
+    {% assign page_type_ok = true %}
+  {% endif %}
+{% endif %}
+{% unless page_type_ok %}
+  {% assign widget_matches_product = false %}
+{% endunless %}
+
 {% assign reels_field = shop.metafields[reel_namespace].product_page_reels_widget_reels %}
 
 {% assign visible_count = 0 %}
@@ -128,6 +140,8 @@ Liquid at render time, no runtime API call.
             data-close-label="{{ 'reels.close_label' | t }}"
             data-play-label="{{ 'reels.play_label' | t }}"
             data-pause-label="{{ 'reels.pause_label' | t }}"
+            data-mute-label="{{ 'reels.mute_label' | t }}"
+            data-unmute-label="{{ 'reels.unmute_label' | t }}"
             data-shop-label="{{ 'reels.shop_this_video_label' | t }}"
             data-cta-color="{{ widget_style.ctaColor }}"
             data-cta-text-color="{{ widget_style.ctaTextColor | default: '#ffffff' }}"

@@ -9,6 +9,8 @@
     dialog.setAttribute("aria-labelledby", "reelup-lightbox-title");
     const playSvg = `<svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
     const pauseSvg = `<svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>`;
+    const mutedSvg = `<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M16.5 12A4.5 4.5 0 0 0 14 8.03v1.97l2.42 2.42c.05-.15.08-.3.08-.42zm2.5 0c0 .94-.2 1.82-.54 2.63l1.51 1.51A8.8 8.8 0 0 0 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 0 0 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4 9.91 6.09 12 8.18V4z"/></svg>`;
+    const unmutedSvg = `<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8.03v7.94c1.48-.73 2.5-2.25 2.5-3.97zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>`;
 
     dialog.innerHTML = `
       <button type="button" class="reelup-lightbox__close" data-reelup-lightbox-close>&times;</button>
@@ -18,6 +20,7 @@
           <div class="reelup-lightbox__video-container">
             <video class="reelup-lightbox__video" playsinline></video>
             <button type="button" class="reelup-lightbox__play-pause" data-reelup-play-pause>${playSvg}</button>
+            <button type="button" class="reelup-lightbox__mute" data-reelup-mute>${unmutedSvg}</button>
           </div>
         </div>
         <div class="reelup-lightbox__products" data-reelup-lightbox-products hidden>
@@ -76,6 +79,26 @@
 
     video.addEventListener("play", updateIcon);
     video.addEventListener("pause", updateIcon);
+
+    const muteBtn = dialog.querySelector("[data-reelup-mute]");
+
+    const updateMuteIcon = () => {
+      muteBtn.innerHTML = video.muted ? mutedSvg : unmutedSvg;
+      muteBtn.setAttribute(
+        "aria-label",
+        video.muted ? (dialog.dataset.unmuteLabel ?? "Unmute") : (dialog.dataset.muteLabel ?? "Mute"),
+      );
+    };
+
+    muteBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      video.muted = !video.muted;
+    });
+
+    // volumechange fires for both this click and the autoplay-workaround's
+    // own programmatic video.muted writes in open() below — one listener
+    // keeps the icon correct regardless of which set it.
+    video.addEventListener("volumechange", updateMuteIcon);
 
     videoContainer.addEventListener("mouseenter", () => {
       updateIcon();
@@ -177,6 +200,8 @@
 
     dialog.dataset.playLabel = triggerEl.dataset.playLabel ?? "Play";
     dialog.dataset.pauseLabel = triggerEl.dataset.pauseLabel ?? "Pause";
+    dialog.dataset.muteLabel = triggerEl.dataset.muteLabel ?? "Mute";
+    dialog.dataset.unmuteLabel = triggerEl.dataset.unmuteLabel ?? "Unmute";
     const playPauseBtn = dialog.querySelector("[data-reelup-play-pause]");
     playPauseBtn.setAttribute("aria-label", dialog.dataset.playLabel);
 

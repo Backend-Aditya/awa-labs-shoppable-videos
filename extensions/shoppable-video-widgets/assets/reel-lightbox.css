@@ -207,6 +207,30 @@
   opacity: 1;
 }
 
+/* Always visible, unlike play/pause (hover-only) — sound state needs to be
+   discoverable without hovering, since every reel autoplays muted. */
+.reelup-lightbox__mute {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.reelup-lightbox__mute:hover,
+.reelup-lightbox__mute:focus-visible {
+  background: rgba(0, 0, 0, 0.8);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .reelup-lightbox__play-pause {
     transition: none;

@@ -10,7 +10,7 @@ import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { getOrCreateShop } from "../models/shop.server";
-import { createWidget, listWidgetsForShop } from "../models/widget.server";
+import { createWidget, listWidgetsForShop, updateWidget } from "../models/widget.server";
 import type { WidgetConfig, WidgetKind } from "../models/widget.server";
 import type { Widget } from "@prisma/client";
 import { useResourceDetail } from "../components/useResourceDetail";
@@ -65,6 +65,21 @@ const WIDGET_TEMPLATES: WidgetTemplateMeta[] = [
     description: "One featured video, inline right below the add-to-cart button.",
     icon: "cart",
   },
+];
+
+// Matched against Liquid's `template.name` (see widget.server.ts's
+// pageTypes doc comment) — one entry per value a merchant can usefully
+// restrict a widget to. Unchecked/empty means "all pages" (today's
+// unrestricted default behavior).
+const PAGE_TYPE_OPTIONS: { value: string; label: string }[] = [
+  { value: "index", label: "Home page" },
+  { value: "product", label: "Product pages" },
+  { value: "collection", label: "Collection pages" },
+  { value: "list-collections", label: "All collections page" },
+  { value: "page", label: "Pages" },
+  { value: "article", label: "Blog posts" },
+  { value: "cart", label: "Cart" },
+  { value: "search", label: "Search" },
 ];
 
 const WIDGET_KINDS: WidgetKind[] = WIDGET_TEMPLATES.map((t) => t.kind);
@@ -223,7 +238,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const shop = await getOrCreateShop(session.shop);
   const formData = await request.formData();
   const name = String(formData.get("name") ?? "").trim();
@@ -250,7 +265,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     ...(featuredReelId ? { featuredReelId } : {}),
   };
 
-  await createWidget(shop.id, type as WidgetKind, name, config);
+  const widget = await createWidget(shop.id, type as WidgetKind, name, config);
+  // New widgets go live immediately rather than sitting as an unpublished
+  // draft the merchant has to remember to flip — updateWidget (not a raw
+  // DB write) is used here so the existing sibling-unpublish invariant and
+  // shop-metafield sync both still run exactly as they do for a manual
+  // publish toggle.
+  await updateWidget(admin, shop.id, widget.id, { published: true });
 
   return { error: null };
 };
@@ -901,6 +922,7 @@ function WidgetDetailModal({
   const reelsFetcher = useFetcher<{ error: string | null }>();
   const styleFetcher = useFetcher<{ error: string | null }>();
   const deviceVisibilityFetcher = useFetcher<{ error: string | null }>();
+  const pageTypesFetcher = useFetcher<{ error: string | null }>();
   const duplicateFetcher = useFetcher();
   const shopify = useAppBridge();
   const publishedRef = useRef<HTMLInputElement>(null);
@@ -913,6 +935,7 @@ function WidgetDetailModal({
     reelsFetcher,
     styleFetcher,
     deviceVisibilityFetcher,
+    pageTypesFetcher,
   ]);
   const detailWidget = detailData?.widget ?? null;
 
@@ -945,11 +968,13 @@ function WidgetDetailModal({
   // in-progress selection edits survive an unrelated Save.
   const [selectedReelIds, setSelectedReelIds] = useState<Set<string>>(new Set());
   const [selectedFeaturedReelId, setSelectedFeaturedReelId] = useState<string | null>(null);
+  const [selectedPageTypes, setSelectedPageTypes] = useState<Set<string>>(new Set());
   useEffect(() => {
     if (detailWidget) {
       const config = detailWidget.config as unknown as WidgetConfig;
       setSelectedReelIds(new Set(config.reelIds ?? []));
       setSelectedFeaturedReelId(config.featuredReelId ?? null);
+      setSelectedPageTypes(new Set(config.pageTypes ?? []));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detailWidget?.id]);
@@ -1142,6 +1167,54 @@ function WidgetDetailModal({
             {deviceVisibilityFetcher.data?.error && (
               <s-paragraph tone="critical">{deviceVisibilityFetcher.data.error}</s-paragraph>
             )}
+
+            <s-stack gap="small-100">
+              <s-stack direction="inline" gap="small-200" alignItems="center" justifyContent="space-between">
+                <s-text>Show on these pages</s-text>
+                <s-button
+                  type="button"
+                  variant="secondary"
+                  loading={pageTypesFetcher.state !== "idle"}
+                  onClick={() => {
+                    if (!href) return;
+                    const formData = new FormData();
+                    formData.set("intent", "set-page-types");
+                    for (const value of selectedPageTypes) formData.append("pageType", value);
+                    pageTypesFetcher.submit(formData, { method: "post", action: href });
+                  }}
+                >
+                  Save
+                </s-button>
+              </s-stack>
+              <s-paragraph color="subdued">
+                Leave all unchecked to show on every page type (default).
+              </s-paragraph>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--p-space-200, 12px)" }}>
+                {PAGE_TYPE_OPTIONS.map((option) => (
+                  <label
+                    key={option.value}
+                    style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "13px" }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedPageTypes.has(option.value)}
+                      onChange={() => {
+                        setSelectedPageTypes((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(option.value)) next.delete(option.value);
+                          else next.add(option.value);
+                          return next;
+                        });
+                      }}
+                    />
+                    {option.label}
+                  </label>
+                ))}
+              </div>
+              {pageTypesFetcher.data?.error && (
+                <s-paragraph tone="critical">{pageTypesFetcher.data.error}</s-paragraph>
+              )}
+            </s-stack>
           </s-stack>
 
           {detailWidget && WIDGET_STYLE_FIELDS[detailWidget.type as WidgetKind].fields.length > 0 && (

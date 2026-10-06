@@ -80,6 +80,18 @@ a large centered portrait poster.
   {% endif %}
 {% endif %}
 
+{% capture current_page_type %}{{ template }}{% endcapture %}
+{% assign page_type_ok = true %}
+{% if widget_field.value.pageTypes.size > 0 %}
+  {% assign page_type_ok = false %}
+  {% if widget_field.value.pageTypes contains current_page_type %}
+    {% assign page_type_ok = true %}
+  {% endif %}
+{% endif %}
+{% unless page_type_ok %}
+  {% assign widget_matches_product = false %}
+{% endunless %}
+
 {% assign reel = featured_reel.value %}
 {% assign show_reel = false %}
 {% if widget_matches_product and reel and reel.published.value and reel.config.value.cloudflareStreamUid != blank and reel.config.value.hlsManifestUrl != blank %}
@@ -99,6 +111,8 @@ a large centered portrait poster.
       data-close-label="{{ 'reels.close_label' | t }}"
       data-play-label="{{ 'reels.play_label' | t }}"
       data-pause-label="{{ 'reels.pause_label' | t }}"
+      data-mute-label="{{ 'reels.mute_label' | t }}"
+      data-unmute-label="{{ 'reels.unmute_label' | t }}"
       data-shop-label="{{ 'reels.shop_this_video_label' | t }}"
       data-cta-color="{{ widget_style.ctaColor }}"
       data-cta-text-color="{{ widget_style.ctaTextColor | default: '#ffffff' }}"

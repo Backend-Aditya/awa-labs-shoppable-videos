@@ -57,6 +57,11 @@ export interface WidgetConfig {
   // Display concern, not a style sub-field, so it survives independent of
   // the style form's merge-on-save (see updateWidgetStyle).
   deviceVisibility?: "all" | "desktop" | "mobile";
+  // Which page templates this widget is allowed to render on, matched
+  // against Liquid's `template.name` (e.g. "index", "product", "collection",
+  // "list-collections", "page", "article", "cart", "search"). Empty/unset
+  // means no restriction — matches every page, same as today's behavior.
+  pageTypes?: string[];
   featuredReelId?: string;
   reelIds?: string[];
   style?: WidgetStyleConfig;
@@ -185,11 +190,30 @@ export async function updateWidgetDeviceVisibility(
   return widget;
 }
 
+export async function updateWidgetPageTypes(
+  admin: AdminGraphqlClient,
+  shopId: string,
+  id: string,
+  pageTypes: string[],
+): Promise<Widget> {
+  const existing = await prisma.widget.findFirstOrThrow({ where: { id, shopId } });
+  const existingConfig = existing.config as unknown as WidgetConfig;
+  const mergedConfig: WidgetConfig = { ...existingConfig, pageTypes };
+
+  const widget = await prisma.widget.update({
+    where: { id },
+    data: { config: mergedConfig as unknown as Prisma.InputJsonValue },
+  });
+  await syncShopWidgetState(admin, widget.shopId, widget.type as WidgetKind);
+  return widget;
+}
+
 interface WidgetMetafieldValue {
   published: boolean;
   targetRule: WidgetConfig["targetRule"];
   style: WidgetStyleConfig;
   deviceVisibility: WidgetConfig["deviceVisibility"];
+  pageTypes: string[];
 }
 
 interface WidgetKindSyncConfig {
@@ -278,8 +302,15 @@ export async function syncShopWidgetState(
         targetRule: liveConfig.targetRule,
         style: liveConfig.style ?? {},
         deviceVisibility: liveConfig.deviceVisibility ?? "all",
+        pageTypes: liveConfig.pageTypes ?? [],
       }
-    : { published: false, targetRule: { type: "all_products" }, style: {}, deviceVisibility: "all" };
+    : {
+        published: false,
+        targetRule: { type: "all_products" },
+        style: {},
+        deviceVisibility: "all",
+        pageTypes: [],
+      };
 
   const shopGid = await getShopGid(admin);
 

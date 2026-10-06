@@ -126,6 +126,28 @@
   background: rgba(255, 255, 255, 0.3);
 }
 
+.reelup-story__mute {
+  position: absolute;
+  top: 16px;
+  right: 64px;
+  z-index: 3;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.reelup-story__mute:hover,
+.reelup-story__mute:focus-visible {
+  background: rgba(255, 255, 255, 0.3);
+}
+
 .reelup-story__frame {
   position: relative;
   width: 100%;

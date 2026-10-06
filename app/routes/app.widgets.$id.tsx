@@ -9,7 +9,7 @@ import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { getOrCreateShop } from "../models/shop.server";
-import { createWidget, deleteWidget, getWidget, updateWidget, updateWidgetDeviceVisibility, updateWidgetFeaturedReel, updateWidgetReels, updateWidgetStyle, updateWidgetTargetRule } from "../models/widget.server";
+import { createWidget, deleteWidget, getWidget, updateWidget, updateWidgetDeviceVisibility, updateWidgetFeaturedReel, updateWidgetPageTypes, updateWidgetReels, updateWidgetStyle, updateWidgetTargetRule } from "../models/widget.server";
 import type { WidgetConfig, WidgetKind, WidgetStyleConfig } from "../models/widget.server";
 import { listReels } from "../models/reel.server";
 import { PreserveSearchParams } from "../components/PreserveSearchParams";
@@ -68,6 +68,12 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   if (intent === "set-device-visibility") {
     const deviceVisibility = String(formData.get("deviceVisibility") ?? "all") as WidgetConfig["deviceVisibility"];
     await updateWidgetDeviceVisibility(admin, shop.id, widget.id, deviceVisibility);
+    return { error: null };
+  }
+
+  if (intent === "set-page-types") {
+    const pageTypes = formData.getAll("pageType").map(String).filter(Boolean);
+    await updateWidgetPageTypes(admin, shop.id, widget.id, pageTypes);
     return { error: null };
   }
 

@@ -21,7 +21,8 @@ import type { Reel, ProductSummary } from "../models/reel.server";
 import { TaggedProductRow } from "../components/TaggedProductRow";
 import { deriveReelStatus } from "../models/reel-status";
 import { createDirectUploadUrl, getCloudflareConfig, uploadBufferToDirectUploadUrl } from "../models/cloudflare-stream.server";
-import { fetchSocialVideo, parseSocialVideoUrl, resolveVideoSourceUrl, SocialImportError } from "../models/social-import.server";
+import { fetchSocialVideo, listProfilePostUrls, parseSocialVideoUrl, resolveVideoSourceUrl, SocialImportError } from "../models/social-import.server";
+import type { ProfilePost, SocialPlatform } from "../models/social-import.server";
 import { StatTile } from "../components/StatTile";
 import { EmptyState } from "../components/EmptyState";
 import { DateTimeField } from "../components/form-fields";
@@ -93,12 +94,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (intent === "mark-upload-failed") {
     const reelId = String(formData.get("reelId") ?? "");
     if (!reelId) {
-      return { error: "Missing reel id", uploadURL: null, reelId: null };
+      return { error: "Missing reel id", uploadURL: null, reelId: null, posts: null };
     }
     await updateReelConfig(admin, reelId, {
       uploadFailedAt: new Date().toISOString(),
     });
-    return { error: null, uploadURL: null, reelId: null };
+    return { error: null, uploadURL: null, reelId: null, posts: null };
   }
 
   if (intent === "start-upload") {
@@ -106,7 +107,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const published = formData.get("published") === "true";
     const productIds = formData.getAll("productId").map(String);
     if (!title) {
-      return { error: "Title is required", uploadURL: null, reelId: null };
+      return { error: "Title is required", uploadURL: null, reelId: null, posts: null };
     }
 
     try {
@@ -135,7 +136,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         // the video actually finished processing.
         await updateReelConfig(admin, reel.id, { cloudflareStreamUid: uid });
 
-        return { error: null, uploadURL, reelId: reel.id };
+        return { error: null, uploadURL, reelId: reel.id, posts: null };
       } catch {
         try {
           if (productIds.length > 0) {
@@ -175,7 +176,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const sourceUrl = String(formData.get("sourceUrl") ?? "").trim();
     const productIds = formData.getAll("productId").map(String);
     if (!title) {
-      return { error: "Title is required", uploadURL: null, reelId: null };
+      return { error: "Title is required", uploadURL: null, reelId: null, posts: null };
     }
 
     const parsed = parseSocialVideoUrl(sourceUrl);
@@ -199,7 +200,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     } catch (e) {
       if (e instanceof Response) throw e;
-      return { error: "Could not create the reel. Try again.", uploadURL: null, reelId: null };
+      return { error: "Could not create the reel. Try again.", uploadURL: null, reelId: null, posts: null };
     }
 
     try {
@@ -212,7 +213,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       );
       await uploadBufferToDirectUploadUrl(uploadURL, videoResponse, `${reel.handle}.mp4`);
       await updateReelConfig(admin, reel.id, { cloudflareStreamUid: uid });
-      return { error: null, uploadURL: null, reelId: reel.id };
+      return { error: null, uploadURL: null, reelId: reel.id, posts: null };
     } catch (e) {
       try {
         if (productIds.length > 0) {
@@ -226,8 +227,85 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         e instanceof SocialImportError
           ? e.message
           : "Couldn't import that video. Try again or upload the file directly.";
-      return { error: message, uploadURL: null, reelId: null };
+      return { error: message, uploadURL: null, reelId: null, posts: null };
     }
+  }
+
+  if (intent === "list-social-posts") {
+    const platform = String(formData.get("platform") ?? "");
+    const username = String(formData.get("username") ?? "").trim();
+    if ((platform !== "instagram" && platform !== "tiktok") || !username) {
+      return { error: "Enter a username", uploadURL: null, reelId: null, posts: null };
+    }
+
+    try {
+      const posts = await listProfilePostUrls(platform as SocialPlatform, username);
+      return { error: null, uploadURL: null, reelId: null, posts };
+    } catch (e) {
+      if (e instanceof Response) throw e;
+      const message =
+        e instanceof SocialImportError ? e.message : "Couldn't fetch that profile. Try again.";
+      return { error: message, uploadURL: null, reelId: null, posts: null };
+    }
+  }
+
+  if (intent === "import-many") {
+    const platform = String(formData.get("platform") ?? "");
+    const published = formData.get("published") === "true";
+    const urls = formData.getAll("sourceUrl").map(String).filter(Boolean);
+    if ((platform !== "instagram" && platform !== "tiktok") || urls.length === 0) {
+      return { error: "Choose at least one video to import", uploadURL: null, reelId: null, posts: null };
+    }
+
+    let importedCount = 0;
+    const failedUrls: string[] = [];
+
+    // Sequential, not parallel — each import is itself a page fetch + video
+    // download + Cloudflare upload, and running many of those concurrently
+    // against the same two platforms is exactly the kind of burst traffic
+    // that gets an anonymous scraper rate-limited or blocked mid-batch.
+    for (let i = 0; i < urls.length; i++) {
+      const sourceUrl = urls[i];
+      const title = `Imported reel ${i + 1}`;
+      let reel;
+      try {
+        reel = await upsertReel(admin, generateReelHandle(title), title, published, {
+          productIds: [],
+          interactions: {},
+          source: { type: platform as SocialPlatform, originalUrl: sourceUrl },
+        });
+      } catch (e) {
+        if (e instanceof Response) throw e;
+        failedUrls.push(sourceUrl);
+        continue;
+      }
+
+      try {
+        const resolved = await resolveVideoSourceUrl(platform as SocialPlatform, sourceUrl);
+        const videoResponse = await fetchSocialVideo(resolved.videoUrl, sourceUrl);
+        const { uid, uploadURL } = await createDirectUploadUrl(
+          getCloudflareConfig(),
+          3600,
+          { reelId: reel.id, shop: session.shop },
+        );
+        await uploadBufferToDirectUploadUrl(uploadURL, videoResponse, `${reel.handle}.mp4`);
+        await updateReelConfig(admin, reel.id, { cloudflareStreamUid: uid });
+        importedCount += 1;
+      } catch {
+        try {
+          await deleteReel(admin, reel.id);
+        } catch {
+          // best-effort cleanup
+        }
+        failedUrls.push(sourceUrl);
+      }
+    }
+
+    const error =
+      failedUrls.length > 0
+        ? `Imported ${importedCount} of ${urls.length}. ${failedUrls.length} failed — public-only posts import, and platforms occasionally block automated fetches.`
+        : null;
+    return { error, uploadURL: null, reelId: null, posts: null };
   }
 
   if (intent === "bulk-publish" || intent === "bulk-unpublish") {
@@ -238,7 +316,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       if (!reel) continue;
       await upsertReel(admin, reel.handle, reel.title, published, reel.config);
     }
-    return { error: null, uploadURL: null, reelId: null };
+    return { error: null, uploadURL: null, reelId: null, posts: null };
   }
 
   if (intent === "bulk-delete") {
@@ -246,10 +324,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     for (const id of reelIds) {
       await deleteReel(admin, id);
     }
-    return { error: null, uploadURL: null, reelId: null };
+    return { error: null, uploadURL: null, reelId: null, posts: null };
   }
 
-  return { error: "Unknown request", uploadURL: null, reelId: null };
+  return { error: "Unknown request", uploadURL: null, reelId: null, posts: null };
 };
 
 function statusTone(status: string | null): "success" | "critical" | "info" | "neutral" {
@@ -276,6 +354,13 @@ function CreateReelModal() {
   const [dropZoneKey, setDropZoneKey] = useState(0);
   const [videoMode, setVideoMode] = useState<"upload" | "import">("upload");
   const [sourceUrl, setSourceUrl] = useState("");
+  const [importSource, setImportSource] = useState<"link" | "profile">("link");
+  const [profilePlatform, setProfilePlatform] = useState<SocialPlatform>("instagram");
+  const [profileUsername, setProfileUsername] = useState("");
+  const [selectedPostUrls, setSelectedPostUrls] = useState<Set<string>>(new Set());
+  const listFetcher = useFetcher<typeof action>();
+  const importManyFetcher = useFetcher<typeof action>();
+  const importManySubmittedRef = useRef(false);
   const [taggedProducts, setTaggedProducts] = useState<
     { id: string; title: string; imageUrl: string | null }[]
   >([]);
@@ -301,6 +386,18 @@ function CreateReelModal() {
       }
     }
   }, [fetcher.state, fetcher.data, shopify]);
+
+  // import-many's "error" can be a partial-failure message even when some
+  // reels were created successfully — only auto-close on a clean run so the
+  // merchant sees which URLs failed instead of the modal vanishing on them.
+  useEffect(() => {
+    if (importManySubmittedRef.current && importManyFetcher.state === "idle") {
+      importManySubmittedRef.current = false;
+      if (!importManyFetcher.data?.error) {
+        shopify.modal.hide("create-reel-modal");
+      }
+    }
+  }, [importManyFetcher.state, importManyFetcher.data, shopify]);
 
   useEffect(() => {
     if (
@@ -357,6 +454,9 @@ function CreateReelModal() {
         setTaggedProducts([]);
         setVideoMode("upload");
         setSourceUrl("");
+        setImportSource("link");
+        setProfileUsername("");
+        setSelectedPostUrls(new Set());
       }}
     >
       <fetcher.Form
@@ -389,11 +489,11 @@ function CreateReelModal() {
 
           <s-stack gap="base">
             <s-text-field label="Title" name="title" required></s-text-field>
-            <input type="hidden" name="published" ref={publishedRef} defaultValue="" key={`published-input-${publishedKey}`} />
+            <input type="hidden" name="published" ref={publishedRef} defaultValue="true" key={`published-input-${publishedKey}`} />
             <s-checkbox
               key={`published-checkbox-${publishedKey}`}
               label="Published"
-              defaultChecked={false}
+              defaultChecked={true}
               onChange={(event: { currentTarget: { checked: boolean } | null }) => {
                 if (publishedRef.current && event.currentTarget) {
                   publishedRef.current.value = event.currentTarget.checked ? "true" : "";
@@ -468,19 +568,68 @@ function CreateReelModal() {
               </>
             ) : (
               <>
-                <s-text-field
-                  label="Video link"
-                  name="sourceUrl"
-                  placeholder="https://www.instagram.com/reel/... or https://www.tiktok.com/.../video/..."
-                  value={sourceUrl}
-                  onChange={(e: { currentTarget: { value: string } }) => setSourceUrl(e.currentTarget.value)}
-                ></s-text-field>
-                <s-text color="subdued">
-                  Only works on public posts. Instagram/TikTok have no official API for this, so it can
-                  occasionally fail to find a video even on a public post.
-                </s-text>
-                {fetcher.state !== "idle" && videoMode === "import" && (
-                  <s-paragraph>Fetching video…</s-paragraph>
+                <s-stack direction="inline" gap="small-200">
+                  <s-button
+                    type="button"
+                    variant={importSource === "link" ? "primary" : "tertiary"}
+                    onClick={() => setImportSource("link")}
+                  >
+                    One link
+                  </s-button>
+                  <s-button
+                    type="button"
+                    variant={importSource === "profile" ? "primary" : "tertiary"}
+                    onClick={() => setImportSource("profile")}
+                  >
+                    From a username
+                  </s-button>
+                </s-stack>
+
+                {importSource === "link" ? (
+                  <>
+                    <s-text-field
+                      label="Video link"
+                      name="sourceUrl"
+                      placeholder="https://www.instagram.com/reel/... or https://www.tiktok.com/.../video/..."
+                      value={sourceUrl}
+                      onChange={(e: { currentTarget: { value: string } }) => setSourceUrl(e.currentTarget.value)}
+                    ></s-text-field>
+                    <s-text color="subdued">
+                      Only works on public posts. Instagram/TikTok have no official API for this, so it can
+                      occasionally fail to find a video even on a public post.
+                    </s-text>
+                    {fetcher.state !== "idle" && videoMode === "import" && (
+                      <s-paragraph>Fetching video…</s-paragraph>
+                    )}
+                  </>
+                ) : (
+                  <ProfileImportPanel
+                    platform={profilePlatform}
+                    onPlatformChange={setProfilePlatform}
+                    username={profileUsername}
+                    onUsernameChange={setProfileUsername}
+                    listFetcher={listFetcher}
+                    selectedPostUrls={selectedPostUrls}
+                    onToggleSelected={(url) => {
+                      setSelectedPostUrls((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(url)) next.delete(url);
+                        else next.add(url);
+                        return next;
+                      });
+                    }}
+                    importManyFetcher={importManyFetcher}
+                    onImport={() => {
+                      if (selectedPostUrls.size === 0) return;
+                      const formData = new FormData();
+                      formData.set("intent", "import-many");
+                      formData.set("platform", profilePlatform);
+                      formData.set("published", publishedRef.current?.value === "true" ? "true" : "");
+                      for (const url of selectedPostUrls) formData.append("sourceUrl", url);
+                      importManySubmittedRef.current = true;
+                      importManyFetcher.submit(formData, { method: "post" });
+                    }}
+                  />
                 )}
               </>
             )}
@@ -533,18 +682,141 @@ function CreateReelModal() {
           </s-stack>
         </s-stack>
       </fetcher.Form>
-      <s-button
-        slot="primary-action"
-        variant="primary"
-        loading={isSubmitting}
-        onClick={() => formRef.current?.requestSubmit()}
-      >
-        Create reel
-      </s-button>
+      {/* The profile-import sub-mode has its own "Import selected" button
+          inside ProfileImportPanel instead of this one — this form's
+          sourceUrl field is empty in that mode, so submitting it here would
+          just fail start-import's validation. */}
+      {!(videoMode === "import" && importSource === "profile") && (
+        <s-button
+          slot="primary-action"
+          variant="primary"
+          loading={isSubmitting}
+          onClick={() => formRef.current?.requestSubmit()}
+        >
+          Create reel
+        </s-button>
+      )}
       <s-button slot="secondary-actions" commandFor="create-reel-modal" command="--hide">
         Cancel
       </s-button>
     </s-modal>
+  );
+}
+
+function ProfileImportPanel({
+  platform,
+  onPlatformChange,
+  username,
+  onUsernameChange,
+  listFetcher,
+  selectedPostUrls,
+  onToggleSelected,
+  importManyFetcher,
+  onImport,
+}: {
+  platform: SocialPlatform;
+  onPlatformChange: (platform: SocialPlatform) => void;
+  username: string;
+  onUsernameChange: (value: string) => void;
+  listFetcher: ReturnType<typeof useFetcher<typeof action>>;
+  selectedPostUrls: Set<string>;
+  onToggleSelected: (url: string) => void;
+  importManyFetcher: ReturnType<typeof useFetcher<typeof action>>;
+  onImport: () => void;
+}) {
+  const posts: ProfilePost[] = listFetcher.data?.posts ?? [];
+  const isListing = listFetcher.state !== "idle";
+  const isImporting = importManyFetcher.state !== "idle";
+
+  return (
+    <s-stack gap="small-200">
+      <s-stack direction="inline" gap="small-200">
+        <s-button
+          type="button"
+          variant={platform === "instagram" ? "primary" : "tertiary"}
+          onClick={() => onPlatformChange("instagram")}
+        >
+          Instagram
+        </s-button>
+        <s-button
+          type="button"
+          variant={platform === "tiktok" ? "primary" : "tertiary"}
+          onClick={() => onPlatformChange("tiktok")}
+        >
+          TikTok
+        </s-button>
+      </s-stack>
+      <s-stack direction="inline" gap="small-200" alignItems="end">
+        <s-text-field
+          label="Username"
+          placeholder="without the @"
+          value={username}
+          onChange={(e: { currentTarget: { value: string } }) => onUsernameChange(e.currentTarget.value)}
+        ></s-text-field>
+        <s-button
+          type="button"
+          variant="secondary"
+          loading={isListing}
+          disabled={!username.trim()}
+          onClick={() => {
+            const formData = new FormData();
+            formData.set("intent", "list-social-posts");
+            formData.set("platform", platform);
+            formData.set("username", username.trim());
+            listFetcher.submit(formData, { method: "post" });
+          }}
+        >
+          Find videos
+        </s-button>
+      </s-stack>
+      <s-text color="subdued">
+        Best-effort — public profiles only, and both platforms often block anonymous profile
+        browsing, so this can return few or no results even on a real public account. Paste
+        individual links instead if it comes up empty.
+      </s-text>
+      {listFetcher.data?.error && (
+        <s-paragraph tone="critical">{listFetcher.data.error}</s-paragraph>
+      )}
+      {posts.length > 0 && (
+        <>
+          <s-text>
+            Found {posts.length} video{posts.length === 1 ? "" : "s"} — select which to import
+            ({selectedPostUrls.size} selected):
+          </s-text>
+          <s-box padding="small-200" background="subdued" borderRadius="base">
+            <s-stack gap="small-100">
+              {posts.map((post) => (
+                <label
+                  key={post.url}
+                  style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px" }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedPostUrls.has(post.url)}
+                    onChange={() => onToggleSelected(post.url)}
+                  />
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {post.url}
+                  </span>
+                </label>
+              ))}
+            </s-stack>
+          </s-box>
+          <s-button
+            type="button"
+            variant="primary"
+            loading={isImporting}
+            disabled={selectedPostUrls.size === 0}
+            onClick={onImport}
+          >
+            Import {selectedPostUrls.size || ""} selected
+          </s-button>
+          {importManyFetcher.data?.error && (
+            <s-paragraph tone="critical">{importManyFetcher.data.error}</s-paragraph>
+          )}
+        </>
+      )}
+    </s-stack>
   );
 }
 
