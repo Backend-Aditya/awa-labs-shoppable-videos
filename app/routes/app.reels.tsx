@@ -1065,34 +1065,53 @@ export default function ReelsLibrary() {
           <s-paragraph>No reels yet. Use Create reel to add your first one.</s-paragraph>
         ) : (
           <s-stack gap="base">
-            <s-stack direction="inline" gap="small-200" alignItems="center" justifyContent="space-between">
-              <s-stack direction="inline" gap="small-200">
-                <s-text-field
-                  label="Search"
-                  labelAccessibilityVisibility="exclusive"
-                  placeholder="Search reels by title"
-                  value={searchQuery}
-                  onChange={(event: { currentTarget: { value: string } | null }) => {
-                    if (event.currentTarget) setSearchQuery(event.currentTarget.value);
-                  }}
-                ></s-text-field>
-                <s-select
-                  label="Status"
-                  labelAccessibilityVisibility="exclusive"
-                  value={statusFilter}
-                  onChange={(event: { currentTarget: { value: string } | null }) => {
-                    if (event.currentTarget) {
-                      setStatusFilter(event.currentTarget.value as typeof statusFilter);
-                    }
-                  }}
-                >
-                  {REEL_STATUS_FILTER_OPTIONS.map((option) => (
-                    <s-option key={option.value} value={option.value}>
-                      {option.label}
-                    </s-option>
-                  ))}
-                </s-select>
-              </s-stack>
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: "var(--p-space-200, 8px)",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "var(--p-space-200, 8px)",
+                  alignItems: "center",
+                }}
+              >
+                <div style={{ width: "220px" }}>
+                  <s-text-field
+                    label="Search"
+                    labelAccessibilityVisibility="exclusive"
+                    placeholder="Search reels by title"
+                    value={searchQuery}
+                    onChange={(event: { currentTarget: { value: string } | null }) => {
+                      if (event.currentTarget) setSearchQuery(event.currentTarget.value);
+                    }}
+                  ></s-text-field>
+                </div>
+                <div style={{ width: "160px" }}>
+                  <s-select
+                    label="Status"
+                    labelAccessibilityVisibility="exclusive"
+                    value={statusFilter}
+                    onChange={(event: { currentTarget: { value: string } | null }) => {
+                      if (event.currentTarget) {
+                        setStatusFilter(event.currentTarget.value as typeof statusFilter);
+                      }
+                    }}
+                  >
+                    {REEL_STATUS_FILTER_OPTIONS.map((option) => (
+                      <s-option key={option.value} value={option.value}>
+                        {option.label}
+                      </s-option>
+                    ))}
+                  </s-select>
+                </div>
+              </div>
               <s-button
                 type="button"
                 variant="tertiary"
@@ -1100,13 +1119,21 @@ export default function ReelsLibrary() {
               >
                 {bulkMode ? "Cancel selection" : "Select"}
               </s-button>
-            </s-stack>
+            </div>
 
             {bulkMode && (
               <s-box padding="base" background="subdued" borderRadius="base">
-                <s-stack direction="inline" gap="base" alignItems="center" justifyContent="space-between">
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: "var(--p-space-base, 12px)",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
+                >
                   <s-text>{bulkSelectedIds.size} selected</s-text>
-                  <s-stack direction="inline" gap="small-200">
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--p-space-200, 8px)" }}>
                     <s-button
                       type="button"
                       variant="secondary"
@@ -1135,8 +1162,8 @@ export default function ReelsLibrary() {
                     >
                       Delete
                     </s-button>
-                  </s-stack>
-                </s-stack>
+                  </div>
+                </div>
               </s-box>
             )}
 
