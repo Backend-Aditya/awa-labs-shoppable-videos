@@ -15,9 +15,9 @@
       <div class="reelup-lightbox__body">
         <div class="reelup-lightbox__player">
           <h2 id="reelup-lightbox-title" class="reelup-lightbox__title"></h2>
-          <div class="reelup-lightbox__video-container" style="position: relative; height: 100%; display: flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; -webkit-user-select: none;">
-            <video class="reelup-lightbox__video" playsinline style="max-height: 100%; max-width: 100%; pointer-events: none;"></video>
-            <button type="button" class="reelup-lightbox__play-pause" style="position: absolute; background: rgba(0,0,0,0.6); color: white; border: none; border-radius: 50%; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; pointer-events: none; opacity: 0; transition: opacity 0.2s;">${playSvg}</button>
+          <div class="reelup-lightbox__video-container">
+            <video class="reelup-lightbox__video" playsinline></video>
+            <button type="button" class="reelup-lightbox__play-pause" data-reelup-play-pause>${playSvg}</button>
           </div>
         </div>
         <div class="reelup-lightbox__products" data-reelup-lightbox-products hidden>
@@ -47,18 +47,31 @@
     closeButton.addEventListener("click", () => dialog.close());
     
     const videoContainer = dialog.querySelector(".reelup-lightbox__video-container");
-    const playPauseBtn = dialog.querySelector(".reelup-lightbox__play-pause");
-    
-    videoContainer.addEventListener("click", () => {
-      if (video.paused) {
-        video.play();
-      } else {
-        video.pause();
-      }
+    const playPauseBtn = dialog.querySelector("[data-reelup-play-pause]");
+
+    const togglePlayback = () => {
+      if (video.paused) video.play();
+      else video.pause();
+    };
+
+    // The button carries its own click handler (and is keyboard-focusable,
+    // unlike the old pointer-events:none overlay this replaced) so it's an
+    // independent control, not just a visual echo of a container click —
+    // stopPropagation keeps that one tap from also bubbling to the
+    // container's own listener and toggling playback twice.
+    playPauseBtn.addEventListener("click", (event) => {
+      event.stopPropagation();
+      togglePlayback();
     });
+
+    videoContainer.addEventListener("click", togglePlayback);
 
     const updateIcon = () => {
       playPauseBtn.innerHTML = video.paused ? playSvg : pauseSvg;
+      playPauseBtn.setAttribute(
+        "aria-label",
+        video.paused ? (dialog.dataset.playLabel ?? "Play") : (dialog.dataset.pauseLabel ?? "Pause"),
+      );
     };
 
     video.addEventListener("play", updateIcon);
@@ -66,11 +79,11 @@
 
     videoContainer.addEventListener("mouseenter", () => {
       updateIcon();
-      playPauseBtn.style.opacity = "1";
+      playPauseBtn.classList.add("reelup-lightbox__play-pause--visible");
     });
 
     videoContainer.addEventListener("mouseleave", () => {
-      playPauseBtn.style.opacity = "0";
+      playPauseBtn.classList.remove("reelup-lightbox__play-pause--visible");
     });
 
     productsList.addEventListener("click", async (event) => {
@@ -161,6 +174,11 @@
     const reelTitle = triggerEl.dataset.title ?? "";
     const closeLabel = triggerEl.dataset.closeLabel ?? "Close";
     const shopLabel = triggerEl.dataset.shopLabel ?? "";
+
+    dialog.dataset.playLabel = triggerEl.dataset.playLabel ?? "Play";
+    dialog.dataset.pauseLabel = triggerEl.dataset.pauseLabel ?? "Pause";
+    const playPauseBtn = dialog.querySelector("[data-reelup-play-pause]");
+    playPauseBtn.setAttribute("aria-label", dialog.dataset.playLabel);
 
     title.textContent = reelTitle;
     closeButton.setAttribute("aria-label", closeLabel);

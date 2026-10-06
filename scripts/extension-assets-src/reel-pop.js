@@ -1,4 +1,5 @@
 (() => {
+  const bindAll = () => {
   document.querySelectorAll("[data-reelup-pop]").forEach((pop) => {
     if (pop.dataset.reelupPopBound) return;
     pop.dataset.reelupPopBound = "true";
@@ -40,4 +41,8 @@
       }
     });
   });
+  };
+
+  bindAll();
+  document.addEventListener("shopify:section:load", bindAll);
 })();

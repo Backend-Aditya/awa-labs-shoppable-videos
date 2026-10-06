@@ -107,4 +107,22 @@
   };
 
   window.ReelupHls = { attach, teardown };
+
+  // Warms the hls.min.js cache during idle time on browsers that need it
+  // (Safari/iOS play HLS natively and never load this), so the FIRST tap
+  // on a trigger doesn't pay for both the library fetch and the manifest
+  // fetch back-to-back — only runs when a reel actually exists on the page.
+  if (document.querySelector("[data-reelup-trigger], [data-reelup-pop]")) {
+    const probe = document.createElement("video");
+    if (!supportsNativeHls(probe)) {
+      const schedule = window.requestIdleCallback ?? ((cb) => setTimeout(cb, 2000));
+      schedule(() => {
+        const link = document.createElement("link");
+        link.rel = "prefetch";
+        link.as = "script";
+        link.href = currentScriptSrc.replace("reel-hls.js", "hls.min.js");
+        document.head.appendChild(link);
+      });
+    }
+  }
 })();

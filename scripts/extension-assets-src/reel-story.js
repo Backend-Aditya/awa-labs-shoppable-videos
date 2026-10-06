@@ -1,4 +1,7 @@
 (() => {
+  const prefersReducedMotion = () =>
+    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+
   let currentDurationMs = 15000;
 
   let reels = [];
@@ -44,6 +47,7 @@
     } else if (state === "active") {
       fill.style.transition = "none";
       fill.style.width = "0%";
+      if (prefersReducedMotion()) return;
       // Force a reflow so the transition below animates from 0% instead
       // of the two inline-style writes batching into one recalculation
       // and jumping straight to 100%.
@@ -75,6 +79,7 @@
     const segment = dialog.querySelector(`.reelup-story__segment[data-index="${currentIndex}"]`);
     const fill = segment?.querySelector(".reelup-story__segment-fill");
     if (!fill || remainingMs <= 0) return;
+    if (prefersReducedMotion()) return;
 
     // Force a reflow so the transition below animates from the frozen width
     // instead of the two inline-style writes batching into one recalculation.
@@ -260,6 +265,47 @@
       window.ReelupHls?.teardown(video);
       closeDrawerImmediate(dialog);
     });
+
+    dialog.addEventListener("keydown", (event) => {
+      if (drawerOpen) return;
+      if (event.key === "ArrowLeft") {
+        advancing = false;
+        goTo(dialog, currentIndex - 1);
+      } else if (event.key === "ArrowRight") {
+        advancing = false;
+        goTo(dialog, currentIndex + 1);
+      }
+    });
+
+    const frame = dialog.querySelector(".reelup-story__frame");
+    let heldForPause = false;
+
+    // Press-and-hold-to-pause: Instagram-style convention shoppers already
+    // expect from story UIs. Scoped to the frame (not the nav buttons that
+    // overlay it) so a tap-to-advance click on those keeps working untouched
+    // — a pointerdown here never fires on those buttons since they stop
+    // their own clicks from needing this at all.
+    frame.addEventListener("pointerdown", (event) => {
+      if (event.target.closest("button")) return;
+      heldForPause = true;
+      video.pause();
+      clearTimer();
+      pausedRemainingMs = freezeActiveSegment(dialog);
+    });
+
+    const releaseHold = () => {
+      if (!heldForPause) return;
+      heldForPause = false;
+      video.play().catch(() => {});
+      const remaining = pausedRemainingMs ?? currentDurationMs;
+      pausedRemainingMs = null;
+      resumeActiveSegment(dialog, remaining);
+      timer = setTimeout(() => requestAdvance(dialog), remaining);
+    };
+
+    frame.addEventListener("pointerup", releaseHold);
+    frame.addEventListener("pointercancel", releaseHold);
+    frame.addEventListener("pointerleave", releaseHold);
 
     video.addEventListener("ended", () => requestAdvance(dialog));
 
