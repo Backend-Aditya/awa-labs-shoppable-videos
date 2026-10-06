@@ -11,7 +11,9 @@ export type StatIcon =
   | "view"
   | "cursor"
   | "order"
-  | "money";
+  | "money"
+  | "apps"
+  | "plan";
 
 export function StatTile({
   label,
@@ -19,12 +21,17 @@ export function StatTile({
   icon,
   tone,
   accent,
+  caption,
 }: {
   label: string;
   value: number | string;
   icon?: StatIcon;
   tone?: "info" | "success";
   accent?: boolean;
+  // Secondary line under the value, e.g. "8 ready to play" — optional so
+  // tiles that are just a single number (the common case) don't carry
+  // empty space for a line they don't use.
+  caption?: string;
 }) {
   return (
     <s-box
@@ -40,6 +47,7 @@ export function StatTile({
           <s-text color="subdued">{label}</s-text>
         </s-stack>
         <s-heading>{value}</s-heading>
+        {caption && <s-text color="subdued">{caption}</s-text>}
       </s-stack>
     </s-box>
   );

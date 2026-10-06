@@ -1038,27 +1038,26 @@ export default function ReelsLibrary() {
         Create reel
       </s-button>
       <s-section heading="Overview">
-        <s-grid gridTemplateColumns="repeat(4, 1fr)" gap="base">
-          <StatTile label="Total reels" value={reels.length} icon="video" />
-          <StatTile label="Published" value={publishedCount} icon="check-circle" />
-          <StatTile label="Ready to play" value={readyCount} icon="play-circle" />
-          <StatTile label="Tagged to products" value={taggedCount} icon="hashtag" />
-        </s-grid>
-      </s-section>
-
-      <s-section heading="Performance">
-        <s-grid gridTemplateColumns="repeat(4, 1fr)" gap="base">
-          <StatTile label="Total views" value={totalAnalytics.views} icon="view" tone="info" accent />
-          <StatTile label="Product clicks" value={totalAnalytics.clicks} icon="cursor" tone="success" accent />
-          <StatTile label="Orders" value={revenueTotals.totalOrderCount} icon="order" tone="success" accent />
-          <StatTile
-            label="Revenue"
-            value={formatRevenueTotals(revenueTotals.totalsByCurrency)}
-            icon="money"
-            tone="success"
-            accent
-          />
-        </s-grid>
+        <s-stack gap="base">
+          <s-grid gridTemplateColumns="repeat(4, 1fr)" gap="base">
+            <StatTile label="Total reels" value={reels.length} icon="video" />
+            <StatTile label="Published" value={publishedCount} icon="check-circle" />
+            <StatTile label="Ready to play" value={readyCount} icon="play-circle" />
+            <StatTile label="Tagged to products" value={taggedCount} icon="hashtag" />
+          </s-grid>
+          <s-grid gridTemplateColumns="repeat(4, 1fr)" gap="base">
+            <StatTile label="Total views" value={totalAnalytics.views} icon="view" tone="info" accent />
+            <StatTile label="Product clicks" value={totalAnalytics.clicks} icon="cursor" tone="success" accent />
+            <StatTile label="Orders" value={revenueTotals.totalOrderCount} icon="order" tone="success" accent />
+            <StatTile
+              label="Revenue"
+              value={formatRevenueTotals(revenueTotals.totalsByCurrency)}
+              icon="money"
+              tone="success"
+              accent
+            />
+          </s-grid>
+        </s-stack>
       </s-section>
 
       <s-section heading="All reels">

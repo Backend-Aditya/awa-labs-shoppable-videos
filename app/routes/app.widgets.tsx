@@ -868,8 +868,8 @@ export default function Widgets() {
         Create widget
       </s-button>
       <s-section heading="Overview">
-        <s-grid gridTemplateColumns="repeat(auto-fill, minmax(220px, 1fr))" gap="base">
-          <StatTile label="Total widgets" value={widgets.length} icon="hashtag" />
+        <s-grid gridTemplateColumns="repeat(2, 1fr)" gap="base">
+          <StatTile label="Total widgets" value={widgets.length} icon="apps" />
           <StatTile label="Published" value={publishedCount} icon="check-circle" />
         </s-grid>
       </s-section>

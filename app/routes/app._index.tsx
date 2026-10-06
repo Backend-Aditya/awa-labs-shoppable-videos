@@ -7,6 +7,7 @@ import { listReels } from "../models/reel.server";
 import { deriveReelStatus } from "../models/reel-status";
 import { listWidgetsForShop } from "../models/widget.server";
 import { PreserveSearchParams } from "../components/PreserveSearchParams";
+import { StatTile } from "../components/StatTile";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -69,34 +70,31 @@ export default function Index() {
   return (
     <s-page heading="Shoppable Videos" inlineSize="large">
       <s-section>
-        <s-paragraph color="subdued">
-          An overview of your reels and storefront widgets.
-        </s-paragraph>
-      </s-section>
-      <s-section>
-        <s-grid gridTemplateColumns="repeat(auto-fill, minmax(220px, 1fr))" gap="base">
-          <s-box padding="base" background="subdued" borderRadius="base">
-            <s-stack gap="small-200">
-              <s-text color="subdued">Reels</s-text>
-              <s-heading>{totalReels}</s-heading>
-              <s-text color="subdued">{readyReels} ready to play</s-text>
-            </s-stack>
-          </s-box>
-          <s-box padding="base" background="subdued" borderRadius="base">
-            <s-stack gap="small-200">
-              <s-text color="subdued">Widgets</s-text>
-              <s-heading>{totalWidgets}</s-heading>
-              <s-text color="subdued">{publishedWidgets} published</s-text>
-            </s-stack>
-          </s-box>
-          <s-box padding="base" background="subdued" borderRadius="base">
-            <s-stack gap="small-200">
-              <s-text color="subdued">Plan</s-text>
-              <s-heading>{plan}</s-heading>
-              <s-text color="subdued">{viewCapMonthly.toLocaleString()} views/mo</s-text>
-            </s-stack>
-          </s-box>
-        </s-grid>
+        <s-stack gap="base">
+          <s-paragraph color="subdued">
+            An overview of your reels and storefront widgets.
+          </s-paragraph>
+          <s-grid gridTemplateColumns="repeat(auto-fill, minmax(220px, 1fr))" gap="base">
+            <StatTile
+              label="Reels"
+              value={totalReels}
+              icon="video"
+              caption={`${readyReels} ready to play`}
+            />
+            <StatTile
+              label="Widgets"
+              value={totalWidgets}
+              icon="apps"
+              caption={`${publishedWidgets} published`}
+            />
+            <StatTile
+              label="Plan"
+              value={plan}
+              icon="plan"
+              caption={`${viewCapMonthly.toLocaleString()} views/mo`}
+            />
+          </s-grid>
+        </s-stack>
       </s-section>
       <s-section heading="Get started">
         <s-grid gridTemplateColumns="repeat(auto-fill, minmax(220px, 1fr))" gap="base">
