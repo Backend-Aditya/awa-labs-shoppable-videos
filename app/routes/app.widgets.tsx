@@ -695,6 +695,19 @@ function StyleSection({
   const has = (key: StyleFieldKey) => fieldConfig.fields.includes(key);
   const resetKey = widget.id;
 
+  // Fields are grouped into labeled sub-sections instead of one long flat
+  // list — a group whose fields none apply to this widget kind renders
+  // nothing at all (no empty heading/divider), so e.g. REEL_POPS (no
+  // "Layout" fields) doesn't show a blank "Layout" section.
+  const showContent = has("heading") || has("watchLabel");
+  const showTheme =
+    has("accentColor") || has("backgroundColor") || has("textColor") || has("cornerStyle") || has("shadowPreset");
+  const showLayout =
+    has("layoutMode") || has("columns") || has("triggerSize") || has("position") || has("storyDuration");
+  const showPlayback = has("playTrigger") || has("autoplayOnScroll") || has("mutedDefault") || has("loop") || has("showPulse");
+  const showCta = has("ctaColor") || has("ctaTextColor") || has("ctaLabel") || has("ctaStyle");
+  const showProductTags = has("showPrice") || has("showTitleOverlay") || has("showProductImage") || has("tagRevealMode");
+
   return (
     <s-stack gap="base">
       <s-stack direction="inline" gap="small-200" alignItems="center" justifyContent="space-between">
@@ -711,195 +724,230 @@ function StyleSection({
       {styleFetcher.data?.error && <s-paragraph tone="critical">{styleFetcher.data.error}</s-paragraph>}
       <styleFetcher.Form method="post" action={href ?? undefined} ref={styleFormRef} key={resetKey}>
         <input type="hidden" name="intent" value="set-style" />
-        <s-stack gap="base">
-          {has("heading") && (
-            <s-text-field label="Heading" name="heading" defaultValue={style.heading ?? ""} placeholder="Leave blank to hide"></s-text-field>
+        <s-stack gap="large">
+          {showContent && (
+            <s-stack gap="base">
+              <s-text type="strong" color="subdued">Content</s-text>
+              {has("heading") && (
+                <s-text-field label="Heading" name="heading" defaultValue={style.heading ?? ""} placeholder="Leave blank to hide"></s-text-field>
+              )}
+              {has("watchLabel") && (
+                <s-text-field label="Label text" name="watchLabel" defaultValue={style.watchLabel ?? "Watch video"}></s-text-field>
+              )}
+            </s-stack>
           )}
-          {has("watchLabel") && (
-            <s-text-field label="Label text" name="watchLabel" defaultValue={style.watchLabel ?? "Watch video"}></s-text-field>
+
+          {showTheme && (
+            <s-stack gap="base">
+              <s-text type="strong" color="subdued">Theme</s-text>
+              {has("accentColor") && (
+                <ColorField
+                  id={`accentColor-${resetKey}`}
+                  name="accentColor"
+                  label={fieldConfig.accentColorLabel}
+                  defaultValue={style.accentColor || "#111111"}
+                />
+              )}
+              {has("backgroundColor") && (
+                <ColorField
+                  id={`backgroundColor-${resetKey}`}
+                  name="backgroundColor"
+                  label="Background color"
+                  defaultValue={style.backgroundColor || "#ffffff"}
+                />
+              )}
+              {has("textColor") && (
+                <ColorField
+                  id={`textColor-${resetKey}`}
+                  name="textColor"
+                  label="Text color"
+                  defaultValue={style.textColor || "#111111"}
+                />
+              )}
+              {has("cornerStyle") && (
+                <SelectField
+                  id={`cornerStyle-${resetKey}`}
+                  name="cornerStyle"
+                  label="Corner style"
+                  defaultValue={style.cornerStyle ?? "rounded"}
+                  options={[
+                    { value: "sharp", label: "Sharp" },
+                    { value: "rounded", label: "Rounded" },
+                    { value: "soft", label: "Soft" },
+                  ]}
+                />
+              )}
+              {has("shadowPreset") && (
+                <SelectField
+                  id={`shadowPreset-${resetKey}`}
+                  name="shadowPreset"
+                  label="Shadow"
+                  defaultValue={style.shadowPreset ?? "none"}
+                  options={[
+                    { value: "none", label: "None" },
+                    { value: "soft", label: "Soft" },
+                    { value: "bold", label: "Bold" },
+                  ]}
+                />
+              )}
+            </s-stack>
           )}
-          {has("cornerStyle") && (
-            <SelectField
-              id={`cornerStyle-${resetKey}`}
-              name="cornerStyle"
-              label="Corner style"
-              defaultValue={style.cornerStyle ?? "rounded"}
-              options={[
-                { value: "sharp", label: "Sharp" },
-                { value: "rounded", label: "Rounded" },
-                { value: "soft", label: "Soft" },
-              ]}
-            />
+
+          {showLayout && (
+            <s-stack gap="base">
+              <s-text type="strong" color="subdued">Layout</s-text>
+              {has("layoutMode") && (
+                <SelectField
+                  id={`layoutMode-${resetKey}`}
+                  name="layoutMode"
+                  label="Layout"
+                  defaultValue={style.layoutMode ?? "carousel"}
+                  options={[
+                    { value: "carousel", label: "Carousel" },
+                    { value: "grid", label: "Grid" },
+                  ]}
+                />
+              )}
+              {has("columns") && (
+                <NumberField
+                  id={`columns-${resetKey}`}
+                  name="columns"
+                  label="Grid columns"
+                  min={2}
+                  max={5}
+                  defaultValue={style.columns ?? 3}
+                />
+              )}
+              {has("triggerSize") && (
+                <NumberField
+                  id={`triggerSize-${resetKey}`}
+                  name="triggerSize"
+                  label={fieldConfig.sizeLabel}
+                  min={fieldConfig.sizeMin}
+                  max={fieldConfig.sizeMax}
+                  defaultValue={style.triggerSize ?? fieldConfig.sizeDefault}
+                />
+              )}
+              {has("position") && (
+                <SelectField
+                  id={`position-${resetKey}`}
+                  name="position"
+                  label="Bubble position"
+                  defaultValue={style.position ?? "bottom_right"}
+                  options={[
+                    { value: "bottom_right", label: "Bottom right" },
+                    { value: "bottom_left", label: "Bottom left" },
+                    { value: "top_right", label: "Top right" },
+                    { value: "top_left", label: "Top left" },
+                  ]}
+                />
+              )}
+              {has("storyDuration") && (
+                <NumberField
+                  id={`storyDuration-${resetKey}`}
+                  name="storyDuration"
+                  label="Seconds per story"
+                  min={5}
+                  max={30}
+                  defaultValue={style.storyDuration ?? 15}
+                />
+              )}
+            </s-stack>
           )}
-          {has("position") && (
-            <SelectField
-              id={`position-${resetKey}`}
-              name="position"
-              label="Bubble position"
-              defaultValue={style.position ?? "bottom_right"}
-              options={[
-                { value: "bottom_right", label: "Bottom right" },
-                { value: "bottom_left", label: "Bottom left" },
-                { value: "top_right", label: "Top right" },
-                { value: "top_left", label: "Top left" },
-              ]}
-            />
+
+          {showPlayback && (
+            <s-stack gap="base">
+              <s-text type="strong" color="subdued">Playback</s-text>
+              {has("playTrigger") && (
+                <SelectField
+                  id={`playTrigger-${resetKey}`}
+                  name="playTrigger"
+                  label="Play on"
+                  defaultValue={style.playTrigger ?? "click"}
+                  options={[
+                    { value: "click", label: "Click" },
+                    { value: "hover", label: "Hover (desktop)" },
+                  ]}
+                />
+              )}
+              {has("autoplayOnScroll") && (
+                <StyleCheckboxField name="autoplayOnScroll" label="Autoplay muted when scrolled into view" defaultChecked={style.autoplayOnScroll ?? false} resetKey={resetKey} />
+              )}
+              {has("mutedDefault") && (
+                <StyleCheckboxField name="mutedDefault" label="Mute video by default" defaultChecked={style.mutedDefault ?? fieldConfig.mutedDefault} resetKey={resetKey} />
+              )}
+              {has("loop") && (
+                <StyleCheckboxField name="loop" label="Loop video" defaultChecked={style.loop ?? false} resetKey={resetKey} />
+              )}
+              {has("showPulse") && (
+                <StyleCheckboxField name="showPulse" label="Pulse to draw attention" defaultChecked={style.showPulse ?? true} resetKey={resetKey} />
+              )}
+            </s-stack>
           )}
-          {has("accentColor") && (
-            <ColorField
-              id={`accentColor-${resetKey}`}
-              name="accentColor"
-              label={fieldConfig.accentColorLabel}
-              defaultValue={style.accentColor || "#111111"}
-            />
+
+          {showCta && (
+            <s-stack gap="base">
+              <s-text type="strong" color="subdued">Add to cart button</s-text>
+              {has("ctaColor") && (
+                <ColorField
+                  id={`ctaColor-${resetKey}`}
+                  name="ctaColor"
+                  label="Button color"
+                  defaultValue={style.ctaColor || "#111111"}
+                />
+              )}
+              {has("ctaTextColor") && (
+                <ColorField
+                  id={`ctaTextColor-${resetKey}`}
+                  name="ctaTextColor"
+                  label="Text color"
+                  defaultValue={style.ctaTextColor || "#ffffff"}
+                />
+              )}
+              {has("ctaStyle") && (
+                <SelectField
+                  id={`ctaStyle-${resetKey}`}
+                  name="ctaStyle"
+                  label="Button style"
+                  defaultValue={style.ctaStyle ?? "pill"}
+                  options={[
+                    { value: "pill", label: "Pill" },
+                    { value: "square", label: "Square" },
+                    { value: "text-link", label: "Text link" },
+                  ]}
+                />
+              )}
+              {has("ctaLabel") && (
+                <s-text-field label="Button text" name="ctaLabel" defaultValue={style.ctaLabel ?? ""} placeholder="Leave blank to use the default label"></s-text-field>
+              )}
+            </s-stack>
           )}
-          {has("triggerSize") && (
-            <NumberField
-              id={`triggerSize-${resetKey}`}
-              name="triggerSize"
-              label={fieldConfig.sizeLabel}
-              min={fieldConfig.sizeMin}
-              max={fieldConfig.sizeMax}
-              defaultValue={style.triggerSize ?? fieldConfig.sizeDefault}
-            />
-          )}
-          {has("storyDuration") && (
-            <NumberField
-              id={`storyDuration-${resetKey}`}
-              name="storyDuration"
-              label="Seconds per story"
-              min={5}
-              max={30}
-              defaultValue={style.storyDuration ?? 15}
-            />
-          )}
-          {has("ctaColor") && (
-            <ColorField
-              id={`ctaColor-${resetKey}`}
-              name="ctaColor"
-              label="Add to cart button color"
-              defaultValue={style.ctaColor || "#111111"}
-            />
-          )}
-          {has("ctaTextColor") && (
-            <ColorField
-              id={`ctaTextColor-${resetKey}`}
-              name="ctaTextColor"
-              label="Add to cart text color"
-              defaultValue={style.ctaTextColor || "#ffffff"}
-            />
-          )}
-          {has("ctaLabel") && (
-            <s-text-field label="Add to cart button text" name="ctaLabel" defaultValue={style.ctaLabel ?? ""} placeholder="Leave blank to use the default label"></s-text-field>
-          )}
-          {has("showPulse") && (
-            <StyleCheckboxField name="showPulse" label="Pulse to draw attention" defaultChecked={style.showPulse ?? true} resetKey={resetKey} />
-          )}
-          {has("showPrice") && (
-            <StyleCheckboxField name="showPrice" label="Show product price" defaultChecked={style.showPrice ?? true} resetKey={resetKey} />
-          )}
-          {has("showTitleOverlay") && (
-            <StyleCheckboxField name="showTitleOverlay" label="Show video title" defaultChecked={style.showTitleOverlay ?? true} resetKey={resetKey} />
-          )}
-          {has("mutedDefault") && (
-            <StyleCheckboxField name="mutedDefault" label="Mute video by default" defaultChecked={style.mutedDefault ?? fieldConfig.mutedDefault} resetKey={resetKey} />
-          )}
-          {has("loop") && (
-            <StyleCheckboxField name="loop" label="Loop video" defaultChecked={style.loop ?? false} resetKey={resetKey} />
-          )}
-          {has("backgroundColor") && (
-            <ColorField
-              id={`backgroundColor-${resetKey}`}
-              name="backgroundColor"
-              label="Background color"
-              defaultValue={style.backgroundColor || "#ffffff"}
-            />
-          )}
-          {has("textColor") && (
-            <ColorField
-              id={`textColor-${resetKey}`}
-              name="textColor"
-              label="Text color"
-              defaultValue={style.textColor || "#111111"}
-            />
-          )}
-          {has("shadowPreset") && (
-            <SelectField
-              id={`shadowPreset-${resetKey}`}
-              name="shadowPreset"
-              label="Shadow"
-              defaultValue={style.shadowPreset ?? "none"}
-              options={[
-                { value: "none", label: "None" },
-                { value: "soft", label: "Soft" },
-                { value: "bold", label: "Bold" },
-              ]}
-            />
-          )}
-          {has("layoutMode") && (
-            <SelectField
-              id={`layoutMode-${resetKey}`}
-              name="layoutMode"
-              label="Layout"
-              defaultValue={style.layoutMode ?? "carousel"}
-              options={[
-                { value: "carousel", label: "Carousel" },
-                { value: "grid", label: "Grid" },
-              ]}
-            />
-          )}
-          {has("columns") && (
-            <NumberField
-              id={`columns-${resetKey}`}
-              name="columns"
-              label="Grid columns"
-              min={2}
-              max={5}
-              defaultValue={style.columns ?? 3}
-            />
-          )}
-          {has("playTrigger") && (
-            <SelectField
-              id={`playTrigger-${resetKey}`}
-              name="playTrigger"
-              label="Play on"
-              defaultValue={style.playTrigger ?? "click"}
-              options={[
-                { value: "click", label: "Click" },
-                { value: "hover", label: "Hover (desktop)" },
-              ]}
-            />
-          )}
-          {has("autoplayOnScroll") && (
-            <StyleCheckboxField name="autoplayOnScroll" label="Autoplay muted when scrolled into view" defaultChecked={style.autoplayOnScroll ?? false} resetKey={resetKey} />
-          )}
-          {has("ctaStyle") && (
-            <SelectField
-              id={`ctaStyle-${resetKey}`}
-              name="ctaStyle"
-              label="Add to cart button style"
-              defaultValue={style.ctaStyle ?? "pill"}
-              options={[
-                { value: "pill", label: "Pill" },
-                { value: "square", label: "Square" },
-                { value: "text-link", label: "Text link" },
-              ]}
-            />
-          )}
-          {has("showProductImage") && (
-            <StyleCheckboxField name="showProductImage" label="Show product image in tags" defaultChecked={style.showProductImage ?? true} resetKey={resetKey} />
-          )}
-          {has("tagRevealMode") && (
-            <SelectField
-              id={`tagRevealMode-${resetKey}`}
-              name="tagRevealMode"
-              label="Product tags"
-              defaultValue={style.tagRevealMode ?? "always"}
-              options={[
-                { value: "always", label: "Always visible" },
-                { value: "tap", label: "Tap to reveal" },
-              ]}
-            />
+
+          {showProductTags && (
+            <s-stack gap="base">
+              <s-text type="strong" color="subdued">Product tags</s-text>
+              {has("showPrice") && (
+                <StyleCheckboxField name="showPrice" label="Show product price" defaultChecked={style.showPrice ?? true} resetKey={resetKey} />
+              )}
+              {has("showTitleOverlay") && (
+                <StyleCheckboxField name="showTitleOverlay" label="Show video title" defaultChecked={style.showTitleOverlay ?? true} resetKey={resetKey} />
+              )}
+              {has("showProductImage") && (
+                <StyleCheckboxField name="showProductImage" label="Show product image in tags" defaultChecked={style.showProductImage ?? true} resetKey={resetKey} />
+              )}
+              {has("tagRevealMode") && (
+                <SelectField
+                  id={`tagRevealMode-${resetKey}`}
+                  name="tagRevealMode"
+                  label="Product tags"
+                  defaultValue={style.tagRevealMode ?? "always"}
+                  options={[
+                    { value: "always", label: "Always visible" },
+                    { value: "tap", label: "Tap to reveal" },
+                  ]}
+                />
+              )}
+            </s-stack>
           )}
         </s-stack>
       </styleFetcher.Form>
