@@ -1,46 +1,41 @@
+// Floating video: reveals the player unless the shopper dismissed it this
+// session, and lets the label bubble open it too.
 (() => {
   const bindAll = () => {
-  document.querySelectorAll("[data-reelup-pop]").forEach((pop) => {
-    if (pop.dataset.reelupPopBound) return;
-    pop.dataset.reelupPopBound = "true";
+    document.querySelectorAll("[data-reelup-pop]").forEach((pop) => {
+      if (pop.dataset.reelupPopBound) return;
+      pop.dataset.reelupPopBound = "true";
 
-    // Keyed by block id, not just reel id — block.id is always unique per
-    // app-embed instance, so two reel-pop blocks (e.g. on different pages
-    // via theme-section visibility, or a merchant with two embeds enabled)
-    // never share a dismissal key even if `data-reel-id` is ever blank.
-    const reelId = pop.dataset.reelId || "default";
-    const blockId = pop.dataset.blockId || "default";
-    const storageKey = `reelup-pop-dismissed-${blockId}-${reelId}`;
-
-    let alreadyDismissed = false;
-    try {
-      alreadyDismissed = sessionStorage.getItem(storageKey) === "true";
-    } catch {
-      // sessionStorage unavailable (private browsing, quota, etc.) — treat
-      // as not-dismissed; the bubble just won't remember dismissal below.
-    }
-
-    if (alreadyDismissed) {
-      pop.hidden = true;
-      return;
-    }
-
-    const dismissButton = pop.querySelector("[data-reelup-pop-dismiss]");
-    dismissButton?.addEventListener("click", (event) => {
-      // The dismiss button is a positioned sibling of the trigger, not a
-      // descendant of it, but stop propagation anyway so a click here can
-      // never be misread as a click on the trigger's own open-lightbox
-      // button by anything listening higher up the tree.
-      event.stopPropagation();
-      pop.hidden = true;
+      // Keyed by embed block id as well as reel id so two embeds never
+      // share a dismissal, even if one's reel id were blank.
+      const storageKey = `reelup-pop-dismissed-${pop.dataset.blockId || "default"}-${pop.dataset.reelId || "default"}`;
+      let dismissed = false;
       try {
-        sessionStorage.setItem(storageKey, "true");
+        dismissed = sessionStorage.getItem(storageKey) === "true";
       } catch {
-        // Dismissal still applies to this page view; it just won't persist
-        // across navigations if storage isn't available.
+        // Storage unavailable: show it; dismissal just won't persist.
       }
+      if (dismissed) return;
+      const delayMs = Math.min(Math.max(parseFloat(pop.dataset.delay) || 0, 0), 60) * 1000;
+      setTimeout(() => {
+        pop.hidden = false;
+      }, delayMs);
+
+      pop.querySelector("[data-reelup-pop-open]")?.addEventListener("click", () => {
+        pop.querySelector(".reelup-trigger__button")?.click();
+      });
+
+      pop.querySelector("[data-reelup-pop-dismiss]")?.addEventListener("click", (event) => {
+        event.stopPropagation();
+        pop.hidden = true;
+        pop.querySelector(".reelup-trigger__preview")?.remove();
+        try {
+          sessionStorage.setItem(storageKey, "true");
+        } catch {
+          // Applies to this page view only.
+        }
+      });
     });
-  });
   };
 
   bindAll();

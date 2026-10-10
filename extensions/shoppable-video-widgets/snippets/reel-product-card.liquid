@@ -1,0 +1,90 @@
+{% doc %}
+One shoppable product row: image, title, price (with compare-at), a variant
+picker when the product has options, and a quick add button. Used inside
+every reel's <template data-reelup-products> (cloned into the video viewer
+and story drawer by JS) and rendered directly by the featured-video block's
+inline product list. Click/change behaviour is delegated document-wide in
+reel-lightbox.js, so the same markup works in all three places.
+
+@param product {product} - the tagged product
+@param style {object} - the widget's style object (showPrice, showProductImage, ctaLabel)
+
+@example
+{% render 'reel-product-card' for reel.tagged_products.value as product, style: widget_style %}
+{% enddoc %}
+{%- liquid
+  assign variant = product.selected_or_first_available_variant
+  assign show_price = true
+  if style.showPrice == false
+    assign show_price = false
+  endif
+  assign show_image = true
+  if style.showProductImage == false
+    assign show_image = false
+  endif
+  assign add_label = 'reels.add_to_cart' | t
+  if style.ctaLabel != blank
+    assign add_label = style.ctaLabel
+  endif
+-%}
+{%- if variant -%}
+<div class="reelup-product" data-reelup-product data-product-id="{{ product.id }}">
+  {%- if show_image and product.featured_image -%}
+    <a class="reelup-product__media" href="{{ product.url }}" data-reelup-product-link tabindex="-1" aria-hidden="true">
+      <img
+        src="{{ product.featured_image | image_url: width: 192 }}"
+        alt=""
+        loading="lazy"
+        width="96"
+        height="96"
+      >
+    </a>
+  {%- endif -%}
+  <div class="reelup-product__info">
+    <a class="reelup-product__title" href="{{ product.url }}" data-reelup-product-link>{{ product.title }}</a>
+    {%- if show_price -%}
+      <span class="reelup-product__price">
+        <span data-reelup-price>{{ variant.price | money }}</span>
+        <s class="reelup-product__compare" data-reelup-compare{% unless variant.compare_at_price > variant.price %} hidden{% endunless %}>
+          {{- variant.compare_at_price | money -}}
+        </s>
+      </span>
+    {%- endif -%}
+    {%- unless product.has_only_default_variant -%}
+      <select class="reelup-product__variant" data-reelup-variant aria-label="{{ 'reels.options_label' | t: product: product.title }}">
+        {%- for option_variant in product.variants limit: 100 -%}
+          <option
+            value="{{ option_variant.id }}"
+            data-price="{{ option_variant.price | money | escape }}"
+            data-compare="{% if option_variant.compare_at_price > option_variant.price %}{{ option_variant.compare_at_price | money | escape }}{% endif %}"
+            data-available="{{ option_variant.available }}"
+            {% if option_variant.id == variant.id %}selected{% endif %}
+          >
+            {{- option_variant.title | escape -}}
+            {%- unless option_variant.available %} · {{ 'reels.sold_out' | t }}{% endunless -%}
+          </option>
+        {%- endfor -%}
+      </select>
+    {%- endunless -%}
+  </div>
+  {%- if style.showQuantity -%}
+    <div class="reelup-qty" data-reelup-qty>
+      <button type="button" class="reelup-qty__step" data-reelup-qty-step="-1" aria-label="{{ 'reels.decrease_quantity' | t }}">&minus;</button>
+      <input class="reelup-qty__input" data-reelup-qty-input type="number" inputmode="numeric" min="1" max="99" value="1" aria-label="{{ 'reels.quantity_label' | t }}">
+      <button type="button" class="reelup-qty__step" data-reelup-qty-step="1" aria-label="{{ 'reels.increase_quantity' | t }}">+</button>
+    </div>
+  {%- endif -%}
+  <button
+    type="button"
+    class="reelup-product__add"
+    data-reelup-add-to-cart
+    data-variant-id="{{ variant.id }}"
+    data-add-label="{{ add_label | escape }}"
+    data-added-label="{{ 'reels.added_to_cart' | t }}"
+    data-sold-out-label="{{ 'reels.sold_out' | t }}"
+    {% unless variant.available %}disabled{% endunless %}
+  >
+    {%- if variant.available %}{{ add_label | escape }}{% else %}{{ 'reels.sold_out' | t }}{% endif -%}
+  </button>
+</div>
+{%- endif -%}

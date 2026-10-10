@@ -3,69 +3,8 @@ import prisma from "../db.server";
 import type { AdminGraphqlClient } from "./reel.server";
 import { assertNoGraphqlErrors, throwOnUserErrors } from "./reel.server";
 
-export type WidgetKind =
-  | "PRODUCT_PAGE_REELS"
-  | "CAROUSEL"
-  | "GRID"
-  | "STORIES"
-  | "REEL_POPS"
-  | "SINGLE_VIDEO"
-  | "ADD_TO_CART_VIDEO";
-
-// Every appearance/behavior field across all 6 storefront widgets, merged
-// into one bag. Each widget kind only shows/reads the subset relevant to it
-// (see WIDGET_STYLE_FIELDS in app.widgets.tsx for which); storing them all
-// in one shape means the metafield sync and the Liquid read side never need
-// a per-kind type, just one optional-everything object.
-export interface WidgetStyleConfig {
-  heading?: string;
-  watchLabel?: string;
-  accentColor?: string;
-  triggerSize?: number;
-  cornerStyle?: "sharp" | "rounded" | "soft";
-  ctaColor?: string;
-  ctaTextColor?: string;
-  ctaLabel?: string;
-  showPrice?: boolean;
-  showTitleOverlay?: boolean;
-  mutedDefault?: boolean;
-  loop?: boolean;
-  storyDuration?: number;
-  position?: "bottom_right" | "bottom_left" | "top_right" | "top_left";
-  showPulse?: boolean;
-  // Theming
-  backgroundColor?: string;
-  textColor?: string;
-  shadowPreset?: "none" | "soft" | "bold";
-  // Layout
-  layoutMode?: "carousel" | "grid";
-  columns?: number;
-  playTrigger?: "click" | "hover";
-  autoplayOnScroll?: boolean;
-  // CTA / product UI
-  ctaStyle?: "pill" | "square" | "text-link";
-  showProductImage?: boolean;
-  tagRevealMode?: "always" | "tap";
-}
-
-export interface WidgetConfig {
-  templateStyle: string;
-  targetRule:
-    | { type: "all_products" }
-    | { type: "handles"; handles: string[] }
-    | { type: "collections"; handles: string[] };
-  // Display concern, not a style sub-field, so it survives independent of
-  // the style form's merge-on-save (see updateWidgetStyle).
-  deviceVisibility?: "all" | "desktop" | "mobile";
-  // Which page templates this widget is allowed to render on, matched
-  // against Liquid's `template.name` (e.g. "index", "product", "collection",
-  // "list-collections", "page", "article", "cart", "search"). Empty/unset
-  // means no restriction — matches every page, same as today's behavior.
-  pageTypes?: string[];
-  featuredReelId?: string;
-  reelIds?: string[];
-  style?: WidgetStyleConfig;
-}
+import type { WidgetConfig, WidgetKind, WidgetStyleConfig } from "./widget-kinds";
+export type { WidgetConfig, WidgetKind, WidgetStyleConfig } from "./widget-kinds";
 
 export async function createWidget(
   shopId: string,
@@ -390,6 +329,59 @@ export async function updateWidgetStyle(
   const widget = await prisma.widget.update({
     where: { id },
     data: { config: mergedConfig as unknown as Prisma.InputJsonValue },
+  });
+  await syncShopWidgetState(admin, widget.shopId, widget.type as WidgetKind);
+  return widget;
+}
+
+export interface WidgetSettingsUpdate {
+  name: string;
+  published: boolean;
+  targetRule: WidgetConfig["targetRule"];
+  deviceVisibility: NonNullable<WidgetConfig["deviceVisibility"]>;
+  pageTypes: string[];
+  featuredReelId?: string;
+  reelIds?: string[];
+  style: WidgetStyleConfig;
+}
+
+// The editor's single Save: name, publish state and every config field land
+// in one transaction followed by one metafield sync, instead of the old
+// one-fetcher-per-section saves that each round-tripped to Shopify. Same
+// sibling-unpublish invariant as updateWidget.
+export async function saveWidgetSettings(
+  admin: AdminGraphqlClient,
+  shopId: string,
+  id: string,
+  update: WidgetSettingsUpdate,
+): Promise<Widget> {
+  const current = await prisma.widget.findFirstOrThrow({ where: { id, shopId } });
+  const currentConfig = current.config as unknown as WidgetConfig;
+  const config: WidgetConfig = {
+    ...currentConfig,
+    targetRule: update.targetRule,
+    deviceVisibility: update.deviceVisibility,
+    pageTypes: update.pageTypes,
+    style: update.style,
+  };
+  if (update.featuredReelId !== undefined) config.featuredReelId = update.featuredReelId || undefined;
+  if (update.reelIds !== undefined) config.reelIds = update.reelIds;
+
+  const widget = await prisma.$transaction(async (tx) => {
+    if (update.published && !current.published) {
+      await tx.widget.updateMany({
+        where: { shopId: current.shopId, type: current.type, published: true, id: { not: id } },
+        data: { published: false },
+      });
+    }
+    return tx.widget.update({
+      where: { id },
+      data: {
+        name: update.name,
+        published: update.published,
+        config: config as unknown as Prisma.InputJsonValue,
+      },
+    });
   });
   await syncShopWidgetState(admin, widget.shopId, widget.type as WidgetKind);
   return widget;

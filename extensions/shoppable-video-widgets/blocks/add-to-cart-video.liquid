@@ -1,193 +1,110 @@
 {% doc %}
-Renders the shop's ADD_TO_CART_VIDEO widget: one merchant-picked featured
-reel as a compact, inline click-to-open trigger meant to sit directly
-below a product form's add-to-cart button (hence target: "section", not
-a theme-settings app embed — the merchant drags it into the product
-form's block list at the exact position they want). Same widget-gating
-pattern as single-video.liquid, which this is otherwise a close copy of;
-the only real difference is the compact/inline markup and CSS instead of
-a large centered portrait poster.
+ADD_TO_CART_VIDEO: a compact, full-width row meant to sit right under the
+buy buttons — thumbnail with a play mark, a short label, the reel's title
+and length, and a chevron. Quiet enough to live inside the product form,
+clear enough that it reads as "watch this before you buy".
+
 @example
 {% content_for 'block', type: 'add-to-cart-video', id: 'add-to-cart-video' %}
 {% enddoc %}
 
-{{ 'reel-lightbox.css' | asset_url | stylesheet_tag }}
-{{ 'add-to-cart-video.css' | asset_url | stylesheet_tag }}
+{{ 'reel-widgets.css' | asset_url | stylesheet_tag }}
 
 {% assign reel_namespace = 'app--404281098241' %}
 
-{% comment %}
-  Deliberately NOT using --reelup-accent-color/--reelup-accent-hover-color
-  here — reel-lightbox.css already binds those to .reelup-trigger__play-icon
-  globally, so reusing them for this pill's background would make the play
-  icon disappear against a matching accent color. Separate var names instead.
-{% endcomment %}
-{% assign widget_field = shop.metafields[reel_namespace].add_to_cart_video_widget %}
-{% assign featured_reel = shop.metafields[reel_namespace].add_to_cart_video_featured_reel %}
-{% assign widget_style = widget_field.value.style %}
+{%- liquid
+  assign widget = shop.metafields[reel_namespace].add_to_cart_video_widget.value
+  assign widget_style = widget.style
+  assign reel = shop.metafields[reel_namespace].add_to_cart_video_featured_reel.value
 
-{% capture wrapper_style %}
-  --reelup-atc-thumb-size: {{ widget_style.triggerSize | default: 72 }}px;
-  {% unless widget_style.accentColor == blank %}
-    --reelup-atc-pill-color: {{ widget_style.accentColor }};
-    --reelup-atc-pill-hover-color: {{ widget_style.accentColor | color_darken: 15 }};
-  {% endunless %}
-  {% unless widget_style.backgroundColor == blank %}
-    --reelup-bg-color: {{ widget_style.backgroundColor }};
-  {% endunless %}
-  {% unless widget_style.textColor == blank %}
-    --reelup-text-color: {{ widget_style.textColor }};
-  {% endunless %}
-{% endcapture %}
+  assign show_widget = false
+  if widget.published
+    case widget.targetRule.type
+      when 'all_products'
+        assign show_widget = true
+      when 'handles'
+        if product and widget.targetRule.handles contains product.handle
+          assign show_widget = true
+        endif
+      when 'collections'
+        for collection in product.collections
+          if widget.targetRule.handles contains collection.handle
+            assign show_widget = true
+            break
+          endif
+        endfor
+    endcase
+  endif
+  if widget.pageTypes.size > 0
+    unless widget.pageTypes contains template.name
+      assign show_widget = false
+    endunless
+  endif
+  unless reel and reel.published.value and reel.config.value.hlsManifestUrl != blank
+    assign show_widget = false
+  endunless
 
-{% capture cta_hover_color %}
-  {% unless widget_style.ctaColor == blank %}{{ widget_style.ctaColor | color_lighten: 15 }}{% endunless %}
-{% endcapture %}
+  assign label = widget_style.watchLabel
+  if label == blank
+    assign label = 'reels.watch_label' | t
+  endif
 
-{% assign style_show_price = true %}
-{% if widget_style.showPrice == false %}{% assign style_show_price = false %}{% endif %}
-{% assign style_show_title_overlay = true %}
-{% if widget_style.showTitleOverlay == false %}{% assign style_show_title_overlay = false %}{% endif %}
-{% assign style_muted_default = false %}
-{% if widget_style.mutedDefault %}{% assign style_muted_default = true %}{% endif %}
-{% assign style_loop = false %}
-{% if widget_style.loop %}{% assign style_loop = true %}{% endif %}
+  assign show_duration = true
+  if widget_style.showDuration == false
+    assign show_duration = false
+  endif
 
-{% assign shadow_class = 'reelup-shadow--none' %}
-{% if widget_style.shadowPreset == 'soft' or widget_style.shadowPreset == 'bold' %}
-  {% assign shadow_class = 'reelup-shadow--' | append: widget_style.shadowPreset %}
-{% endif %}
+  case widget_style.cornerStyle
+    when 'sharp'
+      assign radius = '0px'
+    when 'soft'
+      assign radius = '18px'
+    else
+      assign radius = '10px'
+  endcase
+-%}
 
-{% assign visibility_class = '' %}
-{% if widget_field.value.deviceVisibility == 'desktop' %}
-  {% assign visibility_class = 'reelup-hide-mobile' %}
-{% elsif widget_field.value.deviceVisibility == 'mobile' %}
-  {% assign visibility_class = 'reelup-hide-desktop' %}
-{% endif %}
-
-{% assign widget_matches_product = false %}
-{% if widget_field.value.published %}
-  {% if widget_field.value.targetRule.type == "all_products" %}
-    {% assign widget_matches_product = true %}
-  {% elsif widget_field.value.targetRule.type == "handles" and widget_field.value.targetRule.handles contains product.handle %}
-    {% assign widget_matches_product = true %}
-  {% elsif widget_field.value.targetRule.type == "collections" %}
-    {% for collection in product.collections %}
-      {% if widget_field.value.targetRule.handles contains collection.handle %}
-        {% assign widget_matches_product = true %}
-      {% endif %}
-    {% endfor %}
-  {% endif %}
-{% endif %}
-
-{% capture current_page_type %}{{ template }}{% endcapture %}
-{% assign page_type_ok = true %}
-{% if widget_field.value.pageTypes.size > 0 %}
-  {% assign page_type_ok = false %}
-  {% if widget_field.value.pageTypes contains current_page_type %}
-    {% assign page_type_ok = true %}
-  {% endif %}
-{% endif %}
-{% unless page_type_ok %}
-  {% assign widget_matches_product = false %}
-{% endunless %}
-
-{% assign reel = featured_reel.value %}
-{% assign show_reel = false %}
-{% if widget_matches_product and reel and reel.published.value and reel.config.value.cloudflareStreamUid != blank and reel.config.value.hlsManifestUrl != blank %}
-  {% assign show_reel = true %}
-{% endif %}
-
-{% if show_reel %}
-  {% render 'reel-video-schema', reel: reel %}
-  <div class="reelup-atc-video {{ shadow_class }} {{ visibility_class }}" style="{{ wrapper_style | strip_newlines | strip }}" {{ block.shopify_attributes }}>
-    <div
-      class="reelup-trigger reelup-atc-video__trigger"
-      data-reelup-trigger
-      data-reel-id="{{ reel.system.id }}"
-      data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
-      data-poster-url="{{ reel.config.value.posterUrl | escape }}"
-      data-title="{{ reel.title.value | escape }}"
-      data-close-label="{{ 'reels.close_label' | t }}"
-      data-play-label="{{ 'reels.play_label' | t }}"
-      data-pause-label="{{ 'reels.pause_label' | t }}"
-      data-mute-label="{{ 'reels.mute_label' | t }}"
-      data-unmute-label="{{ 'reels.unmute_label' | t }}"
-      data-shop-label="{{ 'reels.shop_this_video_label' | t }}"
-      data-cta-color="{{ widget_style.ctaColor }}"
-      data-cta-text-color="{{ widget_style.ctaTextColor | default: '#ffffff' }}"
-      data-cta-hover-color="{{ cta_hover_color | strip }}"
-      data-cta-label="{{ widget_style.ctaLabel | escape }}"
-      data-cta-style="{{ widget_style.ctaStyle | default: 'pill' }}"
-      data-show-price="{{ style_show_price }}"
-      data-show-title="{{ style_show_title_overlay }}"
-      data-show-product-image="{{ widget_style.showProductImage | default: true }}"
-      data-tag-reveal-mode="{{ widget_style.tagRevealMode | default: 'always' }}"
-      data-muted-default="{{ style_muted_default }}"
-      data-loop="{{ style_loop }}"
-      data-play-trigger="{{ widget_style.playTrigger | default: 'click' }}"
-    >
-      <button
-        type="button"
-        class="reelup-trigger__button reelup-atc-video__button"
-        aria-label="{{ 'reels.play_label' | t }}"
-      >
-        <span class="reelup-atc-video__thumb">
-          {% if reel.config.value.posterUrl != blank %}
-            <img
-              src="{{ reel.config.value.posterUrl | escape }}"
-              alt="{{ reel.title.value | escape }}"
-              loading="lazy"
-              width="120"
-              height="120"
-            >
-          {% endif %}
-          <span class="reelup-trigger__play-icon" aria-hidden="true"></span>
+{%- if show_widget -%}
+  {%- render 'reel-video-schema', reel: reel -%}
+  {%- capture wrapper_style -%}
+    --ru-radius: {{ radius }};
+    --ru-thumb: {{ widget_style.triggerSize | default: 56 }}px;
+    {%- if widget_style.accentColor != blank %}--ru-accent: {{ widget_style.accentColor }};{% endif -%}
+    {%- if widget_style.backgroundColor != blank %}--ru-bg: {{ widget_style.backgroundColor }};{% endif -%}
+    {%- if widget_style.textColor != blank %}--ru-text: {{ widget_style.textColor }};{% endif -%}
+  {%- endcapture -%}
+  {%- capture row -%}
+    <button type="button" class="reelup-trigger__button reelup-atc__button">
+      <span class="reelup-atc__thumb">
+        {%- if reel.config.value.posterUrl != blank -%}
+          <img class="reelup-trigger__poster" src="{{ reel.config.value.posterUrl | escape }}" alt="" loading="lazy" width="192" height="192">
+        {%- endif -%}
+        <span class="reelup-atc__play" aria-hidden="true">
+          <svg width="9" height="9" viewBox="0 0 10 10" focusable="false"><path fill="currentColor" d="M2 1.2v7.6a.5.5 0 0 0 .76.43l6.1-3.8a.5.5 0 0 0 0-.86L2.76.77A.5.5 0 0 0 2 1.2Z"/></svg>
         </span>
-        {% unless widget_style.watchLabel == blank %}
-          <span class="reelup-atc-video__label"{% unless widget_style.textColor == blank %} style="color: {{ widget_style.textColor }};"{% endunless %}>{{ widget_style.watchLabel }}</span>
-        {% endunless %}
-      </button>
-      {% if reel.tagged_products.value.size > 0 %}
-        <template data-reelup-products>
-          {% for product in reel.tagged_products.value %}
-            {% assign variant = product.selected_or_first_available_variant %}
-            <div class="reelup-lightbox__product">
-              <a class="reelup-lightbox__product-link" href="{{ product.url }}">
-                {% if product.featured_image %}
-                  <img
-                    class="reelup-lightbox__product-image"
-                    src="{{ product.featured_image | image_url: width: 160 }}"
-                    alt="{{ product.title | escape }}"
-                    loading="lazy"
-                    width="56"
-                    height="56"
-                  >
-                {% endif %}
-                <span class="reelup-lightbox__product-info">
-                  <span class="reelup-lightbox__product-title">{{ product.title }}</span>
-                  <span class="reelup-lightbox__product-price">{{ product.price | money }}</span>
-                </span>
-              </a>
-              {% if variant %}
-                <button
-                  type="button"
-                  class="reelup-lightbox__add-to-cart"
-                  data-reelup-add-to-cart
-                  data-variant-id="{{ variant.id }}"
-                  data-add-label="{{ 'reels.add_to_cart' | t }}"
-                  data-added-label="{{ 'reels.added_to_cart' | t }}"
-                >
-                  {{ 'reels.add_to_cart' | t }}
-                </button>
-              {% endif %}
-            </div>
-          {% endfor %}
-        </template>
-      {% endif %}
-    </div>
+      </span>
+      <span class="reelup-atc__text">
+        <span class="reelup-atc__label">{{ label | escape }}</span>
+        <span class="reelup-atc__meta">
+          {{- reel.title.value | escape -}}
+          {%- if show_duration and reel.config.value.durationSeconds > 0 -%}
+            {%- assign total = reel.config.value.durationSeconds | round -%}
+            {%- assign seconds = total | modulo: 60 -%}
+            <span class="reelup-atc__length">{{ total | divided_by: 60 }}:{% if seconds < 10 %}0{% endif %}{{ seconds }}</span>
+          {%- endif -%}
+        </span>
+      </span>
+      <svg class="reelup-atc__chevron" width="16" height="16" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M7.3 15.7a1 1 0 0 1 0-1.4l4.28-4.3-4.3-4.3a1 1 0 1 1 1.42-1.4l5 5a1 1 0 0 1 0 1.4l-5 5a1 1 0 0 1-1.42 0Z"/></svg>
+    </button>
+  {%- endcapture -%}
+  <div
+    class="reelup reelup-atc reelup-device--{{ widget.deviceVisibility | default: 'all' }}{% if widget_style.backgroundColor != blank %} reelup--filled{% endif %}"
+    style="{{ wrapper_style | strip_newlines }}"
+    {{ block.shopify_attributes }}
+  >
+    {%- render 'reel-trigger', reel: reel, style: widget_style, inner: row, muted_default: false -%}
   </div>
-{% endif %}
+{%- endif -%}
 
 {% schema %}
 {
@@ -197,7 +114,7 @@ a large centered portrait poster.
     { "type": "product", "id": "product", "label": "Product", "autofill": true },
     {
       "type": "paragraph",
-      "content": "Appearance, labels, and behavior for this widget are set in the app's Widgets page, not here — open the widget's Appearance tab to customize it."
+      "content": "Place this right below Buy buttons. The video, label and colors are set in the app under Widgets › Add-to-cart video. Needs the Shoppable Videos app embed turned on."
     }
   ]
 }

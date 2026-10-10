@@ -1,0 +1,83 @@
+{% doc %}
+The clickable wrapper every widget puts around a reel: carries the viewer
+settings as data attributes (read by reel-lightbox.js / reel-story.js when
+the reel opens), the widget's own visual markup passed in as `inner`, and
+the tagged products as a <template> the viewer clones from. Each block owns
+its look; this snippet owns the contract with the JS.
+
+@param reel {metaobject} - the reel metaobject
+@param style {object} - the widget's style object from its shop metafield
+@param inner {string} - the widget's own markup for this trigger (must contain a .reelup-trigger__button)
+@param class {string} [optional] - extra classes for the wrapper
+@param muted_default {boolean} - whether video starts muted when the merchant hasn't chosen
+@param autoplay_default {boolean} [optional] - preview on when the merchant hasn't chosen
+@param autoplay_preview {boolean} [optional] - force the inline muted preview on
+
+@example
+{% render 'reel-trigger', reel: reel, style: widget_style, inner: card, muted_default: true %}
+{% enddoc %}
+{%- liquid
+  assign muted = muted_default
+  if style.mutedDefault == true
+    assign muted = true
+  elsif style.mutedDefault == false
+    assign muted = false
+  endif
+
+  assign show_title = true
+  if style.showTitleOverlay == false
+    assign show_title = false
+  endif
+
+  assign autoplay = false
+  if autoplay_default
+    assign autoplay = true
+  endif
+  if style.autoplayOnScroll == true
+    assign autoplay = true
+  elsif style.autoplayOnScroll == false
+    assign autoplay = false
+  endif
+  if autoplay_preview
+    assign autoplay = true
+  endif
+
+  assign cta_hover = ''
+  if style.ctaColor != blank
+    assign cta_brightness = style.ctaColor | color_brightness
+    if cta_brightness > 150
+      assign cta_hover = style.ctaColor | color_darken: 10
+    else
+      assign cta_hover = style.ctaColor | color_lighten: 12
+    endif
+  endif
+-%}
+<div
+  class="reelup-trigger {{ class }}"
+  data-reelup-trigger
+  data-reel-id="{{ reel.system.id }}"
+  data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
+  data-poster-url="{{ reel.config.value.posterUrl | escape }}"
+  data-title="{{ reel.title.value | escape }}"
+  data-cta-color="{{ style.ctaColor | escape }}"
+  data-cta-text-color="{{ style.ctaTextColor | escape }}"
+  data-cta-hover-color="{{ cta_hover }}"
+  data-cta-style="{{ style.ctaStyle | default: 'pill' }}"
+  data-show-title="{{ show_title }}"
+  data-tag-reveal-mode="{{ style.tagRevealMode | default: 'always' }}"
+  data-muted-default="{{ muted }}"
+  data-loop="{% if style.loop %}true{% else %}false{% endif %}"
+  data-play-trigger="{{ style.playTrigger | default: 'click' }}"
+  data-autoplay-scroll="{{ autoplay }}"
+  data-story-duration="{{ style.storyDuration | default: 15 | times: 1000 }}"
+  data-product-count="{{ reel.tagged_products.value.size | default: 0 }}"
+  data-show-share="{% if style.showShare == false %}false{% else %}true{% endif %}"
+  data-show-recommendations="{% if style.showRecommendations == false %}false{% else %}true{% endif %}"
+>
+  {{- inner -}}
+  {%- if reel.tagged_products.value.size > 0 -%}
+    <template data-reelup-products>
+      {%- render 'reel-product-card' for reel.tagged_products.value as product, style: style -%}
+    </template>
+  {%- endif -%}
+</div>

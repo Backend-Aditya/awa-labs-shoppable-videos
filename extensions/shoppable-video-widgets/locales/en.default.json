@@ -1,13 +1,37 @@
 {
   "reels": {
     "play_label": "Play video",
+    "play_named_label": "Play video: {{ title }}",
     "pause_label": "Pause video",
     "mute_label": "Mute",
     "unmute_label": "Unmute",
     "add_to_cart": "Add to cart",
     "added_to_cart": "Added",
+    "added_to_cart_status": "Added to your cart",
+    "add_failed": "Couldn't add to cart. Try again.",
+    "sold_out": "Sold out",
+    "options_label": "Options for {{ product }}",
+    "view_cart": "View cart",
     "close_label": "Close",
+    "close_products_label": "Hide products",
     "shop_this_video_label": "Shop this video",
-    "dismiss_label": "Dismiss"
+    "dismiss_label": "Dismiss video",
+    "previous_label": "Previous video",
+    "next_label": "Next video",
+    "scroll_back_label": "Scroll back",
+    "scroll_forward_label": "Scroll forward",
+    "position_label": "{{ current }} of {{ total }}",
+    "duration_label": "Length",
+    "watch_label": "Watch video",
+    "products_count": {
+      "one": "{{ count }} product",
+      "other": "{{ count }} products"
+    },
+    "share_label": "Share video",
+    "link_copied": "Link copied",
+    "you_may_like": "You may also like",
+    "quantity_label": "Quantity",
+    "decrease_quantity": "Decrease quantity",
+    "increase_quantity": "Increase quantity"
   }
 }

@@ -1,0 +1,22 @@
+{% doc %}
+A reel's length as a small m:ss chip over its poster. Renders nothing when
+the reel has no duration yet (still processing on Cloudflare Stream).
+
+@param reel {metaobject} - the reel metaobject
+@param icon {boolean} [optional] - prefix a small play glyph
+
+@example
+{% render 'reel-duration', reel: reel, icon: true %}
+{% enddoc %}
+{%- assign total = reel.config.value.durationSeconds | round -%}
+{%- if total > 0 -%}
+  {%- assign minutes = total | divided_by: 60 -%}
+  {%- assign seconds = total | modulo: 60 -%}
+  <span class="reelup-chip">
+    {%- if icon -%}
+      <svg width="8" height="8" viewBox="0 0 10 10" aria-hidden="true" focusable="false"><path fill="currentColor" d="M2 1.2v7.6a.5.5 0 0 0 .76.43l6.1-3.8a.5.5 0 0 0 0-.86L2.76.77A.5.5 0 0 0 2 1.2Z"/></svg>
+    {%- endif -%}
+    <span class="reelup-visually-hidden">{{ 'reels.duration_label' | t }}</span>
+    {{- minutes }}:{% if seconds < 10 %}0{% endif %}{{ seconds -}}
+  </span>
+{%- endif -%}

@@ -14,6 +14,7 @@ import {
   updateWidgetFeaturedReel,
   updateWidgetReels,
   syncShopWidgetState,
+  saveWidgetSettings,
 } from "./widget.server";
 
 // Admin mock that records the variables passed to the metafieldsSet mutation.
@@ -992,5 +993,82 @@ describe("updateWidgetReels", () => {
         },
       ],
     });
+  });
+});
+
+describe("saveWidgetSettings", () => {
+  beforeEach(async () => {
+    await prisma.widget.deleteMany();
+    await prisma.shop.deleteMany();
+  });
+
+  it("writes name, publish state and config in one save and syncs once", async () => {
+    const shop = await getOrCreateShop("save-settings.myshopify.com");
+    const widget = await createWidget(shop.id, "PRODUCT_PAGE_REELS", "Old", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+    });
+    const { admin, recorder } = createRecordingAdmin();
+
+    const saved = await saveWidgetSettings(admin, shop.id, widget.id, {
+      name: "New",
+      published: true,
+      targetRule: { type: "handles", handles: ["shirt"] },
+      deviceVisibility: "mobile",
+      pageTypes: ["product"],
+      reelIds: ["gid://shopify/Metaobject/1"],
+      style: { heading: "Watch" },
+    });
+
+    expect(saved.name).toBe("New");
+    expect(saved.published).toBe(true);
+    expect(saved.config).toMatchObject({
+      templateStyle: "classic",
+      targetRule: { type: "handles", handles: ["shirt"] },
+      deviceVisibility: "mobile",
+      pageTypes: ["product"],
+      reelIds: ["gid://shopify/Metaobject/1"],
+      style: { heading: "Watch" },
+    });
+    // GetShopId + metafieldsSet
+    expect(recorder.callCount).toBe(2);
+    expect(recorder.variables).toEqual(
+      expectedMetafields(
+        {
+          published: true,
+          targetRule: { type: "handles", handles: ["shirt"] },
+          style: { heading: "Watch" },
+          deviceVisibility: "mobile",
+          pageTypes: ["product"],
+        },
+        ["gid://shopify/Metaobject/1"],
+      ),
+    );
+  });
+
+  it("publishing unpublishes the other live widget of the same kind", async () => {
+    const shop = await getOrCreateShop("save-settings-sibling.myshopify.com");
+    const live = await createWidget(shop.id, "PRODUCT_PAGE_REELS", "Live", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+    });
+    await setWidgetPublished(live.id, true);
+    const draft = await createWidget(shop.id, "PRODUCT_PAGE_REELS", "Draft", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+    });
+    const { admin } = createRecordingAdmin();
+
+    await saveWidgetSettings(admin, shop.id, draft.id, {
+      name: "Draft",
+      published: true,
+      targetRule: { type: "all_products" },
+      deviceVisibility: "all",
+      pageTypes: [],
+      style: {},
+    });
+
+    expect((await getWidget(shop.id, live.id))?.published).toBe(false);
+    expect((await getWidget(shop.id, draft.id))?.published).toBe(true);
   });
 });

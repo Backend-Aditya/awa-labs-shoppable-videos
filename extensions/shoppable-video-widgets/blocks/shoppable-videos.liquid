@@ -1,188 +1,156 @@
 {% doc %}
-The one master switch for this app: a Shopify app embed (target: "body"),
-enabled once by the merchant under Theme Settings > App embeds — not
-manually placed into a section like the other 5 reel blocks. No custom
-on/off mechanism needed; Shopify already gives every app embed its own
-native enable/disable toggle for free, so this uses THAT instead of a
-custom shop metafield + admin settings page (an earlier version of this
-app built exactly that, which was redundant with what the platform
-already provides and has since been removed).
+The app's one master switch: an app embed (target "body") the merchant turns
+on once under Theme settings › App embeds. Shopify's own embed toggle is the
+on/off mechanism — no custom flag.
 
-Two jobs:
-1. Script loader. reel-hls.js, reel-viewer-settings.js, reel-lightbox.js,
-   reel-trigger.js, reel-story.js, and reel-pop.js are ALL loaded here,
-   unconditionally, the moment this embed is active — not duplicated
-   across the other 5 blocks anymore. If the merchant never enables this
-   embed, none of those scripts ever load, so a trigger element from any
-   other block — even one a merchant dragged into a section — renders
-   its markup but does nothing when clicked. That's the real "enable the
-   app once, it works everywhere" behavior: it isn't a flag Liquid checks,
-   it's simply that no JS exists to make anything interactive yet.
-2. Renders the REEL_POPS widget's floating bubble (unchanged from when
-   this file was reel-pops.liquid) — reuses the same lightbox stack the
-   script loader above just loaded.
+Three jobs:
+1. Loads the storefront scripts and viewer styles once per page. Without
+   this embed no viewer JS exists, so every other block renders its markup
+   but does nothing when tapped.
+2. Publishes shared viewer labels and locale-aware cart routes as JSON
+   (#reelup-config) so blocks don't repeat them on every trigger.
+3. Renders the REEL_POPS widget ("Floating video"): a small player pinned
+   to a corner of every page it targets.
+
 @example
-Enabled by the merchant under Theme Settings > App embeds — not invoked
-via {% content_for %} like a section block.
+Enabled under Theme settings › App embeds — not placed with {% content_for %}.
 {% enddoc %}
 
 <script src="{{ 'reel-hls.js' | asset_url }}" defer></script>
-<script src="{{ 'reel-viewer-settings.js' | asset_url }}" defer></script>
 <script src="{{ 'reel-lightbox.js' | asset_url }}" defer></script>
-<script src="{{ 'reel-trigger.js' | asset_url }}" defer></script>
 <script src="{{ 'reel-story.js' | asset_url }}" defer></script>
+<script src="{{ 'reel-trigger.js' | asset_url }}" defer></script>
 <script src="{{ 'reel-pop.js' | asset_url }}" defer></script>
 
 {{ 'reel-lightbox.css' | asset_url | stylesheet_tag }}
-{{ 'reel-pop.css' | asset_url | stylesheet_tag }}
+{{ 'reel-widgets.css' | asset_url | stylesheet_tag }}
 
 {% assign reel_namespace = 'app--404281098241' %}
+{%- assign brand = shop.metafields[reel_namespace].brand.value -%}
+{%- if brand -%}
+  <style>
+    :root {
+      {%- if brand.accentColor != blank %}--ru-brand-accent: {{ brand.accentColor }};{% endif -%}
+      {%- if brand.buttonColor != blank %}--ru-brand-cta: {{ brand.buttonColor }};{% endif -%}
+      {%- if brand.buttonTextColor != blank %}--ru-brand-cta-text: {{ brand.buttonTextColor }};{% endif -%}
+      {%- if brand.salePriceColor != blank %}--ru-brand-sale: {{ brand.salePriceColor }};{% endif -%}
+    }
+    {%- if brand.fontFamily == 'system' %}
+    .reelup, .reelup-viewer, .reelup-story { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    {%- endif %}
+  </style>
+{%- endif -%}
 
-{% assign widget_field = shop.metafields[reel_namespace].reel_pops_widget %}
-{% assign featured_reel = shop.metafields[reel_namespace].reel_pops_featured_reel %}
-{% assign widget_style = widget_field.value.style %}
+<script type="application/json" id="reelup-config">
+  {
+    "cartUrl": {{ routes.cart_url | json }},
+    "cartAddUrl": {{ routes.cart_add_url | append: '.js' | json }},
+    "cartJsUrl": {{ routes.cart_url | append: '.js' | json }},
+    "recommendationsUrl": {{ routes.product_recommendations_url | append: '.json' | json }},
+    "currency": {{ cart.currency.iso_code | json }},
+    "locale": {{ request.locale.iso_code | json }},
+    "viewerTheme": {{ brand.viewerTheme | default: 'dark' | json }},
+    "labels": {
+      "close": {{ 'reels.close_label' | t | json }},
+      "play": {{ 'reels.play_label' | t | json }},
+      "pause": {{ 'reels.pause_label' | t | json }},
+      "mute": {{ 'reels.mute_label' | t | json }},
+      "unmute": {{ 'reels.unmute_label' | t | json }},
+      "shop": {{ 'reels.shop_this_video_label' | t | json }},
+      "previous": {{ 'reels.previous_label' | t | json }},
+      "next": {{ 'reels.next_label' | t | json }},
+      "viewCart": {{ 'reels.view_cart' | t | json }},
+      "addedToCart": {{ 'reels.added_to_cart_status' | t | json }},
+      "addFailed": {{ 'reels.add_failed' | t | json }},
+      "closeProducts": {{ 'reels.close_products_label' | t | json }},
+      "share": {{ 'reels.share_label' | t | json }},
+      "linkCopied": {{ 'reels.link_copied' | t | json }},
+      "youMayLike": {{ 'reels.you_may_like' | t | json }},
+      "of": {{ 'reels.position_label' | t: current: '__CURRENT__', total: '__TOTAL__' | json }}
+    }
+  }
+</script>
 
-{% assign style_position = widget_style.position | default: 'bottom_right' %}
-{% assign position_class = 'reelup-pop--' | append: style_position | replace: '_', '-' %}
-{% assign style_show_pulse = true %}
-{% if widget_style.showPulse == false %}{% assign style_show_pulse = false %}{% endif %}
-{% unless style_show_pulse %}
-  {% assign position_class = position_class | append: ' reelup-pop--no-pulse' %}
-{% endunless %}
+{%- liquid
+  assign widget = shop.metafields[reel_namespace].reel_pops_widget.value
+  assign widget_style = widget.style
+  assign reel = shop.metafields[reel_namespace].reel_pops_featured_reel.value
 
-{% capture wrapper_style %}--reelup-trigger-size: {{ widget_style.triggerSize | default: 72 }}px;{% endcapture %}
+  assign show_widget = false
+  if widget.published
+    case widget.targetRule.type
+      when 'all_products'
+        assign show_widget = true
+      when 'handles'
+        if product and widget.targetRule.handles contains product.handle
+          assign show_widget = true
+        endif
+      when 'collections'
+        for collection in product.collections
+          if widget.targetRule.handles contains collection.handle
+            assign show_widget = true
+            break
+          endif
+        endfor
+    endcase
+  endif
+  if widget.pageTypes.size > 0
+    unless widget.pageTypes contains template.name
+      assign show_widget = false
+    endunless
+  endif
+  unless reel and reel.published.value and reel.config.value.hlsManifestUrl != blank
+    assign show_widget = false
+  endunless
 
-{% capture cta_hover_color %}
-  {% unless widget_style.ctaColor == blank %}{{ widget_style.ctaColor | color_lighten: 15 }}{% endunless %}
-{% endcapture %}
+  assign position = widget_style.position | default: 'bottom_right' | replace: '_', '-'
+  assign shape = widget_style.popShape | default: 'portrait'
+  assign pulse = true
+  if widget_style.showPulse == false
+    assign pulse = false
+  endif
+  assign preview = false
+  if shape == 'portrait'
+    assign preview = true
+  endif
+-%}
 
-{% assign style_show_price = true %}
-{% if widget_style.showPrice == false %}{% assign style_show_price = false %}{% endif %}
-{% assign style_show_title_overlay = true %}
-{% if widget_style.showTitleOverlay == false %}{% assign style_show_title_overlay = false %}{% endif %}
-{% assign style_show_product_image = true %}
-{% if widget_style.showProductImage == false %}{% assign style_show_product_image = false %}{% endif %}
-{% assign style_muted_default = false %}
-{% if widget_style.mutedDefault %}{% assign style_muted_default = true %}{% endif %}
-{% assign style_loop = false %}
-{% if widget_style.loop %}{% assign style_loop = true %}{% endif %}
-
-{% assign widget_matches_product = false %}
-{% if widget_field.value.published %}
-  {% if widget_field.value.targetRule.type == "all_products" %}
-    {% assign widget_matches_product = true %}
-  {% elsif widget_field.value.targetRule.type == "handles" and product and widget_field.value.targetRule.handles contains product.handle %}
-    {% assign widget_matches_product = true %}
-  {% endif %}
-{% endif %}
-
-{% capture current_page_type %}{{ template }}{% endcapture %}
-{% assign page_type_ok = true %}
-{% if widget_field.value.pageTypes.size > 0 %}
-  {% assign page_type_ok = false %}
-  {% if widget_field.value.pageTypes contains current_page_type %}
-    {% assign page_type_ok = true %}
-  {% endif %}
-{% endif %}
-{% unless page_type_ok %}
-  {% assign widget_matches_product = false %}
-{% endunless %}
-
-{% assign reel = featured_reel.value %}
-{% assign show_reel = false %}
-{% if widget_matches_product and reel and reel.published.value and reel.config.value.cloudflareStreamUid != blank and reel.config.value.hlsManifestUrl != blank %}
-  {% assign show_reel = true %}
-{% endif %}
-
-{% if show_reel %}
-  {% render 'reel-video-schema', reel: reel %}
-  <div class="reelup-pop {{ position_class }}" data-reelup-pop data-reel-id="{{ reel.system.id }}" data-block-id="{{ block.id }}" style="{{ wrapper_style }}">
-    <button
-      type="button"
-      class="reelup-pop__dismiss"
-      data-reelup-pop-dismiss
-      aria-label="{{ 'reels.dismiss_label' | t }}"
-    >&times;</button>
-    <div
-      class="reelup-trigger reelup-pop__trigger"
-      data-reelup-trigger
-      data-reel-id="{{ reel.system.id }}"
-      data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
-      data-poster-url="{{ reel.config.value.posterUrl | escape }}"
-      data-title="{{ reel.title.value | escape }}"
-      data-close-label="{{ 'reels.close_label' | t }}"
-      data-play-label="{{ 'reels.play_label' | t }}"
-      data-pause-label="{{ 'reels.pause_label' | t }}"
-      data-mute-label="{{ 'reels.mute_label' | t }}"
-      data-unmute-label="{{ 'reels.unmute_label' | t }}"
-      data-shop-label="{{ 'reels.shop_this_video_label' | t }}"
-      data-cta-color="{{ widget_style.ctaColor }}"
-      data-cta-text-color="{{ widget_style.ctaTextColor | default: '#ffffff' }}"
-      data-cta-hover-color="{{ cta_hover_color | strip }}"
-      data-cta-label="{{ widget_style.ctaLabel | escape }}"
-      data-cta-style="{{ widget_style.ctaStyle | default: 'pill' }}"
-      data-show-price="{{ style_show_price }}"
-      data-show-title="{{ style_show_title_overlay }}"
-      data-show-product-image="{{ style_show_product_image }}"
-      data-muted-default="{{ style_muted_default }}"
-      data-loop="{{ style_loop }}"
-    >
-      <button
-        type="button"
-        class="reelup-trigger__button"
-        aria-label="{{ 'reels.play_label' | t }}"
-      >
-        {% if reel.config.value.posterUrl != blank %}
-          <img
-            class="reelup-trigger__poster"
-            src="{{ reel.config.value.posterUrl | escape }}"
-            alt="{{ reel.title.value | escape }}"
-            loading="lazy"
-            width="144"
-            height="144"
-          >
-        {% endif %}
+{%- if show_widget -%}
+  {%- render 'reel-video-schema', reel: reel -%}
+  {%- capture player -%}
+    <button type="button" class="reelup-trigger__button reelup-pop__player" aria-label="{{ 'reels.play_named_label' | t: title: reel.title.value | escape }}">
+      {%- if reel.config.value.posterUrl != blank -%}
+        <img class="reelup-trigger__poster" src="{{ reel.config.value.posterUrl | escape }}" alt="" loading="lazy" width="240" height="426">
+      {%- endif -%}
+      {%- if shape == 'circle' -%}
+        <span class="reelup-pop__play" aria-hidden="true">
+          <svg width="12" height="12" viewBox="0 0 10 10" focusable="false"><path fill="currentColor" d="M2 1.2v7.6a.5.5 0 0 0 .76.43l6.1-3.8a.5.5 0 0 0 0-.86L2.76.77A.5.5 0 0 0 2 1.2Z"/></svg>
+        </span>
+      {%- endif -%}
+    </button>
+  {%- endcapture -%}
+  <div
+    class="reelup reelup-pop reelup-pop--{{ position }} reelup-pop--{{ shape }}{% if pulse %} reelup-pop--pulse{% endif %} reelup-device--{{ widget.deviceVisibility | default: 'all' }}"
+    data-reelup-pop
+    data-reel-id="{{ reel.system.id }}"
+    data-block-id="{{ block.id }}"
+    data-delay="{{ widget_style.popDelay | default: 0 }}"
+    style="--ru-pop-size: {{ widget_style.triggerSize | default: 96 }}px; --ru-pop-border: {{ widget_style.accentColor | default: '#ffffff' }};"
+    hidden
+  >
+    <div class="reelup-pop__frame">
+      {%- render 'reel-trigger', reel: reel, style: widget_style, inner: player, muted_default: false, autoplay_preview: preview -%}
+      <button type="button" class="reelup-pop__dismiss" data-reelup-pop-dismiss aria-label="{{ 'reels.dismiss_label' | t }}">
+        <svg width="10" height="10" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M4.3 4.3a1 1 0 0 1 1.4 0L10 8.6l4.3-4.3a1 1 0 1 1 1.4 1.4L11.4 10l4.3 4.3a1 1 0 0 1-1.4 1.4L10 11.4l-4.3 4.3a1 1 0 0 1-1.4-1.4L8.6 10 4.3 5.7a1 1 0 0 1 0-1.4Z"/></svg>
       </button>
-      {% if reel.tagged_products.value.size > 0 %}
-        <template data-reelup-products>
-          {% for product in reel.tagged_products.value %}
-            {% assign variant = product.selected_or_first_available_variant %}
-            <div class="reelup-lightbox__product">
-              <a class="reelup-lightbox__product-link" href="{{ product.url }}">
-                {% if product.featured_image %}
-                  <img
-                    class="reelup-lightbox__product-image"
-                    src="{{ product.featured_image | image_url: width: 160 }}"
-                    alt="{{ product.title | escape }}"
-                    loading="lazy"
-                    width="56"
-                    height="56"
-                  >
-                {% endif %}
-                <span class="reelup-lightbox__product-info">
-                  <span class="reelup-lightbox__product-title">{{ product.title }}</span>
-                  <span class="reelup-lightbox__product-price">{{ product.price | money }}</span>
-                </span>
-              </a>
-              {% if variant %}
-                <button
-                  type="button"
-                  class="reelup-lightbox__add-to-cart"
-                  data-reelup-add-to-cart
-                  data-variant-id="{{ variant.id }}"
-                  data-add-label="{{ 'reels.add_to_cart' | t }}"
-                  data-added-label="{{ 'reels.added_to_cart' | t }}"
-                >
-                  {{ 'reels.add_to_cart' | t }}
-                </button>
-              {% endif %}
-            </div>
-          {% endfor %}
-        </template>
-      {% endif %}
     </div>
+    {%- if widget_style.bubbleLabel != blank -%}
+      <button type="button" class="reelup-pop__label" data-reelup-pop-open tabindex="-1" aria-hidden="true">
+        {{- widget_style.bubbleLabel | escape -}}
+      </button>
+    {%- endif -%}
   </div>
-{% endif %}
+{%- endif -%}
 
 {% schema %}
 {
@@ -191,7 +159,7 @@ via {% content_for %} like a section block.
   "settings": [
     {
       "type": "paragraph",
-      "content": "Enabling this turns on every shoppable video block you've added elsewhere in your theme — product page reels, carousel, stories, single video, add-to-cart video — plus the floating bubble below, if you've set one up in the app. The bubble's own appearance, labels, and behavior are set on the Reel pops widget in the app's Widgets page, not here."
+      "content": "Turns on every shoppable video block in your theme, plus the floating video if you've set one up. Appearance and content are managed in the app under Widgets."
     }
   ]
 }

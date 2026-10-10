@@ -1,21 +1,75 @@
+// Full-screen story viewer for the Stories widget: segmented progress,
+// auto-advance, tap left/right to move, press-and-hold to pause, and a
+// product sticker that slides up a drawer. Product cards inside the drawer
+// are handled by the delegated cart code in reel-lightbox.js.
 (() => {
-  const prefersReducedMotion = () =>
-    window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+  const viewer = () => window.ReelupViewer;
+  const prefersReducedMotion = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
-  let currentDurationMs = 15000;
+  const SEEN_KEY = "reelup-seen-stories";
+  const readSeen = () => {
+    try {
+      return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) ?? "[]"));
+    } catch {
+      return new Set();
+    }
+  };
+  const markSeen = (reelId) => {
+    if (!reelId) return;
+    try {
+      const seen = [...readSeen().add(reelId)].slice(-200);
+      localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
+    } catch {
+      // Private mode / storage full: rings just stay coloured.
+    }
+    document
+      .querySelectorAll(`[data-reelup-story-group] [data-reelup-trigger][data-reel-id="${CSS.escape(reelId)}"]`)
+      .forEach((el) => el.classList.add("is-seen"));
+  };
 
   let reels = [];
   let currentIndex = 0;
+  let durationMs = 15000;
   let timer = null;
   let drawerOpen = false;
   let advancing = false;
   let pausedRemainingMs = null;
 
   const clearTimer = () => {
-    if (timer) {
-      clearTimeout(timer);
-      timer = null;
-    }
+    clearTimeout(timer);
+    timer = null;
+  };
+
+  const segmentFill = (dialog, i) =>
+    dialog.querySelector(`.reelup-story__segment[data-index="${i}"] .reelup-story__segment-fill`);
+
+  const setSegment = (dialog, i, state) => {
+    const fill = segmentFill(dialog, i);
+    if (!fill) return;
+    fill.style.transition = "none";
+    fill.style.transform = state === "done" ? "scaleX(1)" : "scaleX(0)";
+    if (state !== "active" || prefersReducedMotion()) return;
+    // Reflow so the transition runs from 0 instead of batching both writes.
+    void fill.offsetWidth;
+    fill.style.transition = `transform ${durationMs}ms linear`;
+    fill.style.transform = "scaleX(1)";
+  };
+
+  const freezeSegment = (dialog) => {
+    const fill = segmentFill(dialog, currentIndex);
+    if (!fill) return durationMs;
+    const ratio = fill.getBoundingClientRect().width / (fill.parentElement.getBoundingClientRect().width || 1);
+    fill.style.transition = "none";
+    fill.style.transform = `scaleX(${ratio})`;
+    return Math.max(durationMs * (1 - ratio), 0);
+  };
+
+  const resumeSegment = (dialog, remaining) => {
+    const fill = segmentFill(dialog, currentIndex);
+    if (!fill || remaining <= 0 || prefersReducedMotion()) return;
+    void fill.offsetWidth;
+    fill.style.transition = `transform ${remaining}ms linear`;
+    fill.style.transform = "scaleX(1)";
   };
 
   const requestAdvance = (dialog) => {
@@ -26,390 +80,273 @@
     });
   };
 
-  const renderProgress = (dialog) => {
-    const progress = dialog.querySelector("[data-reelup-story-progress]");
-    progress.innerHTML = reels
-      .map(
-        (_, i) =>
-          `<div class="reelup-story__segment" data-index="${i}"><div class="reelup-story__segment-fill"></div></div>`,
-      )
-      .join("");
-  };
-
-  const setSegmentState = (dialog, index, state) => {
-    const segment = dialog.querySelector(`.reelup-story__segment[data-index="${index}"]`);
-    const fill = segment?.querySelector(".reelup-story__segment-fill");
-    if (!fill) return;
-
-    if (state === "done") {
-      fill.style.transition = "none";
-      fill.style.width = "100%";
-    } else if (state === "active") {
-      fill.style.transition = "none";
-      fill.style.width = "0%";
-      if (prefersReducedMotion()) return;
-      // Force a reflow so the transition below animates from 0% instead
-      // of the two inline-style writes batching into one recalculation
-      // and jumping straight to 100%.
-      void fill.offsetWidth;
-      fill.style.transition = `width ${currentDurationMs}ms linear`;
-      fill.style.width = "100%";
-    } else {
-      fill.style.transition = "none";
-      fill.style.width = "0%";
-    }
-  };
-
-  const freezeActiveSegment = (dialog) => {
-    const segment = dialog.querySelector(`.reelup-story__segment[data-index="${currentIndex}"]`);
-    const fill = segment?.querySelector(".reelup-story__segment-fill");
-    if (!fill) return currentDurationMs;
-
-    const segmentWidth = segment.getBoundingClientRect().width;
-    const fillWidth = fill.getBoundingClientRect().width;
-    const percent = segmentWidth > 0 ? fillWidth / segmentWidth : 0;
-
-    fill.style.transition = "none";
-    fill.style.width = `${percent * 100}%`;
-
-    return Math.max(currentDurationMs * (1 - percent), 0);
-  };
-
-  const resumeActiveSegment = (dialog, remainingMs) => {
-    const segment = dialog.querySelector(`.reelup-story__segment[data-index="${currentIndex}"]`);
-    const fill = segment?.querySelector(".reelup-story__segment-fill");
-    if (!fill || remainingMs <= 0) return;
-    if (prefersReducedMotion()) return;
-
-    // Force a reflow so the transition below animates from the frozen width
-    // instead of the two inline-style writes batching into one recalculation.
-    void fill.offsetWidth;
-    fill.style.transition = `width ${remainingMs}ms linear`;
-    fill.style.width = "100%";
-  };
-
-  const closeDrawerImmediate = (dialog) => {
-    dialog.querySelector("[data-reelup-story-drawer]").hidden = true;
-    drawerOpen = false;
-  };
-
-  const openDrawer = (dialog) => {
-    dialog.querySelector("[data-reelup-story-drawer]").hidden = false;
-    drawerOpen = true;
-    dialog.querySelector(".reelup-story__video").pause();
+  const schedule = (dialog, ms) => {
     clearTimer();
-    pausedRemainingMs = freezeActiveSegment(dialog);
+    timer = setTimeout(() => requestAdvance(dialog), ms);
   };
 
-  const closeDrawer = (dialog) => {
-    closeDrawerImmediate(dialog);
-    dialog.querySelector(".reelup-story__video").play().catch(() => {});
+  const pause = (dialog) => {
+    dialog.querySelector("video").pause();
+    clearTimer();
+    pausedRemainingMs = freezeSegment(dialog);
+  };
 
-    const remaining = pausedRemainingMs ?? currentDurationMs;
+  const resume = (dialog) => {
+    dialog.querySelector("video").play().catch(() => {});
+    const remaining = pausedRemainingMs ?? durationMs;
     pausedRemainingMs = null;
-    resumeActiveSegment(dialog, remaining);
-    clearTimer();
-    timer = setTimeout(() => requestAdvance(dialog), remaining);
+    resumeSegment(dialog, remaining);
+    schedule(dialog, remaining);
   };
 
-  const scheduleAdvance = (dialog) => {
-    clearTimer();
-    timer = setTimeout(() => requestAdvance(dialog), currentDurationMs);
-  };
-
-  const trackAnalytics = async (reelId, eventType) => {
-    if (!reelId) return;
-    try {
-      await fetch("/apps/reels/analytics", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          shopDomain: window.Shopify?.shop,
-          reelId,
-          eventType,
-        }),
-      });
-    } catch (e) {
-      console.error("Failed to track", e);
+  const setDrawer = (dialog, open) => {
+    const drawer = dialog.querySelector("[data-reelup-story-drawer]");
+    if (open === drawerOpen) return;
+    drawerOpen = open;
+    drawer.hidden = !open;
+    dialog.classList.toggle("is-shopping", open);
+    if (open) {
+      pause(dialog);
+      drawer.querySelector("button, a, select")?.focus();
+    } else {
+      resume(dialog);
     }
   };
 
-  const goTo = async (dialog, targetIndex) => {
-    const index = Math.max(targetIndex, 0);
-    if (index >= reels.length) {
+  const goTo = async (dialog, target) => {
+    if (target >= reels.length) {
       dialog.close();
       return;
     }
-
-    if (drawerOpen) closeDrawerImmediate(dialog);
-
-    reels.forEach((_, i) => {
-      if (i < index) setSegmentState(dialog, i, "done");
-      else if (i > index) setSegmentState(dialog, i, "idle");
+    const i = Math.max(target, 0);
+    if (drawerOpen) {
+      drawerOpen = false;
+      dialog.querySelector("[data-reelup-story-drawer]").hidden = true;
+      dialog.classList.remove("is-shopping");
+    }
+    pausedRemainingMs = null;
+    reels.forEach((_, n) => {
+      if (n !== i) setSegment(dialog, n, n < i ? "done" : "idle");
     });
 
-    currentIndex = index;
-    const trigger = reels[index];
+    currentIndex = i;
+    const trigger = reels[i];
+    durationMs = parseInt(trigger.dataset.storyDuration, 10) || 15000;
+    const reelId = trigger.dataset.reelId ?? "";
+    dialog.setAttribute("data-reelup-reel-id", reelId);
+    markSeen(reelId);
+    viewer()?.trackAnalytics(reelId, "view");
 
-    currentDurationMs = parseInt(trigger.dataset.storyDuration, 10) || 15000;
-
-    const reelId = trigger.dataset.reelId;
-    dialog.dataset.currentReelId = reelId;
-    if (reelId) trackAnalytics(reelId, "view");
-
-    const video = dialog.querySelector(".reelup-story__video");
+    const video = dialog.querySelector("video");
     const title = dialog.querySelector(".reelup-story__title");
-    const closeButton = dialog.querySelector("[data-reelup-story-close]");
-    const shopButton = dialog.querySelector("[data-reelup-story-shop]");
-    const drawerHeading = dialog.querySelector("[data-reelup-story-drawer-heading]");
-    const drawerList = dialog.querySelector("[data-reelup-story-drawer-list]");
-
+    const avatar = dialog.querySelector(".reelup-story__avatar");
     clearTimer();
     window.ReelupHls?.teardown(video);
 
     title.textContent = trigger.dataset.title ?? "";
-    closeButton.setAttribute("aria-label", trigger.dataset.closeLabel ?? "Close");
-    dialog.dataset.muteLabel = trigger.dataset.muteLabel ?? "Mute";
-    dialog.dataset.unmuteLabel = trigger.dataset.unmuteLabel ?? "Unmute";
-    const posterUrl = trigger.dataset.posterUrl;
-    if (posterUrl) {
-      video.setAttribute("poster", posterUrl);
+    const poster = trigger.dataset.posterUrl;
+    if (poster) {
+      video.setAttribute("poster", poster);
+      avatar.style.backgroundImage = `url("${poster.replace(/"/g, "%22")}")`;
     } else {
       video.removeAttribute("poster");
+      avatar.style.backgroundImage = "";
     }
 
-    window.ReelupViewerSettings?.applyDialogSettings(dialog, video, title, trigger);
-    // applyDialogSettings may set video.muted to the SAME value it already
-    // had (no native "volumechange" fires then), so force the icon's own
-    // listener to re-check explicitly rather than relying on that event.
+    viewer()?.applyViewerSettings(dialog, video, null, trigger);
+    dialog.querySelector("[data-reelup-story-share]").hidden = trigger.dataset.showShare === "false";
     video.dispatchEvent(new Event("volumechange"));
 
-    drawerList.replaceChildren();
-    const template = trigger.querySelector("template[data-reelup-products]");
-    if (template) {
-      const shopLabel = trigger.dataset.shopLabel ?? "";
-      drawerHeading.textContent = shopLabel;
-      drawerList.appendChild(template.content.cloneNode(true));
-      shopButton.hidden = false;
-      shopButton.textContent = shopLabel;
-      window.ReelupViewerSettings?.applyProductListSettings(drawerList, trigger);
-    } else {
-      shopButton.hidden = true;
+    const list = dialog.querySelector("[data-reelup-story-list]");
+    const count = viewer()?.cloneProducts(trigger, list) ?? 0;
+    const sticker = dialog.querySelector("[data-reelup-story-shop]");
+    sticker.hidden = count === 0;
+    if (count > 0) {
+      const firstImage = list.querySelector(".reelup-product__media img");
+      const thumb = sticker.querySelector(".reelup-story__sticker-thumb");
+      thumb.style.backgroundImage = firstImage ? `url("${firstImage.src.replace(/"/g, "%22")}")` : "";
+      thumb.hidden = !firstImage;
+      sticker.querySelector(".reelup-story__sticker-count").textContent = count > 1 ? String(count) : "";
     }
+    dialog.querySelector("[data-reelup-cart-status]").hidden = true;
 
-    setSegmentState(dialog, index, "active");
-
-    // See reel-lightbox.js's open() for why: attach() can await a network
-    // fetch that outlasts the transient-activation window from the
-    // triggering click, so unmuted play() after it resolves can be silently
-    // rejected. Start muted (always allowed), restore the real mute state
-    // once attach() resolves.
-    const desiredMuted = video.muted;
-    video.muted = true;
-    video.play().catch(() => {});
-
+    setSegment(dialog, i, "active");
     try {
-      await window.ReelupHls.attach(video, trigger.dataset.hlsSrc);
-      video.muted = desiredMuted;
-      await video.play();
+      await viewer()?.startPlayback(video, trigger.dataset.hlsSrc);
     } catch {
-      // Playback failed to initialize; still advance on schedule below so
-      // the shopper isn't stuck on a broken segment forever.
+      // Still advance on schedule so a broken reel can't trap the viewer.
     }
-    scheduleAdvance(dialog);
+    if (currentIndex === i && !drawerOpen) schedule(dialog, durationMs);
   };
 
-  const buildViewer = () => {
+  const build = () => {
     const existing = document.getElementById("reelup-story-viewer");
     if (existing) return existing;
-
-    const mutedSvg = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M16.5 12A4.5 4.5 0 0 0 14 8.03v1.97l2.42 2.42c.05-.15.08-.3.08-.42zm2.5 0c0 .94-.2 1.82-.54 2.63l1.51 1.51A8.8 8.8 0 0 0 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3 3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06a8.99 8.99 0 0 0 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4 9.91 6.09 12 8.18V4z"/></svg>`;
-    const unmutedSvg = `<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8.03v7.94c1.48-.73 2.5-2.25 2.5-3.97zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>`;
+    const { labels, icons } = viewer();
 
     const dialog = document.createElement("dialog");
     dialog.id = "reelup-story-viewer";
-    dialog.className = "reelup-story";
+    dialog.className = `reelup-story${viewer().theme === "light" ? " reelup-viewer--light" : ""}`;
     dialog.setAttribute("aria-labelledby", "reelup-story-title");
     dialog.innerHTML = `
-      <div class="reelup-story__progress" data-reelup-story-progress></div>
-      <button type="button" class="reelup-story__close" data-reelup-story-close aria-label="Close">&times;</button>
       <div class="reelup-story__frame">
-        <h2 id="reelup-story-title" class="reelup-story__title"></h2>
         <video class="reelup-story__video" playsinline muted></video>
-        <button type="button" class="reelup-story__mute" data-reelup-story-mute>${unmutedSvg}</button>
-        <button type="button" class="reelup-story__nav reelup-story__nav--prev" data-reelup-story-prev aria-label="Previous">&lsaquo;</button>
-        <button type="button" class="reelup-story__nav reelup-story__nav--next" data-reelup-story-next aria-label="Next">&rsaquo;</button>
-        <button type="button" class="reelup-story__shop" data-reelup-story-shop hidden></button>
-      </div>
-      <div class="reelup-story__drawer" data-reelup-story-drawer hidden>
-        <button type="button" class="reelup-story__drawer-handle" data-reelup-story-drawer-close aria-label="Close products"></button>
-        <h3 class="reelup-lightbox__products-heading" data-reelup-story-drawer-heading></h3>
-        <div class="reelup-lightbox__products-list" data-reelup-story-drawer-list></div>
+        <div class="reelup-story__shade" aria-hidden="true"></div>
+        <div class="reelup-story__progress" data-reelup-story-progress aria-hidden="true"></div>
+        <header class="reelup-story__header">
+          <span class="reelup-story__avatar" aria-hidden="true"></span>
+          <h2 class="reelup-story__title" id="reelup-story-title"></h2>
+          <button type="button" class="reelup-viewer__icon" data-reelup-story-share aria-label="${labels.share}" hidden>${icons.share}</button>
+          <button type="button" class="reelup-viewer__icon" data-reelup-story-mute></button>
+          <button type="button" class="reelup-viewer__icon" data-reelup-story-close aria-label="${labels.close}">${icons.close}</button>
+        </header>
+        <button type="button" class="reelup-story__tap reelup-story__tap--prev" data-reelup-story-prev aria-label="${labels.previous}"></button>
+        <button type="button" class="reelup-story__tap reelup-story__tap--next" data-reelup-story-next aria-label="${labels.next}"></button>
+        <button type="button" class="reelup-story__sticker" data-reelup-story-shop hidden>
+          <span class="reelup-story__sticker-thumb" aria-hidden="true"></span>
+          <span>${labels.shop}</span>
+          <span class="reelup-story__sticker-count"></span>
+        </button>
+        <div class="reelup-story__drawer" data-reelup-story-drawer hidden>
+          <div class="reelup-story__drawer-head">
+            <span>${labels.shop}</span>
+            <button type="button" class="reelup-viewer__icon reelup-viewer__icon--light" data-reelup-story-drawer-close aria-label="${labels.closeProducts}">${icons.down}</button>
+          </div>
+          <div class="reelup-story__list" data-reelup-story-list></div>
+          <p class="reelup-viewer__cart" data-reelup-cart-status hidden>
+            <span class="reelup-cart-message" aria-live="polite"></span>
+            <a href="${viewer().cartUrl}">${labels.viewCart}</a>
+          </p>
+        </div>
       </div>
     `;
     document.body.appendChild(dialog);
 
-    const video = dialog.querySelector(".reelup-story__video");
-    const drawerList = dialog.querySelector("[data-reelup-story-drawer-list]");
-    const muteBtn = dialog.querySelector("[data-reelup-story-mute]");
-
-    const updateMuteIcon = () => {
-      muteBtn.innerHTML = video.muted ? mutedSvg : unmutedSvg;
-      muteBtn.setAttribute(
-        "aria-label",
-        video.muted ? (dialog.dataset.unmuteLabel ?? "Unmute") : (dialog.dataset.muteLabel ?? "Mute"),
-      );
-    };
-    muteBtn.addEventListener("click", (event) => {
-      event.stopPropagation();
+    const video = dialog.querySelector("video");
+    const frame = dialog.querySelector(".reelup-story__frame");
+    const mute = dialog.querySelector("[data-reelup-story-mute]");
+    video.addEventListener("volumechange", () => {
+      mute.innerHTML = video.muted ? icons.muted : icons.unmuted;
+      mute.setAttribute("aria-label", video.muted ? labels.unmute : labels.mute);
+    });
+    mute.addEventListener("click", () => {
       video.muted = !video.muted;
     });
-    video.addEventListener("volumechange", updateMuteIcon);
+    video.addEventListener("ended", () => requestAdvance(dialog));
 
+    const step = (delta) => {
+      advancing = false;
+      goTo(dialog, currentIndex + delta);
+    };
     dialog.querySelector("[data-reelup-story-close]").addEventListener("click", () => dialog.close());
-    dialog.querySelector("[data-reelup-story-prev]").addEventListener("click", () => {
-      advancing = false;
-      goTo(dialog, currentIndex - 1);
+    dialog.querySelector("[data-reelup-story-share]").addEventListener("click", () => {
+      const trigger = reels[currentIndex];
+      if (!trigger) return;
+      pause(dialog);
+      viewer()
+        .share(frame, trigger.dataset.reelId, trigger.dataset.title || document.title)
+        .finally(() => {
+          if (dialog.open && !drawerOpen) resume(dialog);
+        });
     });
-    dialog.querySelector("[data-reelup-story-next]").addEventListener("click", () => {
-      advancing = false;
-      goTo(dialog, currentIndex + 1);
-    });
-    dialog.querySelector("[data-reelup-story-shop]").addEventListener("click", () => openDrawer(dialog));
-    dialog
-      .querySelector("[data-reelup-story-drawer-close]")
-      .addEventListener("click", () => closeDrawer(dialog));
+    dialog.querySelector("[data-reelup-story-prev]").addEventListener("click", () => step(-1));
+    dialog.querySelector("[data-reelup-story-next]").addEventListener("click", () => step(1));
+    dialog.querySelector("[data-reelup-story-shop]").addEventListener("click", () => setDrawer(dialog, true));
+    dialog.querySelector("[data-reelup-story-drawer-close]").addEventListener("click", () => setDrawer(dialog, false));
 
     dialog.addEventListener("click", (event) => {
       if (event.target === dialog) dialog.close();
     });
-
+    dialog.addEventListener("keydown", (event) => {
+      if (event.target.closest?.("select, input")) return;
+      if (drawerOpen) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          setDrawer(dialog, false);
+        }
+        return;
+      }
+      if (event.key === "ArrowLeft") step(-1);
+      else if (event.key === "ArrowRight") step(1);
+    });
     dialog.addEventListener("close", () => {
       clearTimer();
       window.ReelupHls?.teardown(video);
-      closeDrawerImmediate(dialog);
+      drawerOpen = false;
+      dialog.classList.remove("is-shopping");
+      dialog.querySelector("[data-reelup-story-drawer]").hidden = true;
+      document.documentElement.classList.remove("reelup-locked");
+      document.dispatchEvent(new CustomEvent("reelup:viewer-change"));
+      reels[currentIndex]?.querySelector(".reelup-trigger__button")?.focus({ preventScroll: true });
     });
 
-    dialog.addEventListener("keydown", (event) => {
-      if (drawerOpen) return;
-      if (event.key === "ArrowLeft") {
-        advancing = false;
-        goTo(dialog, currentIndex - 1);
-      } else if (event.key === "ArrowRight") {
-        advancing = false;
-        goTo(dialog, currentIndex + 1);
-      }
-    });
-
-    const frame = dialog.querySelector(".reelup-story__frame");
-    let heldForPause = false;
-
-    // Press-and-hold-to-pause: Instagram-style convention shoppers already
-    // expect from story UIs. Scoped to the frame (not the nav buttons that
-    // overlay it) so a tap-to-advance click on those keeps working untouched
-    // — a pointerdown here never fires on those buttons since they stop
-    // their own clicks from needing this at all.
+    // Press and hold anywhere on the video to pause, like the social apps
+    // shoppers already know. Buttons keep their own taps.
+    let held = false;
+    let holdTimer = null;
     frame.addEventListener("pointerdown", (event) => {
-      if (event.target.closest("button")) return;
-      heldForPause = true;
-      video.pause();
-      clearTimer();
-      pausedRemainingMs = freezeActiveSegment(dialog);
+      if (drawerOpen || event.target.closest("button:not(.reelup-story__tap), a, select, [data-reelup-story-drawer]")) return;
+      holdTimer = setTimeout(() => {
+        held = true;
+        pause(dialog);
+      }, 180);
     });
-
-    const releaseHold = () => {
-      if (!heldForPause) return;
-      heldForPause = false;
-      video.play().catch(() => {});
-      const remaining = pausedRemainingMs ?? currentDurationMs;
-      pausedRemainingMs = null;
-      resumeActiveSegment(dialog, remaining);
-      timer = setTimeout(() => requestAdvance(dialog), remaining);
+    frame.addEventListener("click", (event) => {
+      // A hold that ended over a tap zone shouldn't also count as a tap.
+      if (held && event.target.closest("[data-reelup-story-prev], [data-reelup-story-next]")) {
+        event.stopImmediatePropagation();
+      }
+    }, true);
+    const release = () => {
+      clearTimeout(holdTimer);
+      if (!held) return;
+      held = false;
+      resume(dialog);
     };
-
-    frame.addEventListener("pointerup", releaseHold);
-    frame.addEventListener("pointercancel", releaseHold);
-    frame.addEventListener("pointerleave", releaseHold);
-
-    video.addEventListener("ended", () => requestAdvance(dialog));
-
-    drawerList.addEventListener("click", async (event) => {
-      const button = event.target.closest("[data-reelup-add-to-cart]");
-      const link = event.target.closest(".reelup-lightbox__product-link");
-
-      if (dialog.dataset.currentReelId && (button || link)) {
-        trackAnalytics(dialog.dataset.currentReelId, "click_product");
-      }
-
-      if (!button || button.dataset.state === "loading") return;
-
-      const variantId = button.dataset.variantId;
-      const addLabel = button.dataset.addLabel ?? button.textContent;
-      const addedLabel = button.dataset.addedLabel ?? addLabel;
-
-      button.dataset.state = "loading";
-
-      try {
-        // See the identical comment in reel-lightbox.js: a hidden line-item
-        // property that rides along through checkout onto the order, read
-        // back off by the orders/paid webhook for revenue attribution.
-        const body = { id: variantId, quantity: 1 };
-        if (dialog.dataset.currentReelId) {
-          body.properties = { _reelup_reel_id: dialog.dataset.currentReelId };
-        }
-        const response = await fetch("/cart/add.js", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        if (!response.ok) throw new Error("Add to cart failed");
-
-        document.dispatchEvent(new CustomEvent("cart:refresh"));
-        button.dataset.state = "added";
-        button.textContent = addedLabel;
-      } catch {
-        button.dataset.state = "";
-        button.textContent = addLabel;
-        return;
-      }
-
-      setTimeout(() => {
-        button.dataset.state = "";
-        button.textContent = addLabel;
-      }, 2000);
-    });
+    frame.addEventListener("pointerup", () => setTimeout(release, 0));
+    frame.addEventListener("pointercancel", release);
+    frame.addEventListener("pointerleave", release);
 
     return dialog;
   };
 
   const openViewer = (groupEl, startIndex) => {
+    if (!viewer()) return;
     reels = Array.from(groupEl.querySelectorAll("[data-reelup-trigger]"));
     if (reels.length === 0) return;
-
-    const dialog = buildViewer();
-    renderProgress(dialog);
-    dialog.showModal();
+    const dialog = build();
+    dialog.querySelector("[data-reelup-story-progress]").innerHTML = reels
+      .map((_, i) => `<span class="reelup-story__segment" data-index="${i}"><span class="reelup-story__segment-fill"></span></span>`)
+      .join("");
+    if (!dialog.open) {
+      dialog.showModal();
+      document.documentElement.classList.add("reelup-locked");
+      document.dispatchEvent(new CustomEvent("reelup:viewer-change"));
+    }
     goTo(dialog, startIndex);
   };
 
   const hoverCapable = window.matchMedia?.("(hover: hover) and (pointer: fine)").matches ?? false;
 
-  document.querySelectorAll("[data-reelup-story-group]").forEach((group) => {
-    if (group.dataset.reelupStoryGroupBound) return;
-    group.dataset.reelupStoryGroupBound = "true";
-
-    Array.from(group.querySelectorAll("[data-reelup-trigger]")).forEach((trigger, index) => {
-      const button = trigger.querySelector(".reelup-trigger__button");
-      if (!button) return;
-      const open = () => openViewer(group, index);
-
-      // Same hover-capable guard as reel-trigger.js's standalone triggers —
-      // touch devices keep the default click-to-open.
-      if (trigger.dataset.playTrigger === "hover" && hoverCapable) {
-        button.addEventListener("mouseenter", open);
-      } else {
+  const bindAll = () => {
+    const seen = readSeen();
+    document.querySelectorAll("[data-reelup-story-group]").forEach((group) => {
+      const triggers = Array.from(group.querySelectorAll("[data-reelup-trigger]"));
+      triggers.forEach((trigger) => {
+        if (seen.has(trigger.dataset.reelId)) trigger.classList.add("is-seen");
+      });
+      if (group.dataset.reelupStoryBound) return;
+      group.dataset.reelupStoryBound = "true";
+      triggers.forEach((trigger, i) => {
+        const button = trigger.querySelector(".reelup-trigger__button");
+        if (!button) return;
+        const open = () => openViewer(group, i);
+        if (trigger.dataset.playTrigger === "hover" && hoverCapable) button.addEventListener("mouseenter", open);
         button.addEventListener("click", open);
-      }
+      });
     });
-  });
+  };
+
+  bindAll();
+  document.addEventListener("shopify:section:load", bindAll);
 })();

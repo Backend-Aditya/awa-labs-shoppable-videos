@@ -1,0 +1,1227 @@
+/* Shoppable video widgets — every inline/floating widget in one sheet.
+   They inherit the theme's font and text colour; the merchant's widget
+   settings arrive as --ru-* custom properties on each widget root. Each
+   widget owns a distinct silhouette (strip, deck, rings, feature, row,
+   floating player) on top of the shared pieces below. */
+
+.reelup {
+  --ru-text: currentColor;
+  --ru-accent: var(--ru-brand-accent, #141414);
+  --ru-radius: 10px;
+  --ru-bg: transparent;
+  --ru-cta: var(--ru-brand-cta, #141414);
+  --ru-cta-text: var(--ru-brand-cta-text, #ffffff);
+  --ru-muted: color-mix(in srgb, var(--ru-text) 62%, transparent);
+  --ru-line: color-mix(in srgb, var(--ru-text) 14%, transparent);
+  --ru-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ru-shadow: none;
+  color: var(--ru-text);
+  box-sizing: border-box;
+}
+
+.reelup *,
+.reelup *::before,
+.reelup *::after {
+  box-sizing: inherit;
+}
+
+.reelup [hidden] {
+  display: none !important;
+}
+
+.reelup ul[role="list"] {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.reelup--filled {
+  background: var(--ru-bg);
+  border-radius: var(--ru-radius);
+  padding: clamp(16px, 3vw, 28px);
+}
+
+.reelup-shadow--soft { --ru-shadow: 0 2px 10px rgb(0 0 0 / 0.1); }
+.reelup-shadow--bold { --ru-shadow: 0 16px 36px -8px rgb(0 0 0 / 0.35); }
+
+@media (max-width: 749px) {
+  .reelup-device--desktop { display: none !important; }
+}
+@media (min-width: 750px) {
+  .reelup-device--mobile { display: none !important; }
+}
+
+.reelup-visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.reelup-heading {
+  margin: 0 0 16px;
+  font-size: clamp(1.15rem, 1rem + 0.6vw, 1.5rem);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--ru-text);
+}
+
+.reelup-heading--center {
+  text-align: center;
+}
+
+/* ---------- shared trigger ---------- */
+
+.reelup .reelup-trigger {
+  display: block;
+  position: relative;
+}
+
+.reelup .reelup-trigger__button {
+  appearance: none;
+  position: relative;
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.reelup .reelup-trigger__button:focus-visible {
+  outline: 2px solid var(--ru-accent);
+  outline-offset: 3px;
+}
+
+.reelup .reelup-trigger__poster,
+.reelup .reelup-trigger__preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.reelup .reelup-trigger__preview {
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.reelup .reelup-trigger__preview.is-playing {
+  opacity: 1;
+}
+
+.reelup-chip {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 0.55);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* =================================================================
+   Product page reels — filmstrip
+   ================================================================= */
+
+.reelup-strip {
+  margin-block: 24px;
+}
+
+.reelup-strip__viewport {
+  position: relative;
+}
+
+.reelup-strip__track {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 2px;
+  scrollbar-width: none;
+  padding: 2px 2px 4px;
+}
+
+.reelup-strip__track::-webkit-scrollbar {
+  display: none;
+}
+
+.reelup-strip__item {
+  flex: 0 0 var(--ru-card-width, 200px);
+  max-width: 70vw;
+  scroll-snap-align: start;
+  min-width: 0;
+}
+
+.reelup-strip--grid .reelup-strip__track {
+  display: grid;
+  grid-template-columns: repeat(var(--ru-columns, 4), minmax(0, 1fr));
+  gap: 16px 12px;
+  overflow: visible;
+}
+
+.reelup-strip--grid .reelup-strip__item {
+  max-width: none;
+}
+
+@media (max-width: 749px) {
+  .reelup-strip--grid .reelup-strip__track {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.reelup-strip__poster {
+  aspect-ratio: 9 / 16;
+  border-radius: var(--ru-radius);
+  overflow: hidden;
+  background: #1c1c1c;
+  box-shadow: var(--ru-shadow);
+  isolation: isolate;
+}
+
+.reelup-strip__poster::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(transparent 70%, rgb(0 0 0 / 0.35));
+  pointer-events: none;
+}
+
+.reelup-strip__play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+  border-radius: 50%;
+  background: var(--ru-accent);
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 0.2s ease, transform 0.25s var(--ru-ease);
+}
+
+.reelup-strip__play::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin: -7px 0 0 -4px;
+  border-style: solid;
+  border-width: 7px 0 7px 11px;
+  border-color: transparent transparent transparent #fff;
+}
+
+@media (hover: hover) {
+  .reelup-strip__poster:hover .reelup-strip__play {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.reelup-strip__poster:focus-visible .reelup-strip__play {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.reelup-strip__caption {
+  margin: 10px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.reelup-strip__product {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  color: inherit;
+  text-decoration: none;
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.reelup-strip__product img {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--ru-line);
+}
+
+.reelup-strip__product-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.reelup-strip__product-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reelup-strip__product:hover .reelup-strip__product-title {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.reelup-strip__product-price {
+  color: var(--ru-muted);
+  font-size: 12px;
+}
+
+.reelup-arrow {
+  appearance: none;
+  position: absolute;
+  top: calc(var(--ru-card-width, 200px) * 16 / 9 / 2);
+  z-index: 3;
+  width: 40px;
+  height: 40px;
+  margin-top: -20px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  color: #141414;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.18);
+  cursor: pointer;
+}
+
+.reelup-arrow--prev { left: -12px; }
+.reelup-arrow--next { right: -12px; }
+
+.reelup-arrow:focus-visible {
+  outline: 2px solid var(--ru-accent);
+  outline-offset: 2px;
+}
+
+@media (hover: none), (max-width: 749px) {
+  .reelup-arrow { display: none; }
+}
+
+/* =================================================================
+   Stacked carousel — deck
+   ================================================================= */
+
+.reelup-deck {
+  --ru-card: clamp(180px, 24vw, 280px);
+  --ru-spread: 62%;
+  margin-block: 32px;
+  overflow: hidden;
+}
+
+@media (max-width: 749px) {
+  .reelup-deck {
+    --ru-card: 58vw;
+    --ru-spread: 44%;
+  }
+}
+
+.reelup-deck__poster {
+  aspect-ratio: 9 / 16;
+  border-radius: var(--ru-radius);
+  overflow: hidden;
+  background: #1c1c1c;
+  box-shadow: var(--ru-shadow);
+  isolation: isolate;
+}
+
+.reelup-deck__play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  width: 56px;
+  height: 56px;
+  margin: -28px 0 0 -28px;
+  display: grid;
+  place-items: center;
+  padding-left: 3px;
+  border-radius: 50%;
+  background: var(--ru-accent);
+  color: #fff;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.25);
+  transition: transform 0.25s var(--ru-ease), opacity 0.25s ease;
+}
+
+.reelup-deck__caption {
+  position: absolute;
+  inset: auto 0 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 48px 14px 14px;
+  background: linear-gradient(transparent, rgb(0 0 0 / 0.65));
+  color: #fff;
+  text-align: left;
+  transition: opacity 0.25s ease;
+}
+
+.reelup-deck__title {
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1.25;
+}
+
+.reelup-deck__meta {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.reelup-deck .reelup-chip {
+  left: auto;
+  right: 10px;
+  top: 10px;
+  bottom: auto;
+}
+
+/* Stack layout (JS-enhanced). Until reel-trigger.js marks it ready it
+   renders as a plain scrolling row, so no-JS and slow-JS both look sane. */
+.reelup-deck__stage {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  padding-bottom: 4px;
+}
+
+.reelup-deck__stage::-webkit-scrollbar {
+  display: none;
+}
+
+.reelup-deck__card {
+  flex: 0 0 var(--ru-card);
+  scroll-snap-align: center;
+}
+
+.reelup-deck--stack.is-ready .reelup-deck__stage {
+  position: relative;
+  display: block;
+  overflow: visible;
+  height: calc(var(--ru-card) * 16 / 9 + 8px);
+  touch-action: pan-y;
+}
+
+.reelup-deck--stack.is-ready .reelup-deck__card {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: var(--ru-card);
+  transform:
+    translateX(calc(-50% + var(--ru-offset, 0) * var(--ru-spread)))
+    scale(calc(1 - var(--ru-distance, 0) * 0.13));
+  transform-origin: 50% 60%;
+  filter: brightness(calc(1 - var(--ru-distance, 0) * 0.16));
+  transition: transform 0.5s var(--ru-ease), filter 0.5s ease, opacity 0.3s ease;
+}
+
+.reelup-deck--stack.is-ready .reelup-deck__card[data-far] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.reelup-deck--stack.is-ready .reelup-deck__card:not(.is-active) .reelup-deck__play,
+.reelup-deck--stack.is-ready .reelup-deck__card:not(.is-active) .reelup-deck__caption,
+.reelup-deck--stack.is-ready .reelup-deck__card:not(.is-active) .reelup-chip {
+  opacity: 0;
+}
+
+.reelup-deck--stack.is-ready .reelup-deck__card:not(.is-active) .reelup-deck__play {
+  transform: scale(0.6);
+}
+
+.reelup-deck__nav {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.reelup-deck--stack.is-ready .reelup-deck__nav {
+  display: flex;
+}
+
+.reelup-deck__arrow {
+  appearance: none;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  border: 1px solid color-mix(in srgb, var(--ru-accent) 28%, transparent);
+  background: transparent;
+  color: var(--ru-accent);
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.reelup-deck__arrow:hover {
+  background: var(--ru-accent);
+  color: #fff;
+}
+
+.reelup-deck__arrow:focus-visible {
+  outline: 2px solid var(--ru-accent);
+  outline-offset: 2px;
+}
+
+.reelup-deck__dots {
+  display: flex;
+  gap: 6px;
+}
+
+.reelup-deck__dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ru-accent) 25%, transparent);
+  transition: width 0.3s var(--ru-ease), background-color 0.3s ease;
+}
+
+.reelup-deck__dots span.is-active {
+  width: 20px;
+  background: var(--ru-accent);
+}
+
+/* Slider + grid alternates */
+.reelup-deck--carousel .reelup-deck__card {
+  flex-basis: clamp(170px, 22vw, 240px);
+  scroll-snap-align: start;
+}
+
+.reelup-deck--grid .reelup-deck__stage {
+  display: grid;
+  grid-template-columns: repeat(var(--ru-columns, 4), minmax(0, 1fr));
+  gap: 16px;
+  overflow: visible;
+}
+
+@media (max-width: 749px) {
+  .reelup-deck--grid .reelup-deck__stage {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.reelup-deck--carousel .reelup-deck__play,
+.reelup-deck--grid .reelup-deck__play {
+  width: 44px;
+  height: 44px;
+  margin: -22px 0 0 -22px;
+}
+
+/* =================================================================
+   Stories — ringed avatars
+   ================================================================= */
+
+.reelup-stories {
+  --ru-avatar: 72px;
+  margin-block: 16px;
+}
+
+.reelup-stories__row {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+  padding: 4px 2px;
+}
+
+.reelup-stories__row::-webkit-scrollbar {
+  display: none;
+}
+
+.reelup-stories__item {
+  flex: 0 0 auto;
+  width: calc(var(--ru-avatar) + 10px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  scroll-snap-align: start;
+}
+
+.reelup-stories .reelup-trigger__button.reelup-stories__avatar {
+  width: var(--ru-avatar);
+  height: var(--ru-avatar);
+  border-radius: 50%;
+}
+
+.reelup-stories__ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: linear-gradient(45deg, var(--ru-ring-start), var(--ru-ring-end));
+  transition: transform 0.3s var(--ru-ease);
+}
+
+.reelup-stories__photo {
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #e9e9e9;
+  box-shadow: 0 0 0 2px var(--ru-story-gap, #fff);
+}
+
+.reelup-stories__photo .reelup-trigger__poster {
+  border-radius: 50%;
+}
+
+.reelup-stories .reelup-trigger.is-seen .reelup-stories__ring {
+  background: color-mix(in srgb, var(--ru-text) 22%, #fff);
+}
+
+@media (hover: hover) {
+  .reelup-stories__avatar:hover .reelup-stories__ring {
+    transform: rotate(45deg) scale(1.04);
+  }
+}
+
+.reelup-stories__avatar:active .reelup-stories__photo {
+  transform: scale(0.96);
+}
+
+.reelup-stories__label {
+  max-width: 100%;
+  font-size: 12px;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ru-text);
+}
+
+/* =================================================================
+   Featured video — split
+   ================================================================= */
+
+.reelup-feature {
+  margin-block: 32px;
+}
+
+.reelup-feature--split {
+  display: grid;
+  grid-template-columns: minmax(0, var(--ru-video-width, 340px)) minmax(0, 1fr);
+  gap: clamp(24px, 4vw, 56px);
+  align-items: center;
+}
+
+@media (max-width: 749px) {
+  .reelup-feature--split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .reelup-feature--split .reelup-feature__video {
+    max-width: min(var(--ru-video-width, 340px), 78vw);
+    margin-inline: auto;
+    width: 100%;
+  }
+}
+
+.reelup-feature--poster .reelup-feature__video {
+  width: 100%;
+  max-width: var(--ru-video-width, 340px);
+  margin-inline: auto;
+}
+
+.reelup-feature__poster {
+  aspect-ratio: 9 / 16;
+  border-radius: var(--ru-radius);
+  overflow: hidden;
+  background: #1c1c1c;
+  box-shadow: var(--ru-shadow);
+  isolation: isolate;
+}
+
+.reelup-feature__play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  width: 68px;
+  height: 68px;
+  margin: -34px 0 0 -34px;
+  display: grid;
+  place-items: center;
+  padding-left: 4px;
+  border-radius: 50%;
+  background: var(--ru-accent);
+  color: #fff;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.28);
+  transition: transform 0.3s var(--ru-ease);
+}
+
+.reelup-feature__poster:hover .reelup-feature__play {
+  transform: scale(1.08);
+}
+
+.reelup-feature__body {
+  min-width: 0;
+  max-width: 520px;
+}
+
+.reelup-feature__heading {
+  margin: 0;
+  font-size: clamp(1.4rem, 1.1rem + 1.2vw, 2.1rem);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  color: var(--ru-text);
+}
+
+.reelup-feature__subtitle {
+  margin: 8px 0 0;
+  color: var(--ru-muted);
+  font-size: 15px;
+}
+
+.reelup-feature__products {
+  margin-top: 20px;
+  border-top: 1px solid var(--ru-line);
+}
+
+.reelup-feature__products .reelup-product {
+  padding-block: 14px;
+  border-bottom: 1px solid var(--ru-line);
+}
+
+.reelup-feature__status {
+  margin: 12px 0 0;
+  font-size: 14px;
+}
+
+.reelup-feature__status a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+
+/* =================================================================
+   Add-to-cart video — compact row
+   ================================================================= */
+
+.reelup-atc {
+  margin-block: 12px;
+  --ru-thumb: 56px;
+}
+
+.reelup-atc.reelup--filled {
+  padding: 0;
+}
+
+.reelup .reelup-trigger__button.reelup-atc__button {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 14px 8px 8px;
+  border: 1px solid var(--ru-line);
+  border-radius: var(--ru-radius);
+  background: var(--ru-bg);
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.reelup .reelup-trigger__button.reelup-atc__button:hover {
+  border-color: color-mix(in srgb, var(--ru-text) 40%, transparent);
+}
+
+.reelup-atc__thumb {
+  position: relative;
+  flex-shrink: 0;
+  width: var(--ru-thumb);
+  height: var(--ru-thumb);
+  border-radius: min(var(--ru-radius), 8px);
+  overflow: hidden;
+  background: #1c1c1c;
+}
+
+.reelup-atc__play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  width: 24px;
+  height: 24px;
+  margin: -12px 0 0 -12px;
+  display: grid;
+  place-items: center;
+  padding-left: 2px;
+  border-radius: 50%;
+  background: var(--ru-accent);
+  color: #fff;
+  box-shadow: 0 0 0 3px rgb(255 255 255 / 0.25);
+}
+
+.reelup-atc__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.reelup-atc__label {
+  font-weight: 600;
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.reelup-atc__meta {
+  display: flex;
+  gap: 8px;
+  color: var(--ru-muted);
+  font-size: 13px;
+  line-height: 1.3;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.reelup-atc__meta > :first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reelup-atc__length {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.reelup-atc__length::before {
+  content: "";
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  margin: 0 8px 3px 0;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: middle;
+}
+
+.reelup-atc__chevron {
+  flex-shrink: 0;
+  color: var(--ru-muted);
+  transition: transform 0.2s var(--ru-ease);
+}
+
+.reelup-atc__button:hover .reelup-atc__chevron {
+  transform: translateX(3px);
+}
+
+/* =================================================================
+   Floating video — pop
+   ================================================================= */
+
+.reelup-pop {
+  --ru-pop-size: 96px;
+  --ru-pop-border: #fff;
+  position: fixed;
+  z-index: 900;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  animation: reelup-pop-in 0.45s var(--ru-ease) both;
+}
+
+.reelup-pop[hidden] {
+  display: none;
+}
+
+.reelup-pop--bottom-right { right: 20px; bottom: 20px; flex-direction: row-reverse; }
+.reelup-pop--bottom-left { left: 20px; bottom: 20px; }
+.reelup-pop--top-right { right: 20px; top: 20px; flex-direction: row-reverse; align-items: flex-start; }
+.reelup-pop--top-left { left: 20px; top: 20px; align-items: flex-start; }
+
+@media (max-width: 749px) {
+  .reelup-pop--bottom-right { right: 12px; bottom: 12px; }
+  .reelup-pop--bottom-left { left: 12px; bottom: 12px; }
+  .reelup-pop--top-right { right: 12px; top: 12px; }
+  .reelup-pop--top-left { left: 12px; top: 12px; }
+  .reelup-pop { --ru-pop-size: min(var(--ru-pop-size), 84px); }
+}
+
+.reelup-pop__frame {
+  position: relative;
+}
+
+.reelup .reelup-trigger__button.reelup-pop__player {
+  width: var(--ru-pop-size);
+  overflow: hidden;
+  background: #1c1c1c;
+  box-shadow: 0 0 0 2px var(--ru-pop-border), 0 12px 28px rgb(0 0 0 / 0.3);
+  transition: transform 0.25s var(--ru-ease);
+}
+
+.reelup-pop--portrait .reelup-pop__player {
+  aspect-ratio: 9 / 16;
+  border-radius: 14px;
+}
+
+.reelup-pop--circle .reelup-pop__player {
+  aspect-ratio: 1;
+  border-radius: 50%;
+}
+
+.reelup .reelup-trigger__button.reelup-pop__player:hover {
+  transform: translateY(-2px) scale(1.03);
+}
+
+.reelup-pop__play {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  z-index: 2;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  padding-left: 2px;
+  border-radius: 50%;
+  background: #fff;
+  color: #141414;
+}
+
+.reelup-pop--pulse .reelup-pop__frame::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  box-shadow: 0 0 0 0 var(--ru-pop-border);
+  animation: reelup-pop-pulse 2s ease-out 0.6s 2;
+  pointer-events: none;
+}
+
+.reelup-pop--circle.reelup-pop--pulse .reelup-pop__frame::before {
+  border-radius: 50%;
+}
+
+.reelup-pop__dismiss {
+  appearance: none;
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  z-index: 3;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #1f1f1f;
+  color: #fff;
+  cursor: pointer;
+}
+
+.reelup-pop--bottom-left .reelup-pop__dismiss,
+.reelup-pop--top-left .reelup-pop__dismiss {
+  right: auto;
+  left: -8px;
+}
+
+.reelup-pop__dismiss:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+.reelup-pop__label {
+  appearance: none;
+  border: 0;
+  margin-bottom: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #1f1f1f;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: 0 6px 16px rgb(0 0 0 / 0.2);
+  cursor: pointer;
+}
+
+.reelup-pop--top-right .reelup-pop__label,
+.reelup-pop--top-left .reelup-pop__label {
+  margin: 8px 0 0;
+}
+
+@media (max-width: 480px) {
+  .reelup-pop__label {
+    display: none;
+  }
+}
+
+@keyframes reelup-pop-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.92); }
+}
+
+@keyframes reelup-pop-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ru-pop-border) 70%, transparent); }
+  100% { box-shadow: 0 0 0 14px transparent; }
+}
+
+/* =================================================================
+   Product card — shared by the featured video list and the viewers
+   ================================================================= */
+
+.reelup-product {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.reelup-product__media {
+  flex-shrink: 0;
+  display: block;
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--ru-line, #eee);
+}
+
+.reelup-feature .reelup-product__media {
+  width: 72px;
+  height: 72px;
+}
+
+.reelup-product__media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.reelup-product__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.reelup-product__title {
+  color: inherit;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.reelup-product__title:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.reelup-product__price {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.reelup-product__price:has([data-reelup-compare]:not([hidden])) [data-reelup-price] {
+  color: var(--ru-brand-sale, #b42318);
+  font-weight: 600;
+}
+
+.reelup-product__compare {
+  color: var(--ru-muted, #767676);
+  font-size: 12px;
+}
+
+.reelup-product__variant {
+  margin-top: 4px;
+  max-width: 100%;
+  width: fit-content;
+  font: inherit;
+  font-size: 12px;
+  color: inherit;
+  padding: 3px 24px 3px 8px;
+  border: 1px solid var(--ru-line, #ddd);
+  border-radius: 6px;
+  background: transparent;
+}
+
+.reelup-product__add {
+  appearance: none;
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--ru-cta, #141414);
+  color: var(--ru-cta-text, #fff);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
+}
+
+.reelup-product__add:hover:not(:disabled) {
+  background: var(--ru-cta-hover, color-mix(in srgb, var(--ru-cta, #141414) 85%, #fff));
+}
+
+.reelup-product__add:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.reelup-product__add:focus-visible {
+  outline: 2px solid var(--ru-cta, #141414);
+  outline-offset: 2px;
+}
+
+.reelup-product__add:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.reelup-product__add[data-state="loading"] {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.reelup-product__add[data-state="added"] {
+  background: #1f7a4d;
+  color: #fff;
+}
+
+.reelup-cta--square .reelup-product__add {
+  border-radius: 4px;
+}
+
+.reelup-cta--text-link .reelup-product__add {
+  background: transparent;
+  color: var(--ru-cta, #141414);
+  padding: 0 4px;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.reelup-cta--text-link .reelup-product__add:hover:not(:disabled) {
+  background: transparent;
+  color: var(--ru-cta-hover, var(--ru-cta, #141414));
+}
+
+.reelup-cta--text-link .reelup-product__add[data-state="added"] {
+  background: transparent;
+  color: #1f7a4d;
+}
+
+/* Quantity stepper: when present, the card wraps so quantity and the add
+   button share a full-width row under the product details. */
+.reelup-product:has([data-reelup-qty]) {
+  flex-wrap: wrap;
+  row-gap: 10px;
+}
+
+.reelup-product:has([data-reelup-qty]) .reelup-product__info {
+  flex: 1 1 calc(100% - 92px);
+}
+
+.reelup-product:has([data-reelup-qty]) .reelup-product__add {
+  flex: 1 1 auto;
+}
+
+.reelup-qty {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 36px;
+  border: 1px solid var(--ru-line, #ddd);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.reelup-cta--square .reelup-qty {
+  border-radius: 4px;
+}
+
+.reelup-qty__step {
+  appearance: none;
+  width: 32px;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.reelup-qty__step:hover {
+  background: var(--ru-line, #f1f1f1);
+}
+
+.reelup-qty__input {
+  width: 32px;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  -moz-appearance: textfield;
+}
+
+.reelup-qty__input::-webkit-inner-spin-button,
+.reelup-qty__input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reelup *,
+  .reelup *::before,
+  .reelup *::after,
+  .reelup-pop {
+    animation: none !important;
+    transition: none !important;
+  }
+}

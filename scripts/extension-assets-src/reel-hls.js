@@ -1,28 +1,22 @@
+// HLS playback for every <video> the app drives: the viewers (full quality,
+// one at a time) and the inline previews (lowest rendition, several at
+// once). Safari/iOS play HLS natively; everywhere else hls.js is loaded
+// lazily and given one instance per video element.
 (() => {
   const currentScriptSrc = document.currentScript?.src ?? "";
-  let hlsInstance = null;
+  const instances = new WeakMap();
 
-  const supportsNativeHls = (video) =>
-    video.canPlayType("application/vnd.apple.mpegurl") !== "";
+  const supportsNativeHls = (video) => video.canPlayType("application/vnd.apple.mpegurl") !== "";
 
-  // Forcing the top rendition unconditionally means the very first segment
-  // fetched can be the biggest file in the manifest — on a slow connection
-  // that download itself is the "5 seconds before it plays" delay, no
-  // adaptive-switching involved. The Network Information API (Chrome/Edge/
-  // Android; not Safari or Firefox) gives an instant, zero-request estimate
-  // of the link speed, so we can pick the highest rendition that actually
-  // fits it BEFORE requesting anything. Where the API is unavailable we
-  // fall back to the top level (this is the same as before this change).
+  // Pick the highest rendition the measured link can sustain BEFORE any
+  // segment is requested — forcing the top level made the first segment
+  // the slowest download on poor connections. Network Information API is
+  // Chromium-only; elsewhere fall back to the top level.
   const pickStartLevel = (levels) => {
-    const conn =
-      navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
     const downlinkMbps = conn?.downlink;
     if (!downlinkMbps) return levels.length - 1;
-
-    // Budget in bits/sec, with headroom so the chosen rendition still has
-    // room to buffer ahead rather than running right at the estimated cap.
     const budgetBps = downlinkMbps * 1_000_000 * 0.7;
-
     let chosen = 0;
     for (let i = 0; i < levels.length; i++) {
       if (levels[i].bitrate <= budgetBps) chosen = i;
@@ -30,60 +24,55 @@
     return chosen;
   };
 
-  const loadHlsJsIfNeeded = () => {
-    if (window.Hls || document.querySelector("script[data-reelup-hlsjs]")) {
-      return Promise.resolve();
-    }
-
-    return new Promise((resolve, reject) => {
+  let hlsJsPromise = null;
+  const loadHlsJs = () => {
+    if (window.Hls) return Promise.resolve();
+    hlsJsPromise ??= new Promise((resolve, reject) => {
       const script = document.createElement("script");
       script.src = currentScriptSrc.replace("reel-hls.js", "hls.min.js");
       script.dataset.reelupHlsjs = "true";
       script.onload = () => resolve();
-      script.onerror = () => reject(new Error("Failed to load hls.js"));
+      script.onerror = () => {
+        hlsJsPromise = null;
+        reject(new Error("Failed to load hls.js"));
+      };
       document.head.appendChild(script);
     });
+    return hlsJsPromise;
   };
 
-  const attach = async (video, hlsSrc) => {
+  const destroy = (video) => {
+    instances.get(video)?.destroy();
+    instances.delete(video);
+  };
+
+  // `preview: true` = lowest rendition, small buffer, no audio concerns.
+  const attach = async (video, hlsSrc, { preview = false } = {}) => {
+    destroy(video);
     if (supportsNativeHls(video)) {
       video.src = hlsSrc;
       return;
     }
 
-    await loadHlsJsIfNeeded();
-
-    if (!window.Hls?.isSupported()) {
-      throw new Error("HLS not supported");
-    }
-
-    hlsInstance?.destroy();
-    hlsInstance = null;
+    await loadHlsJs();
+    if (!window.Hls?.isSupported()) throw new Error("HLS not supported");
 
     await new Promise((resolve, reject) => {
-      const hls = new window.Hls({
-        capLevelToPlayerSize: false,
-        // hls.js's own internal MANIFEST_PARSED listener (registered before
-        // ours, since it's wired up inside the Hls constructor) kicks off
-        // the first fragment fetch at its own default-guess level as soon
-        // as the manifest parses. Setting currentLevel in OUR listener below
-        // runs too late to stop that first request — the video would still
-        // play a few seconds of the wrong-level fragment before the next
-        // one (fetched at our chosen level) takes over. autoStartLoad:
-        // false holds off any fragment loading until we call startLoad()
-        // ourselves, after currentLevel is already set.
-        autoStartLoad: false,
-      });
-      hlsInstance = hls;
+      const hls = new window.Hls(
+        preview
+          ? { autoStartLoad: false, capLevelToPlayerSize: true, maxBufferLength: 6, maxMaxBufferLength: 10, startLevel: 0 }
+          : // autoStartLoad:false holds the first fragment until currentLevel
+            // is set below; otherwise hls.js fetches one at its own guess.
+            { autoStartLoad: false, capLevelToPlayerSize: false },
+      );
+      instances.set(video, hls);
       hls.loadSource(hlsSrc);
       hls.attachMedia(video);
-      hls.on(window.Hls.Events.MANIFEST_PARSED, (event, data) => {
-        // Setting currentLevel (rather than startLevel) takes loadLevel out
-        // of auto mode, so hls.js's bandwidth-based ABR never steps this
-        // back down mid-playback once it starts measuring throughput — the
-        // level picked here is what plays for the whole session.
-        if (data.levels && data.levels.length > 0) {
-          hls.currentLevel = pickStartLevel(data.levels);
+      hls.on(window.Hls.Events.MANIFEST_PARSED, (_event, data) => {
+        if (data.levels?.length) {
+          // currentLevel (not startLevel) pins the choice so ABR never
+          // steps the viewer down mid-play; previews just take the lowest.
+          hls.currentLevel = preview ? 0 : pickStartLevel(data.levels);
         }
         hls.startLoad();
         resolve();
@@ -94,35 +83,22 @@
     });
   };
 
-  // Runs whenever a consumer (the lightbox, the story viewer) tears down
-  // its video element — destroys any active Hls.js instance and clears
-  // the video's source so a stale video doesn't keep decoding/buffering
-  // in the background after its dialog closes.
+  // Stops decoding/buffering for a video whose viewer or preview went away.
   const teardown = (video) => {
-    hlsInstance?.destroy();
-    hlsInstance = null;
+    destroy(video);
     video.pause();
     video.removeAttribute("src");
     video.load();
   };
 
-  window.ReelupHls = { attach, teardown };
+  window.ReelupHls = { attach, teardown, supportsNativeHls };
 
-  // Warms the hls.min.js cache during idle time on browsers that need it
-  // (Safari/iOS play HLS natively and never load this), so the FIRST tap
-  // on a trigger doesn't pay for both the library fetch and the manifest
-  // fetch back-to-back — only runs when a reel actually exists on the page.
+  // Warm the hls.js cache during idle time where it'll be needed, so the
+  // first tap doesn't pay for the library and the manifest back to back.
   if (document.querySelector("[data-reelup-trigger], [data-reelup-pop]")) {
-    const probe = document.createElement("video");
-    if (!supportsNativeHls(probe)) {
+    if (!supportsNativeHls(document.createElement("video"))) {
       const schedule = window.requestIdleCallback ?? ((cb) => setTimeout(cb, 2000));
-      schedule(() => {
-        const link = document.createElement("link");
-        link.rel = "prefetch";
-        link.as = "script";
-        link.href = currentScriptSrc.replace("reel-hls.js", "hls.min.js");
-        document.head.appendChild(link);
-      });
+      schedule(() => loadHlsJs().catch(() => {}));
     }
   }
 })();

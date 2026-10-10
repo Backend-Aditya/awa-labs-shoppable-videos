@@ -48,6 +48,7 @@ model Shop {
   shopDomain        String             @unique
   plan              String             @default("FREE")
   viewCapMonthly    Int                @default(200)
+  brand             Json?
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   widgets           Widget[]

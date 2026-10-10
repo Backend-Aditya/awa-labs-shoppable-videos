@@ -1,205 +1,141 @@
 {% doc %}
-Renders the widget's curated reels as a responsive grid of click-to-open
-triggers (CAROUSEL widget kind). Same widget-gating pattern as
-product-page-reels.liquid. Clicking a card opens the shared reel
-lightbox with the video and any tagged products.
+CAROUSEL: a fanned deck of videos. The centre card leads (play button,
+title), neighbours tuck behind it; arrows, dots, swipe or the arrow keys
+move through the deck, and tapping the centre card opens the viewer with
+next/previous through the whole set. "Slider" and "Grid" are plainer
+alternates for themes where a deck doesn't fit. Without JS the deck falls
+back to a horizontally scrolling row.
+
 @example
 {% content_for 'block', type: 'stacked-carousel', id: 'stacked-carousel' %}
 {% enddoc %}
 
-{{ 'reel-lightbox.css' | asset_url | stylesheet_tag }}
-{{ 'stacked-carousel.css' | asset_url | stylesheet_tag }}
+{{ 'reel-widgets.css' | asset_url | stylesheet_tag }}
 
 {% assign reel_namespace = 'app--404281098241' %}
 
-{% assign widget_field = shop.metafields[reel_namespace].stacked_carousel_widget %}
-{% assign widget_style = widget_field.value.style %}
+{%- liquid
+  assign widget = shop.metafields[reel_namespace].stacked_carousel_widget.value
+  assign widget_style = widget.style
+  assign reels = shop.metafields[reel_namespace].stacked_carousel_widget_reels.value
 
-{% case widget_style.cornerStyle %}
-  {% when 'sharp' %}
-    {% assign corner_radius_px = '0px' %}
-  {% when 'soft' %}
-    {% assign corner_radius_px = '20px' %}
-  {% else %}
-    {% assign corner_radius_px = '12px' %}
-{% endcase %}
+  assign show_widget = false
+  if widget.published
+    case widget.targetRule.type
+      when 'all_products'
+        assign show_widget = true
+      when 'handles'
+        if product and widget.targetRule.handles contains product.handle
+          assign show_widget = true
+        endif
+      when 'collections'
+        for collection in product.collections
+          if widget.targetRule.handles contains collection.handle
+            assign show_widget = true
+            break
+          endif
+        endfor
+    endcase
+  endif
+  if widget.pageTypes.size > 0
+    unless widget.pageTypes contains template.name
+      assign show_widget = false
+    endunless
+  endif
 
-{% assign style_columns = widget_style.columns | default: 3 %}
+  assign visible_count = 0
+  if show_widget
+    for reel in reels
+      if reel.published.value and reel.config.value.hlsManifestUrl != blank
+        assign visible_count = visible_count | plus: 1
+      endif
+    endfor
+  endif
 
-{% capture wrapper_style %}
-  --reelup-corner-radius: {{ corner_radius_px }};
-  --reelup-columns: {{ style_columns }};
-  {% unless widget_style.accentColor == blank %}
-    --reelup-accent-color: {{ widget_style.accentColor }};
-    --reelup-accent-hover-color: {{ widget_style.accentColor | color_darken: 15 }};
-  {% endunless %}
-  {% unless widget_style.backgroundColor == blank %}
-    --reelup-bg-color: {{ widget_style.backgroundColor }};
-  {% endunless %}
-  {% unless widget_style.textColor == blank %}
-    --reelup-text-color: {{ widget_style.textColor }};
-  {% endunless %}
-{% endcapture %}
+  assign layout = widget_style.layoutMode | default: 'stack'
+  if layout == 'stack' and visible_count < 3
+    assign layout = 'carousel'
+  endif
 
-{% capture cta_hover_color %}
-  {% unless widget_style.ctaColor == blank %}{{ widget_style.ctaColor | color_lighten: 15 }}{% endunless %}
-{% endcapture %}
+  assign show_caption = true
+  if widget_style.showCaption == false
+    assign show_caption = false
+  endif
 
-{% assign style_show_price = true %}
-{% if widget_style.showPrice == false %}{% assign style_show_price = false %}{% endif %}
-{% assign style_show_title_overlay = true %}
-{% if widget_style.showTitleOverlay == false %}{% assign style_show_title_overlay = false %}{% endif %}
-{% assign style_muted_default = true %}
-{% if widget_style.mutedDefault == false %}{% assign style_muted_default = false %}{% endif %}
-{% assign style_loop = false %}
-{% if widget_style.loop %}{% assign style_loop = true %}{% endif %}
+  case widget_style.cornerStyle
+    when 'sharp'
+      assign radius = '0px'
+    when 'rounded'
+      assign radius = '10px'
+    else
+      assign radius = '18px'
+  endcase
+-%}
 
-{% assign layout_class = 'reelup-layout--carousel' %}
-{% if widget_style.layoutMode == 'grid' %}{% assign layout_class = 'reelup-layout--grid' %}{% endif %}
-
-{% assign shadow_class = 'reelup-shadow--none' %}
-{% if widget_style.shadowPreset == 'soft' or widget_style.shadowPreset == 'bold' %}
-  {% assign shadow_class = 'reelup-shadow--' | append: widget_style.shadowPreset %}
-{% endif %}
-
-{% assign visibility_class = '' %}
-{% if widget_field.value.deviceVisibility == 'desktop' %}
-  {% assign visibility_class = 'reelup-hide-mobile' %}
-{% elsif widget_field.value.deviceVisibility == 'mobile' %}
-  {% assign visibility_class = 'reelup-hide-desktop' %}
-{% endif %}
-
-{% assign widget_matches_product = false %}
-{% if widget_field.value.published %}
-  {% if widget_field.value.targetRule.type == "all_products" %}
-    {% assign widget_matches_product = true %}
-  {% elsif widget_field.value.targetRule.type == "handles" and widget_field.value.targetRule.handles contains product.handle %}
-    {% assign widget_matches_product = true %}
-  {% elsif widget_field.value.targetRule.type == "collections" %}
-    {% for collection in product.collections %}
-      {% if widget_field.value.targetRule.handles contains collection.handle %}
-        {% assign widget_matches_product = true %}
-      {% endif %}
-    {% endfor %}
-  {% endif %}
-{% endif %}
-
-{% capture current_page_type %}{{ template }}{% endcapture %}
-{% assign page_type_ok = true %}
-{% if widget_field.value.pageTypes.size > 0 %}
-  {% assign page_type_ok = false %}
-  {% if widget_field.value.pageTypes contains current_page_type %}
-    {% assign page_type_ok = true %}
-  {% endif %}
-{% endif %}
-{% unless page_type_ok %}
-  {% assign widget_matches_product = false %}
-{% endunless %}
-
-{% assign reels_field = shop.metafields[reel_namespace].stacked_carousel_widget_reels %}
-
-{% assign visible_count = 0 %}
-{% if widget_matches_product %}
-  {% for reel in reels_field.value %}
-    {% if reel.published.value and reel.config.value.cloudflareStreamUid != blank and reel.config.value.hlsManifestUrl != blank %}
-      {% assign visible_count = visible_count | plus: 1 %}
-    {% endif %}
-  {% endfor %}
-{% endif %}
-
-{% if visible_count > 0 %}
-  {% unless widget_style.heading == blank %}
-    <h2 class="reelup-widget-heading"{% unless widget_style.textColor == blank %} style="color: {{ widget_style.textColor }};"{% endunless %}>{{ widget_style.heading }}</h2>
-  {% endunless %}
-  <div class="reelup-carousel {{ layout_class }} {{ shadow_class }} {{ visibility_class }}" data-reelup-story-group style="{{ wrapper_style | strip_newlines | strip }}" {{ block.shopify_attributes }}>
-    {% for reel in reels_field.value %}
-      {% if reel.published.value and reel.config.value.cloudflareStreamUid != blank and reel.config.value.hlsManifestUrl != blank %}
-        {% render 'reel-video-schema', reel: reel %}
-        <div
-          class="reelup-trigger"
-          data-reelup-trigger
-          data-reel-id="{{ reel.system.id }}"
-          data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
-          data-poster-url="{{ reel.config.value.posterUrl | escape }}"
-          data-title="{{ reel.title.value | escape }}"
-          data-close-label="{{ 'reels.close_label' | t }}"
-          data-play-label="{{ 'reels.play_label' | t }}"
-          data-pause-label="{{ 'reels.pause_label' | t }}"
-          data-mute-label="{{ 'reels.mute_label' | t }}"
-          data-unmute-label="{{ 'reels.unmute_label' | t }}"
-          data-shop-label="{{ 'reels.shop_this_video_label' | t }}"
-          data-cta-color="{{ widget_style.ctaColor }}"
-          data-cta-text-color="{{ widget_style.ctaTextColor | default: '#ffffff' }}"
-          data-cta-hover-color="{{ cta_hover_color | strip }}"
-          data-cta-label="{{ widget_style.ctaLabel | escape }}"
-          data-cta-style="{{ widget_style.ctaStyle | default: 'pill' }}"
-          data-show-price="{{ style_show_price }}"
-          data-show-title="{{ style_show_title_overlay }}"
-          data-show-product-image="{{ widget_style.showProductImage | default: true }}"
-          data-tag-reveal-mode="{{ widget_style.tagRevealMode | default: 'always' }}"
-          data-muted-default="{{ style_muted_default }}"
-          data-loop="{{ style_loop }}"
-          data-autoplay-scroll="{{ widget_style.autoplayOnScroll | default: false }}"
-        >
-          <button
-            type="button"
-            class="reelup-trigger__button"
-            aria-label="{{ 'reels.play_label' | t }}"
-          >
-            {% if reel.config.value.posterUrl != blank %}
-              <img
-                class="reelup-trigger__poster"
-                src="{{ reel.config.value.posterUrl | escape }}"
-                alt="{{ reel.title.value | escape }}"
-                loading="lazy"
-                width="360"
-                height="640"
-              >
-            {% endif %}
-            <span class="reelup-trigger__play-icon" aria-hidden="true"></span>
-          </button>
-          {% if reel.tagged_products.value.size > 0 %}
-            <template data-reelup-products>
-              {% for product in reel.tagged_products.value %}
-                {% assign variant = product.selected_or_first_available_variant %}
-                <div class="reelup-lightbox__product">
-                  <a class="reelup-lightbox__product-link" href="{{ product.url }}">
-                    {% if product.featured_image %}
-                      <img
-                        class="reelup-lightbox__product-image"
-                        src="{{ product.featured_image | image_url: width: 160 }}"
-                        alt="{{ product.title | escape }}"
-                        loading="lazy"
-                        width="56"
-                        height="56"
-                      >
-                    {% endif %}
-                    <span class="reelup-lightbox__product-info">
-                      <span class="reelup-lightbox__product-title">{{ product.title }}</span>
-                      <span class="reelup-lightbox__product-price">{{ product.price | money }}</span>
-                    </span>
-                  </a>
-                  {% if variant %}
-                    <button
-                      type="button"
-                      class="reelup-lightbox__add-to-cart"
-                      data-reelup-add-to-cart
-                      data-variant-id="{{ variant.id }}"
-                      data-add-label="{{ 'reels.add_to_cart' | t }}"
-                      data-added-label="{{ 'reels.added_to_cart' | t }}"
-                    >
-                      {{ 'reels.add_to_cart' | t }}
-                    </button>
-                  {% endif %}
-                </div>
-              {% endfor %}
-            </template>
-          {% endif %}
+{%- if visible_count > 0 -%}
+  {%- capture wrapper_style -%}
+    --ru-radius: {{ radius }};
+    --ru-columns: {{ widget_style.columns | default: 4 }};
+    {%- if widget_style.accentColor != blank %}--ru-accent: {{ widget_style.accentColor }};{% endif -%}
+    {%- if widget_style.backgroundColor != blank %}--ru-bg: {{ widget_style.backgroundColor }};{% endif -%}
+    {%- if widget_style.textColor != blank %}--ru-text: {{ widget_style.textColor }};{% endif -%}
+  {%- endcapture -%}
+  <section
+    class="reelup reelup-deck reelup-deck--{{ layout }} reelup-shadow--{{ widget_style.shadowPreset | default: 'bold' }} reelup-device--{{ widget.deviceVisibility | default: 'all' }}{% if widget_style.backgroundColor != blank %} reelup--filled{% endif %}"
+    style="{{ wrapper_style | strip_newlines }}"
+    {% if layout == 'stack' %}data-reelup-deck aria-roledescription="carousel"{% endif %}
+    {% if widget_style.heading != blank %}aria-label="{{ widget_style.heading | escape }}"{% endif %}
+    {{ block.shopify_attributes }}
+  >
+    {%- if widget_style.heading != blank -%}
+      <h2 class="reelup-heading reelup-heading--center">{{ widget_style.heading | escape }}</h2>
+    {%- endif -%}
+    <ul class="reelup-deck__stage" data-reelup-group role="list">
+      {%- for reel in reels -%}
+        {%- if reel.published.value and reel.config.value.hlsManifestUrl != blank -%}
+          {%- render 'reel-video-schema', reel: reel -%}
+          {%- capture card -%}
+            <button type="button" class="reelup-trigger__button reelup-deck__poster" aria-label="{{ 'reels.play_named_label' | t: title: reel.title.value | escape }}">
+              {%- if reel.config.value.posterUrl != blank -%}
+                <img class="reelup-trigger__poster" src="{{ reel.config.value.posterUrl | escape }}" alt="" loading="lazy" width="480" height="854">
+              {%- endif -%}
+              <span class="reelup-deck__play" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 10 10" focusable="false"><path fill="currentColor" d="M2 1.2v7.6a.5.5 0 0 0 .76.43l6.1-3.8a.5.5 0 0 0 0-.86L2.76.77A.5.5 0 0 0 2 1.2Z"/></svg>
+              </span>
+              {%- if show_caption -%}
+                <span class="reelup-deck__caption">
+                  <span class="reelup-deck__title">{{ reel.title.value | escape }}</span>
+                  {%- assign product_count = reel.tagged_products.value.size | default: 0 -%}
+                  {%- if product_count > 0 -%}
+                    <span class="reelup-deck__meta">{{ 'reels.products_count' | t: count: product_count }}</span>
+                  {%- endif -%}
+                </span>
+              {%- endif -%}
+              {%- if widget_style.showDuration -%}{%- render 'reel-duration', reel: reel -%}{%- endif -%}
+            </button>
+          {%- endcapture -%}
+          <li class="reelup-deck__card" data-reelup-deck-card>
+            {%- render 'reel-trigger', reel: reel, style: widget_style, inner: card, muted_default: true, autoplay_default: true -%}
+          </li>
+        {%- endif -%}
+      {%- endfor -%}
+    </ul>
+    {%- if layout == 'stack' -%}
+      <div class="reelup-deck__nav">
+        <button type="button" class="reelup-deck__arrow" data-reelup-deck-prev aria-label="{{ 'reels.previous_label' | t }}">
+          <svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12.7 4.3a1 1 0 0 1 0 1.4L8.42 10l4.3 4.3a1 1 0 0 1-1.42 1.4l-5-5a1 1 0 0 1 0-1.4l5-5a1 1 0 0 1 1.42 0Z"/></svg>
+        </button>
+        <div class="reelup-deck__dots" data-reelup-deck-dots aria-hidden="true">
+          {%- for i in (1..visible_count) -%}<span></span>{%- endfor -%}
         </div>
-      {% endif %}
-    {% endfor %}
-  </div>
-{% endif %}
+        <button type="button" class="reelup-deck__arrow" data-reelup-deck-next aria-label="{{ 'reels.next_label' | t }}">
+          <svg width="16" height="16" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M7.3 15.7a1 1 0 0 1 0-1.4l4.28-4.3-4.3-4.3a1 1 0 1 1 1.42-1.4l5 5a1 1 0 0 1 0 1.4l-5 5a1 1 0 0 1-1.42 0Z"/></svg>
+        </button>
+      </div>
+      <p class="reelup-visually-hidden" aria-live="polite" data-reelup-deck-status></p>
+    {%- endif -%}
+  </section>
+{%- endif -%}
 
 {% schema %}
 {
@@ -209,7 +145,7 @@ lightbox with the video and any tagged products.
     { "type": "product", "id": "product", "label": "Product", "autofill": true },
     {
       "type": "paragraph",
-      "content": "Appearance, labels, and behavior for this widget are set in the app's Widgets page, not here — open the widget's Appearance tab to customize it."
+      "content": "Videos, layout and colors are set in the app under Widgets › Stacked carousel. Needs the Shoppable Videos app embed turned on."
     }
   ]
 }
