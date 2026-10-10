@@ -95,9 +95,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (!reelId) {
       return { error: "Missing reel id", uploadURL: null, reelId: null };
     }
-    await updateReelConfig(admin, reelId, {
-      uploadFailedAt: new Date().toISOString(),
-    });
+    try {
+      await updateReelConfig(admin, reelId, {
+        uploadFailedAt: new Date().toISOString(),
+      });
+    } catch (e) {
+      if (e instanceof Response) throw e;
+      return { error: null, uploadURL: null, reelId: null };
+    }
     return { error: null, uploadURL: null, reelId: null };
   }
 
@@ -233,18 +238,28 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (intent === "bulk-publish" || intent === "bulk-unpublish") {
     const published = intent === "bulk-publish";
     const reelIds = formData.getAll("reelId").map(String);
-    for (const id of reelIds) {
-      const reel = await getReel(admin, id);
-      if (!reel) continue;
-      await upsertReel(admin, reel.handle, reel.title, published, reel.config);
+    try {
+      for (const id of reelIds) {
+        const reel = await getReel(admin, id);
+        if (!reel) continue;
+        await upsertReel(admin, reel.handle, reel.title, published, reel.config);
+      }
+    } catch (e) {
+      if (e instanceof Response) throw e;
+      return { error: "Could not update all selected reels. Try again.", uploadURL: null, reelId: null };
     }
     return { error: null, uploadURL: null, reelId: null };
   }
 
   if (intent === "bulk-delete") {
     const reelIds = formData.getAll("reelId").map(String);
-    for (const id of reelIds) {
-      await deleteReel(admin, id);
+    try {
+      for (const id of reelIds) {
+        await deleteReel(admin, id);
+      }
+    } catch (e) {
+      if (e instanceof Response) throw e;
+      return { error: "Could not delete all selected reels. Try again.", uploadURL: null, reelId: null };
     }
     return { error: null, uploadURL: null, reelId: null };
   }

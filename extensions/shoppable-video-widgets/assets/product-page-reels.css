@@ -1,10 +1,40 @@
+/* Distinct from stacked-carousel.css on purpose: this widget sits inline
+   inside existing product-page content, so it reads as a native, compact
+   strip of clips (tight gap, flat/no-shadow buttons, a small "watch" pill
+   on each poster) rather than the carousel's standalone gallery-card look. */
 .reelup-product-reels {
   display: flex;
-  gap: 12px;
+  gap: 8px;
   overflow-x: auto;
   padding-block: 12px;
   scroll-snap-type: x proximity;
   scrollbar-width: thin;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent 100%);
+  mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent 100%);
+}
+
+.reelup-product-reels .reelup-trigger__button {
+  box-shadow: none;
+}
+
+.reelup-product-reels__item {
+  position: relative;
+}
+
+.reelup-product-reels__item::after {
+  content: "▶ Watch";
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 1;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  pointer-events: none;
 }
 
 .reelup-product-reels::-webkit-scrollbar {
@@ -26,6 +56,8 @@
   display: grid;
   grid-template-columns: repeat(var(--reelup-columns, 3), 1fr);
   overflow-x: visible;
+  -webkit-mask-image: none;
+  mask-image: none;
 }
 
 .reelup-product-reels.reelup-layout--grid .reelup-product-reels__item {

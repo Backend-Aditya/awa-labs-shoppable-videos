@@ -38,19 +38,34 @@ via {% content_for %} like a section block.
 
 {% assign reel_namespace = 'app--404281098241' %}
 
-{% assign position_class = 'reelup-pop--' | append: block.settings.position | replace: '_', '-' %}
-{% unless block.settings.show_pulse %}
+{% assign widget_field = shop.metafields[reel_namespace].reel_pops_widget %}
+{% assign featured_reel = shop.metafields[reel_namespace].reel_pops_featured_reel %}
+{% assign widget_style = widget_field.value.style %}
+
+{% assign style_position = widget_style.position | default: 'bottom_right' %}
+{% assign position_class = 'reelup-pop--' | append: style_position | replace: '_', '-' %}
+{% assign style_show_pulse = true %}
+{% if widget_style.showPulse == false %}{% assign style_show_pulse = false %}{% endif %}
+{% unless style_show_pulse %}
   {% assign position_class = position_class | append: ' reelup-pop--no-pulse' %}
 {% endunless %}
 
-{% capture wrapper_style %}--reelup-trigger-size: {{ block.settings.trigger_size }}px;{% endcapture %}
+{% capture wrapper_style %}--reelup-trigger-size: {{ widget_style.triggerSize | default: 72 }}px;{% endcapture %}
 
 {% capture cta_hover_color %}
-  {% unless block.settings.cta_color == blank %}{{ block.settings.cta_color | color_lighten: 15 }}{% endunless %}
+  {% unless widget_style.ctaColor == blank %}{{ widget_style.ctaColor | color_lighten: 15 }}{% endunless %}
 {% endcapture %}
 
-{% assign widget_field = shop.metafields[reel_namespace].reel_pops_widget %}
-{% assign featured_reel = shop.metafields[reel_namespace].reel_pops_featured_reel %}
+{% assign style_show_price = true %}
+{% if widget_style.showPrice == false %}{% assign style_show_price = false %}{% endif %}
+{% assign style_show_title_overlay = true %}
+{% if widget_style.showTitleOverlay == false %}{% assign style_show_title_overlay = false %}{% endif %}
+{% assign style_show_product_image = true %}
+{% if widget_style.showProductImage == false %}{% assign style_show_product_image = false %}{% endif %}
+{% assign style_muted_default = false %}
+{% if widget_style.mutedDefault %}{% assign style_muted_default = true %}{% endif %}
+{% assign style_loop = false %}
+{% if widget_style.loop %}{% assign style_loop = true %}{% endif %}
 
 {% assign widget_matches_product = false %}
 {% if widget_field.value.published %}
@@ -101,14 +116,16 @@ via {% content_for %} like a section block.
       data-mute-label="{{ 'reels.mute_label' | t }}"
       data-unmute-label="{{ 'reels.unmute_label' | t }}"
       data-shop-label="{{ 'reels.shop_this_video_label' | t }}"
-      data-cta-color="{{ block.settings.cta_color }}"
-      data-cta-text-color="{{ block.settings.cta_text_color }}"
+      data-cta-color="{{ widget_style.ctaColor }}"
+      data-cta-text-color="{{ widget_style.ctaTextColor | default: '#ffffff' }}"
       data-cta-hover-color="{{ cta_hover_color | strip }}"
-      data-cta-label="{{ block.settings.cta_label | escape }}"
-      data-show-price="{{ block.settings.show_price }}"
-      data-show-title="{{ block.settings.show_title_overlay }}"
-      data-muted-default="{{ block.settings.muted_default }}"
-      data-loop="{{ block.settings.loop }}"
+      data-cta-label="{{ widget_style.ctaLabel | escape }}"
+      data-cta-style="{{ widget_style.ctaStyle | default: 'pill' }}"
+      data-show-price="{{ style_show_price }}"
+      data-show-title="{{ style_show_title_overlay }}"
+      data-show-product-image="{{ style_show_product_image }}"
+      data-muted-default="{{ style_muted_default }}"
+      data-loop="{{ style_loop }}"
     >
       <button
         type="button"
@@ -174,29 +191,8 @@ via {% content_for %} like a section block.
   "settings": [
     {
       "type": "paragraph",
-      "content": "Enabling this turns on every shoppable video block you've added elsewhere in your theme — product page reels, carousel, stories, single video, add-to-cart video — plus the floating bubble below, if you've set one up in the app."
-    },
-    {
-      "type": "select",
-      "id": "position",
-      "label": "Bubble position",
-      "options": [
-        { "value": "bottom_right", "label": "Bottom right" },
-        { "value": "bottom_left", "label": "Bottom left" },
-        { "value": "top_right", "label": "Top right" },
-        { "value": "top_left", "label": "Top left" }
-      ],
-      "default": "bottom_right"
-    },
-    { "type": "checkbox", "id": "show_pulse", "label": "Pulse to draw attention", "default": true },
-    { "type": "range", "id": "trigger_size", "label": "Bubble size", "min": 40, "max": 320, "step": 4, "unit": "px", "default": 72 },
-    { "type": "color", "id": "cta_color", "label": "Add to cart button color", "info": "Leave blank to use the theme default" },
-    { "type": "color", "id": "cta_text_color", "label": "Add to cart text color", "default": "#ffffff" },
-    { "type": "text", "id": "cta_label", "label": "Add to cart button text", "info": "Leave blank to use the default label" },
-    { "type": "checkbox", "id": "show_price", "label": "Show product price", "default": true },
-    { "type": "checkbox", "id": "show_title_overlay", "label": "Show video title", "default": true },
-    { "type": "checkbox", "id": "muted_default", "label": "Mute video by default", "default": false },
-    { "type": "checkbox", "id": "loop", "label": "Loop video", "default": false }
+      "content": "Enabling this turns on every shoppable video block you've added elsewhere in your theme — product page reels, carousel, stories, single video, add-to-cart video — plus the floating bubble below, if you've set one up in the app. The bubble's own appearance, labels, and behavior are set on the Reel pops widget in the app's Widgets page, not here."
+    }
   ]
 }
 {% endschema %}

@@ -156,7 +156,7 @@ const WIDGET_STYLE_FIELDS: Record<
     mutedDefault: true,
   },
   STORIES: {
-    fields: ["heading", "accentColor", "triggerSize", "storyDuration", "ctaColor", "ctaTextColor", "ctaLabel", "showPrice", "showTitleOverlay", "mutedDefault", "loop"],
+    fields: ["heading", "accentColor", "textColor", "shadowPreset", "triggerSize", "storyDuration", "ctaColor", "ctaTextColor", "ctaLabel", "ctaStyle", "showPrice", "showTitleOverlay", "showProductImage", "mutedDefault", "loop"],
     accentColorLabel: "Ring color",
     sizeLabel: "Avatar size (px)",
     sizeDefault: 64,
@@ -165,7 +165,7 @@ const WIDGET_STYLE_FIELDS: Record<
     mutedDefault: true,
   },
   REEL_POPS: {
-    fields: ["position", "showPulse", "triggerSize", "ctaColor", "ctaTextColor", "ctaLabel", "showPrice", "showTitleOverlay", "mutedDefault", "loop"],
+    fields: ["position", "showPulse", "triggerSize", "ctaColor", "ctaTextColor", "ctaLabel", "ctaStyle", "showPrice", "showTitleOverlay", "showProductImage", "mutedDefault", "loop"],
     accentColorLabel: "Accent color",
     sizeLabel: "Bubble size (px)",
     sizeDefault: 72,
@@ -265,13 +265,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     ...(featuredReelId ? { featuredReelId } : {}),
   };
 
-  const widget = await createWidget(shop.id, type as WidgetKind, name, config);
-  // New widgets go live immediately rather than sitting as an unpublished
-  // draft the merchant has to remember to flip — updateWidget (not a raw
-  // DB write) is used here so the existing sibling-unpublish invariant and
-  // shop-metafield sync both still run exactly as they do for a manual
-  // publish toggle.
-  await updateWidget(admin, shop.id, widget.id, { published: true });
+  try {
+    const widget = await createWidget(shop.id, type as WidgetKind, name, config);
+    // New widgets go live immediately rather than sitting as an unpublished
+    // draft the merchant has to remember to flip — updateWidget (not a raw
+    // DB write) is used here so the existing sibling-unpublish invariant and
+    // shop-metafield sync both still run exactly as they do for a manual
+    // publish toggle.
+    await updateWidget(admin, shop.id, widget.id, { published: true });
+  } catch (e) {
+    if (e instanceof Response) throw e;
+    return { error: "Could not create the widget. Try again." };
+  }
 
   return { error: null };
 };

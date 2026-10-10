@@ -1,8 +1,30 @@
+/* Distinct from product-page-reels.css on purpose: this widget is a
+   standalone gallery section (not inline strip content), so cards get a
+   deliberate hover lift + growing shadow and a bit more breathing room —
+   it should read as "browse the look-book," not "here's a related clip." */
 .reelup-carousel {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
+  gap: 16px;
   padding-block: 12px;
+}
+
+.reelup-carousel .reelup-trigger__button {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease;
+}
+
+.reelup-carousel .reelup-trigger__button:hover,
+.reelup-carousel .reelup-trigger__button:focus-visible {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.18);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reelup-carousel .reelup-trigger__button:hover,
+  .reelup-carousel .reelup-trigger__button:focus-visible {
+    transform: none;
+  }
 }
 
 @media (max-width: 900px) {

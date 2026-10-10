@@ -4,7 +4,7 @@ import type {
   LoaderFunctionArgs,
 } from "react-router";
 import { useRef } from "react";
-import { Form, redirect, useActionData, useFetcher, useLoaderData, useNavigation } from "react-router";
+import { Form, useActionData, useFetcher, useLoaderData, useNavigation } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { useAppBridge } from "@shopify/app-bridge-react";
@@ -36,14 +36,33 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 export const action = async ({ request, params }: ActionFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
   const shop = await getOrCreateShop(session.shop);
-  const widget = await getWidget(shop.id, params.id!);
-  if (!widget) {
+  const widgetOrNull = await getWidget(shop.id, params.id!);
+  if (!widgetOrNull) {
     throw new Response("Widget not found", { status: 404 });
   }
+  // Re-bound to a non-nullable const — TS's null-narrowing above doesn't
+  // carry into the nested handleIntent() closure below, so every usage
+  // inside it would otherwise need its own non-null assertion.
+  const widget = widgetOrNull;
 
   const formData = await request.formData();
   const intent = formData.get("intent");
 
+  // Catches anything an individual intent's own GraphQL/DB call throws
+  // (network blip, a GraphQL userError, a GID that no longer resolves) so
+  // the merchant sees "Something went wrong" in the modal they're already
+  // looking at instead of the whole app falling through to Shopify's
+  // generic embedded-app error boundary. Response throws (session-token
+  // expiry, rate-limit) are Shopify's own control-flow mechanism and must
+  // keep propagating untouched.
+  try {
+    return await handleIntent();
+  } catch (e) {
+    if (e instanceof Response) throw e;
+    return { error: "Something went wrong. Try again." };
+  }
+
+  async function handleIntent() {
   if (intent === "set-target") {
     const handles = formData.getAll("productHandle").map(String).filter(Boolean);
     const targetRule: WidgetConfig["targetRule"] =
@@ -144,7 +163,15 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
   if (intent === "delete") {
     await deleteWidget(admin, shop.id, widget.id);
-    return redirect("/app/widgets");
+    // No redirect — a server redirect() from a fetcher submission inside
+    // Shopify's embedded admin iframe doesn't carry the session-token
+    // auth App Bridge's fetch wrapper attaches, so the browser's own
+    // redirect-follow hits the target route unauthenticated and 404s.
+    // The caller (WidgetDeleteModal) is already on /app/widgets and just
+    // waits for this fetcher to go idle to close the modal; the list
+    // re-fetches its own loader automatically after any fetcher action
+    // completes, same as creating/editing a widget already does.
+    return { error: null };
   }
 
   if (intent === "duplicate") {
@@ -160,7 +187,8 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
       `${widget.name} (copy)`,
       widget.config as unknown as WidgetConfig,
     );
-    return redirect("/app/widgets");
+    // See the no-redirect note on "delete" above.
+    return { error: null };
   }
 
   const name = String(formData.get("name") ?? "").trim();
@@ -172,6 +200,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
   await updateWidget(admin, shop.id, widget.id, { name, published });
   return { error: null };
+  }
 };
 
 export default function WidgetDetail() {

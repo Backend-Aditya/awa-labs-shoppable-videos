@@ -4,7 +4,7 @@ import type {
   LoaderFunctionArgs,
 } from "react-router";
 import { useRef, useState } from "react";
-import { Form, redirect, useActionData, useFetcher, useLoaderData, useNavigation } from "react-router";
+import { Form, useActionData, useFetcher, useLoaderData, useNavigation } from "react-router";
 import { Stream } from "@cloudflare/stream-react";
 import type { StreamPlayerApi } from "@cloudflare/stream-react";
 import { useAppBridge } from "@shopify/app-bridge-react";
@@ -113,11 +113,26 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   const formData = await request.formData();
   const intent = formData.get("intent");
 
-  const reel = await getReel(admin, toReelGid(params.id!));
-  if (!reel) {
+  const reelOrNull = await getReel(admin, toReelGid(params.id!));
+  if (!reelOrNull) {
     throw new Response("Reel not found", { status: 404 });
   }
+  const reel = reelOrNull;
 
+  // Catches anything a GraphQL/DB call below throws (network blip, a
+  // GraphQL userError, a stale product id) so the merchant sees "Something
+  // went wrong" in the modal/form they're already on instead of the whole
+  // app falling through to Shopify's generic embedded-app error boundary.
+  // Response throws (session-token expiry, rate-limit) must keep
+  // propagating untouched — Shopify's own control-flow mechanism.
+  try {
+    return await handleIntent();
+  } catch (e) {
+    if (e instanceof Response) throw e;
+    return { error: "Something went wrong. Try again." };
+  }
+
+  async function handleIntent() {
   if (intent === "set-products") {
     const productIds = formData.getAll("productId").map(String);
     const previousProductIds = reel.config.productIds;
@@ -128,7 +143,11 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
   if (intent === "delete") {
     await deleteReel(admin, reel.id);
-    return redirect("/app/reels");
+    // No redirect — see the identical note on app.widgets.$id.tsx's
+    // "delete" intent. The caller is already on /app/reels and waits for
+    // this fetcher to go idle to close its modal; the list revalidates its
+    // own loader automatically after any fetcher action completes.
+    return { error: null };
   }
 
   if (intent === "duplicate") {
@@ -147,7 +166,8 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     if (reel.config.productIds.length > 0) {
       await syncProductReelMetafields(admin, duplicate.id, [], reel.config.productIds);
     }
-    return redirect("/app/reels");
+    // See the no-redirect note on "delete" above.
+    return { error: null };
   }
 
   const title = String(formData.get("title") ?? "").trim();
@@ -171,6 +191,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     publishAt,
   });
   return { error: null };
+  }
 };
 
 export default function ReelDetail() {
