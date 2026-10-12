@@ -22,6 +22,11 @@ export default defineConfig(({ mode }) => {
     test: {
       environment: "node",
       fileParallelism: false,
+      // The suite talks to a remote Postgres (Supabase); its connection
+      // latency can spike well past Vitest's 5s default and fail tests
+      // that are otherwise fine.
+      testTimeout: 30_000,
+      hookTimeout: 60_000,
       env: {
         DATABASE_URL: resolveDatabaseUrl(mode),
       },
