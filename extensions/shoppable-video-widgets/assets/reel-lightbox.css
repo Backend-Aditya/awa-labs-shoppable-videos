@@ -391,7 +391,12 @@ html.reelup-locked {
   border-bottom: 0;
 }
 
+/* Pinned to the bottom of the panel so the confirmation is seen even when
+   recommendations make the panel scroll. */
 .reelup-viewer__cart {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -478,6 +483,7 @@ html.reelup-locked {
   gap: 10px;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
+  scroll-padding-inline: 18px;
   scrollbar-width: none;
   padding: 0 18px;
 }
@@ -603,9 +609,19 @@ html.reelup-locked {
 
 /* ---------- CTA variants inside viewers ---------- */
 
+/* Fixed width so "Add to cart" → "Added" → "Sold out" never reflows the
+   product name beside it. */
 .reelup-viewer .reelup-product__add,
 .reelup-story .reelup-product__add {
   min-height: 38px;
+  min-width: 7.5em;
+}
+
+.reelup-viewer__panel,
+.reelup-viewer__list,
+.reelup-story__list {
+  scrollbar-width: thin;
+  scrollbar-color: #d4d4d4 transparent;
 }
 
 /* ---------- mid-size: panel under nothing, narrower ---------- */
@@ -682,6 +698,11 @@ html.reelup-locked {
 
   .reelup-viewer__panel[data-state="peek"] .reelup-viewer__recs {
     display: none;
+  }
+
+  .reelup-viewer__panel[data-state="peek"],
+  .reelup-viewer__panel[data-state="closed"] {
+    overflow: hidden;
   }
 
   .reelup-viewer__panel[data-state="open"] {
