@@ -41,6 +41,7 @@ type Body = {
   productIds?: unknown;
   sourceUrl?: string;
   reelId?: string;
+  rightsConfirmed?: boolean;
 };
 
 // Shoppable videos are short; capping length bounds storage cost per upload.
@@ -104,11 +105,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       } catch (error) {
         log.error("upload.create_failed", { shop: session.shop, reelId: reel.id }, error);
         await discardReel(admin, reel.id, productIds);
-        return json({ error: "Video uploads aren't available right now. Check the Cloudflare Stream settings." }, 502);
+        return json({ error: "Uploads are temporarily unavailable. Try again in a few minutes." }, 502);
       }
     }
 
     if (body.intent === "import") {
+      if (body.rightsConfirmed !== true) {
+        return json({ error: "Confirm you own this video or have permission to use it." }, 400);
+      }
       const sourceUrl = String(body.sourceUrl ?? "").trim();
       const parsed = parseSocialVideoUrl(sourceUrl);
       if (!parsed) return json({ error: "Paste a link to a public Instagram or TikTok video." }, 400);
@@ -147,6 +151,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       await recordStreamAsset(shop.id, uid);
       await updateReelConfig(admin, reelId, { replacingStreamUid: uid, uploadFailedAt: "" });
       return json({ uploadURL });
+    }
+
+    if (body.intent === "discard") {
+      const reelId = String(body.reelId ?? "");
+      if (!GID.test(reelId)) return json({ error: "Video not found." }, 404);
+      const reel = await getReel(admin, reelId);
+      if (!reel) return json({});
+      // Only ever for a reel whose first upload never arrived.
+      if (reel.config.hlsManifestUrl) return json({ error: "This video already has footage." }, 409);
+      await discardReel(admin, reel.id, reel.config.productIds);
+      if (reel.config.cloudflareStreamUid) await discardStreamAsset(shop.id, reel.config.cloudflareStreamUid);
+      return json({});
     }
 
     if (body.intent === "failed") {

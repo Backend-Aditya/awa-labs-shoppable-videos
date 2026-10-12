@@ -9,6 +9,7 @@ import type { WidgetKind, WidgetStyleConfig } from "../../models/widget-kinds";
 import type { BrandConfig } from "../../models/brand";
 import { BRAND_DEFAULTS } from "../../models/brand";
 import styles from "./preview.module.css";
+import { handleRovingKeys } from "./controls";
 
 export interface PreviewProduct {
   id: string;
@@ -122,19 +123,49 @@ export function WidgetPreview({
   return (
     <div className={styles.frame}>
       <div className={styles.toolbar}>
-        <div className={styles.toolbarGroup} role="tablist" aria-label="Preview">
-          <button type="button" role="tab" aria-selected={mode === "page"} onClick={() => setMode("page")}>
+        <div /* eslint-disable-line jsx-a11y/interactive-supports-focus -- roving tabindex: the chosen child is the tab stop */
+          className={styles.toolbarGroup}
+          role="radiogroup"
+          aria-label="Preview"
+          onKeyDown={(e) => handleRovingKeys(e, ["page", "viewer"] as const, mode, setMode)}
+        >
+          <button type="button" role="radio" aria-checked={mode === "page"} tabIndex={mode === "page" ? 0 : -1} onClick={() => setMode("page")}>
             On page
           </button>
-          <button type="button" role="tab" aria-selected={mode === "viewer"} onClick={() => setMode("viewer")}>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={mode === "viewer"}
+            tabIndex={mode === "viewer" ? 0 : -1}
+            onClick={() => setMode("viewer")}
+          >
             Video viewer
           </button>
         </div>
-        <div className={styles.toolbarGroup} role="radiogroup" aria-label="Device">
-          <button type="button" role="radio" aria-checked={device === "desktop"} onClick={() => setDevice("desktop")} aria-label="Desktop">
+        <div /* eslint-disable-line jsx-a11y/interactive-supports-focus -- roving tabindex: the chosen child is the tab stop */
+          className={styles.toolbarGroup}
+          role="radiogroup"
+          aria-label="Device"
+          onKeyDown={(e) => handleRovingKeys(e, ["desktop", "mobile"] as const, device, setDevice)}
+        >
+          <button
+            type="button"
+            role="radio"
+            aria-checked={device === "desktop"}
+            tabIndex={device === "desktop" ? 0 : -1}
+            onClick={() => setDevice("desktop")}
+            aria-label="Desktop"
+          >
             <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M3 4.5A1.5 1.5 0 0 1 4.5 3h11A1.5 1.5 0 0 1 17 4.5v8a1.5 1.5 0 0 1-1.5 1.5H11v1.5h2a.75.75 0 0 1 0 1.5H7a.75.75 0 0 1 0-1.5h2V14H4.5A1.5 1.5 0 0 1 3 12.5v-8Zm1.5 0v8h11v-8h-11Z" /></svg>
           </button>
-          <button type="button" role="radio" aria-checked={device === "mobile"} onClick={() => setDevice("mobile")} aria-label="Mobile">
+          <button
+            type="button"
+            role="radio"
+            aria-checked={device === "mobile"}
+            tabIndex={device === "mobile" ? 0 : -1}
+            onClick={() => setDevice("mobile")}
+            aria-label="Mobile"
+          >
             <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M6.5 2A1.5 1.5 0 0 0 5 3.5v13A1.5 1.5 0 0 0 6.5 18h7a1.5 1.5 0 0 0 1.5-1.5v-13A1.5 1.5 0 0 0 13.5 2h-7Zm0 1.5h7v13h-7v-13ZM9 14.25a.75.75 0 0 1 .75-.75h.5a.75.75 0 0 1 0 1.5h-.5a.75.75 0 0 1-.75-.75Z" /></svg>
           </button>
         </div>

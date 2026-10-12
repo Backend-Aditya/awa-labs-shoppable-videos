@@ -119,7 +119,10 @@ export function extractAttributionsFromOrderPayload(
   const attributions: AttributedLineItem[] = [];
 
   for (const item of payload.line_items ?? []) {
-    const reelId = item.properties?.find((p) => p.name === ATTRIBUTION_PROPERTY_NAME)?.value;
+    // Shopper-supplied cart property: accept only a reel id shape, stored
+    // as the numeric id (the same canonical form analytics events use).
+    const rawReelId = item.properties?.find((p) => p.name === ATTRIBUTION_PROPERTY_NAME)?.value;
+    const reelId = rawReelId?.match(/^(?:gid:\/\/shopify\/Metaobject\/)?(\d{1,20})$/)?.[1];
     if (!reelId) continue;
 
     attributions.push({

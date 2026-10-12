@@ -32,6 +32,7 @@ import type { BrandConfig } from "../models/brand";
 import type { ReelConfig } from "../models/reel.server";
 import { deriveReelStatus } from "../models/reel-status";
 import {
+  handleRovingKeys,
   Card,
   ChipToggleGroup,
   ColorInput,
@@ -363,7 +364,12 @@ export default function WidgetEditor() {
             </button>
           </div>
 
-          <div className={styles.tabs} role="tablist" aria-label="Widget settings">
+          <div /* eslint-disable-line jsx-a11y/interactive-supports-focus -- roving tabindex: the chosen child is the tab stop */
+            className={styles.tabs}
+            role="tablist"
+            aria-label="Widget settings"
+            onKeyDown={(e) => handleRovingKeys(e, TABS.map((t) => t.id), tab, setTab)}
+          >
             {TABS.map((t) => (
               <button
                 key={t.id}
@@ -372,6 +378,7 @@ export default function WidgetEditor() {
                 id={`tab-${t.id}`}
                 aria-selected={tab === t.id}
                 aria-controls={`panel-${t.id}`}
+                tabIndex={tab === t.id ? 0 : -1}
                 className={styles.tab}
                 onClick={() => setTab(t.id)}
               >
@@ -546,13 +553,24 @@ function ContentTab({
             <>
               {featured && <NotLiveNotice reels={[featured]} />}
               {reels.length > 8 && <ReelSearch value={query} onChange={setQuery} />}
-              <div className={styles.reelList} role="radiogroup" aria-label="Video">
+              <div /* eslint-disable-line jsx-a11y/interactive-supports-focus -- roving tabindex: the chosen child is the tab stop */
+                className={styles.reelList}
+                role="radiogroup"
+                aria-label="Video"
+                onKeyDown={(e) => {
+                  const ids = filterReels(reels, query).map((r) => r.id);
+                  handleRovingKeys(e, ids, state.featuredReelId || ids[0], (featuredReelId) => update({ featuredReelId }));
+                }}
+              >
                 {filterReels(reels, query).map((reel) => (
                   <button
                     key={reel.id}
                     type="button"
                     role="radio"
                     aria-checked={state.featuredReelId === reel.id}
+                    tabIndex={
+                      state.featuredReelId === reel.id || (!state.featuredReelId && reel === filterReels(reels, query)[0]) ? 0 : -1
+                    }
                     className={styles.reelRow}
                     onClick={() => update({ featuredReelId: reel.id })}
                   >
@@ -906,13 +924,26 @@ function DesignTab({
         )}
         {has("position") && (
           <Field label="Position">
-            <div className={styles.cornerPicker} role="radiogroup" aria-label="Position">
+            <div /* eslint-disable-line jsx-a11y/interactive-supports-focus -- roving tabindex: the chosen child is the tab stop */
+              className={styles.cornerPicker}
+              role="radiogroup"
+              aria-label="Position"
+              onKeyDown={(e) =>
+                handleRovingKeys(
+                  e,
+                  ["top_left", "top_right", "bottom_left", "bottom_right"] as const,
+                  style.position ?? "bottom_right",
+                  (position) => setStyle({ position }),
+                )
+              }
+            >
               {(["top_left", "top_right", "bottom_left", "bottom_right"] as const).map((corner) => (
                 <button
                   key={corner}
                   type="button"
                   role="radio"
                   aria-checked={(style.position ?? "bottom_right") === corner}
+                  tabIndex={(style.position ?? "bottom_right") === corner ? 0 : -1}
                   aria-label={corner.replace("_", " ")}
                   className={styles.corner}
                   onClick={() => setStyle({ position: corner })}

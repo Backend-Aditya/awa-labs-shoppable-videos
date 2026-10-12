@@ -3,8 +3,8 @@
 // controlled values (they drive the live preview on every keystroke), and
 // s-checkbox/s-select form participation proved unreliable in this app (see
 // the old hidden-input workarounds this replaced).
-import type { ReactNode } from "react";
-import { useId } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
+import { useEffect, useId, useState } from "react";
 import styles from "./editor.module.css";
 
 export function Field({
@@ -64,6 +64,29 @@ export function TextInput({
   );
 }
 
+// Arrow-key navigation for single-choice groups (radio groups and tab
+// lists): arrows move the choice and focus, Home/End jump to the ends. Only
+// the chosen item is in the tab order, so a group is one Tab stop.
+export function handleRovingKeys<T>(
+  event: KeyboardEvent<HTMLElement>,
+  values: readonly T[],
+  current: T,
+  choose: (value: T) => void,
+) {
+  const keys: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
+  let index = values.indexOf(current);
+  if (event.key in keys) index = (index + keys[event.key] + values.length) % values.length;
+  else if (event.key === "Home") index = 0;
+  else if (event.key === "End") index = values.length - 1;
+  else return;
+  event.preventDefault();
+  choose(values[index]);
+  const group = event.currentTarget;
+  requestAnimationFrame(() => {
+    group.querySelector<HTMLElement>('[aria-checked="true"], [aria-selected="true"]')?.focus();
+  });
+}
+
 export function Segmented<T extends string>({
   label,
   value,
@@ -79,13 +102,19 @@ export function Segmented<T extends string>({
 }) {
   return (
     <Field label={label} hint={hint}>
-      <div className={styles.segmented} role="radiogroup" aria-label={label}>
+      <div /* eslint-disable-line jsx-a11y/interactive-supports-focus -- roving tabindex: the chosen child is the tab stop */
+        className={styles.segmented}
+        role="radiogroup"
+        aria-label={label}
+        onKeyDown={(e) => handleRovingKeys(e, options.map((o) => o.value), value, onChange)}
+      >
         {options.map((option) => (
           <button
             key={option.value}
             type="button"
             role="radio"
             aria-checked={option.value === value}
+            tabIndex={option.value === value ? 0 : -1}
             className={styles.segment}
             onClick={() => onChange(option.value)}
           >
@@ -172,11 +201,24 @@ export function Slider({
   );
 }
 
-const HEX = /^#[0-9a-f]{6}$/i;
-
 // Swatch + hex text box. `allowEmpty` adds a chip (default "Theme") that
 // stores "", which the storefront reads as "inherit" — from the theme, or
 // from the brand kit when `emptyLabel` is "Brand".
+const HEX6 = /^#[0-9a-f]{6}$/i;
+
+// Accepts "#abc", "abc", "#aabbcc" or "aabbcc"; returns "#aabbcc" or null.
+export function normalizeHex(input: string): string | null {
+  const raw = input.trim().replace(/^#/, "");
+  if (/^[0-9a-f]{3}$/i.test(raw)) return `#${raw.split("").map((c) => c + c).join("")}`.toLowerCase();
+  if (/^[0-9a-f]{6}$/i.test(raw)) return `#${raw}`.toLowerCase();
+  return null;
+}
+
+// Swatch + hex text box. `allowEmpty` adds a chip (default "Theme") that
+// stores "", which the storefront reads as "inherit" — from the theme, or
+// from the brand kit when `emptyLabel` is "Brand". The text box keeps its
+// own draft so partial input ("#1", "#12") can be typed; a valid colour is
+// committed as soon as it's complete, an invalid one reverts on blur.
 export function ColorInput({
   label,
   value,
@@ -193,7 +235,26 @@ export function ColorInput({
   emptyLabel?: string;
 }) {
   const id = useId();
+  const hintId = useId();
   const isEmpty = value === "";
+  const [draft, setDraft] = useState(value);
+  const [invalid, setInvalid] = useState(false);
+
+  useEffect(() => {
+    setDraft(value);
+    setInvalid(false);
+  }, [value]);
+
+  const commit = (text: string) => {
+    if (text.trim() === "" && allowEmpty) {
+      onChange("");
+      return true;
+    }
+    const hex = normalizeHex(text);
+    if (hex) onChange(hex);
+    return Boolean(hex);
+  };
+
   return (
     <div className={styles.colorRow}>
       <label className={styles.colorLabel} htmlFor={id}>
@@ -216,7 +277,7 @@ export function ColorInput({
             id={id}
             type="color"
             className={styles.swatch}
-            value={isEmpty ? fallback : value}
+            value={isEmpty ? fallback : HEX6.test(value) ? value : fallback}
             onChange={(e) => onChange(e.currentTarget.value)}
             aria-label={`${label} color`}
           />
@@ -224,17 +285,39 @@ export function ColorInput({
         <input
           className={styles.hexInput}
           type="text"
-          value={isEmpty ? "" : value}
+          value={draft}
           placeholder={isEmpty ? emptyLabel : "#000000"}
           spellCheck={false}
+          autoComplete="off"
           aria-label={`${label} hex value`}
+          aria-invalid={invalid || undefined}
+          aria-describedby={invalid ? hintId : undefined}
           maxLength={7}
           onChange={(e) => {
-            const next = e.currentTarget.value.trim();
-            if (next === "" && allowEmpty) onChange("");
-            else if (HEX.test(next)) onChange(next.toLowerCase());
+            const next = e.currentTarget.value;
+            setDraft(next);
+            if (normalizeHex(next) && next.replace("#", "").length === 6) commit(next);
+            setInvalid(false);
+          }}
+          onBlur={() => {
+            if (draft === value) return;
+            if (!commit(draft)) {
+              setInvalid(true);
+              setDraft(value);
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              if (!commit(draft)) setInvalid(true);
+            }
           }}
         />
+        {invalid && (
+          <span id={hintId} className={styles.fieldError} role="alert">
+            Use a hex color like #1a2b3c
+          </span>
+        )}
       </div>
     </div>
   );

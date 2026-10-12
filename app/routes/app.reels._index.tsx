@@ -5,7 +5,9 @@ import { useFetcher, useLoaderData, useNavigate, useRevalidator } from "react-ro
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { getReel, listReels, upsertReel } from "../models/reel.server";
+import { getReel, listReels, setReelPublished } from "../models/reel.server";
+import { mapLimit } from "../lib/concurrency";
+import { log } from "../lib/logger.server";
 import { deriveReelStatus } from "../models/reel-status";
 import { healProcessingReels } from "../models/reel-media.server";
 import { releaseStreamAssets } from "../models/stream-assets.server";
@@ -13,8 +15,15 @@ import { deleteReelEverywhere } from "../models/reel-lifecycle.server";
 import { getOrCreateShop } from "../models/shop.server";
 import { getViewCountsByReel, reelKey } from "../models/analytics.server";
 import { animatedPreviewUrl, formatDuration } from "../models/reel-media";
-import { importReel, titleFromFilename, uploadNewReel, validateVideoFile } from "../components/reels/upload";
+import {
+  importReel,
+  isVideoFile,
+  titleFromFilename,
+  uploadNewReel,
+  validateVideoFile,
+} from "../components/reels/upload";
 import styles from "../components/reels/reels.module.css";
+import { handleRovingKeys } from "../components/widget-editor/controls";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -41,36 +50,61 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 type LibraryReel = ReturnType<typeof useLoaderData<typeof loader>>["reels"][number];
 
-export const action = async ({ request }: ActionFunctionArgs) => {
+const REEL_GID = /^gid:\/\/shopify\/Metaobject\/\d+$/;
+const BULK_LIMIT = 100;
+
+type BulkResult = { ok: boolean; error: string | null; message: string | null; failedIds: string[] };
+
+export const action = async ({ request }: ActionFunctionArgs): Promise<BulkResult> => {
   const { admin, session } = await authenticate.admin(request);
   const shop = await getOrCreateShop(session.shop);
   const formData = await request.formData();
   const intent = String(formData.get("intent") ?? "");
-  const ids = formData.getAll("reelId").map(String).slice(0, 250);
+  const ids = [...new Set(formData.getAll("reelId").map(String))].filter((id) => REEL_GID.test(id));
 
-  try {
-    if (intent === "bulk-publish" || intent === "bulk-unpublish") {
-      const published = intent === "bulk-publish";
-      for (const id of ids) {
-        const reel = await getReel(admin, id);
-        if (reel && reel.published !== published) {
-          await upsertReel(admin, reel.handle, reel.title, published, reel.config);
-        }
-      }
-      return { ok: true, error: null, message: `${ids.length} video${ids.length === 1 ? "" : "s"} ${published ? "published" : "unpublished"}` };
-    }
-    if (intent === "bulk-delete") {
-      for (const id of ids) {
-        const reel = await getReel(admin, id);
-        if (reel) await deleteReelEverywhere(admin, shop.id, reel);
-      }
-      return { ok: true, error: null, message: `${ids.length} video${ids.length === 1 ? "" : "s"} deleted` };
-    }
-    return { ok: false, error: "Unknown request", message: null };
-  } catch (e) {
-    if (e instanceof Response) throw e;
-    return { ok: false, error: "Some videos couldn't be updated. Try again.", message: null };
+  if (ids.length === 0) return { ok: false, error: "Select at least one video.", message: null, failedIds: [] };
+  if (ids.length > BULK_LIMIT) {
+    return { ok: false, error: `Select up to ${BULK_LIMIT} videos at a time.`, message: null, failedIds: [] };
   }
+
+  const run = async (task: (id: string) => Promise<void>) => {
+    const results = await mapLimit(ids, 4, task);
+    const failedIds = ids.filter((_, i) => results[i].status === "rejected");
+    results.forEach((r, i) => {
+      if (r.status === "rejected") {
+        if (r.reason instanceof Response) throw r.reason;
+        log.error("reels.bulk_item_failed", { shop: session.shop, intent, reelId: ids[i] }, r.reason);
+      }
+    });
+    return failedIds;
+  };
+
+  const plural = (n: number) => `${n} video${n === 1 ? "" : "s"}`;
+
+  if (intent === "bulk-publish" || intent === "bulk-unpublish") {
+    const published = intent === "bulk-publish";
+    const failedIds = await run(async (id) => {
+      const reel = await getReel(admin, id);
+      if (reel && reel.published !== published) await setReelPublished(admin, reel.handle, published);
+    });
+    const done = ids.length - failedIds.length;
+    return failedIds.length
+      ? { ok: false, error: `${plural(failedIds.length)} couldn't be updated — they're still selected. Try again.`, message: null, failedIds }
+      : { ok: true, error: null, message: `${plural(done)} ${published ? "published" : "unpublished"}`, failedIds };
+  }
+
+  if (intent === "bulk-delete") {
+    const failedIds = await run(async (id) => {
+      const reel = await getReel(admin, id);
+      if (reel) await deleteReelEverywhere(admin, shop.id, reel);
+    });
+    const done = ids.length - failedIds.length;
+    return failedIds.length
+      ? { ok: false, error: `${plural(failedIds.length)} couldn't be deleted — they're still selected. Try again.`, message: null, failedIds }
+      : { ok: true, error: null, message: `${plural(done)} deleted`, failedIds };
+  }
+
+  return { ok: false, error: "Unknown request", message: null, failedIds: [] };
 };
 
 /* ------------------------------------------------------------------ page */
@@ -100,6 +134,9 @@ export default function ReelsLibrary() {
   const [view, setView] = useState<"grid" | "list">("grid");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [dragging, setDragging] = useState(false);
+  // Enter/leave fire for every child element crossed; count them so the
+  // overlay only clears when the pointer really leaves the page area.
+  const dragDepth = useRef(0);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   useEffect(() => {
@@ -111,10 +148,14 @@ export default function ReelsLibrary() {
     }
   }, []);
 
+  // The selection stays (with the bar showing progress) until the result
+  // arrives; anything that failed stays selected so it can be retried.
   useEffect(() => {
     if (bulkFetcher.state !== "idle" || !bulkFetcher.data) return;
-    if (bulkFetcher.data.ok && bulkFetcher.data.message) shopify.toast.show(bulkFetcher.data.message);
-    else if (bulkFetcher.data.error) shopify.toast.show(bulkFetcher.data.error, { isError: true });
+    const result = bulkFetcher.data;
+    if (result.ok && result.message) shopify.toast.show(result.message);
+    else if (result.error) shopify.toast.show(result.error, { isError: true });
+    setSelected(new Set(result.failedIds ?? []));
   }, [bulkFetcher.state, bulkFetcher.data, shopify]);
 
   // Selection survives filtering but forgets reels that no longer exist.
@@ -158,8 +199,9 @@ export default function ReelsLibrary() {
     formData.set("intent", intent);
     selected.forEach((id) => formData.append("reelId", id));
     bulkFetcher.submit(formData, { method: "post" });
-    setSelected(new Set());
   };
+  const bulkBusy = bulkFetcher.state !== "idle";
+  const [deleteCount, setDeleteCount] = useState(0);
 
   const open = (reel: LibraryReel) => navigate(`/app/reels/${reel.key}`);
 
@@ -170,10 +212,30 @@ export default function ReelsLibrary() {
 
   const onDrop = (event: DragEvent) => {
     event.preventDefault();
+    dragDepth.current = 0;
     setDragging(false);
-    const files = Array.from(event.dataTransfer.files).filter((f) => f.type.startsWith("video/"));
+    const all = Array.from(event.dataTransfer.files);
+    const files = all.filter(isVideoFile);
     if (files.length) openUpload(files);
+    if (files.length < all.length) {
+      shopify.toast.show(`${all.length - files.length} file${all.length - files.length === 1 ? " isn't a" : "s aren't"} video${all.length - files.length === 1 ? "" : "s"} and ${all.length - files.length === 1 ? "was" : "were"} skipped`, { isError: true });
+    }
   };
+
+  useEffect(() => {
+    const reset = () => {
+      dragDepth.current = 0;
+      setDragging(false);
+    };
+    window.addEventListener("dragend", reset);
+    window.addEventListener("drop", reset);
+    return () => {
+      window.removeEventListener("dragend", reset);
+      window.removeEventListener("drop", reset);
+    };
+  }, []);
+
+  const hiddenSelected = [...selected].filter((id) => !shown.some((r) => r.id === id)).length;
 
   const allShownSelected = shown.length > 0 && shown.every((r) => selected.has(r.id));
 
@@ -188,14 +250,18 @@ export default function ReelsLibrary() {
 
       <div
         className={styles.library}
-        onDragOver={(e) => {
+        onDragEnter={(e) => {
           if (Array.from(e.dataTransfer.types).includes("Files")) {
-            e.preventDefault();
+            dragDepth.current += 1;
             setDragging(true);
           }
         }}
-        onDragLeave={(e) => {
-          if (e.currentTarget === e.target) setDragging(false);
+        onDragOver={(e) => {
+          if (Array.from(e.dataTransfer.types).includes("Files")) e.preventDefault();
+        }}
+        onDragLeave={() => {
+          dragDepth.current = Math.max(0, dragDepth.current - 1);
+          if (dragDepth.current === 0) setDragging(false);
         }}
         onDrop={onDrop}
       >
@@ -211,13 +277,12 @@ export default function ReelsLibrary() {
         ) : (
           <>
             <div className={styles.toolbar}>
-              <div className={styles.filters} role="tablist" aria-label="Filter videos">
-                {FILTERS.filter((f) => f.id === "all" || counts[f.id] > 0).map((f) => (
+              <div className={styles.filters} role="group" aria-label="Filter videos">
+                {FILTERS.filter((f) => f.id === "all" || f.id === filter || counts[f.id] > 0).map((f) => (
                   <button
                     key={f.id}
                     type="button"
-                    role="tab"
-                    aria-selected={filter === f.id}
+                    aria-pressed={filter === f.id}
                     className={styles.filter}
                     onClick={() => setFilter(f.id)}
                   >
@@ -246,11 +311,30 @@ export default function ReelsLibrary() {
                     <option value="title">Title A–Z</option>
                   </select>
                 </label>
-                <div className={styles.viewToggle} role="radiogroup" aria-label="Layout">
-                  <button type="button" role="radio" aria-checked={view === "grid"} aria-label="Grid" onClick={() => setViewMode("grid")}>
+                <div /* eslint-disable-line jsx-a11y/interactive-supports-focus -- roving tabindex: the chosen child is the tab stop */
+                  className={styles.viewToggle}
+                  role="radiogroup"
+                  aria-label="Layout"
+                  onKeyDown={(e) => handleRovingKeys(e, ["grid", "list"] as const, view, setViewMode)}
+                >
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={view === "grid"}
+                    tabIndex={view === "grid" ? 0 : -1}
+                    aria-label="Grid"
+                    onClick={() => setViewMode("grid")}
+                  >
                     <GridIcon />
                   </button>
-                  <button type="button" role="radio" aria-checked={view === "list"} aria-label="List" onClick={() => setViewMode("list")}>
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={view === "list"}
+                    tabIndex={view === "list" ? 0 : -1}
+                    aria-label="List"
+                    onClick={() => setViewMode("list")}
+                  >
                     <ListIcon />
                   </button>
                 </div>
@@ -300,8 +384,13 @@ export default function ReelsLibrary() {
         )}
 
         {selected.size > 0 && (
-          <div className={styles.bulkBar} role="region" aria-label="Bulk actions">
-            <span className={styles.bulkCount}>{selected.size} selected</span>
+          <div className={styles.bulkBar} role="region" aria-label="Bulk actions" aria-busy={bulkBusy}>
+            <span className={styles.bulkCount}>
+              {bulkBusy ? `Working on ${selected.size}…` : `${selected.size} selected`}
+              {!bulkBusy && hiddenSelected > 0 && (
+                <span className={styles.bulkHidden}> ({hiddenSelected} not shown)</span>
+              )}
+            </span>
             <button
               type="button"
               className={styles.bulkLink}
@@ -310,13 +399,29 @@ export default function ReelsLibrary() {
               {allShownSelected ? "Clear" : `Select all ${shown.length}`}
             </button>
             <span className={styles.bulkSpacer} />
-            <s-button onClick={() => bulk("bulk-publish")} loading={bulkFetcher.state !== "idle"}>
+            <s-button
+              onClick={() => bulk("bulk-publish")}
+              disabled={bulkBusy}
+              loading={bulkBusy && bulkFetcher.formData?.get("intent") === "bulk-publish"}
+            >
               Publish
             </s-button>
-            <s-button onClick={() => bulk("bulk-unpublish")} loading={bulkFetcher.state !== "idle"}>
+            <s-button
+              onClick={() => bulk("bulk-unpublish")}
+              disabled={bulkBusy}
+              loading={bulkBusy && bulkFetcher.formData?.get("intent") === "bulk-unpublish"}
+            >
               Unpublish
             </s-button>
-            <s-button tone="critical" commandFor="bulk-delete-modal" command="--show">
+            <s-button
+              tone="critical"
+              disabled={bulkBusy}
+              loading={bulkBusy && bulkFetcher.formData?.get("intent") === "bulk-delete"}
+              onClick={() => {
+                setDeleteCount(selected.size);
+                shopify.modal.show("bulk-delete-modal");
+              }}
+            >
               Delete
             </s-button>
           </div>
@@ -325,7 +430,7 @@ export default function ReelsLibrary() {
 
       <UploadModal initialFiles={pendingFiles} onClear={() => setPendingFiles([])} />
       <ImportModal />
-      <s-modal id="bulk-delete-modal" heading={`Delete ${selected.size} video${selected.size === 1 ? "" : "s"}?`}>
+      <s-modal id="bulk-delete-modal" heading={`Delete ${deleteCount} video${deleteCount === 1 ? "" : "s"}?`}>
         <s-paragraph>
           They&rsquo;ll be removed from your store, from any widget showing them, and from their tagged products. This
           can&rsquo;t be undone.
@@ -350,6 +455,14 @@ export default function ReelsLibrary() {
 }
 
 /* --------------------------------------------------------------- tiles */
+
+function statusText(reel: LibraryReel) {
+  if (reel.status === "failed") return "Upload failed";
+  if (reel.status === "draft") return "No video";
+  if (reel.status === "processing") return "Processing";
+  if (reel.replacing) return "Replacing video";
+  return reel.published ? "Live" : "Draft";
+}
 
 function StatusPill({ reel }: { reel: LibraryReel }) {
   if (reel.status === "failed") return <span className={styles.pill} data-tone="critical">Failed</span>;
@@ -398,7 +511,9 @@ function ReelTile({
         onMouseLeave={() => setHovering(false)}
         onFocus={() => setHovering(true)}
         onBlur={() => setHovering(false)}
-        aria-label={selecting ? `Select ${reel.title}` : `Edit ${reel.title}`}
+        aria-label={`${selecting ? "Select" : "Edit"} ${reel.title}. ${statusText(reel)}. ${
+          reel.productCount === 0 ? "No products" : `${reel.productCount} product${reel.productCount === 1 ? "" : "s"}`
+        }. ${reel.views} views.`}
       >
         <span className={styles.poster}>
           {reel.posterUrl ? (
@@ -616,11 +731,28 @@ function UploadModal({ initialFiles, onClear }: { initialFiles: File[]; onClear:
   const update = (id: string, patch: Partial<QueueItem>) =>
     setQueue((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
 
+  // The upload loop reads titles from here so edits made while earlier
+  // files upload are still used.
+  const queueRef = useRef(queue);
+  queueRef.current = queue;
+
+  // Closing the tab mid-upload loses the file; warn first.
+  useEffect(() => {
+    if (!running) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [running]);
+
   const start = async () => {
     setRunning(true);
     let succeeded = 0;
-    for (const item of queue) {
-      if (item.state === "done" || item.invalid) continue;
+    for (const { id } of queue) {
+      const item = queueRef.current.find((q) => q.id === id);
+      if (!item || item.state === "done" || item.invalid) continue;
       update(item.id, { state: "uploading", progress: 0, error: undefined });
       try {
         await uploadNewReel(
@@ -631,6 +763,8 @@ function UploadModal({ initialFiles, onClear }: { initialFiles: File[]; onClear:
         update(item.id, { state: "done", progress: 1 });
         succeeded += 1;
       } catch (error) {
+        // A failed upload leaves no half-made video behind (see upload.ts);
+        // pressing Upload again retries it from scratch.
         update(item.id, { state: "error", error: error instanceof Error ? error.message : "Upload failed." });
       }
     }
@@ -642,7 +776,7 @@ function UploadModal({ initialFiles, onClear }: { initialFiles: File[]; onClear:
   };
 
   const pending = queue.filter((q) => q.state !== "done" && !q.invalid).length;
-  const allDone = queue.length > 0 && pending === 0;
+  const allDone = queue.length > 0 && pending === 0 && queue.some((q) => q.state === "done");
 
   const reset = () => {
     if (running) return;
@@ -693,7 +827,7 @@ function UploadModal({ initialFiles, onClear }: { initialFiles: File[]; onClear:
                   <input
                     className={styles.queueTitle}
                     value={item.title}
-                    aria-label="Title"
+                    aria-label={`Title for ${item.file.name}`}
                     disabled={item.state !== "ready" && item.state !== "error"}
                     onChange={(e) => update(item.id, { title: e.currentTarget.value })}
                   />
@@ -772,10 +906,12 @@ function ImportModal() {
   const [published, setPublished] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [rights, setRights] = useState(false);
   const { products, setProducts, pick } = useProductPicker();
   const platform = /instagram\.com/i.test(url) ? "Instagram" : /tiktok\.com/i.test(url) ? "TikTok" : null;
 
   const submit = async () => {
+    if (!platform || !rights || busy) return;
     setBusy(true);
     setError(null);
     try {
@@ -805,9 +941,17 @@ function ImportModal() {
         setTitle("");
         setError(null);
         setProducts([]);
+        setPublished(true);
+        setRights(false);
       }}
     >
-      <div className={styles.modalBody}>
+      <form
+        className={styles.modalBody}
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit();
+        }}
+      >
         {error && <s-banner tone="critical">{error}</s-banner>}
         <label className={styles.fieldBlock}>
           <span className={styles.fieldLabel}>Post link</span>
@@ -837,8 +981,13 @@ function ImportModal() {
             onChange={(e) => setPublished(e.currentTarget.checked)}
           />
         </label>
-      </div>
-      <s-button slot="primary-action" variant="primary" loading={busy} disabled={!platform} onClick={submit}>
+        <label className={styles.rightsRow} htmlFor="import-rights">
+          <input id="import-rights" type="checkbox" checked={rights} onChange={(e) => setRights(e.currentTarget.checked)} />
+          <span>I own this video or have permission to use it on my store.</span>
+        </label>
+        <button type="submit" hidden aria-hidden="true" tabIndex={-1} />
+      </form>
+      <s-button slot="primary-action" variant="primary" loading={busy} disabled={!platform || !rights} onClick={submit}>
         Import video
       </s-button>
       <s-button slot="secondary-actions" commandFor="import-modal" command="--hide" disabled={busy}>

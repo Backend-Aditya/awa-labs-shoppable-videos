@@ -42,7 +42,6 @@
   place-items: center;
 }
 
-.toolbarGroup button[aria-selected="true"],
 .toolbarGroup button[aria-checked="true"] {
   background: #fff;
   color: #303030;

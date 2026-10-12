@@ -23,7 +23,7 @@ import { listWidgetsForShop } from "../models/widget.server";
 import { getKindMeta } from "../models/widget-kinds";
 import type { WidgetConfig } from "../models/widget-kinds";
 import { getReelStats } from "../models/analytics.server";
-import { Card, Field, TextInput } from "../components/widget-editor/controls";
+import { Card, Field, TextInput, handleRovingKeys } from "../components/widget-editor/controls";
 import { useEditorGuards } from "../components/useEditorGuards";
 import { ViewsChart } from "../components/ViewsChart";
 import { replaceReelVideo, validateVideoFile } from "../components/reels/upload";
@@ -402,7 +402,12 @@ export default function ReelEditor() {
             </button>
           </div>
 
-          <div className={editorStyles.tabs} role="tablist" aria-label="Video settings">
+          <div /* eslint-disable-line jsx-a11y/interactive-supports-focus -- roving tabindex: the chosen child is the tab stop */
+            className={editorStyles.tabs}
+            role="tablist"
+            aria-label="Video settings"
+            onKeyDown={(e) => handleRovingKeys(e, TABS.map((t) => t.id), tab, setTab)}
+          >
             {TABS.map((t) => (
               <button
                 key={t.id}
@@ -411,6 +416,7 @@ export default function ReelEditor() {
                 id={`tab-${t.id}`}
                 aria-selected={tab === t.id}
                 aria-controls={`panel-${t.id}`}
+                tabIndex={tab === t.id ? 0 : -1}
                 className={editorStyles.tab}
                 onClick={() => setTab(t.id)}
               >

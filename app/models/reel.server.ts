@@ -190,6 +190,7 @@ export async function getReel(
     query GetReel($id: ID!) {
       metaobject(id: $id) {
         id
+        type
         handle
         title: field(key: "title") { jsonValue }
         published: field(key: "published") { jsonValue }
@@ -204,6 +205,10 @@ export async function getReel(
 
   const node = json.data.metaobject;
   if (!node) return null;
+  // Ids come from the browser; only this app's reel type is ever a reel
+  // (another metaobject type in the same shop must not be mistaken for one).
+  if (node.type && !/(^|--)reel$/.test(node.type)) return null;
+  if (!node.config) return null;
 
   return {
     id: node.id,
@@ -278,6 +283,34 @@ export async function updateReelConfig(
     published: toBool(node.published.jsonValue),
     config: node.config.jsonValue,
   };
+}
+
+// Flips only the published field. Bulk publish used to rewrite the whole
+// config it had read moments earlier, which could revert a concurrent
+// Stream webhook update (playback URLs, failure markers).
+export async function setReelPublished(
+  admin: AdminGraphqlClient,
+  handle: string,
+  published: boolean,
+): Promise<void> {
+  const response = await admin.graphql(
+    `#graphql
+    mutation SetReelPublished($handle: MetaobjectHandleInput!, $metaobject: MetaobjectUpsertInput!) {
+      metaobjectUpsert(handle: $handle, metaobject: $metaobject) {
+        metaobject { id }
+        userErrors { field message }
+      }
+    }`,
+    {
+      variables: {
+        handle: { type: "$app:reel", handle },
+        metaobject: { fields: [{ key: "published", value: String(published) }] },
+      },
+    },
+  );
+  const json = await response.json();
+  assertNoGraphqlErrors(json);
+  throwOnUserErrors(json.data.metaobjectUpsert.userErrors);
 }
 
 export async function deleteReel(

@@ -797,3 +797,35 @@
   display: flex;
   flex-direction: column;
 }
+
+/* ---------- validation ---------- */
+
+.fieldError {
+  display: block;
+  margin: 0;
+  color: #8e1f0b;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.colorControls {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.colorControls .fieldError {
+  flex-basis: 100%;
+  text-align: right;
+}
+
+.hexInput[aria-invalid="true"],
+.input[aria-invalid="true"] {
+  border-color: #8e1f0b;
+  background: #fff8f7;
+}
+
+/* The colour input sits inside a clipped wrapper; ring the wrapper. */
+.swatchWrap:focus-within {
+  outline: 2px solid var(--ed-focus);
+  outline-offset: 2px;
+}

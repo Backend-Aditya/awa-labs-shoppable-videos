@@ -106,7 +106,7 @@
   border-color: #b5b5b5;
 }
 
-.filter[aria-selected="true"] {
+.filter[aria-pressed="true"] {
   background: #303030;
   border-color: #303030;
   color: #fff;
@@ -882,4 +882,24 @@
     transition: none;
     animation: none;
   }
+}
+
+.bulkHidden {
+  font-weight: 450;
+  color: #616161;
+}
+
+.rightsRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f7f7f7;
+  cursor: pointer;
+}
+
+.rightsRow input {
+  margin: 3px 0 0;
+  accent-color: #303030;
 }

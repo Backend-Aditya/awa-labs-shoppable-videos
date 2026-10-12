@@ -15,6 +15,7 @@ import type { WidgetConfig, WidgetKind } from "../models/widget-kinds";
 import type { Widget } from "@prisma/client";
 import { EmptyState } from "../components/EmptyState";
 import { KindSchematic } from "../components/widget-editor/KindSchematic";
+import { handleRovingKeys } from "../components/widget-editor/controls";
 import styles from "../components/widget-editor/list.module.css";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -101,7 +102,12 @@ function CreateWidgetModal({ liveKinds }: { liveKinds: Set<string> }) {
     <s-modal id="create-widget-modal" heading="Create a widget" size="large">
       <div className={styles.createBody}>
         {fetcher.data?.error && <s-banner tone="critical">{fetcher.data.error}</s-banner>}
-        <div className={styles.kindGrid} role="radiogroup" aria-label="Widget type">
+        <div /* eslint-disable-line jsx-a11y/interactive-supports-focus -- roving tabindex: the chosen child is the tab stop */
+          className={styles.kindGrid}
+          role="radiogroup"
+          aria-label="Widget type"
+          onKeyDown={(e) => handleRovingKeys(e, WIDGET_KIND_ORDER, kind, setKind)}
+        >
           {WIDGET_KIND_ORDER.map((k) => {
             const m = getKindMeta(k)!;
             return (
@@ -110,6 +116,7 @@ function CreateWidgetModal({ liveKinds }: { liveKinds: Set<string> }) {
                 type="button"
                 role="radio"
                 aria-checked={k === kind}
+                tabIndex={k === kind ? 0 : -1}
                 className={styles.kindOption}
                 onClick={() => setKind(k)}
               >

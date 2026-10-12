@@ -47,8 +47,16 @@ export function titleFromFilename(name: string): string {
   return base ? base.charAt(0).toUpperCase() + base.slice(1) : "Untitled video";
 }
 
+const VIDEO_EXTENSIONS = /\.(mp4|m4v|mov|webm|mkv|avi|wmv|mpe?g|3gp|ogv)$/i;
+
+// Some systems (notably Windows for .mov/.mkv) report an empty MIME type,
+// so fall back to the file extension.
+export function isVideoFile(file: File): boolean {
+  return file.type.startsWith("video/") || (!file.type && VIDEO_EXTENSIONS.test(file.name));
+}
+
 export function validateVideoFile(file: File): string | null {
-  if (!file.type.startsWith("video/")) return "Not a video file.";
+  if (!isVideoFile(file)) return "Not a video file.";
   if (file.size > MAX_UPLOAD_BYTES) return "Larger than 200 MB.";
   return null;
 }
@@ -63,10 +71,16 @@ export async function uploadNewReel(
   try {
     await sendToCloudflare(uploadURL, file, onProgress);
   } catch (error) {
-    await call({ intent: "failed", reelId }).catch(() => {});
+    // Nothing was uploaded: remove the new reel (and its empty Stream video)
+    // so a retry doesn't leave a trail of "Failed" tiles.
+    await discardFailedUpload(reelId);
     throw error;
   }
   return reelId;
+}
+
+export async function discardFailedUpload(reelId: string): Promise<void> {
+  await call({ intent: "discard", reelId }).catch(() => {});
 }
 
 export async function importReel(options: {
@@ -75,7 +89,7 @@ export async function importReel(options: {
   productIds: string[];
   sourceUrl: string;
 }): Promise<string> {
-  const { reelId } = await call({ intent: "import", ...options });
+  const { reelId } = await call({ intent: "import", ...options, rightsConfirmed: true });
   if (!reelId) throw new Error("Import failed.");
   return reelId;
 }
