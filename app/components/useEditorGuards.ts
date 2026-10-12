@@ -9,7 +9,15 @@ import { useEffect, useRef } from "react";
 import { useBlocker, useNavigate } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 
-export function useEditorGuards({ dirty, onSave }: { dirty: boolean; onSave: () => void }) {
+export function useEditorGuards({
+  dirty,
+  onSave,
+  saving = false,
+}: {
+  dirty: boolean;
+  onSave: () => void;
+  saving?: boolean;
+}) {
   const shopify = useAppBridge();
   const navigate = useNavigate();
   const bypass = useRef(false);
@@ -20,12 +28,12 @@ export function useEditorGuards({ dirty, onSave }: { dirty: boolean; onSave: () 
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
         event.preventDefault();
-        if (dirty) saveRef.current();
+        if (dirty && !saving) saveRef.current();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [dirty]);
+  }, [dirty, saving]);
 
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
@@ -36,15 +44,29 @@ export function useEditorGuards({ dirty, onSave }: { dirty: boolean; onSave: () 
     if (blocker.state !== "blocked") return;
     const target = `${blocker.location.pathname}${blocker.location.search}`;
     blocker.reset();
-    const confirm = shopify.saveBar?.leaveConfirmation?.();
-    Promise.resolve(confirm).then(() => {
+    const leave = () => {
       bypass.current = true;
       navigate(target);
-    });
+    };
+    const confirmLeave = shopify.saveBar?.leaveConfirmation;
+    if (confirmLeave) {
+      // Resolves only when the merchant confirms leaving; cancel = stay.
+      confirmLeave().then(leave).catch(() => {});
+    } else if (window.confirm("Leave without saving? Your changes will be lost.")) {
+      leave();
+    }
   }, [blocker, navigate, shopify]);
 
   // A fresh page (e.g. after duplicating) starts unguarded again.
   useEffect(() => {
     if (!dirty) bypass.current = false;
   }, [dirty]);
+
+  // For navigation the page itself starts after an action that makes the
+  // unsaved edits moot (delete, duplicate): skip the leave prompt once.
+  return {
+    allowNextNavigation: () => {
+      bypass.current = true;
+    },
+  };
 }

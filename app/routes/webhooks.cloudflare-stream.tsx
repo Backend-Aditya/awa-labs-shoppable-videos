@@ -20,6 +20,9 @@ import {
 } from "../models/cloudflare-stream.server";
 import { getReel, updateReelConfig } from "../models/reel.server";
 import { applyReadyVideo } from "../models/reel-media.server";
+import { releaseStreamAssets } from "../models/stream-assets.server";
+import { log } from "../lib/logger.server";
+import prisma from "../db.server";
 
 interface CloudflareWebhookPayload {
   uid: string;
@@ -60,9 +63,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     );
     try {
       const { admin } = await unauthenticated.admin(shop);
-      await updateReelConfig(admin, reelId, { uploadFailedAt: new Date().toISOString(), replacingStreamUid: "" });
+      const failedReel = await getReel(admin, reelId);
+      const isFirstUpload = failedReel && !failedReel.config.hlsManifestUrl && failedReel.config.cloudflareStreamUid === payload.uid;
+      await updateReelConfig(admin, reelId, {
+        uploadFailedAt: new Date().toISOString(),
+        replacingStreamUid: "",
+        ...(isFirstUpload ? { cloudflareStreamUid: "" } : {}),
+      });
+      const shopRow = await prisma.shop.findUnique({ where: { shopDomain: shop } });
+      if (shopRow) await releaseStreamAssets(admin, shopRow.id, [payload.uid]);
     } catch (error) {
-      console.error("Could not mark reel as failed:", error);
+      log.error("stream.webhook_mark_failed_error", { shop, reelId, uid: payload.uid }, error);
     }
     return new Response("OK", { status: 200 });
   }
@@ -83,11 +94,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const expected = reel.config.replacingStreamUid || reel.config.cloudflareStreamUid;
     if (expected && expected !== payload.uid) return new Response("OK", { status: 200 });
 
-    await applyReadyVideo(admin, reel, details);
+    const { replacedUid } = await applyReadyVideo(admin, reel, details);
+    if (replacedUid) {
+      const shopRow = await prisma.shop.findUnique({ where: { shopDomain: shop } });
+      if (shopRow) await releaseStreamAssets(admin, shopRow.id, [replacedUid]);
+    }
 
     return new Response("OK", { status: 200 });
   } catch (error) {
-    console.error("Cloudflare Stream webhook processing failed:", error);
+    log.error("stream.webhook_failed", { shop, reelId, uid: payload.uid }, error);
     return new Response("Processing failed", { status: 500 });
   }
 };

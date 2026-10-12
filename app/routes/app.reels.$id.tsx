@@ -1,4 +1,4 @@
-import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
+import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs, ShouldRevalidateFunction } from "react-router";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFetcher, useLoaderData, useNavigate, useRevalidator } from "react-router";
@@ -15,6 +15,7 @@ import {
 import type { ReelConfig } from "../models/reel.server";
 import { deriveReelStatus } from "../models/reel-status";
 import { healProcessingReels } from "../models/reel-media.server";
+import { releaseStreamAssets } from "../models/stream-assets.server";
 import { deleteReelEverywhere } from "../models/reel-lifecycle.server";
 import { formatDuration, isStreamThumbnail, posterAt } from "../models/reel-media";
 import { getOrCreateShop } from "../models/shop.server";
@@ -37,11 +38,15 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const shop = await getOrCreateShop(session.shop);
   const found = await getReel(admin, toGid(params.id!));
   if (!found) throw new Response("Video not found", { status: 404 });
-  const [reel] = await healProcessingReels(admin, [found]);
+  const [reel] = await healProcessingReels(admin, [found], 1, (uids) => releaseStreamAssets(admin, shop.id, uids));
 
+  let productsError = false;
   const [products, stats, widgets] = await Promise.all([
     getProductsByIds(admin, reel.config.productIds).catch((e) => {
       if (e instanceof Response) throw e;
+      // Remembered so the editor never mistakes "couldn't load" for "none
+      // tagged" and saves an empty list over the real one.
+      productsError = true;
       return [];
     }),
     getReelStats(shop.id, reel.id, 30),
@@ -51,6 +56,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const byId = new Map(products.map((p) => [p.id, p]));
   return {
     reel,
+    productsError,
     status: deriveReelStatus(reel.config),
     products: reel.config.productIds
       .map((id) => byId.get(id))
@@ -89,7 +95,10 @@ type SavePayload = {
 
 type ActionResult = { ok: boolean; error: string | null; deleted?: boolean; duplicateKey?: string };
 
-const SAFE_LINK = /^(https?:\/\/[^\s]+|\/[^\s]*)$/i;
+// https:// links, or paths on the store. Protocol-relative "//host" is
+// rejected: it would send shoppers off-site while looking like a path.
+const SAFE_LINK = /^(https?:\/\/[^\s]+|\/(?!\/)[^\s]*)$/i;
+export const MAX_PRODUCTS = 50;
 
 export const action = async ({ request, params }: ActionFunctionArgs): Promise<ActionResult> => {
   const { admin, session } = await authenticate.admin(request);
@@ -103,8 +112,9 @@ export const action = async ({ request, params }: ActionFunctionArgs): Promise<A
       const title = String(body.title ?? "").trim().slice(0, 120);
       if (!title) return { ok: false, error: "Add a title for this video." };
 
+      // Absent = the products weren't edited; keep what's stored.
       const productIds = Array.isArray(body.productIds)
-        ? [...new Set(body.productIds.map(String).filter((id) => /^gid:\/\/shopify\/Product\/\d+$/.test(id)))].slice(0, 50)
+        ? [...new Set(body.productIds.map(String).filter((id) => /^gid:\/\/shopify\/Product\/\d+$/.test(id)))].slice(0, MAX_PRODUCTS)
         : reel.config.productIds;
 
       const linkUrl = String(body.linkUrl ?? "").trim();
@@ -150,7 +160,9 @@ export const action = async ({ request, params }: ActionFunctionArgs): Promise<A
 
     if (intent === "duplicate") {
       // Same Stream video, separate catalogue entry; starts as a draft.
-      const copy = await upsertReel(admin, generateReelHandle(`${reel.title} copy`), `${reel.title} (copy)`, false, reel.config);
+      const copyConfig: ReelConfig = { ...reel.config, replacingStreamUid: undefined, uploadFailedAt: undefined };
+      const copyTitle = `${reel.title.slice(0, 112)} (copy)`;
+      const copy = await upsertReel(admin, generateReelHandle(copyTitle), copyTitle, false, copyConfig);
       if (reel.config.productIds.length > 0) {
         await syncProductReelMetafields(admin, copy.id, [], reel.config.productIds);
       }
@@ -223,6 +235,8 @@ export default function ReelEditor() {
   useEffect(() => setState(baseline), [baselineKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const dirty = comparable(state) !== baselineKey;
+  const productsTouched =
+    JSON.stringify(state.products.map((p) => p.id)) !== JSON.stringify(baseline.products.map((p) => p.id));
   const saving = saveFetcher.state !== "idle";
   const update = (patch: Partial<EditorState>) => setState((prev) => ({ ...prev, ...patch }));
 
@@ -237,13 +251,16 @@ export default function ReelEditor() {
     if (actionFetcher.state !== "idle" || !result) return;
     if (result.deleted) {
       shopify.toast.show("Video deleted");
+      allowNextNavigation();
       navigate("/app/reels");
     } else if (result.duplicateKey) {
       shopify.toast.show("Copy created as a draft");
+      allowNextNavigation();
       navigate(`/app/reels/${result.duplicateKey}`);
     } else if (result.error) {
       shopify.toast.show(result.error, { isError: true });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- allowNextNavigation only flips a ref
   }, [actionFetcher.state, actionFetcher.data, navigate, shopify]);
 
   // While Stream is still processing, re-check every 10s so the page flips
@@ -260,7 +277,7 @@ export default function ReelEditor() {
       JSON.stringify({
         title: state.title,
         published: state.published,
-        productIds: state.products.map((p) => p.id),
+        ...(productsTouched ? { productIds: state.products.map((p) => p.id) } : {}),
         coverTimeSeconds: state.coverTimeSeconds,
         linkLabel: state.linkLabel,
         linkUrl: state.linkUrl,
@@ -271,7 +288,7 @@ export default function ReelEditor() {
     );
   };
 
-  useEditorGuards({ dirty, onSave: save });
+  const { allowNextNavigation } = useEditorGuards({ dirty, onSave: save, saving });
 
   const submitIntent = (intent: "delete" | "duplicate") => {
     const formData = new FormData();
@@ -311,7 +328,12 @@ export default function ReelEditor() {
       <s-button slot="secondary-actions" onClick={() => fileRef.current?.click()} disabled={replaceProgress !== null}>
         Replace video
       </s-button>
-      <s-button slot="secondary-actions" onClick={() => submitIntent("duplicate")}>
+      <s-button
+        slot="secondary-actions"
+        onClick={() => submitIntent("duplicate")}
+        disabled={actionFetcher.state !== "idle"}
+        loading={actionFetcher.state !== "idle" && actionFetcher.formData?.get("intent") === "duplicate"}
+      >
         Duplicate
       </s-button>
       <s-button slot="secondary-actions" tone="critical" commandFor="delete-reel-modal" command="--show">
@@ -402,7 +424,15 @@ export default function ReelEditor() {
 
           <div className={editorStyles.tabPanel} role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
             {tab === "details" && <DetailsTab state={state} update={update} source={reel.config.source} />}
-            {tab === "products" && <ProductsTab products={state.products} onChange={(products) => update({ products })} />}
+            {tab === "products" &&
+              (data.productsError ? (
+                <s-banner tone="critical" heading="Couldn't load this video's products">
+                  Shopify didn&rsquo;t respond in time. Reload the page to edit products — your other changes can still be
+                  saved and the tags are untouched.
+                </s-banner>
+              ) : (
+                <ProductsTab products={state.products} onChange={(products) => update({ products })} />
+              ))}
             {tab === "cover" && (
               <CoverTab
                 posterUrl={reel.config.posterUrl ?? null}
@@ -795,6 +825,16 @@ function ShopPreview({ state }: { state: EditorState }) {
     </div>
   );
 }
+
+
+// After a delete the page navigates away itself; re-running this loader
+// first would 404 and replace the page with the error screen.
+export const shouldRevalidate: ShouldRevalidateFunction = ({ actionResult, defaultShouldRevalidate }) => {
+  if (actionResult && typeof actionResult === "object" && "deleted" in actionResult && actionResult.deleted) {
+    return false;
+  }
+  return defaultShouldRevalidate;
+};
 
 export const headers: HeadersFunction = (headersArgs) => {
   return boundary.headers(headersArgs);

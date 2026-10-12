@@ -54,8 +54,25 @@ model Shop {
   widgets           Widget[]
   reelEvents        ReelEvent[]
   orderAttributions OrderAttribution[]
+  streamAssets      StreamAsset[]
 }
 
+// Every Cloudflare Stream video the app created for a shop. Stream bills
+// per stored minute, so videos must be deleted when the last reel using
+// them goes, when a replacement takes over, and when the shop is erased
+// (shop/redact) — this table is how we find them.
+model StreamAsset {
+  uid       String   @id
+  shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  shopId    String
+  createdAt DateTime @default(now())
+
+  @@index([shopId])
+}
+
+// One published widget per (shop, type) is also enforced in the database by
+// a partial unique index ("Widget_one_published_per_type", see migration
+// 20261012120000_hardening) — Prisma can't express partial indexes.
 model Widget {
   id        String   @id @default(cuid())
   shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
@@ -110,4 +127,5 @@ model OrderAttribution {
 
   @@unique([orderId, lineItemId])
   @@index([shopId, reelId])
+  @@index([shopId, createdAt])
 }

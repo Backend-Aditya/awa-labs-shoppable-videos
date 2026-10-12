@@ -47,10 +47,14 @@ export async function deleteWidget(
 ): Promise<void> {
   const existing = await prisma.widget.findFirst({ where: { id, shopId } });
   if (!existing) return;
+  // Take it off the storefront BEFORE dropping the row: if the metafield
+  // sync fails, the widget still exists (unpublished) and the merchant can
+  // retry, instead of a deleted widget staying live with no way to stop it.
+  if (existing.published) {
+    await prisma.widget.update({ where: { id }, data: { published: false } });
+    await syncShopWidgetState(admin, existing.shopId, existing.type as WidgetKind, { force: true });
+  }
   await prisma.widget.delete({ where: { id } });
-  await syncShopWidgetState(admin, existing.shopId, existing.type as WidgetKind, {
-    force: true,
-  });
 }
 
 export async function getWidget(
@@ -263,6 +267,24 @@ export async function syncShopWidgetState(
       value: JSON.stringify(value),
     },
   ];
+
+  // No featured reel (none picked, or the live widget changed): remove the
+  // old reference, or the storefront keeps playing the previous video —
+  // possibly one that has since been deleted.
+  if (syncConfig.featuredReelMetafieldKey && !liveConfig?.featuredReelId) {
+    const deleteResponse = await admin.graphql(
+      `#graphql
+      mutation ClearFeaturedReel($metafields: [MetafieldIdentifierInput!]!) {
+        metafieldsDelete(metafields: $metafields) {
+          userErrors { field message }
+        }
+      }`,
+      { variables: { metafields: [{ ownerId: shopGid, namespace: "$app", key: syncConfig.featuredReelMetafieldKey }] } },
+    );
+    const deleteJson = await deleteResponse.json();
+    assertNoGraphqlErrors(deleteJson);
+    throwOnUserErrors(deleteJson.data?.metafieldsDelete?.userErrors ?? []);
+  }
 
   if (syncConfig.featuredReelMetafieldKey && liveConfig?.featuredReelId) {
     metafields.push({

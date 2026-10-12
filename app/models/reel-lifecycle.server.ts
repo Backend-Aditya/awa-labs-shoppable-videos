@@ -1,6 +1,7 @@
 import type { AdminGraphqlClient, Reel } from "./reel.server";
 import { deleteReel, syncProductReelMetafields } from "./reel.server";
 import { removeReelFromWidgets } from "./widget.server";
+import { releaseStreamAssets } from "./stream-assets.server";
 
 // Deletes a reel and every reference to it: tagged products' `reels`
 // metafields first (so no product points at a missing metaobject), then the
@@ -15,4 +16,7 @@ export async function deleteReelEverywhere(
   }
   await deleteReel(admin, reel.id);
   await removeReelFromWidgets(admin, shopId, reel.id);
+  // Last: the reel is gone, so its video is only kept if a duplicate of
+  // this reel still uses it.
+  await releaseStreamAssets(admin, shopId, [reel.config.cloudflareStreamUid, reel.config.replacingStreamUid]);
 }

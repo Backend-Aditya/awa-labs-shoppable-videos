@@ -1,3 +1,8 @@
 .cache
 build
 node_modules
+scripts/flush-app-data.mjs
+scripts/debug-sessions.mjs
+.env
+.env.*
+!.env.example

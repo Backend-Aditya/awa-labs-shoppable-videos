@@ -2,6 +2,7 @@ import type {
   ActionFunctionArgs,
   HeadersFunction,
   LoaderFunctionArgs,
+  ShouldRevalidateFunction,
 } from "react-router";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -128,7 +129,7 @@ export const action = async ({ request, params }: ActionFunctionArgs): Promise<A
       const copy = await createWidget(
         shop.id,
         widget.type as WidgetKind,
-        `${widget.name} (copy)`,
+        `${widget.name.slice(0, 72)} (copy)`,
         widget.config as unknown as WidgetConfig,
       );
       return { ok: true, error: null, duplicatedId: copy.id };
@@ -271,17 +272,21 @@ export default function WidgetEditor() {
     if (actionFetcher.state !== "idle" || !data) return;
     if (data.deleted) {
       shopify.toast.show("Widget deleted");
+      allowNextNavigation();
       navigate("/app/widgets");
     } else if (data.duplicatedId) {
       shopify.toast.show("Copy created as a draft");
+      allowNextNavigation();
       navigate(`/app/widgets/${encodeURIComponent(data.duplicatedId)}`);
     } else if (data.error) {
       shopify.toast.show(data.error, { isError: true });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- allowNextNavigation only flips a ref
   }, [actionFetcher.state, actionFetcher.data, navigate, shopify]);
 
-  useEditorGuards({
+  const { allowNextNavigation } = useEditorGuards({
     dirty,
+    saving,
     onSave: () => saveFetcher.submit(JSON.stringify(state), { method: "post", encType: "application/json" }),
   });
 
@@ -312,6 +317,7 @@ export default function WidgetEditor() {
       </s-link>
       <s-button
         slot="secondary-actions"
+        disabled={actionFetcher.state !== "idle"}
         onClick={() => {
           const formData = new FormData();
           formData.set("intent", "duplicate");
@@ -1380,6 +1386,16 @@ function ArrowIcon({ dir }: { dir: "up" | "down" }) {
     </svg>
   );
 }
+
+
+// After a delete the page navigates away itself; re-running this loader
+// first would 404 and replace the page with the error screen.
+export const shouldRevalidate: ShouldRevalidateFunction = ({ actionResult, defaultShouldRevalidate }) => {
+  if (actionResult && typeof actionResult === "object" && "deleted" in actionResult && actionResult.deleted) {
+    return false;
+  }
+  return defaultShouldRevalidate;
+};
 
 export const headers: HeadersFunction = (headersArgs) => {
   return boundary.headers(headersArgs);

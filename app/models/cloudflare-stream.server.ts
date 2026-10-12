@@ -189,3 +189,14 @@ export function verifyWebhookSignature(
   if (!Number.isFinite(timeSeconds)) return false;
   return Math.abs(nowSeconds - timeSeconds) <= WEBHOOK_MAX_AGE_SECONDS;
 }
+
+// Permanently deletes a Stream video. A video that's already gone (404)
+// counts as success, so retries and double-deletes are harmless.
+export async function deleteStreamVideo(config: CloudflareStreamConfig, uid: string): Promise<void> {
+  const response = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/stream/${encodeURIComponent(uid)}`,
+    { method: "DELETE", headers: { Authorization: `Bearer ${config.apiToken}` } },
+  );
+  if (response.ok || response.status === 404) return;
+  throw new Error(`Cloudflare Stream delete failed for ${uid} with status ${response.status}`);
+}

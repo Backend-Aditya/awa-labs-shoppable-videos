@@ -415,7 +415,8 @@ describe("widget.server", () => {
 
       await deleteWidget(admin, shop.id, draft.id);
 
-      expect(recorder.variables).toEqual(expectedMetafields(liveValue));
+      // A draft was never on the storefront, so deleting it writes nothing.
+      expect(recorder.callCount).toBe(0);
     });
 
     it("editing a widget of a different kind syncs only that kind's own metafield, not the reels widget's", async () => {
@@ -1105,6 +1106,11 @@ describe("removeReelFromWidgets", () => {
         if (query.includes("GetShopId")) {
           return { json: async () => ({ data: { shop: { id: "gid://shopify/Shop/1" } } }) };
         }
+        // Featured kinds clear their featured-reel metafield (metafieldsDelete)
+        // before writing state; record only the state writes.
+        if (query.includes("ClearFeaturedReel")) {
+          return { json: async () => ({ data: { metafieldsDelete: { userErrors: [] } } }) };
+        }
         const metafields = (options?.variables as { metafields: { key: string }[] }).metafields;
         synced.push(metafields[0].key);
         return { json: async () => ({ data: { metafieldsSet: { userErrors: [] } } }) };
@@ -1117,5 +1123,87 @@ describe("removeReelFromWidgets", () => {
     expect(((await getWidget(shop.id, featured.id))!.config as { featuredReelId?: string }).featuredReelId).toBeUndefined();
     expect(((await getWidget(shop.id, untouched.id))!.config as { reelIds: string[] }).reelIds).toEqual([keep]);
     expect(synced.sort()).toEqual(["product_page_reels_widget", "single_video_widget"]);
+  });
+});
+
+describe("deleteWidget", () => {
+  beforeEach(async () => {
+    await prisma.widget.deleteMany();
+    await prisma.shop.deleteMany();
+  });
+
+  it("takes a live widget off the storefront before deleting its row", async () => {
+    const shop = await getOrCreateShop("delete-live.myshopify.com");
+    const live = await createWidget(shop.id, "PRODUCT_PAGE_REELS", "Live", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+    });
+    await setWidgetPublished(live.id, true);
+    const { admin, recorder } = createRecordingAdmin();
+
+    await deleteWidget(admin, shop.id, live.id);
+
+    expect(recorder.variables).toEqual(
+      expectedMetafields({ published: false, targetRule: { type: "all_products" } }),
+    );
+    expect(await getWidget(shop.id, live.id)).toBeNull();
+  });
+
+  it("keeps the widget (unpublished) when the storefront sync fails, so it can be retried", async () => {
+    const shop = await getOrCreateShop("delete-live-fail.myshopify.com");
+    const live = await createWidget(shop.id, "PRODUCT_PAGE_REELS", "Live", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+    });
+    await setWidgetPublished(live.id, true);
+    const admin = {
+      graphql: async (query: string) => {
+        if (query.includes("GetShopId")) {
+          return { json: async () => ({ data: { shop: { id: "gid://shopify/Shop/1" } } }) };
+        }
+        return { json: async () => ({ data: { metafieldsSet: { userErrors: [{ field: ["x"], message: "boom" }] } } }) };
+      },
+    };
+
+    await expect(deleteWidget(admin, shop.id, live.id)).rejects.toThrow("boom");
+    const remaining = await getWidget(shop.id, live.id);
+    expect(remaining?.published).toBe(false);
+  });
+});
+
+describe("syncShopWidgetState featured reel", () => {
+  beforeEach(async () => {
+    await prisma.widget.deleteMany();
+    await prisma.shop.deleteMany();
+  });
+
+  it("deletes the featured-reel metafield when the live widget has none, so the store can't keep playing an old video", async () => {
+    const shop = await getOrCreateShop("featured-clear.myshopify.com");
+    const widget = await createWidget(shop.id, "SINGLE_VIDEO", "No video", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+    });
+    await setWidgetPublished(widget.id, true);
+    const queries: string[] = [];
+    const deleted: unknown[] = [];
+    const admin = {
+      graphql: async (query: string, options?: { variables?: Record<string, unknown> }) => {
+        queries.push(query);
+        if (query.includes("GetShopId")) {
+          return { json: async () => ({ data: { shop: { id: "gid://shopify/Shop/1" } } }) };
+        }
+        if (query.includes("ClearFeaturedReel")) {
+          deleted.push(options?.variables);
+          return { json: async () => ({ data: { metafieldsDelete: { userErrors: [] } } }) };
+        }
+        return { json: async () => ({ data: { metafieldsSet: { userErrors: [] } } }) };
+      },
+    };
+
+    await syncShopWidgetState(admin, shop.id, "SINGLE_VIDEO");
+
+    expect(deleted).toEqual([
+      { metafields: [{ ownerId: "gid://shopify/Shop/1", namespace: "$app", key: "single_video_featured_reel" }] },
+    ]);
   });
 });

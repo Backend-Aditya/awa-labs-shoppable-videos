@@ -8,6 +8,7 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 import { getReel, listReels, upsertReel } from "../models/reel.server";
 import { deriveReelStatus } from "../models/reel-status";
 import { healProcessingReels } from "../models/reel-media.server";
+import { releaseStreamAssets } from "../models/stream-assets.server";
 import { deleteReelEverywhere } from "../models/reel-lifecycle.server";
 import { getOrCreateShop } from "../models/shop.server";
 import { getViewCountsByReel, reelKey } from "../models/analytics.server";
@@ -19,7 +20,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
   const shop = await getOrCreateShop(session.shop);
   const [reels, views] = await Promise.all([listReels(admin), getViewCountsByReel(shop.id)]);
-  const healed = await healProcessingReels(admin, reels);
+  const healed = await healProcessingReels(admin, reels, 6, (uids) => releaseStreamAssets(admin, shop.id, uids));
   return {
     reels: healed.map((reel) => ({
       id: reel.id,

@@ -7,6 +7,9 @@ const mocks = vi.hoisted(() => ({
   deleteReel: vi.fn(),
   syncProductReelMetafields: vi.fn(),
   createDirectUploadUrl: vi.fn(),
+  recordStreamAsset: vi.fn(),
+  discardStreamAsset: vi.fn(),
+  releaseStreamAssets: vi.fn(),
 }));
 
 vi.mock("../shopify.server", () => ({
@@ -22,6 +25,16 @@ vi.mock("../models/reel.server", () => ({
   deleteReel: mocks.deleteReel,
   syncProductReelMetafields: mocks.syncProductReelMetafields,
   generateReelHandle: (title: string) => `${title}-handle`,
+}));
+
+vi.mock("../models/shop.server", () => ({
+  getOrCreateShop: vi.fn(async () => ({ id: "shop-1", shopDomain: "test.myshopify.com" })),
+}));
+
+vi.mock("../models/stream-assets.server", () => ({
+  recordStreamAsset: mocks.recordStreamAsset,
+  discardStreamAsset: mocks.discardStreamAsset,
+  releaseStreamAssets: mocks.releaseStreamAssets,
 }));
 
 vi.mock("../models/cloudflare-stream.server", () => ({
@@ -74,6 +87,35 @@ describe("reel upload API", () => {
     expect(published).toBe(true);
     expect(config.productIds).toEqual(["gid://shopify/Product/1"]);
     expect(mocks.updateReelConfig).toHaveBeenCalledWith(expect.anything(), REEL.id, { cloudflareStreamUid: "uid-1" });
+    // Recorded so it can be deleted from Cloudflare later.
+    expect(mocks.recordStreamAsset).toHaveBeenCalledWith("shop-1", "uid-1");
+  });
+
+  it("deletes the Stream video of a first upload that failed", async () => {
+    mocks.getReel.mockResolvedValue({ ...REEL, config: { productIds: [], cloudflareStreamUid: "uid-9" } });
+
+    const { status } = await call({ intent: "failed", reelId: REEL.id });
+
+    expect(status).toBe(200);
+    expect(mocks.updateReelConfig).toHaveBeenCalledWith(
+      expect.anything(),
+      REEL.id,
+      expect.objectContaining({ cloudflareStreamUid: "", replacingStreamUid: "" }),
+    );
+    expect(mocks.releaseStreamAssets).toHaveBeenCalledWith(expect.anything(), "shop-1", ["uid-9"]);
+  });
+
+  it("keeps the live video when only a replacement failed", async () => {
+    mocks.getReel.mockResolvedValue({
+      ...REEL,
+      config: { productIds: [], cloudflareStreamUid: "live", hlsManifestUrl: "x.m3u8", replacingStreamUid: "new" },
+    });
+
+    await call({ intent: "failed", reelId: REEL.id });
+
+    const [, , patch] = mocks.updateReelConfig.mock.calls.at(-1)!;
+    expect(patch).not.toHaveProperty("cloudflareStreamUid");
+    expect(mocks.releaseStreamAssets).toHaveBeenCalledWith(expect.anything(), "shop-1", ["new"]);
   });
 
   it("deletes the half-created reel when Cloudflare can't issue an upload URL", async () => {
