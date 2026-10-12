@@ -863,6 +863,9 @@ function DesignTab({
             ]}
           />
         )}
+        {meta.kind === "CAROUSEL" && (style.layoutMode ?? "stack") === "stack" && (
+          <p className={styles.hint}>The stack needs 3 or more videos; with fewer it shows as a slider.</p>
+        )}
         {has("columns") && style.layoutMode === "grid" && (
           <Slider label="Columns on desktop" unit="" min={2} max={6} value={style.columns ?? 4} onChange={(columns) => setStyle({ columns })} />
         )}

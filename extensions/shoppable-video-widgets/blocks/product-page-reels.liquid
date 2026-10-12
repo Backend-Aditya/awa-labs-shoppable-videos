@@ -128,7 +128,7 @@ this block through the shop-level widget metafield.
                 <p class="reelup-strip__caption">{{ reel.title.value | escape }}</p>
               {%- endif -%}
               {%- if show_product -%}
-                {%- assign lead = reel.tagged_products.value.first -%}
+                {%- assign lead = reel.tagged_products.value | first -%}
                 {%- if lead -%}
                   <a class="reelup-strip__product" href="{{ lead.url }}">
                     {%- if lead.featured_image -%}

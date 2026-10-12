@@ -275,7 +275,10 @@ function Filmstrip({ style, reels }: { style: WidgetStyleConfig; reels: PreviewR
 function Deck({ style, reels, device }: { style: WidgetStyleConfig; reels: PreviewReel[]; device: Device }) {
   const [requested, setActive] = useState(1);
   const active = Math.max(0, Math.min(requested, reels.length - 1));
-  const mode = style.layoutMode ?? "stack";
+  // Same rule as the storefront block: a deck needs at least 3 cards,
+  // otherwise it renders as a slider.
+  const requestedMode = style.layoutMode ?? "stack";
+  const mode = requestedMode === "stack" && reels.length < 3 ? "carousel" : requestedMode;
 
   if (mode === "grid" || mode === "carousel") {
     return (
