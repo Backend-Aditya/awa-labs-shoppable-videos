@@ -124,7 +124,7 @@ describe("reel upload API", () => {
     const { status, data } = await call({ intent: "create", title: "x", productIds: ["gid://shopify/Product/1"] });
 
     expect(status).toBe(502);
-    expect(data.error).toMatch(/Cloudflare/);
+    expect(data.error).toMatch(/temporarily unavailable/);
     expect(mocks.syncProductReelMetafields).toHaveBeenLastCalledWith(expect.anything(), REEL.id, ["gid://shopify/Product/1"], []);
     expect(mocks.deleteReel).toHaveBeenCalledWith(expect.anything(), REEL.id);
   });
