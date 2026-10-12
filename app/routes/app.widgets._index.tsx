@@ -239,7 +239,9 @@ export default function Widgets() {
                       </span>
                       <span className={styles.widgetKind}>{meta?.name ?? widget.type}</span>
                       <span className={styles.widgetFacts}>
-                        <span>{contentSummary(widget)}</span>
+                        <span data-warn={contentSummary(widget).startsWith("No ") || undefined}>
+                          {contentSummary(widget)}
+                        </span>
                         <span>{targetSummary(config)}</span>
                       </span>
                     </span>

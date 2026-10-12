@@ -1,6 +1,8 @@
 import type React from "react";
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { Outlet, isRouteErrorResponse, useLoaderData, useRouteError } from "react-router";
+import { Outlet, isRouteErrorResponse, useLoaderData, useNavigation, useRouteError } from "react-router";
+import { useEffect } from "react";
+import { useAppBridge } from "@shopify/app-bridge-react";
 import type {} from "@shopify/app-bridge-react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
@@ -20,14 +22,27 @@ export default function App() {
   return (
     <AppProvider embedded apiKey={apiKey}>
       <s-app-nav>
-        <s-link href="/app">Home</s-link>
-        <s-link href="/app/reels">Reels library</s-link>
+        <s-link href="/app">Overview</s-link>
+        <s-link href="/app/reels">Reels</s-link>
         <s-link href="/app/widgets">Widgets</s-link>
         <s-link href="/app/settings">Settings</s-link>
       </s-app-nav>
+      <NavigationLoading />
       <Outlet />
     </AppProvider>
   );
+}
+
+// Shows the admin's own top loading bar while a route's data loads, so
+// moving between pages never looks frozen.
+function NavigationLoading() {
+  const navigation = useNavigation();
+  const shopify = useAppBridge();
+  const busy = navigation.state === "loading";
+  useEffect(() => {
+    shopify.loading(busy);
+  }, [busy, shopify]);
+  return null;
 }
 
 // Shopify's boundary renders its own auth/redirect responses and rethrows

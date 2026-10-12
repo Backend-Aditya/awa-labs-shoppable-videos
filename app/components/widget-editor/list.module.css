@@ -233,3 +233,8 @@
   outline-offset: -1px;
   border-color: transparent;
 }
+
+.widgetFacts [data-warn] {
+  color: #8a6116;
+  font-weight: 550;
+}

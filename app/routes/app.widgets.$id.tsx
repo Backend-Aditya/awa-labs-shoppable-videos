@@ -40,6 +40,7 @@ import {
   TextInput,
   Toggle,
 } from "../components/widget-editor/controls";
+import { useEditorGuards } from "../components/useEditorGuards";
 import { WidgetPreview, formatDuration } from "../components/widget-editor/WidgetPreview";
 import type { PreviewReel } from "../components/widget-editor/WidgetPreview";
 import styles from "../components/widget-editor/editor.module.css";
@@ -274,6 +275,11 @@ export default function WidgetEditor() {
     }
   }, [actionFetcher.state, actionFetcher.data, navigate, shopify]);
 
+  useEditorGuards({
+    dirty,
+    onSave: () => saveFetcher.submit(JSON.stringify(state), { method: "post", encType: "application/json" }),
+  });
+
   if (!meta) {
     return (
       <s-page heading={widget.name}>
@@ -313,7 +319,7 @@ export default function WidgetEditor() {
         Delete
       </s-button>
 
-      <SaveBar id="widget-save-bar" open={dirty}>
+      <SaveBar id="widget-save-bar" open={dirty} discardConfirmation>
         <button variant="primary" onClick={save} loading={saving ? "" : undefined} disabled={saving}>
           Save
         </button>
@@ -459,6 +465,44 @@ function ReelThumb({ reel }: { reel: EditorReel }) {
   );
 }
 
+const isLive = (reel: EditorReel) => reel.published && deriveReelStatus(reel.config as ReelConfig) === "ready";
+
+// Explains, in one line, why some chosen videos won't appear on the store.
+function NotLiveNotice({ reels }: { reels: EditorReel[] }) {
+  const navigate = useNavigate();
+  const blocked = reels.filter((r) => !isLive(r));
+  if (blocked.length === 0) return null;
+  const drafts = blocked.filter((r) => !r.published && deriveReelStatus(r.config as ReelConfig) === "ready").length;
+  const notReady = blocked.length - drafts;
+  const parts = [
+    drafts ? `${drafts} ${drafts === 1 ? "is a draft" : "are drafts"}` : "",
+    notReady ? `${notReady} ${notReady === 1 ? "has" : "have"} no playable video yet` : "",
+  ].filter(Boolean);
+  return (
+    <div className={styles.notice} role="status">
+      <WarningIcon />
+      <p>
+        {blocked.length === 1 ? "1 video won't show yet" : `${blocked.length} videos won't show yet`} — {parts.join(", ")}.{" "}
+        <button type="button" className={styles.noticeLink} onClick={() => navigate("/app/reels")}>
+          Open Reels
+        </button>
+      </p>
+    </div>
+  );
+}
+
+function EmptyReels() {
+  const navigate = useNavigate();
+  return (
+    <div className={styles.emptyNote}>
+      <p>You haven&rsquo;t uploaded any videos yet.</p>
+      <s-button variant="primary" onClick={() => navigate("/app/reels")}>
+        Upload videos
+      </s-button>
+    </div>
+  );
+}
+
 function ContentTab({
   meta,
   state,
@@ -474,41 +518,43 @@ function ContentTab({
 }) {
   const has = (key: StyleFieldKey) => meta.fields.includes(key);
   const showText = has("heading") || has("watchLabel") || has("bubbleLabel");
+  const [query, setQuery] = useState("");
+  const featured = reels.find((r) => r.id === state.featuredReelId);
 
   return (
     <>
-      <Card title="Name" description="Only you see this — it identifies the widget in the admin.">
-        <TextInput label="Widget name" value={state.name} onChange={(name) => update({ name })} />
-      </Card>
-
       {meta.reelSelection === "list" ? (
         <ReelListPicker reels={reels} selected={state.reelIds} onChange={(reelIds) => update({ reelIds })} />
       ) : (
         <Card title="Video" description="The one video this widget plays.">
           {reels.length === 0 ? (
-            <p className={styles.emptyNote}>Upload a reel in the Reels library first.</p>
+            <EmptyReels />
           ) : (
-            <div className={styles.reelList} role="radiogroup" aria-label="Video">
-              {reels.map((reel) => (
-                <button
-                  key={reel.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={state.featuredReelId === reel.id}
-                  className={styles.reelRow}
-                  onClick={() => update({ featuredReelId: reel.id })}
-                >
-                  <ReelThumb reel={reel} />
-                  <span className={styles.reelMeta}>
-                    <span className={styles.reelTitle}>{reel.title}</span>
-                    <span className={styles.reelSub}>{reelStatusText(reel)}</span>
-                  </span>
-                  <span className={styles.reelCheck}>
-                    {state.featuredReelId === reel.id && <CheckIcon />}
-                  </span>
-                </button>
-              ))}
-            </div>
+            <>
+              {featured && <NotLiveNotice reels={[featured]} />}
+              {reels.length > 8 && <ReelSearch value={query} onChange={setQuery} />}
+              <div className={styles.reelList} role="radiogroup" aria-label="Video">
+                {filterReels(reels, query).map((reel) => (
+                  <button
+                    key={reel.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={state.featuredReelId === reel.id}
+                    className={styles.reelRow}
+                    onClick={() => update({ featuredReelId: reel.id })}
+                  >
+                    <ReelThumb reel={reel} />
+                    <span className={styles.reelMeta}>
+                      <span className={styles.reelTitle}>{reel.title}</span>
+                      <span className={styles.reelSub} data-warn={!isLive(reel) || undefined}>
+                        {reelStatusText(reel)}
+                      </span>
+                    </span>
+                    <span className={styles.reelCheck}>{state.featuredReelId === reel.id && <CheckIcon />}</span>
+                  </button>
+                ))}
+              </div>
+            </>
           )}
         </Card>
       )}
@@ -543,7 +589,29 @@ function ContentTab({
           )}
         </Card>
       )}
+
+      <Card title="Admin name" description="Only you see this. It tells widgets apart in this app.">
+        <TextInput label="Widget name" value={state.name} onChange={(name) => update({ name })} />
+      </Card>
     </>
+  );
+}
+
+function filterReels(reels: EditorReel[], query: string) {
+  const q = query.trim().toLowerCase();
+  return q ? reels.filter((r) => r.title.toLowerCase().includes(q)) : reels;
+}
+
+function ReelSearch({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  return (
+    <input
+      className={styles.input}
+      type="search"
+      placeholder="Search videos"
+      aria-label="Search videos"
+      value={value}
+      onChange={(e) => onChange(e.currentTarget.value)}
+    />
   );
 }
 
@@ -556,9 +624,13 @@ function ReelListPicker({
   selected: string[];
   onChange: (ids: string[]) => void;
 }) {
+  const [query, setQuery] = useState("");
   const byId = new Map(reels.map((r) => [r.id, r]));
   const chosen = selected.map((id) => byId.get(id)).filter((r): r is EditorReel => Boolean(r));
-  const available = reels.filter((r) => !selected.includes(r.id));
+  const available = filterReels(
+    reels.filter((r) => !selected.includes(r.id)),
+    query,
+  );
 
   const move = (index: number, delta: number) => {
     const next = [...selected];
@@ -570,75 +642,118 @@ function ReelListPicker({
   return (
     <Card
       title="Videos"
-      description={chosen.length === 0 ? "Pick the videos to show, in order." : `${chosen.length} selected · shown in this order`}
+      description={
+        chosen.length === 0 ? "Pick the videos to show, in order." : `${chosen.length} selected, shown in this order`
+      }
+      action={
+        chosen.length > 0 ? (
+          <button type="button" className={styles.noticeLink} onClick={() => onChange([])}>
+            Clear
+          </button>
+        ) : undefined
+      }
     >
-      {chosen.length > 0 && (
-        <ol className={styles.orderList}>
-          {chosen.map((reel, index) => (
-            <li key={reel.id} className={styles.orderItem}>
-              <span className={styles.orderIndex}>{index + 1}</span>
-              <ReelThumb reel={reel} />
-              <span className={styles.reelMeta}>
-                <span className={styles.reelTitle}>{reel.title}</span>
-                <span className={styles.reelSub}>{reelStatusText(reel)}</span>
-              </span>
-              <button
-                type="button"
-                className={styles.iconButton}
-                aria-label={`Move ${reel.title} up`}
-                disabled={index === 0}
-                onClick={() => move(index, -1)}
-              >
-                <ArrowIcon dir="up" />
-              </button>
-              <button
-                type="button"
-                className={styles.iconButton}
-                aria-label={`Move ${reel.title} down`}
-                disabled={index === chosen.length - 1}
-                onClick={() => move(index, 1)}
-              >
-                <ArrowIcon dir="down" />
-              </button>
-              <button
-                type="button"
-                className={styles.iconButton}
-                aria-label={`Remove ${reel.title}`}
-                onClick={() => onChange(selected.filter((id) => id !== reel.id))}
-              >
-                <CloseIcon />
-              </button>
-            </li>
-          ))}
-        </ol>
-      )}
-
       {reels.length === 0 ? (
-        <p className={styles.emptyNote}>Upload a reel in the Reels library first.</p>
-      ) : available.length > 0 ? (
-        <Field label="Add videos">
-          <div className={styles.reelList}>
-            {available.map((reel) => (
-              <button
-                key={reel.id}
-                type="button"
-                className={styles.reelRow}
-                onClick={() => onChange([...selected, reel.id])}
-              >
-                <ReelThumb reel={reel} />
-                <span className={styles.reelMeta}>
-                  <span className={styles.reelTitle}>{reel.title}</span>
-                  <span className={styles.reelSub}>{reelStatusText(reel)}</span>
-                </span>
-                <PlusIcon />
-              </button>
-            ))}
-          </div>
-        </Field>
+        <EmptyReels />
       ) : (
-        <p className={styles.hint}>Every video in your library is in this widget.</p>
+        <>
+          <NotLiveNotice reels={chosen} />
+          {chosen.length > 0 && (
+            <ol className={styles.orderList}>
+              {chosen.map((reel, index) => (
+                <li key={reel.id} className={styles.orderItem}>
+                  <span className={styles.orderIndex}>{index + 1}</span>
+                  <ReelThumb reel={reel} />
+                  <span className={styles.reelMeta}>
+                    <span className={styles.reelTitle}>{reel.title}</span>
+                    <span className={styles.reelSub} data-warn={!isLive(reel) || undefined}>
+                      {reelStatusText(reel)}
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    className={styles.iconButton}
+                    aria-label={`Move ${reel.title} up`}
+                    disabled={index === 0}
+                    onClick={() => move(index, -1)}
+                  >
+                    <ArrowIcon dir="up" />
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.iconButton}
+                    aria-label={`Move ${reel.title} down`}
+                    disabled={index === chosen.length - 1}
+                    onClick={() => move(index, 1)}
+                  >
+                    <ArrowIcon dir="down" />
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.iconButton}
+                    aria-label={`Remove ${reel.title}`}
+                    onClick={() => onChange(selected.filter((id) => id !== reel.id))}
+                  >
+                    <CloseIcon />
+                  </button>
+                </li>
+              ))}
+            </ol>
+          )}
+
+          {reels.length > selected.length ? (
+            <Field label="Add videos">
+              <div className={styles.addRow}>
+                {reels.length > 8 && <ReelSearch value={query} onChange={setQuery} />}
+                {available.length > 1 && (
+                  <button
+                    type="button"
+                    className={styles.noticeLink}
+                    onClick={() => onChange([...selected, ...available.map((r) => r.id)])}
+                  >
+                    Add all {available.length}
+                  </button>
+                )}
+              </div>
+              <div className={styles.reelList}>
+                {available.length === 0 ? (
+                  <p className={styles.hint}>No videos match.</p>
+                ) : (
+                  available.map((reel) => (
+                    <button
+                      key={reel.id}
+                      type="button"
+                      className={styles.reelRow}
+                      onClick={() => onChange([...selected, reel.id])}
+                    >
+                      <ReelThumb reel={reel} />
+                      <span className={styles.reelMeta}>
+                        <span className={styles.reelTitle}>{reel.title}</span>
+                        <span className={styles.reelSub} data-warn={!isLive(reel) || undefined}>
+                          {reelStatusText(reel)}
+                        </span>
+                      </span>
+                      <PlusIcon />
+                    </button>
+                  ))
+                )}
+              </div>
+            </Field>
+          ) : (
+            <p className={styles.hint}>Every video in your library is in this widget.</p>
+          )}
+        </>
       )}
     </Card>
+  );
+}
+
+function WarningIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }}>
+      <path d="M10 6.75a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5a.75.75 0 0 1 .75-.75Zm0 7.25a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" />
+      <path fillRule="evenodd" d="M8.27 3.5a2 2 0 0 1 3.46 0l5.4 9.35A2 2 0 0 1 15.4 15.85H4.6a2 2 0 0 1-1.73-3l5.4-9.35Zm1.3.75a.5.5 0 0 1 .86 0l5.4 9.35a.5.5 0 0 1-.43.75H4.6a.5.5 0 0 1-.43-.75l5.4-9.35Z" />
+    </svg>
   );
 }
 

@@ -621,12 +621,71 @@
 }
 
 .emptyNote {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
   margin: 0;
-  padding: 16px;
-  border-radius: 8px;
+  padding: 20px 16px;
+  border-radius: 10px;
   border: 1px dashed var(--ed-border-strong);
   color: var(--ed-subdued);
   text-align: center;
+}
+
+.emptyNote p {
+  margin: 0;
+}
+
+.notice {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff5ea;
+  color: #5e4200;
+}
+
+.notice p {
+  margin: 0;
+}
+
+.noticeLink {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: #005bd3;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.noticeLink:hover {
+  text-decoration: underline;
+}
+
+.noticeLink:focus-visible {
+  outline: 2px solid var(--ed-focus);
+  outline-offset: 2px;
+}
+
+.reelSub[data-warn] {
+  color: #8a6116;
+}
+
+.addRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.addRow:empty {
+  display: none;
+}
+
+.addRow input {
+  flex: 1;
 }
 
 .placement {

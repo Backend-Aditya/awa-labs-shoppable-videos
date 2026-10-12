@@ -23,6 +23,7 @@ import { getKindMeta } from "../models/widget-kinds";
 import type { WidgetConfig } from "../models/widget-kinds";
 import { getReelStats } from "../models/analytics.server";
 import { Card, Field, TextInput } from "../components/widget-editor/controls";
+import { useEditorGuards } from "../components/useEditorGuards";
 import { ViewsChart } from "../components/ViewsChart";
 import { replaceReelVideo, validateVideoFile } from "../components/reels/upload";
 import editorStyles from "../components/widget-editor/editor.module.css";
@@ -270,6 +271,8 @@ export default function ReelEditor() {
     );
   };
 
+  useEditorGuards({ dirty, onSave: save });
+
   const submitIntent = (intent: "delete" | "duplicate") => {
     const formData = new FormData();
     formData.set("intent", intent);
@@ -326,7 +329,7 @@ export default function ReelEditor() {
         }}
       />
 
-      <SaveBar id="reel-save-bar" open={dirty}>
+      <SaveBar id="reel-save-bar" open={dirty} discardConfirmation>
         <button variant="primary" onClick={save} loading={saving ? "" : undefined} disabled={saving}>
           Save
         </button>

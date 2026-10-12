@@ -8,6 +8,7 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 import { getOrCreateShop } from "../models/shop.server";
 import { getBrand, saveBrand } from "../models/brand.server";
 import type { BrandConfig } from "../models/brand";
+import { useEditorGuards } from "../components/useEditorGuards";
 import { Card, ColorInput, Segmented } from "../components/widget-editor/controls";
 import styles from "../components/widget-editor/editor.module.css";
 import brandStyles from "../components/widget-editor/brand.module.css";
@@ -48,15 +49,17 @@ export default function Settings() {
   const dirty = JSON.stringify(brand) !== savedKey;
   const saving = fetcher.state !== "idle";
   const set = (patch: Partial<BrandConfig>) => setBrand((prev) => ({ ...prev, ...patch }));
+  const save = () => fetcher.submit(JSON.stringify(brand), { method: "post", encType: "application/json" });
+  useEditorGuards({ dirty, onSave: save });
 
   return (
     <s-page heading="Settings" inlineSize="large">
-      <SaveBar id="brand-save-bar" open={dirty}>
+      <SaveBar id="brand-save-bar" open={dirty} discardConfirmation>
         <button
           variant="primary"
           loading={saving ? "" : undefined}
           disabled={saving}
-          onClick={() => fetcher.submit(JSON.stringify(brand), { method: "post", encType: "application/json" })}
+          onClick={save}
         >
           Save
         </button>
