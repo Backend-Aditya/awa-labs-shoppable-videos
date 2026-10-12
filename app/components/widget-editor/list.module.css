@@ -238,3 +238,13 @@
   color: #8a6116;
   font-weight: 550;
 }
+
+.kindNote {
+  margin: 4px 4px 0;
+  padding: 2px 8px;
+  align-self: flex-start;
+  border-radius: 6px;
+  background: #fff5ea;
+  color: #5e4200;
+  font-size: 12px;
+}

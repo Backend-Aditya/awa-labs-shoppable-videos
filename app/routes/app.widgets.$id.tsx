@@ -10,7 +10,7 @@ import { SaveBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { getOrCreateShop } from "../models/shop.server";
-import { createWidget, deleteWidget, getWidget, saveWidgetSettings } from "../models/widget.server";
+import { createWidget, deleteWidget, getWidget, listWidgetsForShop, saveWidgetSettings } from "../models/widget.server";
 import {
   PAGE_TYPE_OPTIONS,
   getKindMeta,
@@ -67,8 +67,13 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     // Preview-only data — the editor still works with placeholder products.
   }
 
+  const liveSibling = (await listWidgetsForShop(shop.id)).find(
+    (w) => w.type === widget.type && w.published && w.id !== widget.id,
+  );
+
   return {
     widget,
+    liveSiblingName: liveSibling?.name ?? null,
     brand: await getBrand(shop.id),
     shopDomain: session.shop,
     // eslint-disable-next-line no-undef
@@ -228,7 +233,7 @@ const TABS = [
 type TabId = (typeof TABS)[number]["id"];
 
 export default function WidgetEditor() {
-  const { widget, reels, products, brand, shopDomain, apiKey } = useLoaderData<typeof loader>();
+  const { widget, reels, products, brand, shopDomain, apiKey, liveSiblingName } = useLoaderData<typeof loader>();
   const meta = getKindMeta(widget.type);
   const shopify = useAppBridge();
   const navigate = useNavigate();
@@ -335,7 +340,9 @@ export default function WidgetEditor() {
             <div className={styles.statusText}>
               <p className={styles.statusTitle}>{state.published ? "Live on your store" : "Draft"}</p>
               <p className={styles.hint}>
-                {meta.name} · {meta.placement}
+                {!widget.published && state.published && liveSiblingName
+                  ? `Saving takes “${liveSiblingName}” off your store — one ${meta.name.toLowerCase()} can be live at a time.`
+                  : `${meta.name} · ${meta.placement}`}
               </p>
             </div>
             <button

@@ -46,7 +46,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // Created live: updateWidget (not a raw write) keeps the one-live-per-
     // kind invariant and the storefront metafield sync identical to a
     // manual publish.
-    await updateWidget(admin, shop.id, widget.id, { published: true });
+    // Go live straight away — unless this type already has a live widget,
+    // which publishing would silently take off the store. Then it starts as
+    // a draft and the merchant decides when to switch.
+    const liveSibling = (await listWidgetsForShop(shop.id)).some(
+      (w) => w.type === type && w.published && w.id !== widget.id,
+    );
+    if (!liveSibling) {
+      await updateWidget(admin, shop.id, widget.id, { published: true });
+    }
     return { error: null, widgetId: widget.id };
   } catch (e) {
     if (e instanceof Response) throw e;
@@ -73,7 +81,7 @@ function contentSummary(widget: Widget) {
   return config.featuredReelId ? "1 video" : "No video yet";
 }
 
-function CreateWidgetModal() {
+function CreateWidgetModal({ liveKinds }: { liveKinds: Set<string> }) {
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
   const navigate = useNavigate();
@@ -108,6 +116,9 @@ function CreateWidgetModal() {
                 <KindSchematic kind={k} />
                 <span className={styles.kindName}>{m.name}</span>
                 <span className={styles.kindDescription}>{m.description}</span>
+                {liveKinds.has(k) && (
+                  <span className={styles.kindNote}>You have one live — this starts as a draft.</span>
+                )}
               </button>
             );
           })}
@@ -266,7 +277,7 @@ export default function Widgets() {
         </s-section>
       )}
 
-      <CreateWidgetModal />
+      <CreateWidgetModal liveKinds={new Set(widgets.filter((w) => w.published).map((w) => w.type))} />
       <WidgetDeleteModal widget={pendingDelete} onClose={() => setPendingDelete(null)} />
     </s-page>
   );

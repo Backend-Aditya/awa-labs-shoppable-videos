@@ -127,13 +127,17 @@ export default function Dashboard() {
                   {data.topReels.map((r) => (
                     <tr key={r.id}>
                       <th scope="row">
-                        <span className={styles.reelCell}>
+                        <button
+                          type="button"
+                          className={styles.reelLink}
+                          onClick={() => navigate(`/app/reels/${r.id.split("/").pop()}`)}
+                        >
                           <span
                             className={styles.thumb}
                             style={r.posterUrl ? { backgroundImage: `url("${r.posterUrl}")` } : undefined}
                           />
                           <span className={styles.reelTitle}>{r.title}</span>
-                        </span>
+                        </button>
                       </th>
                       <td>{r.views.toLocaleString()}</td>
                       <td>{r.clicks.toLocaleString()}</td>
