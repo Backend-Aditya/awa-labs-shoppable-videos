@@ -423,6 +423,37 @@ html.reelup-locked {
   display: none;
 }
 
+/* ---------- per-video link button ---------- */
+
+.reelup-viewer__link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 12px 18px 16px;
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1.5px solid #141414;
+  color: #141414;
+  font-size: 14px;
+  font-weight: 650;
+  text-decoration: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.reelup-viewer__link:hover {
+  background: #141414;
+  color: #fff;
+}
+
+.reelup-viewer__link[hidden] {
+  display: none;
+}
+
+.reelup-viewer__panel-head[hidden] {
+  display: none;
+}
+
 /* ---------- you may also like ---------- */
 
 .reelup-viewer__recs {

@@ -29,6 +29,7 @@
     share: "Share video",
     linkCopied: "Link copied",
     youMayLike: "You may also like",
+    learnMore: "Learn more",
     of: "__CURRENT__ of __TOTAL__",
     ...(config.labels ?? {}),
   };
@@ -61,6 +62,11 @@
       body: JSON.stringify({ shopDomain: window.Shopify?.shop, reelId, eventType }),
       keepalive: true,
     }).catch(() => {});
+  };
+
+  const safeLink = (value) => {
+    const url = String(value ?? "").trim();
+    return /^(https?:\/\/|\/)/i.test(url) ? url : "";
   };
 
   const reelIdFor = (el) => el.closest("[data-reelup-reel-id]")?.getAttribute("data-reelup-reel-id") ?? "";
@@ -160,17 +166,22 @@
         headers: { "Content-Type": "application/json", Accept: "application/json" },
         body: JSON.stringify(body),
       });
-      if (!response.ok) throw new Error("add failed");
+      if (!response.ok) {
+        // Shopify explains stock problems ("You can only add 2 of …") in
+        // `description`; show that rather than a generic failure.
+        const problem = await response.json().catch(() => null);
+        throw new Error(problem?.description || problem?.message || "");
+      }
       const added = await response.json().catch(() => null);
 
       button.dataset.state = "added";
       button.textContent = button.dataset.addedLabel ?? addLabel;
       showStatus(status, labels.addedToCart, false);
       notifyTheme(added?.items?.[0]);
-    } catch {
+    } catch (error) {
       button.dataset.state = "";
       button.textContent = addLabel;
-      showStatus(status, labels.addFailed, true);
+      showStatus(status, error?.message || labels.addFailed, true);
       button.removeAttribute("aria-busy");
       return;
     }
@@ -397,6 +408,7 @@
             <h3 class="reelup-viewer__recs-title">${labels.youMayLike}</h3>
             <div class="reelup-viewer__recs-row" data-reelup-recs-row></div>
           </section>
+          <a class="reelup-viewer__link" data-reelup-link data-reelup-product-link hidden></a>
           <p class="reelup-viewer__cart" data-reelup-cart-status hidden>
             <span class="reelup-cart-message" aria-live="polite"></span>
             <a href="${cartUrl}">${labels.viewCart}</a>
@@ -529,8 +541,18 @@
     video.dispatchEvent(new Event("volumechange"));
 
     const productCount = cloneProducts(trigger, list);
-    panel.hidden = productCount === 0;
-    dialog.classList.toggle("has-products", productCount > 0);
+    const linkUrl = safeLink(trigger.dataset.linkUrl);
+    const linkEl = dialog.querySelector("[data-reelup-link]");
+    linkEl.hidden = !linkUrl;
+    if (linkUrl) {
+      linkEl.href = linkUrl;
+      linkEl.textContent = trigger.dataset.linkLabel || labels.learnMore;
+    } else {
+      linkEl.removeAttribute("href");
+    }
+    panel.hidden = productCount === 0 && !linkUrl;
+    dialog.classList.toggle("has-products", !panel.hidden);
+    dialog.querySelector("[data-reelup-panel-toggle]").hidden = productCount === 0;
     dialog.querySelector("[data-reelup-panel-count]").textContent = productCount > 1 ? String(productCount) : "";
     initialPanelState = trigger.dataset.tagRevealMode === "tap" ? "closed" : "peek";
     dialog.setPanelState(initialPanelState);
@@ -583,5 +605,5 @@
   };
 
   window.ReelupLightbox = { open, trackAnalytics };
-  window.ReelupViewer = { labels, cartUrl, share, shortId, theme: config.viewerTheme === "light" ? "light" : "dark", icons: ICONS, applyViewerSettings, cloneProducts, startPlayback, trackAnalytics };
+  window.ReelupViewer = { labels, cartUrl, share, shortId, safeLink, theme: config.viewerTheme === "light" ? "light" : "dark", icons: ICONS, applyViewerSettings, cloneProducts, startPlayback, trackAnalytics };
 })();

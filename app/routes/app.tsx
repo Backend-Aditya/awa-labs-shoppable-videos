@@ -1,5 +1,6 @@
+import type React from "react";
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { Outlet, useLoaderData, useRouteError } from "react-router";
+import { Outlet, isRouteErrorResponse, useLoaderData, useRouteError } from "react-router";
 import type {} from "@shopify/app-bridge-react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
@@ -29,9 +30,97 @@ export default function App() {
   );
 }
 
-// Shopify needs React Router to catch some thrown responses, so that their headers are included in the response.
+// Shopify's boundary renders its own auth/redirect responses and rethrows
+// everything else — which used to reach React Router's raw crash screen.
+// Our own 404s and any unexpected error get a page with a way back instead.
 export function ErrorBoundary() {
-  return boundary.error(useRouteError());
+  const error = useRouteError();
+
+  if (isRouteErrorResponse(error) && error.status === 404) {
+    return (
+      <ErrorPage
+        title="Not found"
+        body={`${typeof error.data === "string" && error.data ? error.data : "This page doesn't exist"}. It may have been deleted.`}
+        actions={[
+          { label: "Go to reels", href: "/app/reels" },
+          { label: "Go to widgets", href: "/app/widgets" },
+        ]}
+      />
+    );
+  }
+
+  try {
+    return boundary.error(error);
+  } catch {
+    console.error(error);
+    return (
+      <ErrorPage
+        title="Something went wrong"
+        body="We couldn't load this page. This is usually a brief connection problem with Shopify — try again in a moment."
+        actions={[
+          { label: "Try again", onClick: () => window.location.reload(), primary: true },
+          { label: "Go to overview", href: "/app" },
+        ]}
+      />
+    );
+  }
+}
+
+// Plain HTML on purpose: error boundaries render outside AppProvider, where
+// Polaris web components may not be loaded.
+function ErrorPage({
+  title,
+  body,
+  actions,
+}: {
+  title: string;
+  body: string;
+  actions: { label: string; href?: string; onClick?: () => void; primary?: boolean }[];
+}) {
+  const button = (primary?: boolean): React.CSSProperties => ({
+    display: "inline-block",
+    padding: "6px 14px",
+    borderRadius: 8,
+    border: primary ? "1px solid #303030" : "1px solid #c9c9c9",
+    background: primary ? "#303030" : "#fff",
+    color: primary ? "#fff" : "#303030",
+    font: "inherit",
+    fontWeight: 600,
+    textDecoration: "none",
+    cursor: "pointer",
+  });
+  return (
+    <main
+      style={{
+        maxWidth: 520,
+        margin: "64px auto",
+        padding: 24,
+        borderRadius: 12,
+        background: "#fff",
+        boxShadow: "0 0 0 1px #e3e3e3",
+        fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        fontSize: 14,
+        lineHeight: "20px",
+        color: "#303030",
+      }}
+    >
+      <h1 style={{ margin: "0 0 8px", fontSize: 18 }}>{title}</h1>
+      <p style={{ margin: "0 0 16px", color: "#616161" }}>{body}</p>
+      <div style={{ display: "flex", gap: 8 }}>
+        {actions.map((action) =>
+          action.href ? (
+            <a key={action.label} href={action.href} style={button(action.primary)}>
+              {action.label}
+            </a>
+          ) : (
+            <button key={action.label} type="button" onClick={action.onClick} style={button(action.primary)}>
+              {action.label}
+            </button>
+          ),
+        )}
+      </div>
+    </main>
+  );
 }
 
 export const headers: HeadersFunction = (headersArgs) => {

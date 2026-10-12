@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Prisma } from "@prisma/client";
 import prisma from "../db.server";
 import { getOrCreateShop } from "./shop.server";
@@ -31,6 +31,13 @@ describe("getDashboardStats", () => {
     await prisma.shop.deleteMany();
   });
 
+  // Leave nothing behind: other files use the same order/line-item ids.
+  afterEach(async () => {
+    await prisma.reelEvent.deleteMany();
+    await prisma.orderAttribution.deleteMany();
+    await prisma.shop.deleteMany({ where: { shopDomain: "dashboard.myshopify.com" } });
+  });
+
   afterAll(async () => {
     await prisma.$disconnect();
   });
@@ -52,9 +59,9 @@ describe("getDashboardStats", () => {
       data: {
         shopId: shop.id,
         reelId: "gid://shopify/Metaobject/7",
-        orderId: "o1",
+        orderId: "dashboard-order-1",
         orderName: "#1001",
-        lineItemId: "l1",
+        lineItemId: "dashboard-line-1",
         quantity: 2,
         revenueAmount: new Prisma.Decimal("50.00"),
         currencyCode: "USD",

@@ -404,3 +404,38 @@ export async function updateWidgetReels(
   await syncShopWidgetState(admin, widget.shopId, widget.type as WidgetKind);
   return widget;
 }
+
+// Drops a deleted reel from every widget that referenced it (curated list
+// or featured slot) and re-syncs those kinds. Without this, the next
+// metafield sync for that kind writes a reference to a metaobject that no
+// longer exists and Shopify rejects the whole metafieldsSet call.
+export async function removeReelFromWidgets(
+  admin: AdminGraphqlClient,
+  shopId: string,
+  reelId: string,
+): Promise<void> {
+  const widgets = await prisma.widget.findMany({ where: { shopId } });
+  const touchedKinds = new Set<WidgetKind>();
+
+  for (const widget of widgets) {
+    const config = widget.config as unknown as WidgetConfig;
+    const inList = config.reelIds?.includes(reelId) ?? false;
+    const isFeatured = config.featuredReelId === reelId;
+    if (!inList && !isFeatured) continue;
+
+    const next: WidgetConfig = {
+      ...config,
+      reelIds: inList ? config.reelIds!.filter((id) => id !== reelId) : config.reelIds,
+      featuredReelId: isFeatured ? undefined : config.featuredReelId,
+    };
+    await prisma.widget.update({
+      where: { id: widget.id },
+      data: { config: next as unknown as Prisma.InputJsonValue },
+    });
+    touchedKinds.add(widget.type as WidgetKind);
+  }
+
+  for (const kind of touchedKinds) {
+    await syncShopWidgetState(admin, shopId, kind);
+  }
+}

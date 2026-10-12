@@ -18,7 +18,8 @@ import {
   verifyWebhookSignature,
   type VideoDetails,
 } from "../models/cloudflare-stream.server";
-import { updateReelConfig } from "../models/reel.server";
+import { getReel, updateReelConfig } from "../models/reel.server";
+import { applyReadyVideo } from "../models/reel-media.server";
 
 interface CloudflareWebhookPayload {
   uid: string;
@@ -57,6 +58,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     console.error(
       `Cloudflare Stream transcode failed for uid=${payload.uid}, reelId=${reelId}, shop=${shop}`,
     );
+    try {
+      const { admin } = await unauthenticated.admin(shop);
+      await updateReelConfig(admin, reelId, { uploadFailedAt: new Date().toISOString(), replacingStreamUid: "" });
+    } catch (error) {
+      console.error("Could not mark reel as failed:", error);
+    }
     return new Response("OK", { status: 200 });
   }
 
@@ -67,15 +74,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   try {
     const { admin } = await unauthenticated.admin(shop);
 
-    const details = await getVideoDetails(getCloudflareConfig(), payload.uid);
+    const [details, reel] = await Promise.all([
+      getVideoDetails(getCloudflareConfig(), payload.uid),
+      getReel(admin, reelId),
+    ]);
+    if (!reel) return new Response("OK", { status: 200 });
+    // A late webhook for a video that's since been replaced again: ignore.
+    const expected = reel.config.replacingStreamUid || reel.config.cloudflareStreamUid;
+    if (expected && expected !== payload.uid) return new Response("OK", { status: 200 });
 
-    await updateReelConfig(admin, reelId, {
-      cloudflareStreamUid: payload.uid,
-      posterUrl: details.thumbnail ?? undefined,
-      durationSeconds: details.duration ?? undefined,
-      hlsManifestUrl: details.playback.hls ?? undefined,
-      dashManifestUrl: details.playback.dash ?? undefined,
-    });
+    await applyReadyVideo(admin, reel, details);
 
     return new Response("OK", { status: 200 });
   } catch (error) {

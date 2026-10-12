@@ -15,6 +15,7 @@ import {
   updateWidgetReels,
   syncShopWidgetState,
   saveWidgetSettings,
+  removeReelFromWidgets,
 } from "./widget.server";
 
 // Admin mock that records the variables passed to the metafieldsSet mutation.
@@ -1070,5 +1071,51 @@ describe("saveWidgetSettings", () => {
 
     expect((await getWidget(shop.id, live.id))?.published).toBe(false);
     expect((await getWidget(shop.id, draft.id))?.published).toBe(true);
+  });
+});
+
+describe("removeReelFromWidgets", () => {
+  beforeEach(async () => {
+    await prisma.widget.deleteMany();
+    await prisma.shop.deleteMany();
+  });
+
+  it("drops a deleted reel from curated lists and featured slots, and re-syncs only those kinds", async () => {
+    const shop = await getOrCreateShop("remove-reel.myshopify.com");
+    const gone = "gid://shopify/Metaobject/5";
+    const keep = "gid://shopify/Metaobject/6";
+    const list = await createWidget(shop.id, "PRODUCT_PAGE_REELS", "List", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+      reelIds: [keep, gone],
+    });
+    const featured = await createWidget(shop.id, "SINGLE_VIDEO", "Featured", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+      featuredReelId: gone,
+    });
+    const untouched = await createWidget(shop.id, "CAROUSEL", "Other", {
+      templateStyle: "classic",
+      targetRule: { type: "all_products" },
+      reelIds: [keep],
+    });
+    const synced: string[] = [];
+    const admin = {
+      graphql: async (query: string, options?: { variables?: Record<string, unknown> }) => {
+        if (query.includes("GetShopId")) {
+          return { json: async () => ({ data: { shop: { id: "gid://shopify/Shop/1" } } }) };
+        }
+        const metafields = (options?.variables as { metafields: { key: string }[] }).metafields;
+        synced.push(metafields[0].key);
+        return { json: async () => ({ data: { metafieldsSet: { userErrors: [] } } }) };
+      },
+    };
+
+    await removeReelFromWidgets(admin, shop.id, gone);
+
+    expect(((await getWidget(shop.id, list.id))!.config as { reelIds: string[] }).reelIds).toEqual([keep]);
+    expect(((await getWidget(shop.id, featured.id))!.config as { featuredReelId?: string }).featuredReelId).toBeUndefined();
+    expect(((await getWidget(shop.id, untouched.id))!.config as { reelIds: string[] }).reelIds).toEqual([keep]);
+    expect(synced.sort()).toEqual(["product_page_reels_widget", "single_video_widget"]);
   });
 });

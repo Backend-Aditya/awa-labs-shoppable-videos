@@ -5,7 +5,14 @@ export interface ReelConfig {
   hlsManifestUrl?: string;
   dashManifestUrl?: string;
   uploadFailedAt?: string;
+  // Stream uid of a replacement upload still processing. The current video
+  // stays live until it's ready (see reel-media.server.ts applyReadyVideo).
+  replacingStreamUid?: string;
+  // Second of the video used as the poster/cover frame.
+  coverTimeSeconds?: number;
   productIds: string[];
+  // Optional link button shown in the storefront viewer, e.g. "Shop the
+  // collection" → /collections/summer.
   interactions: { ctaLabel?: string; ctaUrl?: string };
   source: { type: "upload" | "instagram" | "tiktok"; originalUrl?: string };
   // Feeds the storefront's VideoObject JSON-LD (schema.org) for this reel —
@@ -386,8 +393,13 @@ export async function syncProductReelMetafields(
   const json = await response.json();
   assertNoGraphqlErrors(json);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- GraphQL response shape varies per query; this is the external Admin API boundary
-  const metafieldsToSet = json.data.nodes.map((node: any) => {
+  const metafieldsToSet = json.data.nodes
+    // A product deleted from the store comes back as null — skip it rather
+    // than crash, which used to block saving any reel tagged with it.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- GraphQL response shape varies per query; this is the external Admin API boundary
+    .filter((node: any) => node?.id)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- same boundary as above
+    .map((node: any) => {
     const currentReelIds: string[] = node.metafield?.value
       ? JSON.parse(node.metafield.value)
       : [];
@@ -406,16 +418,19 @@ export async function syncProductReelMetafields(
     };
   });
 
-  const setResponse = await admin.graphql(
-    `#graphql
-    mutation SetProductReelMetafields($metafields: [MetafieldsSetInput!]!) {
-      metafieldsSet(metafields: $metafields) {
-        userErrors { field message }
-      }
-    }`,
-    { variables: { metafields: metafieldsToSet } },
-  );
-  const setJson = await setResponse.json();
-  assertNoGraphqlErrors(setJson);
-  throwOnUserErrors(setJson.data.metafieldsSet.userErrors);
+  // metafieldsSet takes at most 25 metafields per call.
+  for (let i = 0; i < metafieldsToSet.length; i += 25) {
+    const setResponse = await admin.graphql(
+      `#graphql
+      mutation SetProductReelMetafields($metafields: [MetafieldsSetInput!]!) {
+        metafieldsSet(metafields: $metafields) {
+          userErrors { field message }
+        }
+      }`,
+      { variables: { metafields: metafieldsToSet.slice(i, i + 25) } },
+    );
+    const setJson = await setResponse.json();
+    assertNoGraphqlErrors(setJson);
+    throwOnUserErrors(setJson.data.metafieldsSet.userErrors);
+  }
 }

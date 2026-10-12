@@ -687,3 +687,49 @@ describe("reel.server", () => {
     });
   });
 });
+
+describe("syncProductReelMetafields edge cases", () => {
+  it("skips products that were deleted from the store instead of crashing", async () => {
+    const sets: unknown[] = [];
+    const admin = {
+      graphql: async (query: string, options?: { variables?: Record<string, unknown> }) => {
+        if (query.includes("GetProductReelMetafields")) {
+          return {
+            json: async () => ({
+              data: { nodes: [null, { id: "gid://shopify/Product/2", metafield: null }] },
+            }),
+          };
+        }
+        sets.push(options?.variables);
+        return { json: async () => ({ data: { metafieldsSet: { userErrors: [] } } }) };
+      },
+    };
+
+    await syncProductReelMetafields(admin, "gid://shopify/Metaobject/1", ["gid://shopify/Product/1"], [
+      "gid://shopify/Product/2",
+    ]);
+
+    expect(sets).toHaveLength(1);
+    expect((sets[0] as { metafields: { ownerId: string }[] }).metafields.map((m) => m.ownerId)).toEqual([
+      "gid://shopify/Product/2",
+    ]);
+  });
+
+  it("writes in batches of 25, Shopify's metafieldsSet limit", async () => {
+    const ids = Array.from({ length: 30 }, (_, i) => `gid://shopify/Product/${i + 1}`);
+    const batchSizes: number[] = [];
+    const admin = {
+      graphql: async (query: string, options?: { variables?: Record<string, unknown> }) => {
+        if (query.includes("GetProductReelMetafields")) {
+          return { json: async () => ({ data: { nodes: ids.map((id) => ({ id, metafield: null })) } }) };
+        }
+        batchSizes.push((options?.variables as { metafields: unknown[] }).metafields.length);
+        return { json: async () => ({ data: { metafieldsSet: { userErrors: [] } } }) };
+      },
+    };
+
+    await syncProductReelMetafields(admin, "gid://shopify/Metaobject/1", [], ids);
+
+    expect(batchSizes).toEqual([25, 5]);
+  });
+});

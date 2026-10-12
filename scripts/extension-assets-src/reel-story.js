@@ -160,7 +160,13 @@
     const list = dialog.querySelector("[data-reelup-story-list]");
     const count = viewer()?.cloneProducts(trigger, list) ?? 0;
     const sticker = dialog.querySelector("[data-reelup-story-shop]");
-    sticker.hidden = count === 0;
+    const linkUrl = viewer()?.safeLink(trigger.dataset.linkUrl) ?? "";
+    // No products but a link button: the sticker goes straight to the link.
+    sticker.dataset.link = count === 0 ? linkUrl : "";
+    sticker.querySelector(".reelup-story__sticker-label").textContent =
+      count === 0 && linkUrl ? trigger.dataset.linkLabel || viewer().labels.learnMore : viewer().labels.shop;
+    sticker.hidden = count === 0 && !linkUrl;
+    if (count === 0) sticker.querySelector(".reelup-story__sticker-thumb").hidden = true;
     if (count > 0) {
       const firstImage = list.querySelector(".reelup-product__media img");
       const thumb = sticker.querySelector(".reelup-story__sticker-thumb");
@@ -204,7 +210,7 @@
         <button type="button" class="reelup-story__tap reelup-story__tap--next" data-reelup-story-next aria-label="${labels.next}"></button>
         <button type="button" class="reelup-story__sticker" data-reelup-story-shop hidden>
           <span class="reelup-story__sticker-thumb" aria-hidden="true"></span>
-          <span>${labels.shop}</span>
+          <span class="reelup-story__sticker-label">${labels.shop}</span>
           <span class="reelup-story__sticker-count"></span>
         </button>
         <div class="reelup-story__drawer" data-reelup-story-drawer hidden>
@@ -251,7 +257,15 @@
     });
     dialog.querySelector("[data-reelup-story-prev]").addEventListener("click", () => step(-1));
     dialog.querySelector("[data-reelup-story-next]").addEventListener("click", () => step(1));
-    dialog.querySelector("[data-reelup-story-shop]").addEventListener("click", () => setDrawer(dialog, true));
+    dialog.querySelector("[data-reelup-story-shop]").addEventListener("click", (event) => {
+      const link = event.currentTarget.dataset.link;
+      if (link) {
+        viewer().trackAnalytics(reels[currentIndex]?.dataset.reelId, "click_product");
+        window.location.href = link;
+        return;
+      }
+      setDrawer(dialog, true);
+    });
     dialog.querySelector("[data-reelup-story-drawer-close]").addEventListener("click", () => setDrawer(dialog, false));
 
     dialog.addEventListener("click", (event) => {

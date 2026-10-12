@@ -1,0 +1,909 @@
+import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
+import type { DragEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useFetcher, useLoaderData, useNavigate, useRevalidator } from "react-router";
+import { useAppBridge } from "@shopify/app-bridge-react";
+import { authenticate } from "../shopify.server";
+import { boundary } from "@shopify/shopify-app-react-router/server";
+import { getReel, listReels, upsertReel } from "../models/reel.server";
+import { deriveReelStatus } from "../models/reel-status";
+import { healProcessingReels } from "../models/reel-media.server";
+import { deleteReelEverywhere } from "../models/reel-lifecycle.server";
+import { getOrCreateShop } from "../models/shop.server";
+import { getViewCountsByReel, reelKey } from "../models/analytics.server";
+import { animatedPreviewUrl, formatDuration } from "../models/reel-media";
+import { importReel, titleFromFilename, uploadNewReel, validateVideoFile } from "../components/reels/upload";
+import styles from "../components/reels/reels.module.css";
+
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  const { admin, session } = await authenticate.admin(request);
+  const shop = await getOrCreateShop(session.shop);
+  const [reels, views] = await Promise.all([listReels(admin), getViewCountsByReel(shop.id)]);
+  const healed = await healProcessingReels(admin, reels);
+  return {
+    reels: healed.map((reel) => ({
+      id: reel.id,
+      key: reelKey(reel.id),
+      title: reel.title,
+      published: reel.published,
+      status: deriveReelStatus(reel.config),
+      replacing: Boolean(reel.config.replacingStreamUid),
+      posterUrl: reel.config.posterUrl ?? null,
+      coverTime: reel.config.coverTimeSeconds ?? 0,
+      duration: reel.config.durationSeconds ?? 0,
+      productCount: reel.config.productIds?.length ?? 0,
+      source: reel.config.source?.type ?? "upload",
+      views: views[reelKey(reel.id)] ?? 0,
+    })),
+  };
+};
+
+type LibraryReel = ReturnType<typeof useLoaderData<typeof loader>>["reels"][number];
+
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const { admin, session } = await authenticate.admin(request);
+  const shop = await getOrCreateShop(session.shop);
+  const formData = await request.formData();
+  const intent = String(formData.get("intent") ?? "");
+  const ids = formData.getAll("reelId").map(String).slice(0, 250);
+
+  try {
+    if (intent === "bulk-publish" || intent === "bulk-unpublish") {
+      const published = intent === "bulk-publish";
+      for (const id of ids) {
+        const reel = await getReel(admin, id);
+        if (reel && reel.published !== published) {
+          await upsertReel(admin, reel.handle, reel.title, published, reel.config);
+        }
+      }
+      return { ok: true, error: null, message: `${ids.length} video${ids.length === 1 ? "" : "s"} ${published ? "published" : "unpublished"}` };
+    }
+    if (intent === "bulk-delete") {
+      for (const id of ids) {
+        const reel = await getReel(admin, id);
+        if (reel) await deleteReelEverywhere(admin, shop.id, reel);
+      }
+      return { ok: true, error: null, message: `${ids.length} video${ids.length === 1 ? "" : "s"} deleted` };
+    }
+    return { ok: false, error: "Unknown request", message: null };
+  } catch (e) {
+    if (e instanceof Response) throw e;
+    return { ok: false, error: "Some videos couldn't be updated. Try again.", message: null };
+  }
+};
+
+/* ------------------------------------------------------------------ page */
+
+type Filter = "all" | "live" | "draft" | "processing" | "untagged" | "failed";
+type Sort = "newest" | "oldest" | "views" | "title";
+
+const FILTERS: { id: Filter; label: string; test: (r: LibraryReel) => boolean }[] = [
+  { id: "all", label: "All", test: () => true },
+  { id: "live", label: "Live", test: (r) => r.published && r.status === "ready" },
+  { id: "draft", label: "Drafts", test: (r) => !r.published },
+  { id: "processing", label: "Processing", test: (r) => r.status === "processing" || r.replacing },
+  { id: "untagged", label: "No products", test: (r) => r.productCount === 0 },
+  { id: "failed", label: "Failed", test: (r) => r.status === "failed" },
+];
+
+const numericId = (key: string) => Number(key) || 0;
+
+export default function ReelsLibrary() {
+  const { reels } = useLoaderData<typeof loader>();
+  const navigate = useNavigate();
+  const shopify = useAppBridge();
+  const bulkFetcher = useFetcher<typeof action>();
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<Filter>("all");
+  const [sort, setSort] = useState<Sort>("newest");
+  const [view, setView] = useState<"grid" | "list">("grid");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [dragging, setDragging] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("reelup-library-view");
+      if (saved === "list" || saved === "grid") setView(saved);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    if (bulkFetcher.state !== "idle" || !bulkFetcher.data) return;
+    if (bulkFetcher.data.ok && bulkFetcher.data.message) shopify.toast.show(bulkFetcher.data.message);
+    else if (bulkFetcher.data.error) shopify.toast.show(bulkFetcher.data.error, { isError: true });
+  }, [bulkFetcher.state, bulkFetcher.data, shopify]);
+
+  // Selection survives filtering but forgets reels that no longer exist.
+  useEffect(() => {
+    setSelected((prev) => new Set([...prev].filter((id) => reels.some((r) => r.id === id))));
+  }, [reels]);
+
+  const counts = useMemo(() => Object.fromEntries(FILTERS.map((f) => [f.id, reels.filter(f.test).length])), [reels]);
+
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const test = FILTERS.find((f) => f.id === filter)!.test;
+    const list = reels.filter((r) => test(r) && (!q || r.title.toLowerCase().includes(q)));
+    const sorted = [...list];
+    if (sort === "newest") sorted.sort((a, b) => numericId(b.key) - numericId(a.key));
+    if (sort === "oldest") sorted.sort((a, b) => numericId(a.key) - numericId(b.key));
+    if (sort === "views") sorted.sort((a, b) => b.views - a.views);
+    if (sort === "title") sorted.sort((a, b) => a.title.localeCompare(b.title));
+    return sorted;
+  }, [reels, query, filter, sort]);
+
+  const setViewMode = (mode: "grid" | "list") => {
+    setView(mode);
+    try {
+      localStorage.setItem("reelup-library-view", mode);
+    } catch {
+      // ignore
+    }
+  };
+
+  const toggle = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const bulk = (intent: "bulk-publish" | "bulk-unpublish" | "bulk-delete") => {
+    const formData = new FormData();
+    formData.set("intent", intent);
+    selected.forEach((id) => formData.append("reelId", id));
+    bulkFetcher.submit(formData, { method: "post" });
+    setSelected(new Set());
+  };
+
+  const open = (reel: LibraryReel) => navigate(`/app/reels/${reel.key}`);
+
+  const openUpload = (files: File[] = []) => {
+    setPendingFiles(files);
+    shopify.modal.show("upload-modal");
+  };
+
+  const onDrop = (event: DragEvent) => {
+    event.preventDefault();
+    setDragging(false);
+    const files = Array.from(event.dataTransfer.files).filter((f) => f.type.startsWith("video/"));
+    if (files.length) openUpload(files);
+  };
+
+  const allShownSelected = shown.length > 0 && shown.every((r) => selected.has(r.id));
+
+  return (
+    <s-page heading="Reels" inlineSize="large">
+      <s-button slot="primary-action" variant="primary" onClick={() => openUpload()}>
+        Upload videos
+      </s-button>
+      <s-button slot="secondary-actions" onClick={() => shopify.modal.show("import-modal")}>
+        Import from link
+      </s-button>
+
+      <div
+        className={styles.library}
+        onDragOver={(e) => {
+          if (Array.from(e.dataTransfer.types).includes("Files")) {
+            e.preventDefault();
+            setDragging(true);
+          }
+        }}
+        onDragLeave={(e) => {
+          if (e.currentTarget === e.target) setDragging(false);
+        }}
+        onDrop={onDrop}
+      >
+        {dragging && (
+          <div className={styles.dropOverlay} aria-hidden="true">
+            <UploadIcon />
+            <span>Drop videos to upload</span>
+          </div>
+        )}
+
+        {reels.length === 0 ? (
+          <EmptyLibrary onUpload={() => openUpload()} onImport={() => shopify.modal.show("import-modal")} />
+        ) : (
+          <>
+            <div className={styles.toolbar}>
+              <div className={styles.filters} role="tablist" aria-label="Filter videos">
+                {FILTERS.filter((f) => f.id === "all" || counts[f.id] > 0).map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={filter === f.id}
+                    className={styles.filter}
+                    onClick={() => setFilter(f.id)}
+                  >
+                    {f.label}
+                    <span className={styles.filterCount}>{counts[f.id]}</span>
+                  </button>
+                ))}
+              </div>
+              <div className={styles.toolbarRight}>
+                <label className={styles.search}>
+                  <SearchIcon />
+                  <span className={styles.srOnly}>Search videos</span>
+                  <input
+                    type="search"
+                    placeholder="Search by title"
+                    value={query}
+                    onChange={(e) => setQuery(e.currentTarget.value)}
+                  />
+                </label>
+                <label className={styles.sort}>
+                  <span className={styles.srOnly}>Sort</span>
+                  <select value={sort} onChange={(e) => setSort(e.currentTarget.value as Sort)}>
+                    <option value="newest">Newest</option>
+                    <option value="oldest">Oldest</option>
+                    <option value="views">Most viewed</option>
+                    <option value="title">Title A–Z</option>
+                  </select>
+                </label>
+                <div className={styles.viewToggle} role="radiogroup" aria-label="Layout">
+                  <button type="button" role="radio" aria-checked={view === "grid"} aria-label="Grid" onClick={() => setViewMode("grid")}>
+                    <GridIcon />
+                  </button>
+                  <button type="button" role="radio" aria-checked={view === "list"} aria-label="List" onClick={() => setViewMode("list")}>
+                    <ListIcon />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {shown.length === 0 ? (
+              <div className={styles.noMatch}>
+                <p>No videos match.</p>
+                <button
+                  type="button"
+                  className={styles.linkButton}
+                  onClick={() => {
+                    setQuery("");
+                    setFilter("all");
+                  }}
+                >
+                  Clear search and filters
+                </button>
+              </div>
+            ) : view === "grid" ? (
+              <ul className={styles.grid}>
+                {shown.map((reel) => (
+                  <ReelTile
+                    key={reel.id}
+                    reel={reel}
+                    selected={selected.has(reel.id)}
+                    selecting={selected.size > 0}
+                    onToggle={() => toggle(reel.id)}
+                    onOpen={() => open(reel)}
+                  />
+                ))}
+              </ul>
+            ) : (
+              <ReelTable
+                reels={shown}
+                selected={selected}
+                allSelected={allShownSelected}
+                onToggle={toggle}
+                onToggleAll={() =>
+                  setSelected(allShownSelected ? new Set() : new Set(shown.map((r) => r.id)))
+                }
+                onOpen={open}
+              />
+            )}
+          </>
+        )}
+
+        {selected.size > 0 && (
+          <div className={styles.bulkBar} role="region" aria-label="Bulk actions">
+            <span className={styles.bulkCount}>{selected.size} selected</span>
+            <button
+              type="button"
+              className={styles.bulkLink}
+              onClick={() => setSelected(allShownSelected ? new Set() : new Set(shown.map((r) => r.id)))}
+            >
+              {allShownSelected ? "Clear" : `Select all ${shown.length}`}
+            </button>
+            <span className={styles.bulkSpacer} />
+            <s-button onClick={() => bulk("bulk-publish")} loading={bulkFetcher.state !== "idle"}>
+              Publish
+            </s-button>
+            <s-button onClick={() => bulk("bulk-unpublish")} loading={bulkFetcher.state !== "idle"}>
+              Unpublish
+            </s-button>
+            <s-button tone="critical" commandFor="bulk-delete-modal" command="--show">
+              Delete
+            </s-button>
+          </div>
+        )}
+      </div>
+
+      <UploadModal initialFiles={pendingFiles} onClear={() => setPendingFiles([])} />
+      <ImportModal />
+      <s-modal id="bulk-delete-modal" heading={`Delete ${selected.size} video${selected.size === 1 ? "" : "s"}?`}>
+        <s-paragraph>
+          They&rsquo;ll be removed from your store, from any widget showing them, and from their tagged products. This
+          can&rsquo;t be undone.
+        </s-paragraph>
+        <s-button
+          slot="primary-action"
+          variant="primary"
+          tone="critical"
+          onClick={() => {
+            bulk("bulk-delete");
+            shopify.modal.hide("bulk-delete-modal");
+          }}
+        >
+          Delete
+        </s-button>
+        <s-button slot="secondary-actions" commandFor="bulk-delete-modal" command="--hide">
+          Cancel
+        </s-button>
+      </s-modal>
+    </s-page>
+  );
+}
+
+/* --------------------------------------------------------------- tiles */
+
+function StatusPill({ reel }: { reel: LibraryReel }) {
+  if (reel.status === "failed") return <span className={styles.pill} data-tone="critical">Failed</span>;
+  if (reel.status === "processing" || reel.status === "draft")
+    return (
+      <span className={styles.pill} data-tone="info">
+        {reel.status === "draft" ? "No video" : <><span className={styles.spinner} aria-hidden="true" />Processing</>}
+      </span>
+    );
+  if (reel.replacing)
+    return (
+      <span className={styles.pill} data-tone="info">
+        <span className={styles.spinner} aria-hidden="true" />
+        Replacing
+      </span>
+    );
+  return reel.published ? (
+    <span className={styles.pill} data-tone="success">Live</span>
+  ) : (
+    <span className={styles.pill}>Draft</span>
+  );
+}
+
+function ReelTile({
+  reel,
+  selected,
+  selecting,
+  onToggle,
+  onOpen,
+}: {
+  reel: LibraryReel;
+  selected: boolean;
+  selecting: boolean;
+  onToggle: () => void;
+  onOpen: () => void;
+}) {
+  const [hovering, setHovering] = useState(false);
+  const gif = hovering ? animatedPreviewUrl(reel.posterUrl ?? undefined, reel.coverTime) : null;
+  return (
+    <li className={styles.tile} data-selected={selected || undefined} data-selecting={selecting || undefined}>
+      <button
+        type="button"
+        className={styles.tileOpen}
+        onClick={selecting ? onToggle : onOpen}
+        onMouseEnter={() => setHovering(true)}
+        onMouseLeave={() => setHovering(false)}
+        onFocus={() => setHovering(true)}
+        onBlur={() => setHovering(false)}
+        aria-label={selecting ? `Select ${reel.title}` : `Edit ${reel.title}`}
+      >
+        <span className={styles.poster}>
+          {reel.posterUrl ? (
+            <img src={reel.posterUrl} alt="" loading="lazy" />
+          ) : (
+            <span className={styles.posterEmpty}>
+              <VideoIcon />
+            </span>
+          )}
+          {gif && <img className={styles.posterGif} src={gif} alt="" />}
+          <span className={styles.tileTop}>
+            <StatusPill reel={reel} />
+          </span>
+          {reel.duration > 0 && <span className={styles.duration}>{formatDuration(reel.duration)}</span>}
+        </span>
+        <span className={styles.tileBody}>
+          <span className={styles.tileTitle}>{reel.title}</span>
+          <span className={styles.tileMeta}>
+            <span data-warn={reel.productCount === 0 || undefined}>
+              {reel.productCount === 0 ? "No products" : `${reel.productCount} product${reel.productCount === 1 ? "" : "s"}`}
+            </span>
+            <span>{compact(reel.views)} views</span>
+          </span>
+        </span>
+      </button>
+      <label className={styles.tileCheck}>
+        <input type="checkbox" checked={selected} onChange={onToggle} />
+        <span className={styles.srOnly}>Select {reel.title}</span>
+      </label>
+    </li>
+  );
+}
+
+function ReelTable({
+  reels,
+  selected,
+  allSelected,
+  onToggle,
+  onToggleAll,
+  onOpen,
+}: {
+  reels: LibraryReel[];
+  selected: Set<string>;
+  allSelected: boolean;
+  onToggle: (id: string) => void;
+  onToggleAll: () => void;
+  onOpen: (reel: LibraryReel) => void;
+}) {
+  return (
+    <div className={styles.tableWrap}>
+      <table className={styles.table}>
+        <thead>
+          <tr>
+            <th scope="col" className={styles.checkCell}>
+              <input type="checkbox" checked={allSelected} onChange={onToggleAll} aria-label="Select all" />
+            </th>
+            <th scope="col">Video</th>
+            <th scope="col">Status</th>
+            <th scope="col">Products</th>
+            <th scope="col">Length</th>
+            <th scope="col" className={styles.num}>Views</th>
+          </tr>
+        </thead>
+        <tbody>
+          {reels.map((reel) => (
+            <tr key={reel.id} data-selected={selected.has(reel.id) || undefined}>
+              <td className={styles.checkCell}>
+                <input
+                  type="checkbox"
+                  checked={selected.has(reel.id)}
+                  onChange={() => onToggle(reel.id)}
+                  aria-label={`Select ${reel.title}`}
+                />
+              </td>
+              <th scope="row">
+                <button type="button" className={styles.rowOpen} onClick={() => onOpen(reel)}>
+                  <span
+                    className={styles.rowThumb}
+                    style={reel.posterUrl ? { backgroundImage: `url("${reel.posterUrl}")` } : undefined}
+                  />
+                  <span className={styles.rowTitle}>{reel.title}</span>
+                </button>
+              </th>
+              <td>
+                <StatusPill reel={reel} />
+              </td>
+              <td data-warn={reel.productCount === 0 || undefined}>{reel.productCount || "None"}</td>
+              <td>{formatDuration(reel.duration) || "—"}</td>
+              <td className={styles.num}>{reel.views.toLocaleString()}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function compact(n: number) {
+  return new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 }).format(n);
+}
+
+function EmptyLibrary({ onUpload, onImport }: { onUpload: () => void; onImport: () => void }) {
+  return (
+    <div className={styles.empty}>
+      <div className={styles.emptyArt} aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </div>
+      <h2>Upload your first video</h2>
+      <p>Drop video files anywhere on this page, or import a public Instagram or TikTok post. Tag the products it features and it&rsquo;s ready for any widget.</p>
+      <div className={styles.emptyActions}>
+        <s-button variant="primary" onClick={onUpload}>
+          Upload videos
+        </s-button>
+        <s-button onClick={onImport}>Import from link</s-button>
+      </div>
+    </div>
+  );
+}
+
+/* --------------------------------------------------------------- upload */
+
+type QueueItem = {
+  id: string;
+  file: File;
+  title: string;
+  state: "ready" | "uploading" | "done" | "error";
+  progress: number;
+  error?: string;
+  invalid?: string;
+};
+
+type PickedProduct = { id: string; title: string; imageUrl: string | null };
+
+function useProductPicker() {
+  const shopify = useAppBridge();
+  const [products, setProducts] = useState<PickedProduct[]>([]);
+  const pick = async () => {
+    const result = await shopify.resourcePicker({
+      type: "product",
+      multiple: true,
+      selectionIds: products.map((p) => ({ id: p.id })),
+    });
+    if (!result) return;
+    setProducts(
+      result.map((p) => ({
+        id: p.id,
+        title: p.title,
+        imageUrl: (p as { images?: { originalSrc?: string }[] }).images?.[0]?.originalSrc ?? null,
+      })),
+    );
+  };
+  return { products, setProducts, pick };
+}
+
+function ProductChips({ products, onPick, onRemove }: { products: PickedProduct[]; onPick: () => void; onRemove: (id: string) => void }) {
+  return (
+    <div className={styles.fieldBlock}>
+      <div className={styles.fieldHead}>
+        <span className={styles.fieldLabel}>Tag products</span>
+        <button type="button" className={styles.linkButton} onClick={onPick}>
+          {products.length ? "Edit" : "Choose products"}
+        </button>
+      </div>
+      {products.length === 0 ? (
+        <p className={styles.hint}>Optional — you can tag products later in each video.</p>
+      ) : (
+        <div className={styles.chips}>
+          {products.map((p) => (
+            <span key={p.id} className={styles.chip}>
+              {p.imageUrl && <img src={p.imageUrl} alt="" />}
+              {p.title}
+              <button type="button" aria-label={`Remove ${p.title}`} onClick={() => onRemove(p.id)}>
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function UploadModal({ initialFiles, onClear }: { initialFiles: File[]; onClear: () => void }) {
+  const shopify = useAppBridge();
+  const { revalidate } = useRevalidator();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [queue, setQueue] = useState<QueueItem[]>([]);
+  const [published, setPublished] = useState(true);
+  const [running, setRunning] = useState(false);
+  const { products, setProducts, pick } = useProductPicker();
+
+  const addFiles = (files: File[]) =>
+    setQueue((prev) => [
+      ...prev,
+      ...files.map((file) => ({
+        id: `${file.name}-${file.size}-${Math.random().toString(36).slice(2)}`,
+        file,
+        title: titleFromFilename(file.name),
+        state: "ready" as const,
+        progress: 0,
+        invalid: validateVideoFile(file) ?? undefined,
+      })),
+    ]);
+
+  useEffect(() => {
+    if (initialFiles.length) {
+      addFiles(initialFiles);
+      onClear();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialFiles]);
+
+  const update = (id: string, patch: Partial<QueueItem>) =>
+    setQueue((prev) => prev.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+
+  const start = async () => {
+    setRunning(true);
+    let succeeded = 0;
+    for (const item of queue) {
+      if (item.state === "done" || item.invalid) continue;
+      update(item.id, { state: "uploading", progress: 0, error: undefined });
+      try {
+        await uploadNewReel(
+          item.file,
+          { title: item.title.trim() || titleFromFilename(item.file.name), published, productIds: products.map((p) => p.id) },
+          (progress) => update(item.id, { progress }),
+        );
+        update(item.id, { state: "done", progress: 1 });
+        succeeded += 1;
+      } catch (error) {
+        update(item.id, { state: "error", error: error instanceof Error ? error.message : "Upload failed." });
+      }
+    }
+    setRunning(false);
+    if (succeeded > 0) {
+      revalidate();
+      shopify.toast.show(`${succeeded} video${succeeded === 1 ? "" : "s"} uploaded — processing now`);
+    }
+  };
+
+  const pending = queue.filter((q) => q.state !== "done" && !q.invalid).length;
+  const allDone = queue.length > 0 && pending === 0;
+
+  const reset = () => {
+    if (running) return;
+    setQueue([]);
+    setProducts([]);
+    setPublished(true);
+  };
+
+  return (
+    <s-modal id="upload-modal" heading="Upload videos" size="large" onHide={reset}>
+      <div className={styles.modalBody}>
+        <button
+          type="button"
+          className={styles.dropzone}
+          onClick={() => inputRef.current?.click()}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            addFiles(Array.from(e.dataTransfer.files));
+          }}
+          disabled={running}
+        >
+          <UploadIcon />
+          <span className={styles.dropTitle}>Drop videos here or click to browse</span>
+          <span className={styles.hint}>MP4, MOV or WebM · up to 200 MB each · vertical 9:16 looks best</span>
+        </button>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="video/*"
+          multiple
+          hidden
+          onChange={(e) => {
+            addFiles(Array.from(e.currentTarget.files ?? []));
+            e.currentTarget.value = "";
+          }}
+        />
+
+        {queue.length > 0 && (
+          <ul className={styles.queue}>
+            {queue.map((item) => (
+              <li key={item.id} className={styles.queueItem} data-state={item.state}>
+                <span className={styles.queueIcon}>
+                  {item.state === "done" ? <CheckIcon /> : <VideoIcon />}
+                </span>
+                <span className={styles.queueMain}>
+                  <input
+                    className={styles.queueTitle}
+                    value={item.title}
+                    aria-label="Title"
+                    disabled={item.state !== "ready" && item.state !== "error"}
+                    onChange={(e) => update(item.id, { title: e.currentTarget.value })}
+                  />
+                  <span className={styles.queueMeta}>
+                    {item.invalid ? (
+                      <span data-error>{item.invalid}</span>
+                    ) : item.state === "error" ? (
+                      <span data-error>{item.error}</span>
+                    ) : item.state === "uploading" ? (
+                      `Uploading ${Math.round(item.progress * 100)}%`
+                    ) : item.state === "done" ? (
+                      "Uploaded — processing"
+                    ) : (
+                      `${item.file.name} · ${(item.file.size / 1024 / 1024).toFixed(1)} MB`
+                    )}
+                  </span>
+                  {(item.state === "uploading" || item.state === "done") && (
+                    <span className={styles.progress}>
+                      <span style={{ transform: `scaleX(${item.progress})` }} />
+                    </span>
+                  )}
+                </span>
+                {!running && item.state !== "done" && (
+                  <button
+                    type="button"
+                    className={styles.iconButton}
+                    aria-label={`Remove ${item.title}`}
+                    onClick={() => setQueue((prev) => prev.filter((q) => q.id !== item.id))}
+                  >
+                    <CloseIcon />
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <div className={styles.optionsRow}>
+          <ProductChips products={products} onPick={pick} onRemove={(id) => setProducts((p) => p.filter((x) => x.id !== id))} />
+          <div className={styles.fieldBlock}>
+            <label className={styles.switchRow} htmlFor="upload-publish">
+              <span className={styles.fieldLabel}>Publish when ready</span>
+              <input
+                id="upload-publish"
+                type="checkbox"
+                className={styles.switch}
+                checked={published}
+                onChange={(e) => setPublished(e.currentTarget.checked)}
+              />
+            </label>
+            <span className={styles.hint}>Live on your store as soon as processing finishes.</span>
+          </div>
+        </div>
+      </div>
+      {allDone ? (
+        <s-button slot="primary-action" variant="primary" commandFor="upload-modal" command="--hide">
+          Done
+        </s-button>
+      ) : (
+        <s-button slot="primary-action" variant="primary" loading={running} disabled={pending === 0} onClick={start}>
+          {pending > 1 ? `Upload ${pending} videos` : "Upload"}
+        </s-button>
+      )}
+      <s-button slot="secondary-actions" commandFor="upload-modal" command="--hide" disabled={running}>
+        {allDone ? "Close" : "Cancel"}
+      </s-button>
+    </s-modal>
+  );
+}
+
+function ImportModal() {
+  const shopify = useAppBridge();
+  const navigate = useNavigate();
+  const [url, setUrl] = useState("");
+  const [title, setTitle] = useState("");
+  const [published, setPublished] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const { products, setProducts, pick } = useProductPicker();
+  const platform = /instagram\.com/i.test(url) ? "Instagram" : /tiktok\.com/i.test(url) ? "TikTok" : null;
+
+  const submit = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const reelId = await importReel({
+        sourceUrl: url.trim(),
+        title: title.trim() || `${platform ?? "Imported"} video`,
+        published,
+        productIds: products.map((p) => p.id),
+      });
+      shopify.modal.hide("import-modal");
+      shopify.toast.show("Video imported — processing now");
+      navigate(`/app/reels/${reelId.split("/").pop()}`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Import failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <s-modal
+      id="import-modal"
+      heading="Import from Instagram or TikTok"
+      onHide={() => {
+        if (busy) return;
+        setUrl("");
+        setTitle("");
+        setError(null);
+        setProducts([]);
+      }}
+    >
+      <div className={styles.modalBody}>
+        {error && <s-banner tone="critical">{error}</s-banner>}
+        <label className={styles.fieldBlock}>
+          <span className={styles.fieldLabel}>Post link</span>
+          <input
+            className={styles.input}
+            type="url"
+            placeholder="https://www.instagram.com/reel/…"
+            value={url}
+            onChange={(e) => setUrl(e.currentTarget.value)}
+          />
+          <span className={styles.hint}>
+            {platform ? `${platform} post detected.` : "Public posts only. Some posts can't be fetched — upload the file instead if so."}
+          </span>
+        </label>
+        <label className={styles.fieldBlock}>
+          <span className={styles.fieldLabel}>Title</span>
+          <input className={styles.input} value={title} placeholder="Shown in the video player" onChange={(e) => setTitle(e.currentTarget.value)} />
+        </label>
+        <ProductChips products={products} onPick={pick} onRemove={(id) => setProducts((p) => p.filter((x) => x.id !== id))} />
+        <label className={styles.switchRow} htmlFor="import-publish">
+          <span className={styles.fieldLabel}>Publish when ready</span>
+          <input
+            id="import-publish"
+            type="checkbox"
+            className={styles.switch}
+            checked={published}
+            onChange={(e) => setPublished(e.currentTarget.checked)}
+          />
+        </label>
+      </div>
+      <s-button slot="primary-action" variant="primary" loading={busy} disabled={!platform} onClick={submit}>
+        Import video
+      </s-button>
+      <s-button slot="secondary-actions" commandFor="import-modal" command="--hide" disabled={busy}>
+        Cancel
+      </s-button>
+    </s-modal>
+  );
+}
+
+/* --------------------------------------------------------------- icons */
+
+function UploadIcon() {
+  return (
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 16V4m0 0-4.5 4.5M12 4l4.5 4.5M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15" />
+    </svg>
+  );
+}
+function VideoIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <path d="M4.5 4A1.5 1.5 0 0 0 3 5.5v9A1.5 1.5 0 0 0 4.5 16h8a1.5 1.5 0 0 0 1.5-1.5v-2.2l2.7 1.8a.75.75 0 0 0 1.17-.62V6.52a.75.75 0 0 0-1.17-.62L14 7.7V5.5A1.5 1.5 0 0 0 12.5 4h-8Z" />
+    </svg>
+  );
+}
+function CheckIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="m3.5 8.3 3 2.9 6-6.4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function CloseIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <path d="M5.72 5.72a.75.75 0 0 1 1.06 0L10 8.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L11.06 10l3.22 3.22a.75.75 0 1 1-1.06 1.06L10 11.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L8.94 10 5.72 6.78a.75.75 0 0 1 0-1.06Z" />
+    </svg>
+  );
+}
+function SearchIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+      <path fillRule="evenodd" d="M12.32 13.38a6 6 0 1 1 1.06-1.06l3.4 3.4a.75.75 0 1 1-1.06 1.06l-3.4-3.4ZM13.5 8.5a5 5 0 1 1-10 0 5 5 0 0 1 10 0Z" />
+    </svg>
+  );
+}
+function GridIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <rect x="2" y="2" width="5" height="5" rx="1" />
+      <rect x="9" y="2" width="5" height="5" rx="1" />
+      <rect x="2" y="9" width="5" height="5" rx="1" />
+      <rect x="9" y="9" width="5" height="5" rx="1" />
+    </svg>
+  );
+}
+function ListIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <rect x="2" y="3" width="12" height="2" rx="1" />
+      <rect x="2" y="7" width="12" height="2" rx="1" />
+      <rect x="2" y="11" width="12" height="2" rx="1" />
+    </svg>
+  );
+}
+
+export const headers: HeadersFunction = (headersArgs) => {
+  return boundary.headers(headersArgs);
+};
