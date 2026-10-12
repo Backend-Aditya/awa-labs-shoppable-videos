@@ -21,7 +21,13 @@ database.sqlite
 .env
 .env.*
 !.env.example
+!.env.test.example
 
+# Test output
+/coverage
+/playwright-report
+/test-results
+/blob-report
 
 
 

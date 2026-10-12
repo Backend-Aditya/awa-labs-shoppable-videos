@@ -1,50 +1,123 @@
-import { readFileSync } from "node:fs";
 import { defineConfig } from "vitest/config";
+import { findTestDatabaseUrl, UNREACHABLE_DATABASE_URL } from "./tests/support/test-database-url.mjs";
 
-// The test database URL comes ONLY from .env.test (or TEST_DATABASE_URL) —
-// never from .env. Vite's loadEnv merges .env into test mode, so a missing
-// DATABASE_URL in .env.test used to fall back to production, and the suite
-// runs unscoped deleteMany() calls. The URL must also look like a test
-// database (schema=test, or a local host) or the run is refused outright.
-function resolveDatabaseUrl(): string {
-  const fromEnv = process.env.TEST_DATABASE_URL;
-  let url = fromEnv;
-  if (!url) {
-    try {
-      url = readFileSync(".env.test", "utf-8").match(/^DATABASE_URL\s*=\s*"?([^"\n]*)"?\s*$/m)?.[1];
-    } catch {
-      url = undefined;
-    }
-  }
-  if (!url) {
-    throw new Error("No test database configured. Set DATABASE_URL in .env.test (see .env.test.example) or TEST_DATABASE_URL.");
-  }
-  const isTestSchema = /[?&]schema=test(&|$)/.test(url);
-  const isLocal = /@(localhost|127\.0\.0\.1|postgres|db)(:\d+)?\//.test(url);
-  if (!isTestSchema && !isLocal) {
-    throw new Error(
-      "Refusing to run tests: the test DATABASE_URL is neither a local database nor a `schema=test` schema. " +
-        "Tests delete data — point them at a disposable database.",
-    );
-  }
-  return url;
-}
+// Test pyramid (see TESTING.md). Each layer is a Vitest project, runnable on
+// its own with `vitest run --project <name>` (or `npm run test:<name>`):
+//
+//   unit         pure logic, node, no database
+//   integration  Prisma against a disposable Postgres, node, serial
+//   components   admin React components, jsdom + Testing Library
+//   storefront   theme-extension JS (scripts/extension-assets-src), jsdom
+//   liquid       theme-extension Liquid rendered with liquidjs, node
+//
+// End-to-end tests are Playwright (playwright.config.ts), not Vitest.
+//
+// Database guard: the test database URL comes ONLY from TEST_DATABASE_URL
+// or .env.test — never from .env — and must look disposable (`schema=test`
+// or a local host), or loading this config throws. When no URL is set at
+// all, every project except `integration` still runs (CI's fast jobs have
+// no database); the integration project then fails with a clear message.
+const testDatabaseUrl = findTestDatabaseUrl();
 
-export default defineConfig(() => {
-  return {
-    test: {
-      environment: "node",
-      // Agent worktrees hold full repo copies; never run their tests here.
-      exclude: ["**/node_modules/**", "**/build/**", ".claude/**"],
-      fileParallelism: false,
-      // The suite talks to a remote Postgres (Supabase); its connection
-      // latency can spike well past Vitest's 5s default and fail tests
-      // that are otherwise fine.
-      testTimeout: 30_000,
-      hookTimeout: 60_000,
-      env: {
-        DATABASE_URL: resolveDatabaseUrl(),
+const exclude = ["**/node_modules/**", "**/build/**", ".claude/**", "tests/e2e/**"];
+
+// Prisma auto-loads .env when DATABASE_URL is unset, so give every
+// non-database project a URL that can never connect.
+const noDatabase = { DATABASE_URL: UNREACHABLE_DATABASE_URL, DIRECT_URL: UNREACHABLE_DATABASE_URL };
+
+export default defineConfig({
+  test: {
+    // Agent worktrees hold full repo copies; never run their tests here.
+    exclude,
+    coverage: {
+      provider: "v8",
+      reporter: ["text-summary", "html", "lcov", "json-summary"],
+      reportsDirectory: "coverage",
+      include: ["app/**/*.{ts,tsx}", "scripts/extension-assets-src/**/*.js"],
+      exclude: [
+        "**/*.test.{ts,tsx}",
+        "app/routes/**",
+        "app/entry.server.tsx",
+        "app/root.tsx",
+        "app/routes.ts",
+        "app/globals.d.ts",
+        "app/shopify.server.ts",
+        "scripts/extension-assets-src/hls.min.js",
+      ],
+      // Ratchet: set just under what the suites reach today (see TESTING.md).
+      // Raise these when coverage improves; never lower them to merge.
+      thresholds: {
+        "app/components/**": { statements: 85, branches: 80, functions: 80, lines: 85 },
+        "app/models/{widget-kinds,brand,reel-media,reel-status}.ts": {
+          statements: 80,
+          branches: 70,
+          functions: 80,
+          lines: 80,
+        },
+        "scripts/extension-assets-src/**": { statements: 70, branches: 60, functions: 65, lines: 72 },
       },
     },
-  };
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "unit",
+          environment: "node",
+          include: ["app/**/*.test.ts", "tests/unit/**/*.test.ts"],
+          exclude: [...exclude, "**/*.integration.test.ts"],
+          env: noDatabase,
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "integration",
+          environment: "node",
+          include: ["app/**/*.integration.test.ts"],
+          setupFiles: ["tests/support/integration-setup.ts"],
+          // Integration tests share one database and clean it with
+          // deleteMany(); never run two files at once.
+          fileParallelism: false,
+          // A remote test Postgres (e.g. Supabase) can spike well past
+          // Vitest's 5s default; local Docker is fast.
+          testTimeout: 30_000,
+          hookTimeout: 60_000,
+          env: {
+            DATABASE_URL: testDatabaseUrl ?? "",
+            DIRECT_URL: testDatabaseUrl ?? "",
+          },
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "components",
+          environment: "jsdom",
+          include: ["app/**/*.test.tsx"],
+          setupFiles: ["tests/support/dom-setup.ts"],
+          env: noDatabase,
+          css: { include: /\.module\.css$/, modules: { classNameStrategy: "non-scoped" } },
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "storefront",
+          environment: "jsdom",
+          include: ["tests/storefront/**/*.test.ts"],
+          setupFiles: ["tests/support/dom-setup.ts"],
+          env: noDatabase,
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "liquid",
+          environment: "node",
+          include: ["tests/liquid/**/*.test.ts"],
+          env: noDatabase,
+        },
+      },
+    ],
+  },
 });

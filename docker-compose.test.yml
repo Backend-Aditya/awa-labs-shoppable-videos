@@ -1,0 +1,28 @@
+# Disposable Postgres for the integration test layer.
+#
+#   docker compose -f docker-compose.test.yml up -d --wait
+#   cp .env.test.example .env.test        # once
+#   npm run test:integration
+#   docker compose -f docker-compose.test.yml down -v   # throw the data away
+#
+# Port 5432 already taken (a local Postgres)? Run with TEST_DB_PORT=5433 and
+# use that port in .env.test / TEST_DATABASE_URL.
+#
+# Data lives in tmpfs: every `up` starts from an empty database, and the
+# integration tests run `prisma migrate deploy` first.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: reelup_test
+    ports:
+      - "${TEST_DB_PORT:-5432}:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d reelup_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30

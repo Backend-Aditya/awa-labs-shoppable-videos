@@ -23,6 +23,11 @@ module.exports = {
     "!**/.server",
     "!**/.client",
     "extensions/**/assets/hls.min.js",
+    // Minified build output of scripts/extension-assets-src (linted there).
+    "extensions/**/assets/*.js",
+    "coverage/",
+    "playwright-report/",
+    "test-results/",
   ],
 
   // Base config
