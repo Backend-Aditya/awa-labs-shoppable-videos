@@ -198,6 +198,41 @@ describe("reel.server", () => {
     ]);
   });
 
+  it("follows pagination past the first page of reels", async () => {
+    const config = { productIds: [], interactions: {}, source: { type: "upload" } };
+    const node = (n: number) => ({
+      id: `gid://shopify/Metaobject/${n}`,
+      handle: `reel-${n}`,
+      title: { jsonValue: `Reel ${n}` },
+      published: { jsonValue: true },
+      config: { jsonValue: config },
+    });
+    const calls: { after?: string | null }[] = [];
+    const admin = {
+      graphql: async (_query: string, options?: { variables?: { after?: string | null } }) => {
+        calls.push({ after: options?.variables?.after });
+        const firstPage = !options?.variables?.after;
+        return {
+          json: async () => ({
+            data: {
+              metaobjects: {
+                nodes: firstPage ? [node(1), node(2)] : [node(3)],
+                pageInfo: firstPage
+                  ? { hasNextPage: true, endCursor: "cursor-1" }
+                  : { hasNextPage: false, endCursor: null },
+              },
+            },
+          }),
+        };
+      },
+    };
+
+    const reels = await listReels(admin);
+
+    expect(reels.map((r) => r.handle)).toEqual(["reel-1", "reel-2", "reel-3"]);
+    expect(calls).toEqual([{ after: null }, { after: "cursor-1" }]);
+  });
+
   it("deletes a reel without error when userErrors is empty", async () => {
     const admin = {
       graphql: async () => ({

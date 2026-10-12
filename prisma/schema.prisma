@@ -79,6 +79,7 @@ model ReelEvent {
   createdAt DateTime @default(now())
 
   @@index([shopId, reelId])
+  @@index([shopId, createdAt])
 }
 
 // Revenue attribution: recorded from the orders/paid webhook when a line

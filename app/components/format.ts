@@ -22,12 +22,3 @@ export function formatRevenueTotals(totals: { currencyCode: string; revenue: str
   return totals.map((t) => formatMoney(t.revenue, t.currencyCode)).join(", ");
 }
 
-// <input type="datetime-local"> wants "YYYY-MM-DDTHH:mm" in the browser's
-// local timezone, no offset suffix — new Date(iso) already converts a
-// stored UTC ISO string to local time for getHours()/getMinutes(), so this
-// just needs to format it, not convert it again.
-export function toDatetimeLocalValue(iso: string): string {
-  const d = new Date(iso);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}

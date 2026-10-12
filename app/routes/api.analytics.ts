@@ -32,6 +32,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (!ALLOWED_EVENT_TYPES.has(eventType)) {
       return Response.json({ error: "Invalid eventType" }, { status: 400 });
     }
+    // Storefront sends either a metaobject GID or its numeric id. Anything
+    // else is junk that would only pollute the dashboard's per-reel stats.
+    if (typeof reelId !== "string" || !/^(gid:\/\/shopify\/Metaobject\/)?\d{1,20}$/.test(reelId)) {
+      return Response.json({ error: "Invalid reelId" }, { status: 400 });
+    }
 
     const shop = await prisma.shop.findUnique({
       where: { shopDomain },

@@ -131,7 +131,7 @@ description = "Published state and target rule for the STORIES widget"
 [shop.metafields.app.insta_stories_widget_reels]
 type = "list.metaobject_reference<$app:reel>"
 name = "Insta-style stories widget - curated reels"
-description = "The reels the STORIES widget shows, picked directly in the widget (no Liquid block reads this yet)"
+description = "The reels the STORIES widget shows, picked directly in the widget"
 
   [shop.metafields.app.insta_stories_widget_reels.access]
   admin = "merchant_read"
@@ -152,6 +152,15 @@ name = "Reel pops featured reel"
 description = "The one reel the REEL_POPS floating bubble plays"
 
   [shop.metafields.app.reel_pops_featured_reel.access]
+  admin = "merchant_read"
+  storefront = "public_read"
+
+[shop.metafields.app.brand]
+type = "json"
+name = "Brand kit"
+description = "Shop-wide widget colours and video viewer theme, set on the app's Settings page"
+
+  [shop.metafields.app.brand.access]
   admin = "merchant_read"
   storefront = "public_read"
 

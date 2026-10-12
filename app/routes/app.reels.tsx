@@ -24,8 +24,7 @@ import { createDirectUploadUrl, getCloudflareConfig, uploadBufferToDirectUploadU
 import { fetchSocialVideo, parseSocialVideoUrl, resolveVideoSourceUrl, SocialImportError } from "../models/social-import.server";
 import { StatTile } from "../components/StatTile";
 import { EmptyState } from "../components/EmptyState";
-import { DateTimeField } from "../components/form-fields";
-import { formatRevenueTotals, toDatetimeLocalValue } from "../components/format";
+import { formatRevenueTotals } from "../components/format";
 import { useResourceDetail } from "../components/useResourceDetail";
 import { getShopRevenueTotals } from "../models/order-attribution.server";
 import type { ShopRevenueTotals } from "../models/order-attribution.server";
@@ -62,7 +61,7 @@ const REEL_STATUS_LABELS: Record<string, string> = {
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
-  const reels = await listReels(admin, 50);
+  const reels = await listReels(admin);
 
   let totalAnalytics = { views: 0, clicks: 0 };
   let revenueTotals: ShopRevenueTotals = { totalOrderCount: 0, totalsByCurrency: [] };
@@ -634,8 +633,8 @@ function ReelCard({
         )}
         <s-text type="strong">{reel.title}</s-text>
         <s-stack direction="inline" gap="small-100">
-          <s-badge tone={reel.published ? "success" : reel.config.publishAt ? "info" : "neutral"}>
-            {reel.published ? "Published" : reel.config.publishAt ? "Scheduled" : "Draft"}
+          <s-badge tone={reel.published ? "success" : "neutral"}>
+            {reel.published ? "Published" : "Draft"}
           </s-badge>
           <s-badge tone={statusTone(status)}>{REEL_STATUS_LABELS[status]}</s-badge>
           <s-badge tone={productCount > 0 ? "success" : "neutral"}>
@@ -798,8 +797,8 @@ function ReelDetailModal({
 
             <s-stack gap="base">
               <s-stack direction="inline" gap="small-100">
-                <s-badge tone={detailReel.published ? "success" : detailReel.config.publishAt ? "info" : "neutral"}>
-                  {detailReel.published ? "Published" : detailReel.config.publishAt ? "Scheduled" : "Draft"}
+                <s-badge tone={detailReel.published ? "success" : "neutral"}>
+                  {detailReel.published ? "Published" : "Draft"}
                 </s-badge>
                 <s-badge tone={statusTone(status)}>{status ? REEL_STATUS_LABELS[status] : ""}</s-badge>
               </s-stack>
@@ -872,19 +871,6 @@ function ReelDetailModal({
                     }
                   }}
                 ></s-checkbox>
-
-                <DateTimeField
-                  key={`publish-at-${detailReel.id}`}
-                  id={`publish-at-${detailReel.id}`}
-                  name="publishAt"
-                  label="Schedule publish (optional)"
-                  defaultValue={detailReel.config.publishAt ? toDatetimeLocalValue(detailReel.config.publishAt) : ""}
-                  helpText={
-                    detailReel.config.publishAt && !detailReel.published
-                      ? "Publishes automatically at the scheduled time — checking “Published” above instead publishes it immediately and clears the schedule."
-                      : undefined
-                  }
-                />
 
                 <s-divider></s-divider>
 

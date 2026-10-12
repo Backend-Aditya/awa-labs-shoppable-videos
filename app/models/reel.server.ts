@@ -14,12 +14,6 @@ export interface ReelConfig {
   // needs to query by them.
   seoTitle?: string;
   seoDescription?: string;
-  // ISO datetime. When set and the reel is NOT yet published, a scheduled
-  // cron job (see app/routes/api.cron.publish-scheduled-reels.ts) flips
-  // `published` to true once this time has passed and clears this field.
-  // Manually checking "Published" always takes priority over any pending
-  // schedule — this only ever moves draft -> published, never the reverse.
-  publishAt?: string;
 }
 
 export interface Reel {
@@ -134,30 +128,44 @@ export async function upsertReel(
   };
 }
 
+// Walks every page of the shop's reels (250 per request, Shopify's max)
+// up to `limit`. A fixed `first: 50` used to drop everything past the 50th
+// reel from pickers, the dashboard and save-time validation.
 export async function listReels(
   admin: AdminGraphqlClient,
-  first: number,
+  limit = 1000,
 ): Promise<Reel[]> {
-  const response = await admin.graphql(
-    `#graphql
-    query ListReels($first: Int!) {
-      metaobjects(type: "$app:reel", first: $first) {
-        nodes {
-          id
-          handle
-          title: field(key: "title") { jsonValue }
-          published: field(key: "published") { jsonValue }
-          config: field(key: "config") { jsonValue }
-        }
-      }
-    }`,
-    { variables: { first } },
-  );
-
-  const json = await response.json();
-  assertNoGraphqlErrors(json);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- GraphQL response shape varies per query; this is the external Admin API boundary
-  return json.data.metaobjects.nodes.map((node: any) => ({
+  const nodes: any[] = [];
+  let after: string | null = null;
+
+  while (nodes.length < limit) {
+    const response = await admin.graphql(
+      `#graphql
+      query ListReels($first: Int!, $after: String) {
+        metaobjects(type: "$app:reel", first: $first, after: $after) {
+          nodes {
+            id
+            handle
+            title: field(key: "title") { jsonValue }
+            published: field(key: "published") { jsonValue }
+            config: field(key: "config") { jsonValue }
+          }
+          pageInfo { hasNextPage endCursor }
+        }
+      }`,
+      { variables: { first: Math.min(250, limit - nodes.length), after } },
+    );
+
+    const json = await response.json();
+    assertNoGraphqlErrors(json);
+    nodes.push(...json.data.metaobjects.nodes);
+    const pageInfo = json.data.metaobjects.pageInfo;
+    if (!pageInfo?.hasNextPage || !pageInfo.endCursor) break;
+    after = pageInfo.endCursor;
+  }
+
+  return nodes.map((node) => ({
     id: node.id,
     handle: node.handle,
     title: node.title.jsonValue,

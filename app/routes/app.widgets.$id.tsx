@@ -52,7 +52,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     throw new Response("Widget not found", { status: 404 });
   }
 
-  const reels = await listReels(admin, 50);
+  const reels = await listReels(admin);
 
   // First two tagged products per reel are enough for every preview layout
   // (filmstrip shows one, the feature/viewer panels show up to three of the
@@ -162,7 +162,7 @@ export const action = async ({ request, params }: ActionFunctionArgs): Promise<A
     // Only ids that still exist in the library can be persisted — a stale
     // metaobject reference would make every later metafield sync for this
     // kind fail (it's written in the same metafieldsSet call).
-    const validReelIds = new Set((await listReels(admin, 50)).map((r) => r.id));
+    const validReelIds = new Set((await listReels(admin)).map((r) => r.id));
     let reelIds: string[] | undefined;
     let featuredReelId: string | undefined;
     if (meta.reelSelection === "list") {

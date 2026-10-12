@@ -7,6 +7,24 @@ import {
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import prisma from "./db.server";
 
+// A missing secret used to surface as a confusing OAuth or upload failure
+// long after boot. In production, refuse to start instead, naming exactly
+// what's missing so the Render deploy log says what to fix.
+const REQUIRED_ENV = ["SHOPIFY_API_KEY", "SHOPIFY_API_SECRET", "SHOPIFY_APP_URL", "DATABASE_URL"];
+// Needed for video upload/processing only — the rest of the app still works
+// without them, so warn rather than refuse to boot.
+const FEATURE_ENV = ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN", "CLOUDFLARE_STREAM_WEBHOOK_SECRET"];
+if (process.env.NODE_ENV === "production") {
+  const missing = REQUIRED_ENV.filter((name) => !process.env[name]);
+  if (missing.length > 0) {
+    throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
+  }
+  const missingFeature = FEATURE_ENV.filter((name) => !process.env[name]);
+  if (missingFeature.length > 0) {
+    console.warn(`Video uploads are disabled until these are set: ${missingFeature.join(", ")}`);
+  }
+}
+
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET || "",

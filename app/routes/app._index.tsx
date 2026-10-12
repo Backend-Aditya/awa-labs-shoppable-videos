@@ -17,7 +17,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
   const shop = await getOrCreateShop(session.shop);
   const [reels, widgets, stats] = await Promise.all([
-    listReels(admin, 50),
+    listReels(admin),
     listWidgetsForShop(shop.id),
     getDashboardStats(shop.id, 30),
   ]);

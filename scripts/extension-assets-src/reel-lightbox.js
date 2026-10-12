@@ -37,8 +37,24 @@
   const cartJsUrl = config.cartJsUrl ?? "/cart.js";
   const recommendationsUrl = config.recommendationsUrl ?? "/recommendations/products.json";
 
+  // Views count once per reel per 30 minutes in a tab, so replaying, swiping
+  // back and forth or reopening doesn't inflate numbers (or plan usage).
+  const VIEW_WINDOW_MS = 30 * 60 * 1000;
+  const recentlyViewed = (reelId) => {
+    try {
+      const key = `reelup-viewed-${reelId}`;
+      const last = Number(sessionStorage.getItem(key) || 0);
+      if (Date.now() - last < VIEW_WINDOW_MS) return true;
+      sessionStorage.setItem(key, String(Date.now()));
+    } catch {
+      // Storage unavailable: count it.
+    }
+    return false;
+  };
+
   const trackAnalytics = (reelId, eventType) => {
     if (!reelId) return;
+    if (eventType === "view" && recentlyViewed(reelId)) return;
     fetch("/apps/reels/analytics", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
