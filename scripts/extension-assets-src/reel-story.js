@@ -1,12 +1,24 @@
 // Full-screen story viewer for the Stories widget: segmented progress,
-// auto-advance, tap left/right to move, press-and-hold to pause, and a
-// product sticker that slides up a drawer. Product cards inside the drawer
-// are handled by the delegated cart code in reel-lightbox.js.
+// auto-advance, tap left/right to move, press-and-hold or the play/pause
+// button (Space / K) to pause, and a product sticker that slides up a
+// drawer. Product cards inside the drawer are handled by the delegated
+// cart code in reel-lightbox.js.
 (() => {
+  // Loaded by the embed and possibly again by a block loader.
+  if (window.ReelupStory) return;
+
   const viewer = () => window.ReelupViewer;
   const prefersReducedMotion = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
+  // Stream thumbnails accept ?height=; the avatar is tiny, so don't pull
+  // the full-resolution frame for it.
+  const sizedPoster = (url, height) => {
+    if (!url || !/cloudflarestream\.com|videodelivery\.net/i.test(url) || /[?&]height=/i.test(url)) return url;
+    return `${url}${url.includes("?") ? "&" : "?"}height=${height}`;
+  };
+
   const SEEN_KEY = "reelup-seen-stories";
+  const SEEN_AFTER_MS = 3000;
   const readSeen = () => {
     try {
       return new Set(JSON.parse(localStorage.getItem(SEEN_KEY) ?? "[]"));
@@ -29,11 +41,19 @@
 
   let reels = [];
   let currentIndex = 0;
-  let durationMs = 15000;
+  let storyDurationMs = 15000; // the merchant's setting for this reel
+  let durationMs = 15000; // min(video length, setting), known once playing
   let timer = null;
+  let seenTimer = null;
   let drawerOpen = false;
   let advancing = false;
   let pausedRemainingMs = null;
+  let segmentStarted = false;
+  // Bumped by every goTo() and by close; async work holding an older token
+  // must stop (no playing, advancing, marking seen or tracking).
+  let storySeq = 0;
+  // Why the story is paused right now. Playback/timer only run while empty.
+  const pauseReasons = new Set();
 
   const clearTimer = () => {
     clearTimeout(timer);
@@ -72,8 +92,12 @@
     fill.style.transform = "scaleX(1)";
   };
 
+  // Under reduced motion stories never move on by themselves — the shopper
+  // advances with next / arrow keys.
+  const autoAdvance = () => !prefersReducedMotion();
+
   const requestAdvance = (dialog) => {
-    if (advancing) return;
+    if (!dialog.open || advancing || !autoAdvance()) return;
     advancing = true;
     goTo(dialog, currentIndex + 1).finally(() => {
       advancing = false;
@@ -82,21 +106,70 @@
 
   const schedule = (dialog, ms) => {
     clearTimer();
-    timer = setTimeout(() => requestAdvance(dialog), ms);
+    if (!dialog.open || !autoAdvance() || pauseReasons.size > 0) return;
+    const token = storySeq;
+    timer = setTimeout(() => {
+      if (token === storySeq) requestAdvance(dialog);
+    }, ms);
   };
 
-  const pause = (dialog) => {
+  const syncToggle = (dialog) => {
+    const toggle = dialog.querySelector("[data-reelup-story-toggle]");
+    if (!toggle) return;
+    const { labels, icons } = viewer();
+    const paused = pauseReasons.has("user");
+    toggle.innerHTML = paused ? icons.playSmall : icons.pauseSmall;
+    toggle.setAttribute("aria-label", paused ? labels.play : labels.pause);
+  };
+
+  const pause = (dialog, reason) => {
+    const wasRunning = pauseReasons.size === 0;
+    pauseReasons.add(reason);
+    if (reason === "user") syncToggle(dialog);
+    if (!wasRunning) return;
     dialog.querySelector("video").pause();
     clearTimer();
-    pausedRemainingMs = freezeSegment(dialog);
+    if (segmentStarted) pausedRemainingMs = freezeSegment(dialog);
   };
 
-  const resume = (dialog) => {
+  const resume = (dialog, reason) => {
+    if (!pauseReasons.delete(reason)) return;
+    if (reason === "user") syncToggle(dialog);
+    if (pauseReasons.size > 0 || !dialog.open) return;
     dialog.querySelector("video").play().catch(() => {});
+    if (!segmentStarted) return; // the `playing` handler starts the segment
     const remaining = pausedRemainingMs ?? durationMs;
     pausedRemainingMs = null;
     resumeSegment(dialog, remaining);
     schedule(dialog, remaining);
+  };
+
+  const togglePause = (dialog) => {
+    if (pauseReasons.has("user")) resume(dialog, "user");
+    else pause(dialog, "user");
+  };
+
+  // The bar and the timer start when the video actually plays (not when the
+  // request went out), and the story is "watched" after a few seconds.
+  const startSegment = (dialog, token) => {
+    if (!dialog.open || token !== storySeq || segmentStarted) return;
+    segmentStarted = true;
+    const video = dialog.querySelector("video");
+    const videoMs = Number.isFinite(video.duration) && video.duration > 0 ? video.duration * 1000 : Infinity;
+    durationMs = Math.max(Math.min(videoMs, storyDurationMs), 1000);
+    const trigger = reels[currentIndex];
+    viewer()?.trackAnalytics(trigger?.dataset.reelId ?? "", "view");
+    clearTimeout(seenTimer);
+    seenTimer = setTimeout(() => {
+      if (token === storySeq && dialog.open) markSeen(trigger?.dataset.reelId);
+    }, SEEN_AFTER_MS);
+    if (pauseReasons.size > 0) {
+      setSegment(dialog, currentIndex, "idle");
+      pausedRemainingMs = durationMs;
+      return;
+    }
+    setSegment(dialog, currentIndex, "active");
+    schedule(dialog, durationMs);
   };
 
   const setDrawer = (dialog, open) => {
@@ -106,48 +179,62 @@
     drawer.hidden = !open;
     dialog.classList.toggle("is-shopping", open);
     if (open) {
-      pause(dialog);
+      pause(dialog, "drawer");
       drawer.querySelector("button, a, select")?.focus();
     } else {
-      resume(dialog);
+      resume(dialog, "drawer");
+      dialog.querySelector("[data-reelup-story-shop]")?.focus();
     }
   };
 
   const goTo = async (dialog, target) => {
+    if (!dialog.open) return;
+    const previous = reels[currentIndex];
+    if (target > currentIndex && previous) markSeen(previous.dataset.reelId);
     if (target >= reels.length) {
       dialog.close();
       return;
     }
     const i = Math.max(target, 0);
+    const token = ++storySeq;
+    const isCurrent = () => dialog.open && token === storySeq && currentIndex === i;
+
     if (drawerOpen) {
       drawerOpen = false;
       dialog.querySelector("[data-reelup-story-drawer]").hidden = true;
       dialog.classList.remove("is-shopping");
     }
+    // Moving on resumes a paused story (like the social apps); a hidden tab
+    // stays paused until it's visible again.
+    pauseReasons.delete("user");
+    pauseReasons.delete("drawer");
+    pauseReasons.delete("hold");
+    pauseReasons.delete("share");
+    syncToggle(dialog);
     pausedRemainingMs = null;
-    reels.forEach((_, n) => {
-      if (n !== i) setSegment(dialog, n, n < i ? "done" : "idle");
-    });
+    segmentStarted = false;
+    clearTimer();
+    clearTimeout(seenTimer);
+    reels.forEach((_, n) => setSegment(dialog, n, n < i ? "done" : "idle"));
 
     currentIndex = i;
     const trigger = reels[i];
-    durationMs = parseInt(trigger.dataset.storyDuration, 10) || 15000;
+    storyDurationMs = parseInt(trigger.dataset.storyDuration, 10) || 15000;
+    durationMs = storyDurationMs;
     const reelId = trigger.dataset.reelId ?? "";
     dialog.setAttribute("data-reelup-reel-id", reelId);
-    markSeen(reelId);
-    viewer()?.trackAnalytics(reelId, "view");
 
     const video = dialog.querySelector("video");
     const title = dialog.querySelector(".reelup-story__title");
     const avatar = dialog.querySelector(".reelup-story__avatar");
-    clearTimer();
     window.ReelupHls?.teardown(video);
 
     title.textContent = trigger.dataset.title ?? "";
+    viewer()?.nameDialog(dialog, "reelup-story-title", trigger.dataset.title);
     const poster = trigger.dataset.posterUrl;
     if (poster) {
       video.setAttribute("poster", poster);
-      avatar.style.backgroundImage = `url("${poster.replace(/"/g, "%22")}")`;
+      avatar.style.backgroundImage = `url("${sizedPoster(poster, 120).replace(/"/g, "%22")}")`;
     } else {
       video.removeAttribute("poster");
       avatar.style.backgroundImage = "";
@@ -176,19 +263,30 @@
     }
     dialog.querySelector("[data-reelup-cart-status]").hidden = true;
 
-    setSegment(dialog, i, "active");
+    let failed = false;
+    let started = false;
     try {
-      await viewer()?.startPlayback(video, trigger.dataset.hlsSrc);
+      started = await viewer()?.startPlayback(video, trigger.dataset.hlsSrc, isCurrent);
     } catch {
-      // Still advance on schedule so a broken reel can't trap the viewer.
+      failed = true;
     }
-    if (currentIndex === i && !drawerOpen) schedule(dialog, durationMs);
+    if (!dialog.open) {
+      window.ReelupHls?.teardown(video);
+      return;
+    }
+    if (!isCurrent()) return;
+    if (pauseReasons.size > 0) video.pause();
+    // A broken reel still gets its segment and timer, so it can't trap the
+    // viewer; a working one starts on `playing` (or now, if that already
+    // fired before this await resumed).
+    if (failed || !started || !video.paused) startSegment(dialog, token);
   };
 
   const build = () => {
     const existing = document.getElementById("reelup-story-viewer");
     if (existing) return existing;
-    const { labels, icons } = viewer();
+    const { labels, icons, escapeHtml } = viewer();
+    const L = Object.fromEntries(Object.entries(labels).map(([k, v]) => [k, escapeHtml(v)]));
 
     const dialog = document.createElement("dialog");
     dialog.id = "reelup-story-viewer";
@@ -202,30 +300,33 @@
         <header class="reelup-story__header">
           <span class="reelup-story__avatar" aria-hidden="true"></span>
           <h2 class="reelup-story__title" id="reelup-story-title"></h2>
-          <button type="button" class="reelup-viewer__icon" data-reelup-story-share aria-label="${labels.share}" hidden>${icons.share}</button>
+          <button type="button" class="reelup-viewer__icon" data-reelup-story-toggle aria-label="${L.pause}">${icons.pauseSmall}</button>
+          <button type="button" class="reelup-viewer__icon" data-reelup-story-share aria-label="${L.share}" hidden>${icons.share}</button>
           <button type="button" class="reelup-viewer__icon" data-reelup-story-mute></button>
-          <button type="button" class="reelup-viewer__icon" data-reelup-story-close aria-label="${labels.close}">${icons.close}</button>
+          <button type="button" class="reelup-viewer__icon" data-reelup-story-close aria-label="${L.close}">${icons.close}</button>
         </header>
-        <button type="button" class="reelup-story__tap reelup-story__tap--prev" data-reelup-story-prev aria-label="${labels.previous}"></button>
-        <button type="button" class="reelup-story__tap reelup-story__tap--next" data-reelup-story-next aria-label="${labels.next}"></button>
+        <button type="button" class="reelup-story__tap reelup-story__tap--prev" data-reelup-story-prev aria-label="${L.previous}"></button>
+        <button type="button" class="reelup-story__tap reelup-story__tap--next" data-reelup-story-next aria-label="${L.next}"></button>
         <button type="button" class="reelup-story__sticker" data-reelup-story-shop hidden>
           <span class="reelup-story__sticker-thumb" aria-hidden="true"></span>
-          <span class="reelup-story__sticker-label">${labels.shop}</span>
+          <span class="reelup-story__sticker-label">${L.shop}</span>
           <span class="reelup-story__sticker-count"></span>
         </button>
+        <div class="reelup-toast" aria-hidden="true"></div>
         <div class="reelup-story__drawer" data-reelup-story-drawer hidden>
           <div class="reelup-story__drawer-head">
-            <span>${labels.shop}</span>
-            <button type="button" class="reelup-viewer__icon reelup-viewer__icon--light" data-reelup-story-drawer-close aria-label="${labels.closeProducts}">${icons.down}</button>
+            <span>${L.shop}</span>
+            <button type="button" class="reelup-viewer__icon reelup-viewer__icon--light" data-reelup-story-drawer-close aria-label="${L.closeProducts}">${icons.down}</button>
           </div>
           <div class="reelup-story__list" data-reelup-story-list></div>
           <p class="reelup-viewer__cart" data-reelup-cart-status hidden>
-            <span class="reelup-cart-message" aria-live="polite"></span>
-            <a href="${viewer().cartUrl}">${labels.viewCart}</a>
+            <span class="reelup-cart-message"></span>
+            <a href="${escapeHtml(viewer().cartUrl)}">${L.viewCart}</a>
           </p>
         </div>
       </div>
     `;
+    dialog.appendChild(viewer().makeLiveRegion());
     document.body.appendChild(dialog);
 
     const video = dialog.querySelector("video");
@@ -237,23 +338,24 @@
     });
     mute.addEventListener("click", () => {
       video.muted = !video.muted;
+      viewer().setUserMuted(video.muted);
     });
+    video.addEventListener("playing", () => startSegment(dialog, storySeq));
     video.addEventListener("ended", () => requestAdvance(dialog));
 
     const step = (delta) => {
       advancing = false;
       goTo(dialog, currentIndex + delta);
     };
+    dialog.querySelector("[data-reelup-story-toggle]").addEventListener("click", () => togglePause(dialog));
     dialog.querySelector("[data-reelup-story-close]").addEventListener("click", () => dialog.close());
     dialog.querySelector("[data-reelup-story-share]").addEventListener("click", () => {
       const trigger = reels[currentIndex];
       if (!trigger) return;
-      pause(dialog);
+      pause(dialog, "share");
       viewer()
         .share(frame, trigger.dataset.reelId, trigger.dataset.title || document.title)
-        .finally(() => {
-          if (dialog.open && !drawerOpen) resume(dialog);
-        });
+        .finally(() => resume(dialog, "share"));
     });
     dialog.querySelector("[data-reelup-story-prev]").addEventListener("click", () => step(-1));
     dialog.querySelector("[data-reelup-story-next]").addEventListener("click", () => step(1));
@@ -272,7 +374,7 @@
       if (event.target === dialog) dialog.close();
     });
     dialog.addEventListener("keydown", (event) => {
-      if (event.target.closest?.("select, input")) return;
+      if (event.target.closest?.("select, input, textarea")) return;
       if (drawerOpen) {
         if (event.key === "Escape") {
           event.preventDefault();
@@ -280,11 +382,23 @@
         }
         return;
       }
-      if (event.key === "ArrowLeft") step(-1);
-      else if (event.key === "ArrowRight") step(1);
+      const key = event.key;
+      // Space on a focused button already activates that button.
+      if ((key === " " && !event.target.closest?.("button, a")) || key === "k" || key === "K") {
+        event.preventDefault();
+        togglePause(dialog);
+        return;
+      }
+      const rtl = viewer().isRtl(dialog);
+      if (key === (rtl ? "ArrowRight" : "ArrowLeft")) step(-1);
+      else if (key === (rtl ? "ArrowLeft" : "ArrowRight")) step(1);
     });
     dialog.addEventListener("close", () => {
+      storySeq += 1;
       clearTimer();
+      clearTimeout(seenTimer);
+      pauseReasons.clear();
+      segmentStarted = false;
       window.ReelupHls?.teardown(video);
       drawerOpen = false;
       dialog.classList.remove("is-shopping");
@@ -292,6 +406,12 @@
       document.documentElement.classList.remove("reelup-locked");
       document.dispatchEvent(new CustomEvent("reelup:viewer-change"));
       reels[currentIndex]?.querySelector(".reelup-trigger__button")?.focus({ preventScroll: true });
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (!dialog.open) return;
+      if (document.hidden) pause(dialog, "hidden");
+      else resume(dialog, "hidden");
     });
 
     // Press and hold anywhere on the video to pause, like the social apps
@@ -302,7 +422,7 @@
       if (drawerOpen || event.target.closest("button:not(.reelup-story__tap), a, select, [data-reelup-story-drawer]")) return;
       holdTimer = setTimeout(() => {
         held = true;
-        pause(dialog);
+        pause(dialog, "hold");
       }, 180);
     });
     frame.addEventListener("click", (event) => {
@@ -315,7 +435,7 @@
       clearTimeout(holdTimer);
       if (!held) return;
       held = false;
-      resume(dialog);
+      resume(dialog, "hold");
     };
     frame.addEventListener("pointerup", () => setTimeout(release, 0));
     frame.addEventListener("pointercancel", release);
@@ -332,15 +452,15 @@
     dialog.querySelector("[data-reelup-story-progress]").innerHTML = reels
       .map((_, i) => `<span class="reelup-story__segment" data-index="${i}"><span class="reelup-story__segment-fill"></span></span>`)
       .join("");
+    currentIndex = startIndex;
     if (!dialog.open) {
       dialog.showModal();
       document.documentElement.classList.add("reelup-locked");
       document.dispatchEvent(new CustomEvent("reelup:viewer-change"));
+      dialog.querySelector("[data-reelup-story-close]")?.focus();
     }
     goTo(dialog, startIndex);
   };
-
-  const hoverCapable = window.matchMedia?.("(hover: hover) and (pointer: fine)").matches ?? false;
 
   const bindAll = () => {
     const seen = readSeen();
@@ -352,15 +472,12 @@
       if (group.dataset.reelupStoryBound) return;
       group.dataset.reelupStoryBound = "true";
       triggers.forEach((trigger, i) => {
-        const button = trigger.querySelector(".reelup-trigger__button");
-        if (!button) return;
-        const open = () => openViewer(group, i);
-        if (trigger.dataset.playTrigger === "hover" && hoverCapable) button.addEventListener("mouseenter", open);
-        button.addEventListener("click", open);
+        trigger.querySelector(".reelup-trigger__button")?.addEventListener("click", () => openViewer(group, i));
       });
     });
   };
 
+  window.ReelupStory = { open: openViewer, bind: bindAll };
   bindAll();
   document.addEventListener("shopify:section:load", bindAll);
 })();

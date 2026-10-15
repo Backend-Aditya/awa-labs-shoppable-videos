@@ -38,6 +38,10 @@ await build({
   outdir: outDir,
   minify: true,
   bundle: false,
+  // Storefront shoppers run old in-app browsers and older Safari; lower
+  // modern syntax (??=, optional catch binding is fine, numeric separators,
+  // etc.) so one unsupported token can't kill the whole widget runtime.
+  target: ["es2019"],
   logLevel: "info",
 });
 
