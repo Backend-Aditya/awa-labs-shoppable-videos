@@ -2,13 +2,15 @@
 STORIES: ringed avatars in a row. Tapping one opens the full-screen story
 viewer from that reel and auto-advances through the rest; rings of stories
 the shopper has already watched turn grey (remembered in localStorage by
-reel-story.js), the way shoppers expect from social apps.
+reel-story.js), the way shoppers expect from social apps. Scroll arrows
+appear on pointer devices when the row overflows.
+
+Self-sufficient: the schema loads reel-widgets.css and reel-loader.js, which
+pulls in the viewer runtime when the app embed is off.
 
 @example
 {% content_for 'block', type: 'insta-stories', id: 'insta-stories' %}
 {% enddoc %}
-
-{{ 'reel-widgets.css' | asset_url | stylesheet_tag }}
 
 {% assign reel_namespace = 'app--404281098241' %}
 
@@ -16,6 +18,7 @@ reel-story.js), the way shoppers expect from social apps.
   assign widget = shop.metafields[reel_namespace].insta_stories_widget.value
   assign widget_style = widget.style
   assign reels = shop.metafields[reel_namespace].insta_stories_widget_reels.value
+  assign target_product = block.settings.product | default: product
 
   assign show_widget = false
   if widget.published
@@ -23,16 +26,20 @@ reel-story.js), the way shoppers expect from social apps.
       when 'all_products'
         assign show_widget = true
       when 'handles'
-        if product and widget.targetRule.handles contains product.handle
+        if target_product and widget.targetRule.handles contains target_product.handle
           assign show_widget = true
         endif
       when 'collections'
-        for collection in product.collections
-          if widget.targetRule.handles contains collection.handle
-            assign show_widget = true
-            break
-          endif
-        endfor
+        if collection and widget.targetRule.handles contains collection.handle
+          assign show_widget = true
+        elsif target_product
+          for product_collection in target_product.collections
+            if widget.targetRule.handles contains product_collection.handle
+              assign show_widget = true
+              break
+            endif
+          endfor
+        endif
     endcase
   endif
   if widget.pageTypes.size > 0
@@ -63,14 +70,15 @@ reel-story.js), the way shoppers expect from social apps.
 -%}
 
 {%- if visible_count > 0 -%}
+  {%- render 'reel-config' -%}
   {%- capture wrapper_style -%}
-    --ru-avatar: {{ widget_style.triggerSize | default: 72 }}px;
-    --ru-ring-start: {{ ring_start }};
-    --ru-ring-end: {{ ring_end }};
-    {%- if widget_style.textColor != blank %}--ru-text: {{ widget_style.textColor }};{% endif -%}
+    --ru-avatar: {{ widget_style.triggerSize | default: 72 | times: 1 }}px;
+    --ru-ring-start: {{ ring_start | escape }};
+    --ru-ring-end: {{ ring_end | escape }};
+    {%- if widget_style.textColor != blank %}--ru-text: {{ widget_style.textColor | escape }};{% endif -%}
   {%- endcapture -%}
   <section
-    class="reelup reelup-stories reelup-device--{{ widget.deviceVisibility | default: 'all' }}"
+    class="reelup reelup-stories reelup-device--{{ widget.deviceVisibility | default: 'all' | escape }}"
     style="{{ wrapper_style | strip_newlines }}"
     {% if widget_style.heading != blank %}aria-label="{{ widget_style.heading | escape }}"{% endif %}
     {{ block.shopify_attributes }}
@@ -78,41 +86,61 @@ reel-story.js), the way shoppers expect from social apps.
     {%- if widget_style.heading != blank -%}
       <h2 class="reelup-heading">{{ widget_style.heading | escape }}</h2>
     {%- endif -%}
-    <ul class="reelup-stories__row" data-reelup-story-group role="list">
-      {%- for reel in reels -%}
-        {%- if reel.published.value and reel.config.value.hlsManifestUrl != blank -%}
-          {%- render 'reel-video-schema', reel: reel -%}
-          {%- capture avatar -%}
-            <button type="button" class="reelup-trigger__button reelup-stories__avatar" aria-label="{{ 'reels.play_named_label' | t: title: reel.title.value | escape }}">
-              <span class="reelup-stories__ring" aria-hidden="true"></span>
-              <span class="reelup-stories__photo">
-                {%- if reel.config.value.posterUrl != blank -%}
-                  <img class="reelup-trigger__poster" src="{{ reel.config.value.posterUrl | escape }}" alt="" loading="lazy" width="160" height="160">
-                {%- endif -%}
-              </span>
-            </button>
-          {%- endcapture -%}
-          <li class="reelup-stories__item">
-            {%- render 'reel-trigger', reel: reel, style: widget_style, inner: avatar, muted_default: true -%}
-            {%- if show_caption -%}
-              <span class="reelup-stories__label" aria-hidden="true">{{ reel.title.value | escape }}</span>
-            {%- endif -%}
-          </li>
-        {%- endif -%}
-      {%- endfor -%}
-    </ul>
+    <div class="reelup-strip__viewport reelup-stories__viewport">
+      <ul class="reelup-stories__row" data-reelup-story-group data-reelup-strip role="list">
+        {%- for reel in reels -%}
+          {%- if reel.published.value and reel.config.value.hlsManifestUrl != blank -%}
+            {%- liquid
+              assign play_label = 'reels.play_label' | t
+              if reel.title.value != blank
+                assign play_label = 'reels.play_named_label' | t: title: reel.title.value
+              endif
+            -%}
+            {%- render 'reel-video-schema', reel: reel -%}
+            {%- capture avatar -%}
+              <button type="button" class="reelup-trigger__button reelup-stories__avatar" aria-label="{{ play_label }}">
+                <span class="reelup-stories__ring" aria-hidden="true"></span>
+                <span class="reelup-stories__photo">
+                  {%- if reel.config.value.posterUrl != blank -%}
+                    {%- render 'reel-poster', url: reel.config.value.posterUrl, height: 200, width_attr: 160, height_attr: 160 -%}
+                  {%- endif -%}
+                </span>
+              </button>
+            {%- endcapture -%}
+            <li class="reelup-stories__item">
+              {%- render 'reel-trigger', reel: reel, style: widget_style, inner: avatar, muted_default: true -%}
+              {%- if show_caption and reel.title.value != blank -%}
+                <span class="reelup-stories__label" aria-hidden="true">{{ reel.title.value | escape }}</span>
+              {%- endif -%}
+            </li>
+          {%- endif -%}
+        {%- endfor -%}
+      </ul>
+      {%- if visible_count > 1 -%}
+        <button type="button" class="reelup-arrow reelup-arrow--prev" data-reelup-strip-prev aria-label="{{ 'reels.scroll_back_label' | t }}" hidden>
+          <svg width="14" height="14" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12.7 4.3a1 1 0 0 1 0 1.4L8.42 10l4.3 4.3a1 1 0 0 1-1.42 1.4l-5-5a1 1 0 0 1 0-1.4l5-5a1 1 0 0 1 1.42 0Z"/></svg>
+        </button>
+        <button type="button" class="reelup-arrow reelup-arrow--next" data-reelup-strip-next aria-label="{{ 'reels.scroll_forward_label' | t }}" hidden>
+          <svg width="14" height="14" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M7.3 15.7a1 1 0 0 1 0-1.4l4.28-4.3-4.3-4.3a1 1 0 1 1 1.42-1.4l5 5a1 1 0 0 1 0 1.4l-5 5a1 1 0 0 1-1.42 0Z"/></svg>
+        </button>
+      {%- endif -%}
+    </div>
   </section>
+{%- elsif request.design_mode -%}
+  <div class="reelup reelup-placeholder" {{ block.shopify_attributes }}>{{ 'reels.editor_placeholder' | t }}</div>
 {%- endif -%}
 
 {% schema %}
 {
   "name": "Stories",
   "target": "section",
+  "javascript": "reel-loader.js",
+  "stylesheet": "reel-widgets.css",
   "settings": [
     { "type": "product", "id": "product", "label": "Product", "autofill": true },
     {
       "type": "paragraph",
-      "content": "Videos, ring colors and timing are set in the app under Widgets › Stories. Needs the Shoppable Videos app embed turned on."
+      "content": "Videos, ring colors and timing are set in the app under Widgets › Stories."
     }
   ]
 }

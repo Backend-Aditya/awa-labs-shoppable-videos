@@ -4,11 +4,12 @@ buy buttons — thumbnail with a play mark, a short label, the reel's title
 and length, and a chevron. Quiet enough to live inside the product form,
 clear enough that it reads as "watch this before you buy".
 
+Self-sufficient: the schema loads reel-widgets.css and reel-loader.js, which
+pulls in the viewer runtime when the app embed is off.
+
 @example
 {% content_for 'block', type: 'add-to-cart-video', id: 'add-to-cart-video' %}
 {% enddoc %}
-
-{{ 'reel-widgets.css' | asset_url | stylesheet_tag }}
 
 {% assign reel_namespace = 'app--404281098241' %}
 
@@ -16,6 +17,7 @@ clear enough that it reads as "watch this before you buy".
   assign widget = shop.metafields[reel_namespace].add_to_cart_video_widget.value
   assign widget_style = widget.style
   assign reel = shop.metafields[reel_namespace].add_to_cart_video_featured_reel.value
+  assign target_product = block.settings.product | default: product
 
   assign show_widget = false
   if widget.published
@@ -23,16 +25,20 @@ clear enough that it reads as "watch this before you buy".
       when 'all_products'
         assign show_widget = true
       when 'handles'
-        if product and widget.targetRule.handles contains product.handle
+        if target_product and widget.targetRule.handles contains target_product.handle
           assign show_widget = true
         endif
       when 'collections'
-        for collection in product.collections
-          if widget.targetRule.handles contains collection.handle
-            assign show_widget = true
-            break
-          endif
-        endfor
+        if collection and widget.targetRule.handles contains collection.handle
+          assign show_widget = true
+        elsif target_product
+          for product_collection in target_product.collections
+            if widget.targetRule.handles contains product_collection.handle
+              assign show_widget = true
+              break
+            endif
+          endfor
+        endif
     endcase
   endif
   if widget.pageTypes.size > 0
@@ -44,7 +50,7 @@ clear enough that it reads as "watch this before you buy".
     assign show_widget = false
   endunless
 
-  assign label = widget_style.watchLabel
+  assign label = widget_style.watchLabel | escape
   if label == blank
     assign label = 'reels.watch_label' | t
   endif
@@ -65,32 +71,33 @@ clear enough that it reads as "watch this before you buy".
 -%}
 
 {%- if show_widget -%}
+  {%- render 'reel-config' -%}
   {%- render 'reel-video-schema', reel: reel -%}
   {%- capture wrapper_style -%}
     --ru-radius: {{ radius }};
-    --ru-thumb: {{ widget_style.triggerSize | default: 56 }}px;
-    {%- if widget_style.accentColor != blank %}--ru-accent: {{ widget_style.accentColor }};{% endif -%}
-    {%- if widget_style.backgroundColor != blank %}--ru-bg: {{ widget_style.backgroundColor }};{% endif -%}
-    {%- if widget_style.textColor != blank %}--ru-text: {{ widget_style.textColor }};{% endif -%}
+    --ru-thumb: {{ widget_style.triggerSize | default: 56 | times: 1 }}px;
+    {%- if widget_style.accentColor != blank %}--ru-accent: {{ widget_style.accentColor | escape }}; --ru-play: {{ widget_style.accentColor | escape }};{% endif -%}
+    {%- if widget_style.backgroundColor != blank %}--ru-bg: {{ widget_style.backgroundColor | escape }};{% endif -%}
+    {%- if widget_style.textColor != blank %}--ru-text: {{ widget_style.textColor | escape }};{% endif -%}
   {%- endcapture -%}
   {%- capture row -%}
     <button type="button" class="reelup-trigger__button reelup-atc__button">
       <span class="reelup-atc__thumb">
         {%- if reel.config.value.posterUrl != blank -%}
-          <img class="reelup-trigger__poster" src="{{ reel.config.value.posterUrl | escape }}" alt="" loading="lazy" width="192" height="192">
+          {%- render 'reel-poster', url: reel.config.value.posterUrl, height: 200, width_attr: 192, height_attr: 192 -%}
         {%- endif -%}
         <span class="reelup-atc__play" aria-hidden="true">
           <svg width="9" height="9" viewBox="0 0 10 10" focusable="false"><path fill="currentColor" d="M2 1.2v7.6a.5.5 0 0 0 .76.43l6.1-3.8a.5.5 0 0 0 0-.86L2.76.77A.5.5 0 0 0 2 1.2Z"/></svg>
         </span>
       </span>
       <span class="reelup-atc__text">
-        <span class="reelup-atc__label">{{ label | escape }}</span>
+        <span class="reelup-atc__label">{{ label }}</span>
         <span class="reelup-atc__meta">
-          {{- reel.title.value | escape -}}
+          {%- if reel.title.value != blank -%}<span>{{ reel.title.value | escape }}</span>{%- endif -%}
           {%- if show_duration and reel.config.value.durationSeconds > 0 -%}
             {%- assign total = reel.config.value.durationSeconds | round -%}
             {%- assign seconds = total | modulo: 60 -%}
-            <span class="reelup-atc__length">{{ total | divided_by: 60 }}:{% if seconds < 10 %}0{% endif %}{{ seconds }}</span>
+            <span class="reelup-atc__length"><span class="reelup-visually-hidden">{{ 'reels.duration_label' | t }} </span>{{ total | divided_by: 60 }}:{% if seconds < 10 %}0{% endif %}{{ seconds }}</span>
           {%- endif -%}
         </span>
       </span>
@@ -98,23 +105,27 @@ clear enough that it reads as "watch this before you buy".
     </button>
   {%- endcapture -%}
   <div
-    class="reelup reelup-atc reelup-device--{{ widget.deviceVisibility | default: 'all' }}{% if widget_style.backgroundColor != blank %} reelup--filled{% endif %}"
+    class="reelup reelup-atc reelup-device--{{ widget.deviceVisibility | default: 'all' | escape }}{% if widget_style.backgroundColor != blank %} reelup--filled{% endif %}"
     style="{{ wrapper_style | strip_newlines }}"
     {{ block.shopify_attributes }}
   >
     {%- render 'reel-trigger', reel: reel, style: widget_style, inner: row, muted_default: false -%}
   </div>
+{%- elsif request.design_mode -%}
+  <div class="reelup reelup-placeholder" {{ block.shopify_attributes }}>{{ 'reels.editor_placeholder' | t }}</div>
 {%- endif -%}
 
 {% schema %}
 {
   "name": "Add-to-cart video",
   "target": "section",
+  "javascript": "reel-loader.js",
+  "stylesheet": "reel-widgets.css",
   "settings": [
     { "type": "product", "id": "product", "label": "Product", "autofill": true },
     {
       "type": "paragraph",
-      "content": "Place this right below Buy buttons. The video, label and colors are set in the app under Widgets › Add-to-cart video. Needs the Shoppable Videos app embed turned on."
+      "content": "Place this right below Buy buttons. The video, label and colors are set in the app under Widgets › Add-to-cart video."
     }
   ]
 }

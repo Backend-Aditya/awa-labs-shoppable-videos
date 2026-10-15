@@ -5,7 +5,16 @@ hint for its Cloudflare Stream origin so the DNS/TLS handshake is already
 warm by the time a shopper clicks the trigger. Call once per rendered reel
 trigger, right alongside its markup — JSON-LD doesn't need to be in <head>
 for crawlers to read it, and a <link rel="preconnect"> works anywhere in
-the document.
+the document. Not rendered for the floating player (it repeats on every
+page and isn't the page's content).
+
+Notes:
+- No embedUrl: that must be a player page, and the only URL we have is the
+  HLS manifest (already given as contentUrl).
+- No uploadDate: the Liquid metaobject `system` object only exposes id,
+  handle, type and url (no created/updated timestamps), and the reel config
+  doesn't store one yet. It's emitted automatically if the app starts
+  writing config.uploadedAt (ISO 8601).
 
 @param reel {metaobject} - the reel metaobject being rendered (same
   variable every block already has in scope at the point it renders a
@@ -17,14 +26,11 @@ the document.
 
 {%- liquid
   assign seo_title = reel.config.value.seoTitle | default: reel.title.value
-  assign seo_description = reel.config.value.seoDescription | default: reel.title.value
+  assign seo_description = reel.config.value.seoDescription | default: seo_title
 
   # Every reel in a shop shares the same Cloudflare Stream account, so this
   # origin is identical across every reel on the page — browsers dedupe
-  # repeated identical preconnect hints, so emitting it once per trigger
-  # (rather than threading a "have we already done this" flag through 6
-  # different block files) costs nothing and stays correct if that ever
-  # changes.
+  # repeated identical preconnect hints.
   assign manifest_url_parts = reel.config.value.hlsManifestUrl | split: '/'
   assign stream_origin = ''
   if manifest_url_parts.size >= 3
@@ -32,8 +38,9 @@ the document.
   endif
 -%}
 {% if stream_origin != '' %}
-  <link rel="preconnect" href="{{ stream_origin }}" crossorigin>
+  <link rel="preconnect" href="{{ stream_origin | escape }}" crossorigin>
 {% endif %}
+{%- if seo_title != blank and reel.config.value.posterUrl != blank -%}
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -41,9 +48,9 @@ the document.
   "name": {{ seo_title | json }},
   "description": {{ seo_description | json }},
   "contentUrl": {{ reel.config.value.hlsManifestUrl | json }},
-  "embedUrl": {{ reel.config.value.hlsManifestUrl | json }}{% if reel.config.value.posterUrl != blank %},
-  "thumbnailUrl": [{{ reel.config.value.posterUrl | json }}]{% endif %}{% if reel.config.value.durationSeconds %},
-  "duration": "PT{{ reel.config.value.durationSeconds | round }}S"{% endif %}{% if reel.system.created_at != blank %},
-  "uploadDate": {{ reel.system.created_at | json }}{% endif %}
+  "thumbnailUrl": [{{ reel.config.value.posterUrl | json }}]{% if reel.config.value.durationSeconds > 0 %},
+  "duration": "PT{{ reel.config.value.durationSeconds | round }}S"{% endif %}{% if reel.config.value.uploadedAt != blank %},
+  "uploadDate": {{ reel.config.value.uploadedAt | json }}{% endif %}
 }
 </script>
+{%- endif -%}

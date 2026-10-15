@@ -6,11 +6,12 @@ Opening a clip plays it in the shared viewer, with next/previous through
 the rest of the strip. Settings live in the app's widget editor and reach
 this block through the shop-level widget metafield.
 
+Self-sufficient: the schema loads reel-widgets.css and reel-loader.js, which
+pulls in the viewer runtime when the app embed is off.
+
 @example
 {% content_for 'block', type: 'product-page-reels', id: 'reels' %}
 {% enddoc %}
-
-{{ 'reel-widgets.css' | asset_url | stylesheet_tag }}
 
 {% comment %}
   Literal namespace, not {% render 'reel-namespace' %}: the theme editor wraps
@@ -24,6 +25,7 @@ this block through the shop-level widget metafield.
   assign widget = shop.metafields[reel_namespace].product_page_reels_widget.value
   assign widget_style = widget.style
   assign reels = shop.metafields[reel_namespace].product_page_reels_widget_reels.value
+  assign target_product = block.settings.product | default: product
 
   assign show_widget = false
   if widget.published
@@ -31,16 +33,20 @@ this block through the shop-level widget metafield.
       when 'all_products'
         assign show_widget = true
       when 'handles'
-        if product and widget.targetRule.handles contains product.handle
+        if target_product and widget.targetRule.handles contains target_product.handle
           assign show_widget = true
         endif
       when 'collections'
-        for collection in product.collections
-          if widget.targetRule.handles contains collection.handle
-            assign show_widget = true
-            break
-          endif
-        endfor
+        if collection and widget.targetRule.handles contains collection.handle
+          assign show_widget = true
+        elsif target_product
+          for product_collection in target_product.collections
+            if widget.targetRule.handles contains product_collection.handle
+              assign show_widget = true
+              break
+            endif
+          endfor
+        endif
     endcase
   endif
   if widget.pageTypes.size > 0
@@ -88,19 +94,22 @@ this block through the shop-level widget metafield.
     else
       assign radius = '10px'
   endcase
+
+  assign card_width = widget_style.triggerSize | default: 200 | times: 1
 -%}
 
 {%- if visible_count > 0 -%}
+  {%- render 'reel-config' -%}
   {%- capture wrapper_style -%}
     --ru-radius: {{ radius }};
-    --ru-card-width: {{ widget_style.triggerSize | default: 200 }}px;
-    --ru-columns: {{ widget_style.columns | default: 4 }};
-    {%- if widget_style.accentColor != blank %}--ru-accent: {{ widget_style.accentColor }};{% endif -%}
-    {%- if widget_style.backgroundColor != blank %}--ru-bg: {{ widget_style.backgroundColor }};{% endif -%}
-    {%- if widget_style.textColor != blank %}--ru-text: {{ widget_style.textColor }};{% endif -%}
+    --ru-card-width: {{ card_width }}px;
+    --ru-columns: {{ widget_style.columns | default: 4 | times: 1 }};
+    {%- if widget_style.accentColor != blank %}--ru-accent: {{ widget_style.accentColor | escape }}; --ru-play: {{ widget_style.accentColor | escape }};{% endif -%}
+    {%- if widget_style.backgroundColor != blank %}--ru-bg: {{ widget_style.backgroundColor | escape }};{% endif -%}
+    {%- if widget_style.textColor != blank %}--ru-text: {{ widget_style.textColor | escape }};{% endif -%}
   {%- endcapture -%}
   <section
-    class="reelup reelup-strip reelup-strip--{{ layout }} reelup-shadow--{{ widget_style.shadowPreset | default: 'none' }} reelup-device--{{ widget.deviceVisibility | default: 'all' }}{% if widget_style.backgroundColor != blank %} reelup--filled{% endif %}"
+    class="reelup reelup-strip reelup-strip--{{ layout }} reelup-shadow--{{ widget_style.shadowPreset | default: 'none' | escape }} reelup-device--{{ widget.deviceVisibility | default: 'all' | escape }}{% if widget_style.backgroundColor != blank %} reelup--filled{% endif %}"
     style="{{ wrapper_style | strip_newlines }}"
     {% if widget_style.heading != blank %}aria-label="{{ widget_style.heading | escape }}"{% endif %}
     {{ block.shopify_attributes }}
@@ -110,13 +119,26 @@ this block through the shop-level widget metafield.
     {%- endif -%}
     <div class="reelup-strip__viewport">
       <ul class="reelup-strip__track" data-reelup-group data-reelup-strip role="list">
+        {%- assign rendered = 0 -%}
         {%- for reel in reels -%}
           {%- if reel.published.value and reel.config.value.hlsManifestUrl != blank -%}
+            {%- assign rendered = rendered | plus: 1 -%}
+            {%- liquid
+              assign play_label = 'reels.play_label' | t
+              if reel.title.value != blank
+                assign play_label = 'reels.play_named_label' | t: title: reel.title.value
+              endif
+              assign first = false
+              if rendered == 1
+                assign first = true
+              endif
+            -%}
             {%- render 'reel-video-schema', reel: reel -%}
             {%- capture card -%}
-              <button type="button" class="reelup-trigger__button reelup-strip__poster" aria-label="{{ 'reels.play_named_label' | t: title: reel.title.value | escape }}">
+              <button type="button" class="reelup-trigger__button reelup-strip__poster" aria-label="{{ play_label }}">
                 {%- if reel.config.value.posterUrl != blank -%}
-                  <img class="reelup-trigger__poster" src="{{ reel.config.value.posterUrl | escape }}" alt="" loading="lazy" width="360" height="640">
+                  {%- capture poster_sizes %}min({{ card_width }}px, 70vw){% endcapture -%}
+                  {%- render 'reel-poster', url: reel.config.value.posterUrl, height: 800, width_attr: 360, height_attr: 640, srcset_heights: '480,800,1200', sizes: poster_sizes, eager: first, priority: first -%}
                 {%- endif -%}
                 <span class="reelup-strip__play" aria-hidden="true"></span>
                 {%- if show_duration -%}{%- render 'reel-duration', reel: reel, icon: true -%}{%- endif -%}
@@ -124,7 +146,7 @@ this block through the shop-level widget metafield.
             {%- endcapture -%}
             <li class="reelup-strip__item">
               {%- render 'reel-trigger', reel: reel, style: widget_style, inner: card, muted_default: true, autoplay_default: true -%}
-              {%- if show_caption -%}
+              {%- if show_caption and reel.title.value != blank -%}
                 <p class="reelup-strip__caption">{{ reel.title.value | escape }}</p>
               {%- endif -%}
               {%- if show_product -%}
@@ -155,17 +177,21 @@ this block through the shop-level widget metafield.
       {%- endif -%}
     </div>
   </section>
+{%- elsif request.design_mode -%}
+  <div class="reelup reelup-placeholder" {{ block.shopify_attributes }}>{{ 'reels.editor_placeholder' | t }}</div>
 {%- endif -%}
 
 {% schema %}
 {
   "name": "Product page reels",
   "target": "section",
+  "javascript": "reel-loader.js",
+  "stylesheet": "reel-widgets.css",
   "settings": [
     { "type": "product", "id": "product", "label": "Product", "autofill": true },
     {
       "type": "paragraph",
-      "content": "Videos, layout and colors are set in the app under Widgets › Product page reels. Needs the Shoppable Videos app embed turned on."
+      "content": "Videos, layout and colors are set in the app under Widgets › Product page reels."
     }
   ]
 }
