@@ -1,57 +1,54 @@
 import type { LoaderFunctionArgs } from "react-router";
-import { redirect, Form, useLoaderData } from "react-router";
-
-import { login } from "../../shopify.server";
+import { redirect, useLoaderData } from "react-router";
 
 import styles from "./styles.module.css";
 
+// Public landing page (outside the Shopify admin). Merchants install from
+// the Shopify App Store, never by typing a shop domain here — App Store
+// review rejects manual-domain install forms. Requests that already carry
+// a shop (e.g. after install) go straight into the embedded app.
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
-
   if (url.searchParams.get("shop")) {
     throw redirect(`/app?${url.searchParams.toString()}`);
   }
-
-  return { showForm: Boolean(login) };
+  // eslint-disable-next-line no-undef
+  return { listingUrl: process.env.APP_STORE_LISTING_URL || "https://apps.shopify.com" };
 };
 
-export default function App() {
-  const { showForm } = useLoaderData<typeof loader>();
+const FEATURES = [
+  {
+    title: "Shoppable video, everywhere",
+    body: "Filmstrips on product pages, a stacked carousel, stories, a featured video, a floating player and an add-to-cart row — each built for its place on the page.",
+  },
+  {
+    title: "Add to cart without leaving the video",
+    body: "Tagged products open beside the video with variants, sale prices and quick add, so shoppers buy what they just watched.",
+  },
+  {
+    title: "Know what sells",
+    body: "Views, product clicks and sales per video, so you can put your best content where it earns the most.",
+  },
+];
 
+export default function Landing() {
+  const { listingUrl } = useLoaderData<typeof loader>();
   return (
-    <div className={styles.index}>
+    <main className={styles.index}>
       <div className={styles.content}>
-        <h1 className={styles.heading}>A short heading about [your app]</h1>
-        <p className={styles.text}>
-          A tagline about [your app] that describes your value proposition.
-        </p>
-        {showForm && (
-          <Form className={styles.form} method="post" action="/auth/login">
-            <label className={styles.label}>
-              <span>Shop domain</span>
-              <input className={styles.input} type="text" name="shop" />
-              <span>e.g: my-shop-domain.myshopify.com</span>
-            </label>
-            <button className={styles.button} type="submit">
-              Log in
-            </button>
-          </Form>
-        )}
+        <h1 className={styles.heading}>Shoppable videos for your Shopify store</h1>
+        <p className={styles.text}>Turn the videos you already make into a place to shop.</p>
+        <a className={styles.button} href={listingUrl}>
+          Get the app on the Shopify App Store
+        </a>
         <ul className={styles.list}>
-          <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
-          </li>
-          <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
-          </li>
-          <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
-          </li>
+          {FEATURES.map((feature) => (
+            <li key={feature.title}>
+              <strong>{feature.title}.</strong> {feature.body}
+            </li>
+          ))}
         </ul>
       </div>
-    </div>
+    </main>
   );
 }

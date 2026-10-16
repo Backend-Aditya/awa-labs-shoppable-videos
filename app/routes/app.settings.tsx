@@ -8,6 +8,7 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 import { getOrCreateShop } from "../models/shop.server";
 import { getBrand, saveBrand } from "../models/brand.server";
 import type { BrandConfig } from "../models/brand";
+import { BRAND_DEFAULTS } from "../models/brand";
 import { useEditorGuards } from "../components/useEditorGuards";
 import { Card, ColorInput, Segmented } from "../components/widget-editor/controls";
 import styles from "../components/widget-editor/editor.module.css";
@@ -16,7 +17,7 @@ import brandStyles from "../components/widget-editor/brand.module.css";
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shop = await getOrCreateShop(session.shop);
-  return { plan: shop.plan, viewCap: shop.viewCapMonthly, brand: await getBrand(shop.id) };
+  return { brand: await getBrand(shop.id) };
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -32,7 +33,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Settings() {
-  const { plan, viewCap, brand: saved } = useLoaderData<typeof loader>();
+  const { brand: saved } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
   const [brand, setBrand] = useState<BrandConfig>(saved);
@@ -72,7 +73,17 @@ export default function Settings() {
         <div className={styles.settingsColumn}>
           <Card
             title="Brand kit"
-            description="Every widget uses these unless you give it its own colours in the widget editor."
+            action={
+              <button
+                type="button"
+                className={styles.noticeLink}
+                disabled={JSON.stringify(brand) === JSON.stringify(BRAND_DEFAULTS)}
+                onClick={() => set({ ...BRAND_DEFAULTS })}
+              >
+                Reset to defaults
+              </button>
+            }
+            description="Every widget uses these unless you give it its own colors in the widget editor."
           >
             <ColorInput label="Accent" value={brand.accentColor} onChange={(accentColor) => set({ accentColor })} />
             <ColorInput label="Button" value={brand.buttonColor} onChange={(buttonColor) => set({ buttonColor })} />
@@ -110,12 +121,6 @@ export default function Settings() {
             />
           </Card>
 
-          <Card title="Plan">
-            <div className={brandStyles.plan}>
-              <span className={brandStyles.planName}>{plan.charAt(0) + plan.slice(1).toLowerCase()}</span>
-              <span className={styles.hint}>{viewCap.toLocaleString()} video views a month</span>
-            </div>
-          </Card>
         </div>
 
         <div className={styles.previewColumn}>

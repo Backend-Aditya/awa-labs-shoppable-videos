@@ -187,7 +187,7 @@ export const WIDGET_KIND_META: Record<Exclude<WidgetKind, "GRID">, WidgetKindMet
   CAROUSEL: {
     kind: "CAROUSEL",
     name: "Stacked carousel",
-    description: "A fanned deck of videos — the centre card plays the lead role.",
+    description: "A fanned deck of videos — the center card plays the lead role.",
     placement: "Any page section",
     icon: "layout-columns-3",
     reelSelection: "list",

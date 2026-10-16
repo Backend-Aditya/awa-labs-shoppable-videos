@@ -16,13 +16,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return { apiKey: process.env.SHOPIFY_API_KEY || "" };
 };
 
+const HOME_LINK = { rel: "home" } as Record<string, string>;
+
 export default function App() {
   const { apiKey } = useLoaderData<typeof loader>();
 
   return (
     <AppProvider embedded apiKey={apiKey}>
       <s-app-nav>
-        <s-link href="/app">Overview</s-link>
+        {/* rel="home" marks the app's home page (shown via the app name);
+            Polaris' types don't declare it, so it's passed through a spread. */}
+        <s-link href="/app" {...HOME_LINK}>
+          Home
+        </s-link>
         <s-link href="/app/reels">Reels</s-link>
         <s-link href="/app/widgets">Widgets</s-link>
         <s-link href="/app/settings">Settings</s-link>
@@ -124,7 +130,11 @@ function ErrorPage({
       <div style={{ display: "flex", gap: 8 }}>
         {actions.map((action) =>
           action.href ? (
-            <a key={action.label} href={action.href} style={button(action.primary)}>
+            <a
+              key={action.label}
+              href={`${action.href}${typeof window === "undefined" ? "" : window.location.search}`}
+              style={button(action.primary)}
+            >
               {action.label}
             </a>
           ) : (

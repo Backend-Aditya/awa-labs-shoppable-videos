@@ -273,9 +273,10 @@
   min-width: 0;
 }
 
-.barHit:focus-visible {
+.bars:focus-visible {
   outline: 2px solid #005bd3;
-  outline-offset: 1px;
+  outline-offset: 4px;
+  border-radius: 4px;
 }
 
 .bar {

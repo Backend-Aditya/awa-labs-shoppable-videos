@@ -1,4 +1,4 @@
-// Shop-wide brand kit: the colours and viewer look every widget inherits
+// Shop-wide brand kit: the colors and viewer look every widget inherits
 // unless a widget sets its own. Client-safe (no Prisma) so the Settings
 // page, the widget editor and its preview share one set of defaults.
 
