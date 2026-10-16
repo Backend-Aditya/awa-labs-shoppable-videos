@@ -19,3 +19,13 @@ export function dom(html: string) {
 export async function renderDom(file: string, context: object) {
   return dom(await renderFile(file, context));
 }
+
+/**
+ * Markup outside JSON-LD scripts and product <template>s. JSON-LD content is
+ * JSON (checked by parsing it); templates hold reel-product-card output,
+ * covered by product-card.test.ts.
+ */
+export const visibleMarkup = (html: string) =>
+  html
+    .replace(/<script type="application\/ld\+json">[\s\S]*?<\/script>/g, "")
+    .replace(/<template[\s\S]*?<\/template>/g, "");
