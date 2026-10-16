@@ -18,8 +18,9 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.argv[2] ?? process.env.E2E_PORT ?? 4173);
 const engine = createLiquidEngine({ assetBase: "/assets" });
 
-// Media URLs resolve to 404 on this server: hls.js fails fast and the
-// viewer keeps the poster, which is all these flows need.
+// HLS manifest URLs 404 on this server (real hls.js → playback error path).
+// Specs that need real playback swap window.ReelupHls for a stub that plays
+// /media/sample.webm (see playableVideo() in storefront.spec.ts).
 const hls = (id) => `/media/${id}/manifest/video.m3u8`;
 const poster = (id) =>
   `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="9" height="16"><rect width="9" height="16" fill="hsl(${id * 47} 40% 60%)"/></svg>`)}`;
@@ -60,6 +61,11 @@ createServer(async (req, res) => {
     if (url.pathname === "/" || url.pathname.startsWith("/products/")) {
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
       res.end(await renderPage());
+      return;
+    }
+    if (url.pathname === "/media/sample.webm") {
+      res.writeHead(200, { "Content-Type": "video/webm" });
+      res.end(await readFile(path.join(here, "fixtures/sample.webm")));
       return;
     }
     if (url.pathname.startsWith("/assets/")) {
