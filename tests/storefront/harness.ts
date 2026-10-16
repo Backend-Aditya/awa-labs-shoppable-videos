@@ -6,12 +6,17 @@ import { vi } from "vitest";
 import { createLiquidEngine } from "../support/liquid-engine.mjs";
 import { blockContext, BLOCK_METAFIELDS } from "../support/storefront-fixtures.mjs";
 
+// The sources are classic scripts (IIFEs), not modules; import.meta.glob
+// lets Vite load (and instrument for coverage) them without TS resolving
+// them as modules. vi.resetModules() makes each import re-run the IIFE.
+const SOURCES = import.meta.glob("../../scripts/extension-assets-src/*.js");
+const source = (file: string) => () => SOURCES[`../../scripts/extension-assets-src/${file}`]();
 const SCRIPTS = {
-  lightbox: () => import("../../scripts/extension-assets-src/reel-lightbox.js"),
-  story: () => import("../../scripts/extension-assets-src/reel-story.js"),
-  trigger: () => import("../../scripts/extension-assets-src/reel-trigger.js"),
-  pop: () => import("../../scripts/extension-assets-src/reel-pop.js"),
-  hls: () => import("../../scripts/extension-assets-src/reel-hls.js"),
+  lightbox: source("reel-lightbox.js"),
+  story: source("reel-story.js"),
+  trigger: source("reel-trigger.js"),
+  pop: source("reel-pop.js"),
+  hls: source("reel-hls.js"),
 } as const;
 export type ScriptName = keyof typeof SCRIPTS;
 
@@ -56,8 +61,8 @@ export class FakeIntersectionObserver {
 export const media = { mobile: false, hover: true, reducedMotion: false };
 
 export const hls = {
-  attach: vi.fn(async (_video: HTMLVideoElement, _src: string, _opts?: object) => {}),
-  teardown: vi.fn((_video: HTMLVideoElement) => {}),
+  attach: vi.fn<(video: HTMLVideoElement, src: string, opts?: object) => Promise<void>>(async () => {}),
+  teardown: vi.fn<(video: HTMLVideoElement) => void>(),
 };
 
 export const fetchMock = vi.fn<(input: string, init?: RequestInit) => Promise<Response>>();
