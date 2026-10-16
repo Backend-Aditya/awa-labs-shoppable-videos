@@ -2,7 +2,7 @@ import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Card, ChipToggleGroup, ColorInput, Field, Segmented, Slider, TextInput, Toggle } from "./controls";
+import { Card, ChipToggleGroup, ColorInput, Field, normalizeHex, Segmented, Slider, TextInput, Toggle } from "./controls";
 
 // Controlled wrapper so typing behaves like it does in the editor.
 function Controlled<T>({
@@ -87,6 +87,73 @@ describe("Segmented", () => {
   });
 });
 
+describe("Segmented — roving tabindex keyboard navigation", () => {
+  const options = [
+    { value: "a", label: "A" },
+    { value: "b", label: "B" },
+    { value: "c", label: "C" },
+  ];
+
+  it("only the chosen option is a tab stop", () => {
+    render(<Segmented label="L" value="b" options={options} onChange={() => {}} />);
+    expect(screen.getAllByRole("radio").map((r) => r.tabIndex)).toEqual([-1, 0, -1]);
+  });
+
+  it.each([
+    ["ArrowRight", "c"],
+    ["ArrowDown", "c"],
+    ["ArrowLeft", "a"],
+    ["ArrowUp", "a"],
+    ["Home", "a"],
+    ["End", "c"],
+  ])("%s chooses %s", (key, expected) => {
+    const onChange = vi.fn();
+    render(<Segmented label="L" value="b" options={options} onChange={onChange} />);
+    const event = fireEvent.keyDown(screen.getByRole("radiogroup"), { key });
+    expect(onChange).toHaveBeenCalledWith(expected);
+    expect(event).toBe(false); // default prevented
+  });
+
+  it("wraps around and moves focus to the new choice", async () => {
+    vi.useFakeTimers({ toFake: ["requestAnimationFrame"] });
+    try {
+      render(
+        <Controlled initial="c">
+          {(value, set) => <Segmented label="L" value={value} options={options} onChange={set} />}
+        </Controlled>,
+      );
+      fireEvent.keyDown(screen.getByRole("radiogroup"), { key: "ArrowRight" });
+      expect(screen.getByRole("radio", { name: "A" })).toHaveAttribute("aria-checked", "true");
+      vi.advanceTimersToNextFrame();
+      expect(screen.getByRole("radio", { name: "A" })).toHaveFocus();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("ignores other keys", () => {
+    const onChange = vi.fn();
+    render(<Segmented label="L" value="b" options={options} onChange={onChange} />);
+    expect(fireEvent.keyDown(screen.getByRole("radiogroup"), { key: "a" })).toBe(true);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});
+
+describe("normalizeHex", () => {
+  it.each([
+    ["#abc", "#aabbcc"],
+    ["ABC", "#aabbcc"],
+    ["#A1B2C3", "#a1b2c3"],
+    [" a1b2c3 ", "#a1b2c3"],
+    ["#ab", null],
+    ["#abcd", null],
+    ["#gggggg", null],
+    ["", null],
+  ])("%j → %j", (input, expected) => {
+    expect(normalizeHex(input)).toBe(expected);
+  });
+});
+
 describe("Toggle", () => {
   it("is a labelled switch that flips its value", async () => {
     const onChange = vi.fn();
@@ -135,21 +202,72 @@ describe("ColorInput", () => {
     expect(screen.getByLabelText("Accent hex value")).toHaveValue("#ff0000");
   });
 
-  it("accepts a complete hex, lower-cases it, and ignores partial input", () => {
+  it("keeps a partial draft while typing and commits a complete 6-digit hex immediately, lower-cased", () => {
     const onChange = vi.fn();
     render(<ColorInput label="Accent" value="#ff0000" onChange={onChange} />);
     const hex = screen.getByLabelText("Accent hex value");
     fireEvent.change(hex, { target: { value: "#12" } });
+    expect(hex).toHaveValue("#12");
     expect(onChange).not.toHaveBeenCalled();
-    fireEvent.change(hex, { target: { value: " #ABCDEF " } });
+    fireEvent.change(hex, { target: { value: "#ABCDEF" } });
     expect(onChange).toHaveBeenCalledWith("#abcdef");
+  });
+
+  it("commits shorthand / unprefixed hex on Enter or blur", () => {
+    const onChange = vi.fn();
+    render(<ColorInput label="Accent" value="#ff0000" onChange={onChange} />);
+    const hex = screen.getByLabelText("Accent hex value");
+    fireEvent.change(hex, { target: { value: "abc" } });
+    expect(onChange).not.toHaveBeenCalled();
+    fireEvent.keyDown(hex, { key: "Enter" });
+    expect(onChange).toHaveBeenLastCalledWith("#aabbcc");
+    fireEvent.change(hex, { target: { value: " 123456 " } });
+    fireEvent.blur(hex);
+    expect(onChange).toHaveBeenLastCalledWith("#123456");
+  });
+
+  it("an invalid draft is flagged and reverts on blur", () => {
+    const onChange = vi.fn();
+    render(<ColorInput label="Accent" value="#ff0000" onChange={onChange} />);
+    const hex = screen.getByLabelText("Accent hex value");
+    fireEvent.change(hex, { target: { value: "#zz" } });
+    fireEvent.blur(hex);
+    expect(onChange).not.toHaveBeenCalled();
+    expect(hex).toHaveValue("#ff0000");
+    expect(hex).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("alert")).toHaveTextContent("Use a hex color like #1a2b3c");
+    expect(hex).toHaveAccessibleDescription("Use a hex color like #1a2b3c");
+    // Typing again clears the error.
+    fireEvent.change(hex, { target: { value: "#1" } });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("Enter on an invalid draft flags it without committing", () => {
+    const onChange = vi.fn();
+    render(<ColorInput label="Accent" value="#ff0000" onChange={onChange} />);
+    const hex = screen.getByLabelText("Accent hex value");
+    fireEvent.change(hex, { target: { value: "#12345" } });
+    fireEvent.keyDown(hex, { key: "Enter" });
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toBeInTheDocument();
   });
 
   it("does not allow clearing when allowEmpty is off", () => {
     const onChange = vi.fn();
     render(<ColorInput label="Accent" value="#ff0000" onChange={onChange} />);
-    fireEvent.change(screen.getByLabelText("Accent hex value"), { target: { value: "" } });
+    const hex = screen.getByLabelText("Accent hex value");
+    fireEvent.change(hex, { target: { value: "" } });
+    fireEvent.blur(hex);
     expect(onChange).not.toHaveBeenCalled();
+    expect(hex).toHaveValue("#ff0000");
+  });
+
+  it("follows external value changes and falls back the swatch for a non-6-digit value", () => {
+    const { rerender } = render(<ColorInput label="Accent" value="#ff0000" onChange={() => {}} fallback="#141414" />);
+    rerender(<ColorInput label="Accent" value="#00ff00" onChange={() => {}} fallback="#141414" />);
+    expect(screen.getByLabelText("Accent hex value")).toHaveValue("#00ff00");
+    rerender(<ColorInput label="Accent" value="#abc" onChange={() => {}} fallback="#141414" />);
+    expect(screen.getByLabelText("Accent color")).toHaveValue("#141414");
   });
 
   it("picking from the swatch reports the new color", () => {
@@ -192,7 +310,9 @@ describe("ColorInput", () => {
     it("clearing the hex box goes back to inherit", () => {
       const onChange = vi.fn();
       render(<ColorInput label="Text" value="#123456" onChange={onChange} allowEmpty />);
-      fireEvent.change(screen.getByLabelText("Text hex value"), { target: { value: "  " } });
+      const hex = screen.getByLabelText("Text hex value");
+      fireEvent.change(hex, { target: { value: "  " } });
+      fireEvent.blur(hex);
       expect(onChange).toHaveBeenCalledWith("");
     });
   });

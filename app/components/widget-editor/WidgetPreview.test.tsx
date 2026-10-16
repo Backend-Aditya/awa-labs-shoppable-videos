@@ -225,7 +225,7 @@ describe("WidgetPreview — style variables and brand fallbacks", () => {
 });
 
 describe("WidgetPreview — viewer mode", () => {
-  const openViewer = () => userEvent.click(screen.getByRole("tab", { name: "Video viewer" }));
+  const openViewer = () => userEvent.click(screen.getByRole("radio", { name: "Video viewer" }));
 
   it("shows the first reel's products with CTA, quantity and recommendations", async () => {
     const { container } = renderPreview("PRODUCT_PAGE_REELS", {
@@ -237,7 +237,7 @@ describe("WidgetPreview — viewer mode", () => {
       ctaStyle: "square",
     });
     await openViewer();
-    expect(screen.getByRole("tab", { name: "Video viewer" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("radio", { name: "Video viewer" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByText("Shop this video")).toBeInTheDocument();
     expect(container.querySelectorAll(".viewerProduct")).toHaveLength(2);
     expect(screen.getAllByText("Add to cart")[0]).toHaveAttribute("data-variant", "square");
@@ -273,7 +273,7 @@ describe("WidgetPreview — viewer mode", () => {
     const { container } = renderPreview("SINGLE_VIDEO", {}, [reel(1)], { ...BRAND_DEFAULTS, viewerTheme: "light" });
     await openViewer();
     expect(container.querySelector(".viewer")).toHaveAttribute("data-theme", "light");
-    await userEvent.click(screen.getByRole("tab", { name: "On page" }));
+    await userEvent.click(screen.getByRole("radio", { name: "On page" }));
     expect(container.querySelector(".viewer")).toBeNull();
   });
 });

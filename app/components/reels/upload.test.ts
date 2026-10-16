@@ -2,7 +2,7 @@
 // file goes straight to Cloudflare by XHR. No real network: fetch and
 // XMLHttpRequest are stubbed.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { importReel, MAX_UPLOAD_BYTES, replaceReelVideo, titleFromFilename, uploadNewReel, validateVideoFile } from "./upload";
+import { importReel, isVideoFile, MAX_UPLOAD_BYTES, replaceReelVideo, titleFromFilename, uploadNewReel, validateVideoFile } from "./upload";
 
 type XhrBehaviour = "ok" | "http-error" | "network-error";
 
@@ -73,6 +73,13 @@ describe("validateVideoFile", () => {
     expect(validateVideoFile(file())).toBeNull();
     expect(validateVideoFile({ type: "video/quicktime", size: MAX_UPLOAD_BYTES } as File)).toBeNull();
   });
+  it("falls back to the extension when the OS reports no MIME type (Windows .mov/.mkv)", () => {
+    expect(isVideoFile(new File([], "clip.MOV", { type: "" }))).toBe(true);
+    expect(isVideoFile(new File([], "clip.mkv", { type: "" }))).toBe(true);
+    expect(isVideoFile(new File([], "notes.txt", { type: "" }))).toBe(false);
+    // A declared non-video type wins over the extension.
+    expect(isVideoFile(new File([], "clip.mp4", { type: "text/plain" }))).toBe(false);
+  });
   it("rejects non-videos and oversize files", () => {
     expect(validateVideoFile(file("image/png"))).toBe("Not a video file.");
     expect(validateVideoFile({ type: "video/mp4", size: MAX_UPLOAD_BYTES + 1 } as File)).toBe("Larger than 200 MB.");
@@ -115,11 +122,11 @@ describe("uploadNewReel", () => {
   it.each([
     ["http-error", "Upload failed."],
     ["network-error", "Upload failed. Check your connection."],
-  ] as const)("marks the reel failed when Cloudflare upload has a %s", async (behaviour, message) => {
+  ] as const)("discards the new reel when the Cloudflare upload has a %s", async (behaviour, message) => {
     FakeXhr.behaviour = behaviour;
     fetchMock.mockReturnValueOnce(json({ reelId: "r1", uploadURL: "https://u" })).mockReturnValueOnce(json({ ok: true }));
     await expect(uploadNewReel(file(), { title: "", published: false, productIds: [] }, () => {})).rejects.toThrow(message);
-    expect(bodies()[1]).toEqual({ intent: "failed", reelId: "r1" });
+    expect(bodies()[1]).toEqual({ intent: "discard", reelId: "r1" });
   });
 
   it("still reports the upload error if marking failed also fails", async () => {
@@ -135,7 +142,7 @@ describe("importReel", () => {
     await expect(
       importReel({ title: "T", published: true, productIds: [], sourceUrl: "https://www.instagram.com/reel/abc/" }),
     ).resolves.toBe("r9");
-    expect(bodies()[0]).toMatchObject({ intent: "import", sourceUrl: "https://www.instagram.com/reel/abc/" });
+    expect(bodies()[0]).toMatchObject({ intent: "import", rightsConfirmed: true, sourceUrl: "https://www.instagram.com/reel/abc/" });
   });
 
   it("fails without a reel id", async () => {
