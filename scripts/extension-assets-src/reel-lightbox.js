@@ -724,7 +724,9 @@
     });
     panelToggle.addEventListener("click", () => {
       const open = panel.dataset.state === "open" || (panel.dataset.state === "peek" && !isMobile());
-      setPanelState(open ? (initialPanelState === "open" ? "closed" : initialPanelState) : "open");
+      // Collapsing returns a mobile sheet to its peek, but desktop shows
+      // "peek" fully expanded, so there it has to close.
+      setPanelState(open ? (isMobile() && initialPanelState === "peek" ? "peek" : "closed") : "open");
     });
     dialog.setPanelState = setPanelState;
 

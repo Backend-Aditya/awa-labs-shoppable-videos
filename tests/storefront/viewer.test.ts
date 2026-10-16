@@ -155,6 +155,21 @@ describe("product panel", () => {
     expect(panel.dataset.state).toBe("closed");
   });
 
+  it("desktop peek: the chevron collapses the list and expands it again", async () => {
+    await mountStrip();
+    click(triggerButton(0));
+    const panel = q("[data-reelup-panel]");
+    const head = q("[data-reelup-panel-toggle]");
+    expect(panel.dataset.state).toBe("peek");
+    expect(head.getAttribute("aria-expanded")).toBe("true");
+    click(head);
+    expect(panel.dataset.state).toBe("closed");
+    expect(head.getAttribute("aria-expanded")).toBe("false");
+    click(head);
+    expect(panel.dataset.state).toBe("open");
+    expect(head.getAttribute("aria-expanded")).toBe("true");
+  });
+
   it("mobile bottom sheet: peek → open → back to peek", async () => {
     media.mobile = true;
     await mountStrip();
