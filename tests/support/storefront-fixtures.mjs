@@ -52,7 +52,7 @@ export function makeReel({
     system: { id: `gid://shopify/Metaobject/${id}`, created_at: createdAt },
     title: { value: title },
     published: { value: published },
-    config: { value: { hlsManifestUrl: hls, posterUrl: poster, durationSeconds: duration, interactions } },
+    config: { value: { hlsManifestUrl: hls, posterUrl: poster, durationSeconds: duration, uploadedAt: createdAt, interactions } },
     tagged_products: { value: products },
   };
 }
@@ -68,7 +68,7 @@ export function makeWidget({ published = true, targetRule = { type: "all_product
 export function makeShop(metafields = {}) {
   const ns = {};
   for (const [key, value] of Object.entries(metafields)) ns[key] = { value };
-  return { metafields: { [REEL_NAMESPACE]: ns } };
+  return { money_format: "${{amount}}", metafields: { [REEL_NAMESPACE]: ns } };
 }
 
 // Which shop metafields each block reads.

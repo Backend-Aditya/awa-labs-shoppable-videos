@@ -70,11 +70,7 @@ describe("reel-product-card", () => {
     expect(html).not.toContain("<b>");
   });
 
-  // KNOWN BUG: snippets/reel-product-card.liquid outputs `{{ product.title }}`
-  // without `| escape` (every other block escapes titles, e.g. the strip's
-  // `lead.title | escape`). A title containing markup is injected as HTML
-  // into the viewer. Remove `.fails` once the snippet escapes it.
-  it.fails("product title is escaped", async () => {
+  it("product title is escaped", async () => {
     const { $, html } = await card(makeProduct({ id: 2, title: `<img src=x onerror=alert(1)>` }));
     expect($(".reelup-product__title")!.textContent).toBe("<img src=x onerror=alert(1)>");
     expect(html).not.toContain("<img src=x");

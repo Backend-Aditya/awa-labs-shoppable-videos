@@ -141,10 +141,25 @@ describe("reel-video-schema", () => {
   });
 
   it("JSON stays parseable with quotes in the title; optional fields drop out", async () => {
-    const { $ } = await renderDom("reel-video-schema", { reel: makeReel({ title: 'Say "hi"', poster: null, duration: null }) });
+    const reel = makeReel({ title: 'Say "hi"', duration: null });
+    (reel.config.value as Record<string, unknown>).uploadedAt = undefined;
+    const { $ } = await renderDom("reel-video-schema", { reel });
     const data = JSON.parse($("script[type='application/ld+json']")!.textContent!);
     expect(data.name).toBe('Say "hi"');
-    expect(data).not.toHaveProperty("thumbnailUrl");
     expect(data).not.toHaveProperty("duration");
+    expect(data).not.toHaveProperty("uploadDate");
+  });
+
+  it("SEO title/description override the reel title", async () => {
+    const reel = makeReel({ title: "Raw" });
+    Object.assign(reel.config.value, { seoTitle: "SEO title", seoDescription: "SEO desc" });
+    const { $ } = await renderDom("reel-video-schema", { reel });
+    expect(JSON.parse($("script[type='application/ld+json']")!.textContent!)).toMatchObject({ name: "SEO title", description: "SEO desc" });
+  });
+
+  it("omits JSON-LD without a poster (Google requires thumbnailUrl)", async () => {
+    const { $ } = await renderDom("reel-video-schema", { reel: makeReel({ poster: null }) });
+    expect($("script[type='application/ld+json']")).toBeNull();
+    expect($("link[rel=preconnect]")).not.toBeNull();
   });
 });

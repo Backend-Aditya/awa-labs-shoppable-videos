@@ -9,14 +9,19 @@
 //   {% doc %} / {% schema %}   block tags that render nothing
 //   | t                         reads locales/en.default.json, `{{ var }}`
 //                               interpolation, `count` pluralisation
-//                               (one/other); missing keys render Shopify's
-//                               "translation missing: en.<key>". Not escaped
-//                               (blocks escape explicitly).
+//                               (one/other), interpolated values HTML-escaped
+//                               unless the key ends in _html; missing keys render Shopify's
+//                               "translation missing: en.<key>". The
+//                               translation text itself is not escaped.
 //   | money                     cents → "$1,234.50" (default shop format)
 //   | image_url: width: N       "<src>?width=N" (src = string or image.src)
 //   | asset_url                 "<assetBase>/<file>" (default /assets)
 //   | stylesheet_tag            Shopify's <link rel="stylesheet"> markup
 //   | color_brightness / color_lighten / color_darken   HSL maths
+//   globals in {% render %}     Shopify globals (shop, routes, cart, request,
+//                               template, product) are visible in rendered
+//                               snippets: renderFile passes the scope as
+//                               liquidjs `globals` too
 //   | divided_by                integer division when both operands are
 //                               integers (Shopify); liquidjs returns floats
 // Everything else (json, escape, default, round, modulo, times, split,
@@ -69,8 +74,16 @@ export function translate(key, vars = {}, locale = LOCALE) {
     value = count === 1 && "one" in value ? value.one : value.other;
   }
   if (typeof value !== "string") return `translation missing: en.${key}`;
-  return value.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, name) => (vars[name] == null ? "" : String(vars[name])));
+  // Shopify HTML-escapes interpolated values unless the key ends in _html.
+  const raw = String(key).endsWith("_html");
+  return value.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, name) => {
+    const v = vars[name] == null ? "" : String(vars[name]);
+    return raw ? v : escapeHtml(v);
+  });
 }
+
+const HTML_ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+const escapeHtml = (s) => s.replace(/[&<>"']/g, (c) => HTML_ESCAPES[c]);
 
 export function formatMoney(cents) {
   const amount = Number(cents ?? 0) / 100;
@@ -153,6 +166,12 @@ export function createLiquidEngine({ assetBase = "/assets", locale = LOCALE } = 
     const b = Number(divisor);
     return Number.isInteger(a) && Number.isInteger(b) ? Math.floor(a / b) : a / b;
   });
+
+  // Shopify's global objects (shop, routes, cart, request, template,
+  // product…) are visible inside {% render %}ed snippets; liquidjs only
+  // exposes `globals` there. Pass the whole render context as globals too.
+  const renderFile = engine.renderFile.bind(engine);
+  engine.renderFile = (file, scope = {}, options = {}) => renderFile(file, scope, { globals: scope, ...options });
 
   return engine;
 }

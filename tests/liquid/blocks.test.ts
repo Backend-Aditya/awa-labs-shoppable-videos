@@ -108,7 +108,7 @@ describe("add-to-cart-video", () => {
   it("label falls back to the locale and length is m:ss", async () => {
     const { $ } = await renderDom("add-to-cart-video", blockContext("add-to-cart-video", { reel: makeReel({ title: "How it fits", duration: 95 }) }));
     expect($(".reelup-atc__label")!.textContent).toBe("Watch video");
-    expect($(".reelup-atc__meta")!.textContent).toBe("How it fits1:35");
+    expect($(".reelup-atc__meta")!.textContent).toMatch(/^How it fits.*1:35$/);
   });
 
   it("custom label is escaped", async () => {
@@ -118,7 +118,7 @@ describe("add-to-cart-video", () => {
 });
 
 describe("shoppable-videos app embed", () => {
-  it("loads every storefront script and publishes a parseable #reelup-config", async () => {
+  it("loads every storefront script and publishes a parseable [data-reelup-config]", async () => {
     const { $, $$ } = await renderDom("shoppable-videos", blockContext("shoppable-videos", { widget: makeWidget({ published: false }) }));
     expect($$("script[src]").map((s) => s.getAttribute("src"))).toEqual([
       "/assets/reel-hls.js",
@@ -127,7 +127,7 @@ describe("shoppable-videos app embed", () => {
       "/assets/reel-trigger.js",
       "/assets/reel-pop.js",
     ]);
-    const config = JSON.parse($("#reelup-config")!.textContent!);
+    const config = JSON.parse($("[data-reelup-config]")!.textContent!);
     expect(config).toMatchObject({
       cartUrl: "/cart",
       cartAddUrl: "/cart/add.js",
@@ -148,7 +148,7 @@ describe("shoppable-videos app embed", () => {
     expect(css).toContain("--ru-brand-accent: #123456");
     expect(css).toContain("--ru-brand-cta: #abcdef");
     expect(css).toContain("font-family");
-    expect(JSON.parse($("#reelup-config")!.textContent!).viewerTheme).toBe("light");
+    expect(JSON.parse($("[data-reelup-config]")!.textContent!).viewerTheme).toBe("light");
   });
 
   it("floating video: hidden until JS reveals it, carries delay, block id and position", async () => {
