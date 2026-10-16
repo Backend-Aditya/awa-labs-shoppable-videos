@@ -6,7 +6,13 @@
 
 .reelup {
   --ru-text: currentColor;
-  --ru-accent: var(--ru-brand-accent, #141414);
+  /* Accent for things drawn on the page background (arrows, dots, focus
+     rings): follows the theme's text colour, so it stays visible on dark
+     themes. Play buttons sit on posters instead and use --ru-play: a
+     translucent dark disc with a white glyph reads on any image. Both are
+     overridden by the brand kit or the widget's accent colour. */
+  --ru-accent: var(--ru-brand-accent, currentColor);
+  --ru-play: var(--ru-brand-accent, rgb(17 17 17 / 0.72));
   --ru-radius: 10px;
   --ru-bg: transparent;
   --ru-cta: var(--ru-brand-cta, #141414);
@@ -27,6 +33,48 @@
 
 .reelup [hidden] {
   display: none !important;
+}
+
+/* Theme button styles (uppercase, letter-spacing, min-height, shadows)
+   must not leak into widget controls. (0,1,1) beats theme element and
+   single-class selectors; component rules that set these use two classes. */
+.reelup button {
+  letter-spacing: normal;
+  text-transform: none;
+  text-shadow: none;
+  box-shadow: none;
+  min-height: 0;
+  min-width: 0;
+}
+
+.reelup-live {
+  position: absolute !important;
+  display: block !important;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Theme-editor-only message for a block with nothing to show. */
+.reelup-placeholder {
+  padding: 16px;
+  border: 1px dashed color-mix(in srgb, currentColor 35%, transparent);
+  border-radius: 8px;
+  font-size: 14px;
+  text-align: center;
+  opacity: 0.8;
+}
+
+.reelup-noscript {
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
 }
 
 .reelup ul[role="list"] {
@@ -125,7 +173,7 @@
 
 .reelup-chip {
   position: absolute;
-  left: 8px;
+  inset-inline-start: 8px;
   bottom: 8px;
   z-index: 2;
   display: inline-flex;
@@ -222,7 +270,7 @@
   height: 44px;
   margin: -22px 0 0 -22px;
   border-radius: 50%;
-  background: var(--ru-accent);
+  background: var(--ru-play);
   opacity: 0;
   transform: scale(0.85);
   transition: opacity 0.2s ease, transform 0.25s var(--ru-ease);
@@ -318,12 +366,59 @@
   border-radius: 50%;
   background: #fff;
   color: #141414;
-  box-shadow: 0 2px 10px rgb(0 0 0 / 0.18);
   cursor: pointer;
 }
 
-.reelup-arrow--prev { left: -12px; }
-.reelup-arrow--next { right: -12px; }
+.reelup .reelup-arrow {
+  padding: 0;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.18);
+}
+
+.reelup-arrow--prev { inset-inline-start: -12px; }
+.reelup-arrow--next { inset-inline-end: -12px; }
+
+/* Chevrons point along the reading direction. */
+html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
+.reelup-arrow:dir(rtl) svg { transform: scaleX(-1); }
+
+/* Stories row: smaller arrows centred on the avatars. */
+.reelup-stories .reelup-arrow {
+  top: calc(var(--ru-avatar, 72px) / 2 + 4px);
+  width: 32px;
+  height: 32px;
+  margin-top: -16px;
+}
+
+.reelup-stories .reelup-arrow--prev { inset-inline-start: -6px; }
+.reelup-stories .reelup-arrow--next { inset-inline-end: -6px; }
+
+/* Deck slider: arrows centred on its cards. */
+.reelup-deck--carousel {
+  --ru-card-width: clamp(170px, 22vw, 240px);
+}
+
+/* Mouse users can also scroll rows directly: a thin scrollbar where a real
+   pointer exists (touch keeps the clean, swipeable row). */
+@media (hover: hover) and (pointer: fine) {
+  .reelup .reelup-stories__row,
+  .reelup .reelup-deck__stage,
+  .reelup .reelup-strip__track {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, currentColor 30%, transparent) transparent;
+  }
+  .reelup .reelup-stories__row::-webkit-scrollbar,
+  .reelup .reelup-deck__stage::-webkit-scrollbar,
+  .reelup .reelup-strip__track::-webkit-scrollbar {
+    display: block;
+    height: 6px;
+  }
+  .reelup .reelup-stories__row::-webkit-scrollbar-thumb,
+  .reelup .reelup-deck__stage::-webkit-scrollbar-thumb,
+  .reelup .reelup-strip__track::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: color-mix(in srgb, currentColor 30%, transparent);
+  }
+}
 
 .reelup-arrow:focus-visible {
   outline: 2px solid var(--ru-accent);
@@ -373,7 +468,7 @@
   place-items: center;
   padding-left: 3px;
   border-radius: 50%;
-  background: var(--ru-accent);
+  background: var(--ru-play);
   color: #fff;
   box-shadow: 0 6px 18px rgb(0 0 0 / 0.25);
   transition: transform 0.25s var(--ru-ease), opacity 0.25s ease;
@@ -389,7 +484,7 @@
   padding: 48px 14px 14px;
   background: linear-gradient(transparent, rgb(0 0 0 / 0.65));
   color: #fff;
-  text-align: left;
+  text-align: start;
   transition: opacity 0.25s ease;
 }
 
@@ -397,6 +492,10 @@
   font-weight: 600;
   font-size: 15px;
   line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .reelup-deck__meta {
@@ -405,8 +504,8 @@
 }
 
 .reelup-deck .reelup-chip {
-  left: auto;
-  right: 10px;
+  inset-inline-start: auto;
+  inset-inline-end: 10px;
   top: 10px;
   bottom: auto;
 }
@@ -431,11 +530,16 @@
   scroll-snap-align: center;
 }
 
+/* Same height before and after JS takes over, so the switch from row to
+   stack causes no layout shift; only positioning changes on .is-ready. */
+.reelup-deck--stack .reelup-deck__stage {
+  height: calc(var(--ru-card) * 16 / 9 + 8px);
+}
+
 .reelup-deck--stack.is-ready .reelup-deck__stage {
   position: relative;
   display: block;
   overflow: visible;
-  height: calc(var(--ru-card) * 16 / 9 + 8px);
   touch-action: pan-y;
 }
 
@@ -467,8 +571,11 @@
   transform: scale(0.6);
 }
 
+/* Space for the nav is reserved from first paint (visibility, not
+   display), so it appearing doesn't push the page down. */
 .reelup-deck__nav {
-  display: none;
+  display: flex;
+  visibility: hidden;
   align-items: center;
   justify-content: center;
   gap: 14px;
@@ -476,7 +583,11 @@
 }
 
 .reelup-deck--stack.is-ready .reelup-deck__nav {
-  display: flex;
+  visibility: visible;
+}
+
+.reelup-deck .reelup-deck__status {
+  display: block;
 }
 
 .reelup-deck__arrow {
@@ -494,8 +605,11 @@
 }
 
 .reelup-deck__arrow:hover {
-  background: var(--ru-accent);
-  color: #fff;
+  background: color-mix(in srgb, var(--ru-accent) 12%, transparent);
+}
+
+.reelup .reelup-deck__arrow {
+  padding: 0;
 }
 
 .reelup-deck__arrow:focus-visible {
@@ -683,7 +797,7 @@
   place-items: center;
   padding-left: 4px;
   border-radius: 50%;
-  background: var(--ru-accent);
+  background: var(--ru-play);
   color: #fff;
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.28);
   transition: transform 0.3s var(--ru-ease);
@@ -749,7 +863,7 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 8px 14px 8px 8px;
+  padding-block: 8px; padding-inline: 8px 14px;
   border: 1px solid var(--ru-line);
   border-radius: var(--ru-radius);
   background: var(--ru-bg);
@@ -782,7 +896,7 @@
   place-items: center;
   padding-left: 2px;
   border-radius: 50%;
-  background: var(--ru-accent);
+  background: var(--ru-play);
   color: #fff;
   box-shadow: 0 0 0 3px rgb(255 255 255 / 0.25);
 }
@@ -826,7 +940,7 @@
   display: inline-block;
   width: 3px;
   height: 3px;
-  margin: 0 8px 3px 0;
+  margin-block: 0 3px; margin-inline: 0 8px;
   border-radius: 50%;
   background: currentColor;
   vertical-align: middle;
@@ -850,7 +964,10 @@
   --ru-pop-size: 96px;
   --ru-pop-border: #fff;
   position: fixed;
-  z-index: 900;
+  /* Above page content and sticky headers (Dawn's header is ~3-4) but
+     below theme drawers, modals and cart notifications (typically 100+),
+     so it never covers a cart drawer the shopper just opened. */
+  z-index: 40;
   display: flex;
   align-items: flex-end;
   gap: 10px;
@@ -861,17 +978,27 @@
   display: none;
 }
 
-.reelup-pop--bottom-right { right: 20px; bottom: 20px; flex-direction: row-reverse; }
-.reelup-pop--bottom-left { left: 20px; bottom: 20px; }
-.reelup-pop--top-right { right: 20px; top: 20px; flex-direction: row-reverse; align-items: flex-start; }
-.reelup-pop--top-left { left: 20px; top: 20px; align-items: flex-start; }
+/* Corners are physical (the merchant picks "bottom right"), so these stay
+   left/right rather than logical. Safe-area insets keep it clear of the
+   iOS home indicator and notches. */
+.reelup-pop--bottom-right { right: calc(20px + env(safe-area-inset-right)); bottom: calc(20px + env(safe-area-inset-bottom)); flex-direction: row-reverse; }
+.reelup-pop--bottom-left { left: calc(20px + env(safe-area-inset-left)); bottom: calc(20px + env(safe-area-inset-bottom)); }
+.reelup-pop--top-right { right: calc(20px + env(safe-area-inset-right)); top: calc(20px + env(safe-area-inset-top)); flex-direction: row-reverse; align-items: flex-start; }
+.reelup-pop--top-left { left: calc(20px + env(safe-area-inset-left)); top: calc(20px + env(safe-area-inset-top)); align-items: flex-start; }
 
 @media (max-width: 749px) {
-  .reelup-pop--bottom-right { right: 12px; bottom: 12px; }
-  .reelup-pop--bottom-left { left: 12px; bottom: 12px; }
-  .reelup-pop--top-right { right: 12px; top: 12px; }
-  .reelup-pop--top-left { left: 12px; top: 12px; }
-  .reelup-pop { --ru-pop-size: min(var(--ru-pop-size), 84px); }
+  /* Bottom-right is raised on phones to clear chat bubbles (Shopify Inbox
+     and similar sit in that corner at ~60-70px). */
+  .reelup-pop--bottom-right { right: calc(12px + env(safe-area-inset-right)); bottom: calc(90px + env(safe-area-inset-bottom)); }
+  .reelup-pop--bottom-left { left: calc(12px + env(safe-area-inset-left)); bottom: calc(12px + env(safe-area-inset-bottom)); }
+  .reelup-pop--top-right { right: calc(12px + env(safe-area-inset-right)); top: calc(12px + env(safe-area-inset-top)); }
+  .reelup-pop--top-left { left: calc(12px + env(safe-area-inset-left)); top: calc(12px + env(safe-area-inset-top)); }
+  /* The size arrives as an inline custom property, so cap the width on the
+     player itself (a var can't be capped by redefining it in terms of
+     itself — that's a cycle and the inline value wins anyway). */
+  .reelup .reelup-trigger__button.reelup-pop__player {
+    width: min(var(--ru-pop-size), 84px);
+  }
 }
 
 .reelup-pop__frame {
@@ -958,7 +1085,7 @@
   outline-offset: 2px;
 }
 
-.reelup-pop__label {
+.reelup .reelup-pop__label {
   appearance: none;
   border: 0;
   margin-bottom: 8px;
@@ -1071,23 +1198,48 @@
   font-size: 12px;
 }
 
-.reelup-product__variant {
+/* Scoped to our containers (two classes) so theme select/button rules
+   don't restyle it; many themes set `select { appearance: none }`, which
+   would drop the arrow, so we draw our own neutral chevron. */
+:is(.reelup, .reelup-viewer, .reelup-story) .reelup-product__variant {
+  -webkit-appearance: none;
+  appearance: none;
   margin-top: 4px;
   max-width: 100%;
   width: fit-content;
+  min-height: 0;
   font: inherit;
   font-size: 12px;
+  letter-spacing: normal;
+  text-transform: none;
   color: inherit;
-  padding: 3px 24px 3px 8px;
+  padding-block: 3px;
+  padding-inline: 8px 24px;
   border: 1px solid var(--ru-line, #ddd);
   border-radius: 6px;
-  background: transparent;
+  box-shadow: none;
+  background-color: transparent;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23888' d='M0 0h10L5 6z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 8px 5px;
 }
 
-.reelup-product__add {
+html[dir="rtl"] :is(.reelup, .reelup-viewer, .reelup-story) .reelup-product__variant {
+  background-position: left 8px center;
+}
+
+:is(.reelup, .reelup-viewer, .reelup-story) .reelup-product__add {
   appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
   min-height: 36px;
+  text-decoration: none;
+  letter-spacing: normal;
+  text-transform: none;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 18%, transparent);
   padding: 0 16px;
   border: 0;
   border-radius: 999px;
@@ -1134,6 +1286,7 @@
 }
 
 .reelup-cta--text-link .reelup-product__add {
+  box-shadow: none;
   background: transparent;
   color: var(--ru-cta, #141414);
   padding: 0 4px;
@@ -1215,6 +1368,10 @@
   -webkit-appearance: none;
   margin: 0;
 }
+
+/* RTL: the add-to-cart row's chevron points the other way. */
+html[dir="rtl"] .reelup-atc__chevron { transform: scaleX(-1); }
+html[dir="rtl"] .reelup-atc__button:hover .reelup-atc__chevron { transform: scaleX(-1) translateX(3px); }
 
 @media (prefers-reduced-motion: reduce) {
   .reelup *,
