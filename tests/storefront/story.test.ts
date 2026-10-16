@@ -128,6 +128,7 @@ describe("seen state", () => {
     await mountStories();
     click(avatar(0));
     click(q("[data-reelup-story-next]"));
+    click(q("[data-reelup-story-next]"));
     expect(JSON.parse(localStorage.getItem("reelup-seen-stories")!)).toEqual([
       "gid://shopify/Metaobject/1",
       "gid://shopify/Metaobject/2",

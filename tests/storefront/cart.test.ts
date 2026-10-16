@@ -4,7 +4,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent } from "@testing-library/react";
 import { makeProduct, makeReel, makeWidget, multiVariantProduct } from "../support/storefront-fixtures.mjs";
-import { click, fetchBody, fetchCalls, fetchMock, flush, json, mount, renderBlock, resetPage } from "./harness";
+import { click, defaultRoutes as defaultRoutesFor, fetchBody, fetchCalls, fetchMock, flush, json, mount, renderBlock, resetPage } from "./harness";
 
 const REEL_ID = "gid://shopify/Metaobject/55";
 
@@ -80,7 +80,11 @@ describe("add to cart", () => {
     const [call] = fetchCalls("/cart/add.js");
     expect(call[1]).toMatchObject({ method: "POST" });
     expect((call[1]!.headers as Record<string, string>)["Content-Type"]).toBe("application/json");
-    expect(fetchBody(call)).toEqual({ items: [{ id: 200, quantity: 3, properties: { _reelup_reel_id: REEL_ID } }] });
+    expect(fetchBody(call)).toEqual({
+      items: [{ id: 200, quantity: 3, properties: { _reelup_reel_id: REEL_ID } }],
+      sections: "cart-icon-bubble,cart-drawer,cart-notification-button,cart-live-region-text",
+      sections_url: "/products/linen-shirt",
+    });
   });
 
   it("clamps a typed quantity and defaults to 1 without a stepper", async () => {
@@ -115,7 +119,6 @@ describe("add to cart", () => {
     Object.assign(window, { publish, PUB_SUB_EVENTS: { cartUpdate: "cart-update" } });
     document.body.insertAdjacentHTML("beforeend", "");
     await mountCards();
-    document.body.insertAdjacentHTML("beforeend", '<span data-reelup-cart-count>0</span>');
 
     vi.useFakeTimers({ toFake: ["setTimeout"] });
     try {
@@ -133,7 +136,6 @@ describe("add to cart", () => {
       expect(status().textContent).toContain("Added to your cart");
       expect(events).toEqual(["refresh", "updated:3"]);
       expect(publish).toHaveBeenCalledWith("cart-update", expect.objectContaining({ source: "reelup" }));
-      expect(document.querySelector("[data-reelup-cart-count]")!.textContent).toBe("3");
       const analytics = fetchCalls("/apps/reels/analytics").map(fetchBody);
       expect(analytics).toContainEqual(expect.objectContaining({ reelId: REEL_ID, eventType: "click_product" }));
 
@@ -178,7 +180,56 @@ describe("add to cart", () => {
     });
     click(addButton(2));
     await flush();
-    expect(status().textContent).toContain("offline");
+    // Network errors never leak raw messages to shoppers.
+    expect(status().textContent).toContain("Couldn't add to cart. Try again.");
+    expect(status().textContent).not.toContain("offline");
+  });
+
+  it("a 5xx with a description still shows only the generic message", async () => {
+    fetchMock.mockImplementation(async (url) =>
+      String(url).startsWith("/cart/add.js") ? json({ description: "Internal stack trace" }, 500) : json({}),
+    );
+    await mountCards();
+    click(addButton(2));
+    await flush();
+    expect(status().textContent).toContain("Couldn't add to cart. Try again.");
+    expect(status().textContent).not.toContain("stack trace");
+  });
+
+  it("asks for the theme's cart sections and hands them to a Dawn <cart-drawer>", async () => {
+    const renderContents = vi.fn();
+    const drawer = Object.assign(document.createElement("cart-drawer"), {
+      renderContents,
+      getSectionsToRender: () => [{ id: "cart-drawer" }, { id: "main-cart-footer" }],
+    });
+    drawer.classList.add("is-empty");
+    fetchMock.mockImplementation(async (url) =>
+      String(url).startsWith("/cart/add.js")
+        ? json({ items: [{ id: 200, variant_id: 200 }], sections: { "cart-drawer": "<div>drawer</div>" } })
+        : defaultRoutesFor(String(url)),
+    );
+    await mountCards();
+    document.body.appendChild(drawer);
+    click(addButton(2));
+    await flush();
+    expect(fetchBody(fetchCalls("/cart/add.js")[0]).sections).toBe(
+      "cart-drawer,main-cart-footer,cart-icon-bubble,cart-notification-button,cart-live-region-text",
+    );
+    expect(renderContents).toHaveBeenCalledWith(expect.objectContaining({ id: 200, sections: { "cart-drawer": "<div>drawer</div>" } }));
+    expect(drawer.classList.contains("is-empty")).toBe(false);
+  });
+
+  it("without a theme cart element, refreshes #cart-icon-bubble from the returned section", async () => {
+    fetchMock.mockImplementation(async (url) =>
+      String(url).startsWith("/cart/add.js")
+        ? json({ items: [{ id: 200 }], sections: { "cart-icon-bubble": '<div class="shopify-section"><span>5</span></div>' } })
+        : defaultRoutesFor(String(url)),
+    );
+    await mountCards();
+    document.body.insertAdjacentHTML("beforeend", '<a id="cart-icon-bubble"><span>0</span></a>');
+    click(addButton(2));
+    await flush();
+    expect(document.getElementById("cart-icon-bubble")!.innerHTML).toBe("<span>5</span>");
   });
 
   it("ignores clicks on a disabled (sold-out) button and while loading", async () => {

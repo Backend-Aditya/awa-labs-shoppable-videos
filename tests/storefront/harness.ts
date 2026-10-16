@@ -17,6 +17,7 @@ const SCRIPTS = {
   trigger: source("reel-trigger.js"),
   pop: source("reel-pop.js"),
   hls: source("reel-hls.js"),
+  loader: source("reel-loader.js"),
 } as const;
 export type ScriptName = keyof typeof SCRIPTS;
 
@@ -28,13 +29,16 @@ export function renderBlock(block: Block, input: Parameters<typeof blockContext>
   return engine.renderFile(block, blockContext(block, input)) as Promise<string>;
 }
 
-/** The app embed's #reelup-config JSON, rendered from Liquid. */
+/** The shared [data-reelup-config] JSON (snippets/reel-config.liquid). */
 export async function configScript(overrides: Record<string, unknown> = {}) {
-  const html = (await engine.renderFile("shoppable-videos", blockContext("shoppable-videos", { widget: { published: false } }))) as string;
-  const json = html.match(/<script type="application\/json" id="reelup-config">([\s\S]*?)<\/script>/)![1];
+  const html = (await engine.renderFile("reel-config", blockContext("shoppable-videos", { widget: { published: false } }))) as string;
+  const json = html.match(/<script type="application\/json" data-reelup-config>([\s\S]*?)<\/script>/)![1];
   const config = { ...JSON.parse(json), ...overrides };
-  return `<script type="application/json" id="reelup-config">${JSON.stringify(config)}</script>`;
+  return `<script type="application/json" data-reelup-config>${JSON.stringify(config)}</script>`;
 }
+
+// Each runtime file returns early when its global already exists.
+const RUNTIME_GLOBALS = ["ReelupLightbox", "ReelupViewer", "ReelupStory", "ReelupTrigger", "ReelupPop", "ReelupHls", "__reelupLoader"];
 
 /* ------------------------------------------------------------ stubs */
 
@@ -134,10 +138,14 @@ function installStubs() {
   mediaProto.load = vi.fn();
 
   window.matchMedia = vi.fn((query: string) => ({
-    matches:
-      (query.includes("max-width: 749px") && media.mobile) ||
-      (query.includes("hover: hover") && media.hover) ||
-      (query.includes("prefers-reduced-motion") && media.reducedMotion),
+    // A getter, so a MediaQueryList kept by a script follows `media`.
+    get matches() {
+      return (
+        (query.includes("max-width: 749px") && media.mobile) ||
+        (query.includes("hover: hover") && media.hover) ||
+        (query.includes("prefers-reduced-motion") && media.reducedMotion)
+      );
+    },
     media: query,
     onchange: null,
     addListener: () => {},
@@ -172,6 +180,7 @@ export function resetPage() {
   hls.teardown.mockReset();
   fetchMock.mockReset().mockImplementation(async (url) => defaultRoutes(String(url)));
   vi.unstubAllGlobals();
+  for (const name of RUNTIME_GLOBALS) delete (window as unknown as Record<string, unknown>)[name];
   installStubs();
   vi.resetModules();
 }

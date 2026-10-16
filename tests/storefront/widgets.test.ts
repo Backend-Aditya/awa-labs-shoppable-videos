@@ -27,7 +27,8 @@ describe("stacked deck", () => {
     expect(deck.classList.contains("is-ready")).toBe(true);
     expect(active()).toBe(1);
     expect(activeDot()).toBe(1);
-    expect(status.textContent).toBe("2 / 4 — Reel 2");
+    // The live status only announces real changes, never the first render.
+    expect(status.textContent).toBe("");
     expect(cards.map((c) => c.querySelector<HTMLElement>(".reelup-trigger__button")!.tabIndex)).toEqual([-1, 0, -1, -1]);
     expect(cards.map((c) => c.getAttribute("aria-hidden"))).toEqual(["true", "false", "true", "true"]);
     expect(cards[3].style.getPropertyValue("--ru-offset")).toBe("2");
@@ -38,6 +39,7 @@ describe("stacked deck", () => {
     click(deck.querySelector("[data-reelup-deck-next]"));
     expect(active()).toBe(2);
     expect(activeDot()).toBe(2);
+    expect(deck.querySelector("[data-reelup-deck-status]")!.textContent).toMatch(/^3 .*4: Reel 3$/);
     click(deck.querySelector("[data-reelup-deck-next]"));
     click(deck.querySelector("[data-reelup-deck-next]"));
     expect(active()).toBe(0);
@@ -120,7 +122,10 @@ describe("scroll previews", () => {
   it("are off with reduced motion", async () => {
     media.reducedMotion = true;
     await mount(await renderBlock("product-page-reels", { reels: reels(2), widget: makeWidget({ style: { autoplayOnScroll: true } }) }));
-    expect(FakeIntersectionObserver.instances[0].observed.size).toBe(0);
+    const observer = FakeIntersectionObserver.instances[0];
+    observer.trigger([...observer.observed].map((target) => ({ target, isIntersecting: true })));
+    await flush();
+    expect(document.querySelectorAll("video.reelup-trigger__preview")).toHaveLength(0);
   });
 });
 

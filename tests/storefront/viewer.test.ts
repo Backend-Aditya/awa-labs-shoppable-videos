@@ -298,7 +298,10 @@ describe("deep links and sharing", () => {
     await flush();
     expect(writeText).toHaveBeenCalledWith(expect.stringMatching(/\?reelup=11$/));
     expect(q(".reelup-toast").textContent).toBe("Link copied");
-    expect(q(".reelup-toast").getAttribute("role")).toBe("status");
+    expect(q(".reelup-toast").getAttribute("aria-hidden")).toBe("true");
+    // Announced through the viewer's live region instead.
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    expect(q("[data-reelup-live]").textContent).toBe("Link copied");
   });
 
   it("an aborted native share does nothing else", async () => {
