@@ -73,18 +73,31 @@ export function defaultRoutes(url: string): Response {
   return json({ ok: true });
 }
 
-const added: { target: EventTarget; type: string; listener: EventListenerOrEventListenerObject; options?: boolean | AddEventListenerOptions }[] = [];
-const originalAdd = EventTarget.prototype.addEventListener;
+const added: (() => void)[] = [];
+let listenersPatched = false;
 
-function installStubs() {
-  // Scripts register document/window listeners on every load; record them
-  // so each test starts from a clean slate.
+// Scripts register document/window listeners on every load; record them so
+// each test starts from a clean slate. Patched once, delegating to the
+// original (bound) methods — vitest's `window` is not itself an EventTarget.
+function patchListeners() {
+  if (listenersPatched) return;
+  listenersPatched = true;
   for (const target of [document, window] as EventTarget[]) {
-    target.addEventListener = function (type: string, listener: EventListenerOrEventListenerObject | null, options?: boolean | AddEventListenerOptions) {
-      if (listener) added.push({ target: this, type, listener, options });
-      return originalAdd.call(this, type, listener, options);
+    const add = target.addEventListener.bind(target);
+    const remove = target.removeEventListener.bind(target);
+    target.addEventListener = (
+      type: string,
+      listener: EventListenerOrEventListenerObject | null,
+      options?: boolean | AddEventListenerOptions,
+    ) => {
+      if (listener) added.push(() => remove(type, listener, options));
+      add(type, listener, options);
     };
   }
+}
+
+function installStubs() {
+  patchListeners();
 
   const proto = HTMLDialogElement.prototype as HTMLDialogElement & { showModal: () => void; close: () => void };
   proto.showModal = function (this: HTMLDialogElement) {
@@ -139,7 +152,7 @@ function installStubs() {
 
 /** Reset the page, stubs and module registry; call in beforeEach. */
 export function resetPage() {
-  for (const { target, type, listener, options } of added.splice(0)) target.removeEventListener(type, listener, options);
+  for (const remove of added.splice(0)) remove();
   document.head.innerHTML = "";
   document.body.innerHTML = "";
   document.documentElement.className = "";
