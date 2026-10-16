@@ -491,3 +491,20 @@
 .table tbody tr:hover {
   background: #fafafa;
 }
+
+.tableScroll {
+  overflow-x: auto;
+  margin: 0 -4px;
+  padding: 0 4px;
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.empty p {
+  margin: 0;
+}

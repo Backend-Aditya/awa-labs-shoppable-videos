@@ -13,18 +13,32 @@ import { KindSchematic } from "../components/widget-editor/KindSchematic";
 import { ViewsChart } from "../components/ViewsChart";
 import type { WidgetKind } from "../models/widget-kinds";
 import styles from "../components/widget-editor/dashboard.module.css";
+import { log } from "../lib/logger.server";
+import { useThemeStatus } from "../components/useThemeStatus";
+import { themeEditorUrl } from "../components/themeEditor";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
   const shop = await getOrCreateShop(session.shop);
-  const [reels, widgets, stats] = await Promise.all([
+  // Each source degrades on its own: a slow Shopify API or analytics query
+  // hides that card instead of taking the whole page down.
+  const [reelsResult, widgetsResult, statsResult] = await Promise.allSettled([
     listReels(admin),
     listWidgetsForShop(shop.id),
     getDashboardStats(shop.id, 30),
   ]);
+  for (const result of [reelsResult, widgetsResult, statsResult]) {
+    if (result.status === "rejected") {
+      if (result.reason instanceof Response) throw result.reason;
+      log.error("overview.load_failed", { shop: session.shop }, result.reason);
+    }
+  }
+  const reels = reelsResult.status === "fulfilled" ? reelsResult.value : [];
+  const widgets = widgetsResult.status === "fulfilled" ? widgetsResult.value : [];
+  const stats = statsResult.status === "fulfilled" ? statsResult.value : null;
 
   const reelsByKey = new Map(reels.map((r) => [reelKey(r.id), r]));
-  const topReels = stats.reels
+  const topReels = (stats?.reels ?? [])
     .filter((r) => reelsByKey.has(r.key))
     .slice(0, 8)
     .map((r) => {
@@ -36,14 +50,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     shopDomain: session.shop,
     // eslint-disable-next-line no-undef
     apiKey: process.env.SHOPIFY_API_KEY || "",
-    plan: shop.plan,
-    viewCap: shop.viewCapMonthly,
     hasBrand: shop.brand != null,
+    partial: [reelsResult, widgetsResult, statsResult].some((r) => r.status === "rejected"),
+    firstUntaggedKey: reels.find((r) => (r.config.productIds ?? []).length === 0) ? reelKey(reels.find((r) => (r.config.productIds ?? []).length === 0)!.id) : null,
     reelCount: reels.length,
     readyCount: reels.filter((r) => deriveReelStatus(r.config) === "ready").length,
     taggedCount: reels.filter((r) => (r.config.productIds ?? []).length > 0).length,
     widgets: widgets.map((w) => ({ id: w.id, name: w.name, type: w.type, published: w.published })),
-    stats: { days: stats.days, current: stats.current, previous: stats.previous, daily: stats.daily },
+    stats: stats ? { days: stats.days, current: stats.current, previous: stats.previous, daily: stats.daily } : null,
     topReels,
   };
 };
@@ -66,92 +80,48 @@ function change(current: number, previous: number) {
   return { label: `${pct >= 0 ? "+" : ""}${pct.toFixed(0)}%`, up: pct >= 0 };
 }
 
+// Rates change in percentage points, not percent of a percent (2% → 3% is
+// "+1.0 pt", not "+50%").
+function pointChange(current: number, previous: number, hadData: boolean) {
+  if (!hadData) return current === 0 ? null : { label: "New", up: true };
+  const diff = current - previous;
+  if (Math.abs(diff) < 0.05) return null;
+  return { label: `${diff >= 0 ? "+" : ""}${diff.toFixed(1)} pt`, up: diff >= 0 };
+}
+
 export default function Dashboard() {
   const data = useLoaderData<typeof loader>();
   const navigate = useNavigate();
-  const { current, previous } = data.stats;
-  const ctr = current.views ? (current.clicks / current.views) * 100 : 0;
-  const prevCtr = previous.views ? (previous.clicks / previous.views) * 100 : 0;
-  const revenue = current.revenue[0];
-  const prevRevenue = previous.revenue.find((r) => r.currencyCode === revenue?.currencyCode)?.amount ?? 0;
+  const theme = useThemeStatus();
+  const embedOff = theme !== null && !theme.embedOn;
+  const liveWidgets = data.widgets.filter((w) => w.published).length;
 
   return (
-    <s-page heading="Overview" inlineSize="large">
-      <s-button slot="primary-action" variant="primary" onClick={() => navigate("/app/reels")}>
-        Upload video
+    <s-page heading="Home" inlineSize="large">
+      <s-button slot="primary-action" variant="primary" onClick={() => navigate("/app/reels?upload=1")}>
+        Upload videos
       </s-button>
       <div className={styles.page}>
-        <Checklist data={data} />
+        {data.partial && (
+          <s-banner tone="warning" heading="Some information couldn't be loaded">
+            Shopify took too long to respond. Reload the page to try again.
+          </s-banner>
+        )}
+        {embedOff && liveWidgets > 0 && (
+          <s-banner tone="critical" heading="Your widgets aren't showing on your store">
+            The app embed is turned off in your theme, so live widgets can&rsquo;t play.{" "}
+            <s-link href={themeEditorUrl(data.apiKey)} target="_top">
+              Turn on the app embed
+            </s-link>
+          </s-banner>
+        )}
 
-        <section className={styles.card}>
-          <header className={styles.cardHeader}>
-            <h2 className={styles.cardTitle}>Last {data.stats.days} days</h2>
-            <span className={styles.muted}>Compared with the {data.stats.days} days before</span>
-          </header>
-          <div className={styles.kpis}>
-            <Kpi label="Video views" value={current.views.toLocaleString()} delta={change(current.views, previous.views)} />
-            <Kpi label="Product clicks" value={current.clicks.toLocaleString()} delta={change(current.clicks, previous.clicks)} />
-            <Kpi label="Click rate" value={`${ctr.toFixed(1)}%`} delta={change(ctr, prevCtr)} />
-            <Kpi
-              label="Sales from videos"
-              value={revenue ? formatMoney(revenue.amount, revenue.currencyCode) : "—"}
-              sub={`${current.orders} order${current.orders === 1 ? "" : "s"}`}
-              delta={revenue ? change(revenue.amount, prevRevenue) : null}
-            />
-          </div>
-          <ViewsChart daily={data.stats.daily} />
-        </section>
+        <Checklist data={data} embedOn={theme ? theme.embedOn : null} />
+
+        {data.stats ? <Performance stats={data.stats} /> : null}
 
         <div className={styles.split}>
-          <section className={styles.card}>
-            <header className={styles.cardHeader}>
-              <h2 className={styles.cardTitle}>Top videos</h2>
-              <button type="button" className={styles.link} onClick={() => navigate("/app/reels")}>
-                All videos
-              </button>
-            </header>
-            {data.topReels.length === 0 ? (
-              <p className={styles.empty}>Views and sales show up here once shoppers start watching.</p>
-            ) : (
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th scope="col">Video</th>
-                    <th scope="col">Views</th>
-                    <th scope="col">Clicks</th>
-                    <th scope="col">Click rate</th>
-                    <th scope="col">Sales</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.topReels.map((r) => (
-                    <tr key={r.id}>
-                      <th scope="row">
-                        <button
-                          type="button"
-                          className={styles.reelLink}
-                          onClick={() => navigate(`/app/reels/${r.id.split("/").pop()}`)}
-                        >
-                          <span
-                            className={styles.thumb}
-                            style={r.posterUrl ? { backgroundImage: `url("${r.posterUrl}")` } : undefined}
-                          />
-                          <span className={styles.reelTitle}>{r.title}</span>
-                        </button>
-                      </th>
-                      <td>{r.views.toLocaleString()}</td>
-                      <td>{r.clicks.toLocaleString()}</td>
-                      <td>{r.views ? `${((r.clicks / r.views) * 100).toFixed(1)}%` : "—"}</td>
-                      <td>
-                        {r.revenue && revenue ? formatMoney(r.revenue, revenue.currencyCode) : r.unitsSold ? `${r.unitsSold} sold` : "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </section>
-
+          <TopVideos data={data} />
           <section className={styles.card}>
             <header className={styles.cardHeader}>
               <h2 className={styles.cardTitle}>Widgets</h2>
@@ -160,38 +130,139 @@ export default function Dashboard() {
               </button>
             </header>
             {data.widgets.length === 0 ? (
-              <p className={styles.empty}>No widgets yet. Create one to put videos on your store.</p>
+              <div className={styles.empty}>
+                <p>No widgets yet. A widget decides where and how your videos appear.</p>
+                <s-button onClick={() => navigate("/app/widgets?create=1")}>Create widget</s-button>
+              </div>
             ) : (
-              <ul className={styles.widgetList}>
-                {data.widgets.slice(0, 6).map((w) => (
-                  <li key={w.id}>
-                    <button type="button" className={styles.widgetRow} onClick={() => navigate(`/app/widgets/${encodeURIComponent(w.id)}`)}>
-                      <span className={styles.widgetIcon}>
-                        <KindSchematic kind={w.type as WidgetKind} />
-                      </span>
-                      <span className={styles.widgetText}>
-                        <span className={styles.widgetName}>{w.name}</span>
-                        <span className={styles.muted}>{getKindMeta(w.type)?.name ?? w.type}</span>
-                      </span>
-                      <span className={styles.status} data-live={w.published || undefined}>
-                        {w.published ? "Live" : "Draft"}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <ul className={styles.widgetList}>
+                  {data.widgets.slice(0, 6).map((w) => (
+                    <li key={w.id}>
+                      <button
+                        type="button"
+                        className={styles.widgetRow}
+                        onClick={() => navigate(`/app/widgets/${encodeURIComponent(w.id)}`)}
+                      >
+                        <span className={styles.widgetIcon}>
+                          <KindSchematic kind={w.type as WidgetKind} />
+                        </span>
+                        <span className={styles.widgetText}>
+                          <span className={styles.widgetName}>{w.name}</span>
+                          <span className={styles.muted}>{getKindMeta(w.type)?.name ?? "Unsupported widget"}</span>
+                        </span>
+                        <span className={styles.status} data-live={w.published || undefined}>
+                          {w.published ? "Live" : "Draft"}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+                {data.widgets.length > 6 && (
+                  <button type="button" className={styles.link} onClick={() => navigate("/app/widgets")}>
+                    +{data.widgets.length - 6} more
+                  </button>
+                )}
+              </>
             )}
-            <p className={styles.plan}>
-              {data.plan.charAt(0) + data.plan.slice(1).toLowerCase()} plan · {current.views.toLocaleString()} of{" "}
-              {data.viewCap.toLocaleString()} monthly views
-            </p>
-            <div className={styles.meter} role="meter" aria-valuemin={0} aria-valuemax={data.viewCap} aria-valuenow={current.views} aria-label="Monthly views used">
-              <span style={{ width: `${Math.min(100, (current.views / Math.max(data.viewCap, 1)) * 100)}%` }} />
-            </div>
           </section>
         </div>
       </div>
     </s-page>
+  );
+}
+
+function Performance({ stats }: { stats: NonNullable<Data["stats"]> }) {
+  const { current, previous } = stats;
+  const ctr = current.views ? (current.clicks / current.views) * 100 : 0;
+  const prevCtr = previous.views ? (previous.clicks / previous.views) * 100 : 0;
+  // Revenue is never summed across currencies; show the main one and note
+  // when there are others.
+  const revenue = current.revenue[0];
+  const prevRevenue = previous.revenue.find((r) => r.currencyCode === revenue?.currencyCode)?.amount ?? 0;
+  const otherCurrencies = current.revenue.length - 1;
+
+  return (
+    <section className={styles.card}>
+      <header className={styles.cardHeader}>
+        <h2 className={styles.cardTitle}>Last {stats.days} days</h2>
+        <span className={styles.muted}>Compared with the {stats.days} days before</span>
+      </header>
+      <div className={styles.kpis}>
+        <Kpi label="Video views" value={current.views.toLocaleString()} delta={change(current.views, previous.views)} />
+        <Kpi label="Product clicks" value={current.clicks.toLocaleString()} delta={change(current.clicks, previous.clicks)} />
+        <Kpi label="Click rate" value={`${ctr.toFixed(1)}%`} delta={pointChange(ctr, prevCtr, previous.views > 0)} />
+        <Kpi
+          label="Sales from videos"
+          value={revenue ? formatMoney(revenue.amount, revenue.currencyCode) : "—"}
+          sub={`${current.orders} order${current.orders === 1 ? "" : "s"}${otherCurrencies > 0 ? ` · +${otherCurrencies} other currenc${otherCurrencies === 1 ? "y" : "ies"}` : ""}`}
+          delta={revenue ? change(revenue.amount, prevRevenue) : null}
+        />
+      </div>
+      <ViewsChart daily={stats.daily} />
+    </section>
+  );
+}
+
+function TopVideos({ data }: { data: Data }) {
+  const navigate = useNavigate();
+  const currency = data.stats?.current.revenue[0]?.currencyCode;
+  const multiCurrency = (data.stats?.current.revenue.length ?? 0) > 1;
+  return (
+    <section className={styles.card}>
+      <header className={styles.cardHeader}>
+        <h2 className={styles.cardTitle}>Top videos</h2>
+        <button type="button" className={styles.link} onClick={() => navigate("/app/reels")}>
+          All videos
+        </button>
+      </header>
+      {data.topReels.length === 0 ? (
+        <p className={styles.empty}>Views and sales show up here once shoppers start watching.</p>
+      ) : (
+        <div className={styles.tableScroll}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th scope="col">Video</th>
+                <th scope="col">Views</th>
+                <th scope="col">Clicks</th>
+                <th scope="col">Click rate</th>
+                <th scope="col">Sales</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.topReels.map((r) => (
+                <tr key={r.id}>
+                  <th scope="row">
+                    <button
+                      type="button"
+                      className={styles.reelLink}
+                      onClick={() => navigate(`/app/reels/${r.id.split("/").pop()}`)}
+                    >
+                      <span
+                        className={styles.thumb}
+                        style={r.posterUrl ? { backgroundImage: `url("${r.posterUrl}")` } : undefined}
+                      />
+                      <span className={styles.reelTitle}>{r.title}</span>
+                    </button>
+                  </th>
+                  <td>{r.views.toLocaleString()}</td>
+                  <td>{r.clicks.toLocaleString()}</td>
+                  <td>{r.views ? `${((r.clicks / r.views) * 100).toFixed(1)}%` : "—"}</td>
+                  <td>
+                    {r.revenue && currency && !multiCurrency
+                      ? formatMoney(r.revenue, currency)
+                      : r.unitsSold
+                        ? `${r.unitsSold} sold`
+                        : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -226,7 +297,7 @@ function Kpi({
   );
 }
 
-function Checklist({ data }: { data: Data }) {
+function Checklist({ data, embedOn }: { data: Data; embedOn: boolean | null }) {
   const navigate = useNavigate();
   const [embedOpened, setEmbedOpened] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -239,18 +310,26 @@ function Checklist({ data }: { data: Data }) {
     }
   }, []);
 
-  const embedUrl = `https://${data.shopDomain}/admin/themes/current/editor?context=apps&template=index&activateAppId=${data.apiKey}/shoppable-videos`;
+  // Prefer the theme's real state; only fall back to "you opened the theme
+  // editor" where the admin can't report it.
+  const embedDone = embedOn ?? embedOpened;
   const steps = [
-    { done: data.reelCount > 0, title: "Upload your first video", body: "MP4 or MOV, or import from Instagram and TikTok.", action: "Upload", go: () => navigate("/app/reels") },
-    { done: data.taggedCount > 0, title: "Tag products in a video", body: "Tagged products become shoppable cards in the player.", action: "Tag products", go: () => navigate("/app/reels") },
-    { done: data.widgets.some((w) => w.published), title: "Create a widget", body: "Pick where and how videos appear on your store.", action: "Create", go: () => navigate("/app/widgets") },
+    { done: data.reelCount > 0, title: "Upload your first video", body: "MP4 or MOV, or import from Instagram and TikTok.", action: "Upload videos", go: () => navigate("/app/reels?upload=1") },
     {
-      done: embedOpened,
+      done: data.taggedCount > 0,
+      title: "Tag products in a video",
+      body: "Tagged products become shoppable cards in the player.",
+      action: "Tag products",
+      go: () => navigate(data.firstUntaggedKey ? `/app/reels/${data.firstUntaggedKey}?tab=products` : "/app/reels"),
+    },
+    { done: data.widgets.some((w) => w.published), title: "Put a widget live", body: "Pick where and how videos appear on your store.", action: "Create widget", go: () => navigate("/app/widgets?create=1") },
+    {
+      done: embedDone,
       title: "Turn on the app embed",
-      body: "One switch in your theme editor makes every widget playable.",
+      body: embedOn === null ? "One switch in your theme editor makes every widget playable." : "It's off in your live theme — one switch makes every widget playable.",
       action: "Open theme editor",
       go: () => {
-        window.open(embedUrl, "_blank");
+        window.open(themeEditorUrl(data.apiKey), "_top");
         try {
           localStorage.setItem(EMBED_KEY, "1");
         } catch {
@@ -259,7 +338,7 @@ function Checklist({ data }: { data: Data }) {
         setEmbedOpened(true);
       },
     },
-    { done: data.hasBrand, title: "Match your brand", body: "Set button and accent colours once for every widget.", action: "Brand kit", go: () => navigate("/app/settings") },
+    { done: data.hasBrand, title: "Match your brand", body: "Set button and accent colors once for every widget.", action: "Open brand kit", go: () => navigate("/app/settings") },
   ];
   const doneCount = steps.filter((s) => s.done).length;
   if (dismissed || doneCount === steps.length) return null;

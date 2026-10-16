@@ -1,7 +1,7 @@
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
 import type { DragEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useFetcher, useLoaderData, useNavigate, useRevalidator } from "react-router";
+import { useFetcher, useLoaderData, useNavigate, useRevalidator, useSearchParams } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
@@ -209,6 +209,19 @@ export default function ReelsLibrary() {
     setPendingFiles(files);
     shopify.modal.show("upload-modal");
   };
+
+  // Links elsewhere in the app (Home's "Upload videos") land here with
+  // ?upload=1 to open the uploader straight away.
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    if (searchParams.get("upload") === "1") {
+      openUpload();
+      const next = new URLSearchParams(searchParams);
+      next.delete("upload");
+      setSearchParams(next, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run once per arrival
+  }, []);
 
   const onDrop = (event: DragEvent) => {
     event.preventDefault();

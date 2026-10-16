@@ -1,7 +1,7 @@
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs, ShouldRevalidateFunction } from "react-router";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useFetcher, useLoaderData, useNavigate, useRevalidator } from "react-router";
+import { useFetcher, useLoaderData, useNavigate, useRevalidator, useSearchParams } from "react-router";
 import { SaveBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
@@ -228,7 +228,11 @@ export default function ReelEditor() {
 
   const baseline = useMemo(() => stateFrom(data), [data]);
   const [state, setState] = useState<EditorState>(baseline);
-  const [tab, setTab] = useState<TabId>("details");
+  const [searchParams] = useSearchParams();
+  const requestedTab = searchParams.get("tab");
+  const [tab, setTab] = useState<TabId>(
+    TABS.some((t) => t.id === requestedTab) ? (requestedTab as TabId) : "details",
+  );
   const [replaceProgress, setReplaceProgress] = useState<number | null>(null);
 
   const baselineKey = comparable(baseline);

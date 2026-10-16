@@ -829,3 +829,9 @@
   outline: 2px solid var(--ed-focus);
   outline-offset: 2px;
 }
+
+.steps li[data-done]::before {
+  content: "✓";
+  background: #303030;
+  color: #fff;
+}

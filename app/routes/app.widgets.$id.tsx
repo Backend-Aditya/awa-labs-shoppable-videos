@@ -43,6 +43,8 @@ import {
   Toggle,
 } from "../components/widget-editor/controls";
 import { useEditorGuards } from "../components/useEditorGuards";
+import { useThemeStatus } from "../components/useThemeStatus";
+import { blockHandleFor, themeEditorUrl } from "../components/themeEditor";
 import { WidgetPreview, formatDuration } from "../components/widget-editor/WidgetPreview";
 import type { PreviewReel } from "../components/widget-editor/WidgetPreview";
 import styles from "../components/widget-editor/editor.module.css";
@@ -77,7 +79,6 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     widget,
     liveSiblingName: liveSibling?.name ?? null,
     brand: await getBrand(shop.id),
-    shopDomain: session.shop,
     // eslint-disable-next-line no-undef
     apiKey: process.env.SHOPIFY_API_KEY || "",
     reels: reels.map((reel) => ({
@@ -235,7 +236,7 @@ const TABS = [
 type TabId = (typeof TABS)[number]["id"];
 
 export default function WidgetEditor() {
-  const { widget, reels, products, brand, shopDomain, apiKey, liveSiblingName } = useLoaderData<typeof loader>();
+  const { widget, reels, products, brand, apiKey, liveSiblingName } = useLoaderData<typeof loader>();
   const meta = getKindMeta(widget.type);
   const shopify = useAppBridge();
   const navigate = useNavigate();
@@ -394,7 +395,7 @@ export default function WidgetEditor() {
             {tab === "design" && <DesignTab meta={meta} style={state.style} setStyle={setStyle} brand={brand} />}
             {tab === "viewer" && <ShoppingTab meta={meta} style={state.style} setStyle={setStyle} brand={brand} />}
             {tab === "visibility" && (
-              <VisibilityTab meta={meta} state={state} update={update} shopDomain={shopDomain} apiKey={apiKey} />
+              <VisibilityTab meta={meta} state={state} update={update} apiKey={apiKey} />
             )}
           </div>
         </div>
@@ -1222,41 +1223,21 @@ function ShoppingTab({
 
 /* ---------------------------------------------------------- visibility */
 
-// Shopify theme-editor deep links: open the live theme with this app's
-// block already dropped into the right template (or the embed toggled on),
-// so placing a widget is one click instead of a hunt through the editor.
-const THEME_PLACEMENT: Record<string, { block: string; template: string; target: string } | { embed: string }> = {
-  PRODUCT_PAGE_REELS: { block: "product-page-reels", template: "product", target: "mainSection" },
-  ADD_TO_CART_VIDEO: { block: "add-to-cart-video", template: "product", target: "mainSection" },
-  CAROUSEL: { block: "stacked-carousel", template: "index", target: "newAppsSection" },
-  STORIES: { block: "insta-stories", template: "index", target: "newAppsSection" },
-  SINGLE_VIDEO: { block: "single-video", template: "index", target: "newAppsSection" },
-  REEL_POPS: { embed: "shoppable-videos" },
-};
-
-function themeEditorUrl(shopDomain: string, apiKey: string, kind: string, embedOnly = false) {
-  const base = `https://${shopDomain}/admin/themes/current/editor`;
-  const placement = THEME_PLACEMENT[kind];
-  if (embedOnly || !placement || "embed" in placement) {
-    return `${base}?context=apps&template=index&activateAppId=${apiKey}/shoppable-videos`;
-  }
-  return `${base}?template=${placement.template}&addAppBlockId=${apiKey}/${placement.block}&target=${placement.target}`;
-}
-
 function VisibilityTab({
   meta,
   state,
   update,
-  shopDomain,
   apiKey,
 }: {
   meta: WidgetKindMeta;
   state: EditorState;
   update: (patch: Partial<EditorState>) => void;
-  shopDomain: string;
   apiKey: string;
 }) {
   const shopify = useAppBridge();
+  const theme = useThemeStatus();
+  const blockHandle = blockHandleFor(meta.kind);
+  const placed = Boolean(theme && blockHandle && theme.placedBlocks.has(blockHandle));
   const rule = state.targetRule;
 
   const pick = async (type: "product" | "collection") => {
@@ -1293,23 +1274,33 @@ function VisibilityTab({
         description="Opens your theme editor with everything in place — just press Save there."
       >
         <ol className={styles.steps}>
-          <li>
+          <li data-done={theme?.embedOn || undefined}>
             <span className={styles.stepText}>
               <strong>Turn on the app embed</strong>
-              <span className={styles.hint}>Once per theme. It loads the player for every widget.</span>
+              <span className={styles.hint}>
+                {theme === null
+                  ? "Once per theme. It loads the player for every widget."
+                  : theme.embedOn
+                    ? "On in your live theme."
+                    : "Off in your live theme — widgets can't play until it's on."}
+              </span>
             </span>
-            <s-button href={themeEditorUrl(shopDomain, apiKey, meta.kind, true)} target="_blank">
-              Turn on
-            </s-button>
+            {!theme?.embedOn && (
+              <s-button href={themeEditorUrl(apiKey)} target="_top">
+                Turn on
+              </s-button>
+            )}
           </li>
           {meta.kind !== "REEL_POPS" && (
-            <li>
+            <li data-done={placed || undefined}>
               <span className={styles.stepText}>
                 <strong>Add the {meta.name.toLowerCase()} block</strong>
-                <span className={styles.hint}>{meta.placement}. Drag it anywhere you like afterwards.</span>
+                <span className={styles.hint}>
+                  {placed ? "Placed in your live theme." : `${meta.placement}. Drag it anywhere you like afterwards.`}
+                </span>
               </span>
-              <s-button variant="primary" href={themeEditorUrl(shopDomain, apiKey, meta.kind)} target="_blank">
-                Add block
+              <s-button variant={placed ? "secondary" : "primary"} href={themeEditorUrl(apiKey, meta.kind)} target="_top">
+                {placed ? "Add another" : "Add block"}
               </s-button>
             </li>
           )}
