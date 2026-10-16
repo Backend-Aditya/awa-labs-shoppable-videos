@@ -21,6 +21,9 @@ export interface ReelConfig {
   // needs to query by them.
   seoTitle?: string;
   seoDescription?: string;
+  // ISO 8601 time the current video finished processing; the storefront's
+  // VideoObject uses it as uploadDate.
+  uploadedAt?: string;
 }
 
 export interface Reel {

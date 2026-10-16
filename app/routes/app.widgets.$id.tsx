@@ -1314,23 +1314,25 @@ function VisibilityTab({
         description="Opens your theme editor with everything in place — just press Save there."
       >
         <ol className={styles.steps}>
-          <li data-done={theme?.embedOn || undefined}>
-            <span className={styles.stepText}>
-              <strong>Turn on the app embed</strong>
-              <span className={styles.hint}>
-                {theme === null
-                  ? "Once per theme. It loads the player for every widget."
-                  : theme.embedOn
-                    ? "On in your live theme."
-                    : "Off in your live theme — widgets can't play until it's on."}
+          {meta.kind === "REEL_POPS" && (
+            <li data-done={theme?.embedOn || undefined}>
+              <span className={styles.stepText}>
+                <strong>Turn on the app embed</strong>
+                <span className={styles.hint}>
+                  {theme === null
+                    ? "The floating player lives in the app embed — one switch in your theme editor."
+                    : theme.embedOn
+                      ? "On in your live theme."
+                      : "Off in your live theme — the floating player can't show until it's on."}
+                </span>
               </span>
-            </span>
-            {!theme?.embedOn && (
-              <s-button href={themeEditorUrl(apiKey)} target="_top">
-                Turn on
-              </s-button>
-            )}
-          </li>
+              {!theme?.embedOn && (
+                <s-button variant="primary" href={themeEditorUrl(apiKey)} target="_top">
+                  Turn on
+                </s-button>
+              )}
+            </li>
+          )}
           {meta.kind !== "REEL_POPS" && (
             <li data-done={placed || undefined}>
               <span className={styles.stepText}>

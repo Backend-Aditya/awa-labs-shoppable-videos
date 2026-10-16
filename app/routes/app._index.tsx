@@ -15,6 +15,7 @@ import type { WidgetKind } from "../models/widget-kinds";
 import styles from "../components/widget-editor/dashboard.module.css";
 import { log } from "../lib/logger.server";
 import { useThemeStatus } from "../components/useThemeStatus";
+import type { ThemeStatus } from "../components/useThemeStatus";
 import { themeEditorUrl } from "../components/themeEditor";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -93,8 +94,10 @@ export default function Dashboard() {
   const data = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const theme = useThemeStatus();
+  // Blocks load the player themselves; only the floating player needs the
+  // app embed.
+  const livePops = data.widgets.some((w) => w.published && w.type === "REEL_POPS");
   const embedOff = theme !== null && !theme.embedOn;
-  const liveWidgets = data.widgets.filter((w) => w.published).length;
 
   return (
     <s-page heading="Home" inlineSize="large">
@@ -107,16 +110,16 @@ export default function Dashboard() {
             Shopify took too long to respond. Reload the page to try again.
           </s-banner>
         )}
-        {embedOff && liveWidgets > 0 && (
-          <s-banner tone="critical" heading="Your widgets aren't showing on your store">
-            The app embed is turned off in your theme, so live widgets can&rsquo;t play.{" "}
+        {embedOff && livePops && (
+          <s-banner tone="critical" heading="Your floating player isn't showing on your store">
+            It lives in the app embed, which is turned off in your theme.{" "}
             <s-link href={themeEditorUrl(data.apiKey)} target="_top">
               Turn on the app embed
             </s-link>
           </s-banner>
         )}
 
-        <Checklist data={data} embedOn={theme ? theme.embedOn : null} />
+        <Checklist data={data} theme={theme} />
 
         {data.stats ? <Performance stats={data.stats} /> : null}
 
@@ -297,7 +300,7 @@ function Kpi({
   );
 }
 
-function Checklist({ data, embedOn }: { data: Data; embedOn: boolean | null }) {
+function Checklist({ data, theme }: { data: Data; theme: ThemeStatus | null }) {
   const navigate = useNavigate();
   const [embedOpened, setEmbedOpened] = useState(false);
   const [dismissed, setDismissed] = useState(false);
@@ -312,7 +315,8 @@ function Checklist({ data, embedOn }: { data: Data; embedOn: boolean | null }) {
 
   // Prefer the theme's real state; only fall back to "you opened the theme
   // editor" where the admin can't report it.
-  const embedDone = embedOn ?? embedOpened;
+  const embedDone = theme ? theme.embedOn || theme.placedBlocks.size > 0 : embedOpened;
+  const firstLive = data.widgets.find((w) => w.published)?.type;
   const steps = [
     { done: data.reelCount > 0, title: "Upload your first video", body: "MP4 or MOV, or import from Instagram and TikTok.", action: "Upload videos", go: () => navigate("/app/reels?upload=1") },
     {
@@ -325,11 +329,14 @@ function Checklist({ data, embedOn }: { data: Data; embedOn: boolean | null }) {
     { done: data.widgets.some((w) => w.published), title: "Put a widget live", body: "Pick where and how videos appear on your store.", action: "Create widget", go: () => navigate("/app/widgets?create=1") },
     {
       done: embedDone,
-      title: "Turn on the app embed",
-      body: embedOn === null ? "One switch in your theme editor makes every widget playable." : "It's off in your live theme — one switch makes every widget playable.",
+      title: "Add it to your theme",
+      body:
+        theme === null
+          ? "Place your widget in the theme editor, then press Save there."
+          : "Nothing's placed in your live theme yet — add your widget's block, then press Save.",
       action: "Open theme editor",
       go: () => {
-        window.open(themeEditorUrl(data.apiKey), "_top");
+        window.open(themeEditorUrl(data.apiKey, firstLive), "_top");
         try {
           localStorage.setItem(EMBED_KEY, "1");
         } catch {

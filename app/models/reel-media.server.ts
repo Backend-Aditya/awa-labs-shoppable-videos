@@ -23,6 +23,8 @@ export async function applyReadyVideo(
     durationSeconds: details.duration ?? undefined,
     hlsManifestUrl: details.playback.hls ?? undefined,
     dashManifestUrl: details.playback.dash ?? undefined,
+    uploadedAt:
+      previous === details.uid && reel.config.uploadedAt ? reel.config.uploadedAt : new Date().toISOString(),
     // A replacement finished: it's now the live video.
     replacingStreamUid: "",
     uploadFailedAt: "",
