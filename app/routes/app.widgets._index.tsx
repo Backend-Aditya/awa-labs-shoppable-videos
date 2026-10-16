@@ -82,12 +82,19 @@ function contentSummary(widget: Widget) {
   return config.featuredReelId ? "1 video" : "No video yet";
 }
 
+function isEmpty(widget: Widget) {
+  const config = widget.config as unknown as WidgetConfig;
+  return getKindMeta(widget.type)?.reelSelection === "list" ? !config.reelIds?.length : !config.featuredReelId;
+}
+
 function CreateWidgetModal({ liveKinds }: { liveKinds: Set<string> }) {
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
   const navigate = useNavigate();
   const [kind, setKind] = useState<WidgetKind>("PRODUCT_PAGE_REELS");
   const [name, setName] = useState("");
+  // Errors belong to the attempt that caused them, not the next opening.
+  const [showError, setShowError] = useState(false);
 
   useEffect(() => {
     if (fetcher.state === "idle" && fetcher.data?.widgetId) {
@@ -99,9 +106,18 @@ function CreateWidgetModal({ liveKinds }: { liveKinds: Set<string> }) {
   const meta = getKindMeta(kind)!;
 
   return (
-    <s-modal id="create-widget-modal" heading="Create a widget" size="large">
+    <s-modal
+      id="create-widget-modal"
+      heading="Create a widget"
+      size="large"
+      onHide={() => {
+        setKind("PRODUCT_PAGE_REELS");
+        setName("");
+        setShowError(false);
+      }}
+    >
       <div className={styles.createBody}>
-        {fetcher.data?.error && <s-banner tone="critical">{fetcher.data.error}</s-banner>}
+        {showError && fetcher.data?.error && <s-banner tone="critical">{fetcher.data.error}</s-banner>}
         <div /* eslint-disable-line jsx-a11y/interactive-supports-focus -- roving tabindex: the chosen child is the tab stop */
           className={styles.kindGrid}
           role="radiogroup"
@@ -149,6 +165,7 @@ function CreateWidgetModal({ liveKinds }: { liveKinds: Set<string> }) {
           const formData = new FormData();
           formData.set("type", kind);
           formData.set("name", name);
+          setShowError(true);
           fetcher.submit(formData, { method: "post" });
         }}
       >
@@ -262,12 +279,12 @@ export default function Widgets() {
                       <span className={styles.widgetTitleRow}>
                         <span className={styles.widgetName}>{widget.name}</span>
                         <span className={styles.status} data-live={widget.published || undefined}>
-                          {widget.published ? "Live" : "Draft"}
+                          {widget.published ? (isEmpty(widget) ? "Live — no videos yet" : "Live") : "Draft"}
                         </span>
                       </span>
                       <span className={styles.widgetKind}>{meta?.name ?? widget.type}</span>
                       <span className={styles.widgetFacts}>
-                        <span data-warn={contentSummary(widget).startsWith("No ") || undefined}>
+                        <span data-warn={isEmpty(widget) || undefined}>
                           {contentSummary(widget)}
                         </span>
                         <span>{targetSummary(config)}</span>

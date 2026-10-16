@@ -57,6 +57,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   return {
     reel,
     productsError,
+    currencyCode: products.find((p) => p.priceRange)?.priceRange?.currencyCode ?? null,
     status: deriveReelStatus(reel.config),
     products: reel.config.productIds
       .map((id) => byId.get(id))
@@ -72,7 +73,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   };
 };
 
-function formatPrice(range: { min: string; max: string; currencyCode: string } | null): string {
+export function formatPrice(range: { min: string; max: string; currencyCode: string } | null): string {
   if (!range) return "";
   try {
     const fmt = new Intl.NumberFormat(undefined, { style: "currency", currency: range.currencyCode });
@@ -441,7 +442,7 @@ export default function ReelEditor() {
                   saved and the tags are untouched.
                 </s-banner>
               ) : (
-                <ProductsTab products={state.products} onChange={(products) => update({ products })} />
+                <ProductsTab products={state.products} currencyCode={data.currencyCode} onChange={(products) => update({ products })} />
               ))}
             {tab === "cover" && (
               <CoverTab
@@ -612,7 +613,11 @@ function DetailsTab({
           value={state.linkUrl}
           maxLength={500}
           placeholder="/collections/summer or https://…"
-          hint="Leave empty for no button."
+          hint={
+            state.linkLabel.trim() && !state.linkUrl.trim()
+              ? "Add a link — the button only shows once it has somewhere to go."
+              : "Leave empty for no button."
+          }
           onChange={(linkUrl) => update({ linkUrl })}
         />
       </Card>
@@ -620,7 +625,15 @@ function DetailsTab({
   );
 }
 
-function ProductsTab({ products, onChange }: { products: Product[]; onChange: (products: Product[]) => void }) {
+function ProductsTab({
+  products,
+  currencyCode,
+  onChange,
+}: {
+  products: Product[];
+  currencyCode: string | null;
+  onChange: (products: Product[]) => void;
+}) {
   const shopify = useAppBridge();
 
   const pick = async () => {
@@ -632,18 +645,31 @@ function ProductsTab({ products, onChange }: { products: Product[]; onChange: (p
     if (!result) return;
     // Keep the merchant's existing order; append anything new at the end.
     const picked = result.map((p) => {
-      const variants = (p as { variants?: { price?: string }[] }).variants ?? [];
+      const prices = ((p as { variants?: { price?: string }[] }).variants ?? [])
+        .map((v) => Number(v.price))
+        .filter((n) => Number.isFinite(n));
+      const min = prices.length ? Math.min(...prices) : null;
+      const max = prices.length ? Math.max(...prices) : null;
       return {
         id: p.id,
         title: p.title,
         imageUrl: (p as { images?: { originalSrc?: string }[] }).images?.[0]?.originalSrc ?? null,
-        price: variants[0]?.price ? String(variants[0].price) : "",
+        price:
+          min === null
+            ? ""
+            : currencyCode
+              ? formatPrice({ min: String(min), max: String(max), currencyCode })
+              : `${min === max ? "" : "From "}${min}`,
       };
     });
     const pickedIds = new Set(picked.map((p) => p.id));
     const kept = products.filter((p) => pickedIds.has(p.id));
     const added = picked.filter((p) => !products.some((x) => x.id === p.id));
-    onChange([...kept, ...added]);
+    const next = [...kept, ...added];
+    if (next.length > MAX_PRODUCTS) {
+      shopify.toast.show(`A video can have up to ${MAX_PRODUCTS} products — kept the first ${MAX_PRODUCTS}.`, { isError: true });
+    }
+    onChange(next.slice(0, MAX_PRODUCTS));
   };
 
   const move = (index: number, delta: number) => {
@@ -747,7 +773,7 @@ function CoverTab({
               type="range"
               min={0}
               max={Math.max(duration - 0.1, 0)}
-              step={0.5}
+              step={0.1}
               value={value}
               onChange={(e) => onChange(Number(e.currentTarget.value))}
             />

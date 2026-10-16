@@ -150,13 +150,20 @@ export const action = async ({ request, params }: ActionFunctionArgs): Promise<A
     const meta = getKindMeta(widget!.type);
     if (!meta) return { ok: false, error: "This widget type can't be edited." };
 
-    const rawTarget = body.targetRule as { type?: string; handles?: unknown } | undefined;
+    const rawTarget = body.targetRule as { type?: string; handles?: unknown; items?: unknown } | undefined;
     const handles = Array.isArray(rawTarget?.handles)
-      ? rawTarget!.handles.map(String).filter(Boolean).slice(0, 250)
+      ? [...new Set(rawTarget!.handles.map(String).filter((h) => /^[a-z0-9][a-z0-9-]{0,254}$/i.test(h)))].slice(0, 250)
       : [];
+    const items = Array.isArray(rawTarget?.items)
+      ? rawTarget!.items
+          .filter((i): i is { id: unknown; handle: unknown; title: unknown } => typeof i === "object" && i !== null)
+          .map((i) => ({ id: String(i.id), handle: String(i.handle), title: String(i.title).slice(0, 255) }))
+          .filter((i) => /^gid:\/\/shopify\/(Product|Collection)\/\d+$/.test(i.id) && handles.includes(i.handle))
+          .slice(0, 250)
+      : undefined;
     const targetRule: TargetRule =
       (rawTarget?.type === "handles" || rawTarget?.type === "collections") && handles.length > 0
-        ? { type: rawTarget.type, handles }
+        ? { type: rawTarget.type, handles, ...(items?.length ? { items } : {}) }
         : { type: "all_products" };
 
     const deviceVisibility = ["all", "desktop", "mobile"].includes(String(body.deviceVisibility))
@@ -346,7 +353,12 @@ export default function WidgetEditor() {
           <div className={styles.statusBar}>
             <span className={styles.statusDot} data-live={state.published || undefined} />
             <div className={styles.statusText}>
-              <p className={styles.statusTitle}>{state.published ? "Live on your store" : "Draft"}</p>
+              <p className={styles.statusTitle}>{state.published
+                  ? (meta.reelSelection === "list" ? state.reelIds.length === 0 : !state.featuredReelId)
+                    ? "Live — nothing to show yet"
+                    : "Live on your store"
+                  : "Draft"}
+              </p>
               <p className={styles.hint}>
                 {!widget.published && state.published && liveSiblingName
                   ? `Saving takes “${liveSiblingName}” off your store — one ${meta.name.toLowerCase()} can be live at a time.`
@@ -1146,7 +1158,7 @@ function ShoppingTab({
         />
         {style.ctaStyle !== "text-link" && (
           <ColorInput
-            label="Button text"
+            label="Button text color"
             value={style.ctaTextColor ?? ""}
             allowEmpty
             emptyLabel="Brand"
@@ -1155,7 +1167,7 @@ function ShoppingTab({
           />
         )}
         <TextInput
-          label="Button text"
+          label="Button label"
           value={style.ctaLabel ?? ""}
           placeholder="Add to cart"
           hint="Leave empty to use your store's language setting."
@@ -1241,29 +1253,57 @@ function VisibilityTab({
   const rule = state.targetRule;
 
   const pick = async (type: "product" | "collection") => {
-    const selected = await shopify.resourcePicker({ type, multiple: true });
-    if (!selected || selected.length === 0) return;
-    const handles = selected.map((item) => (item as { handle: string }).handle).filter(Boolean);
-    update({ targetRule: { type: type === "product" ? "handles" : "collections", handles } });
+    const ruleType = type === "product" ? "handles" : "collections";
+    // Re-open with what's already chosen, so "Change" edits the list
+    // instead of starting over.
+    const current = rule.type === ruleType ? (rule.items ?? []) : [];
+    const selected = await shopify.resourcePicker({
+      type,
+      multiple: true,
+      selectionIds: current.map((i) => ({ id: i.id })),
+    });
+    if (!selected) return;
+    const items = selected
+      .map((item) => {
+        const r = item as { id: string; handle?: string; title?: string };
+        return { id: r.id, handle: r.handle ?? "", title: r.title ?? r.handle ?? "" };
+      })
+      .filter((i) => i.handle);
+    if (items.length === 0) {
+      update({ targetRule: { type: "all_products" } });
+      return;
+    }
+    update({ targetRule: { type: ruleType, handles: items.map((i) => i.handle), items } });
   };
 
   const removeHandle = (handle: string) => {
     if (rule.type === "all_products") return;
     const handles = rule.handles.filter((h) => h !== handle);
-    update({ targetRule: handles.length ? { ...rule, handles } : { type: "all_products" } });
+    const items = rule.items?.filter((i) => i.handle !== handle);
+    update({ targetRule: handles.length ? { ...rule, handles, items } : { type: "all_products" } });
   };
+
+  // Widgets usually placed on the home page disappear there when limited to
+  // products — say so instead of silently showing nothing.
+  const homeKind = meta.kind === "CAROUSEL" || meta.kind === "STORIES" || meta.kind === "SINGLE_VIDEO";
+  const productOnlyConflict =
+    rule.type !== "all_products" && state.pageTypes.length > 0 && !state.pageTypes.includes("product");
 
   const options: { value: TargetRule["type"]; label: string; hint: string; action?: ReactNode }[] = [
     { value: "all_products", label: "Everywhere", hint: "Every page the widget is placed on." },
     {
       value: "handles",
       label: "Specific products",
-      hint: "Only on these product pages.",
+      hint: homeKind
+        ? "Only on these products' pages — it won't appear on your home page."
+        : "Only on these product pages.",
     },
     {
       value: "collections",
       label: "Products in collections",
-      hint: "Product pages for anything in these collections.",
+      hint: homeKind
+        ? "Only on product pages in these collections — it won't appear on your home page."
+        : "Product pages for anything in these collections.",
     },
   ];
 
@@ -1336,7 +1376,7 @@ function VisibilityTab({
             <div className={styles.targetSummary}>
               {rule.handles.map((handle) => (
                 <span key={handle} className={styles.tag}>
-                  {handle}
+                  {rule.items?.find((i) => i.handle === handle)?.title ?? handle}
                   <button type="button" aria-label={`Remove ${handle}`} onClick={() => removeHandle(handle)}>
                     ×
                   </button>
@@ -1351,6 +1391,15 @@ function VisibilityTab({
           </>
         )}
       </Card>
+
+      {productOnlyConflict && (
+        <div className={styles.notice} role="status">
+          <p>
+            This widget only shows on product pages for the products you picked, but Products isn&rsquo;t one of
+            the page types below — so it won&rsquo;t show anywhere. Add Products, or show it everywhere.
+          </p>
+        </div>
+      )}
 
       <Card title="Pages and devices">
         <ChipToggleGroup

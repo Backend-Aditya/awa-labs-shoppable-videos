@@ -43,7 +43,8 @@ describe("extractAttributionsFromOrderPayload", () => {
 
     expect(extractAttributionsFromOrderPayload(payload)).toEqual([
       {
-        reelId: "gid://shopify/Metaobject/1",
+        // Stored as the bare numeric id, the same canonical form analytics uses.
+        reelId: "1",
         lineItemId: "20",
         productId: "100",
         variantId: "200",

@@ -88,7 +88,7 @@ export default function Settings() {
             <ColorInput label="Accent" value={brand.accentColor} onChange={(accentColor) => set({ accentColor })} />
             <ColorInput label="Button" value={brand.buttonColor} onChange={(buttonColor) => set({ buttonColor })} />
             <ColorInput
-              label="Button text"
+              label="Button text color"
               value={brand.buttonTextColor}
               onChange={(buttonTextColor) => set({ buttonTextColor })}
             />

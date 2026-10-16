@@ -64,10 +64,18 @@ export interface WidgetStyleConfig {
 
 export type StyleFieldKey = keyof WidgetStyleConfig;
 
+// What a targeting rule picked, for display and to re-open the resource
+// picker with the current selection. Liquid only ever reads `handles`.
+export interface TargetItem {
+  id: string;
+  handle: string;
+  title: string;
+}
+
 export type TargetRule =
   | { type: "all_products" }
-  | { type: "handles"; handles: string[] }
-  | { type: "collections"; handles: string[] };
+  | { type: "handles"; handles: string[]; items?: TargetItem[] }
+  | { type: "collections"; handles: string[]; items?: TargetItem[] };
 
 export interface WidgetConfig {
   templateStyle: string;
@@ -441,7 +449,7 @@ const BOOLS: StyleFieldKey[] = [
 const NUMBER_RANGES: Partial<Record<StyleFieldKey, [number, number]>> = {
   columns: [2, 6],
   storyDuration: [3, 60],
-  popDelay: [0, 60],
+  popDelay: [0, 30],
 };
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
