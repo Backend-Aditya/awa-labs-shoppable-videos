@@ -47,14 +47,17 @@ export default defineConfig({
       // Ratchet: set just under what the suites reach today (see TESTING.md).
       // Raise these when coverage improves; never lower them to merge.
       thresholds: {
-        "app/components/**": { statements: 85, branches: 80, functions: 80, lines: 85 },
+        // Admin components: ~97% today.
+        "app/components/**": { statements: 95, branches: 92, functions: 92, lines: 95 },
+        // Client-safe model logic (no Prisma).
         "app/models/{widget-kinds,brand,reel-media,reel-status}.ts": {
-          statements: 80,
-          branches: 70,
-          functions: 80,
-          lines: 80,
+          statements: 95,
+          branches: 85,
+          functions: 95,
+          lines: 95,
         },
-        "scripts/extension-assets-src/**": { statements: 70, branches: 60, functions: 65, lines: 72 },
+        // Storefront theme-extension JS: ~89% statements / ~70% branches today.
+        "scripts/extension-assets-src/**": { statements: 85, branches: 65, functions: 80, lines: 88 },
       },
     },
     projects: [
