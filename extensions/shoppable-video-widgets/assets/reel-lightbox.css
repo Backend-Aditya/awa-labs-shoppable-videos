@@ -6,6 +6,8 @@
 
 html.reelup-locked {
   overflow: hidden;
+  /* Keep the page from jumping sideways when its scrollbar disappears. */
+  scrollbar-gutter: stable;
 }
 
 .reelup-viewer,
@@ -16,9 +18,11 @@ html.reelup-locked {
   --ru-text: #141414;
   --ru-muted: #6b6b6b;
   --ru-line: #e8e8e8;
+  --ru-origin: left;
   position: fixed;
   inset: 0;
   width: 100vw;
+  height: 100vh;
   height: 100dvh;
   max-width: none;
   max-height: none;
@@ -34,6 +38,48 @@ html.reelup-locked {
 .reelup-viewer *,
 .reelup-story * {
   box-sizing: border-box;
+}
+
+/* Right-to-left storefronts: progress fills from the inline start. */
+html[dir="rtl"] .reelup-viewer,
+html[dir="rtl"] .reelup-story {
+  --ru-origin: right;
+}
+
+.reelup-viewer:dir(rtl),
+.reelup-story:dir(rtl) {
+  --ru-origin: right;
+}
+
+/* Theme button/link styles (Dawn's .button, uppercase/letter-spaced
+   buttons, min-heights, shadows) must not leak into the viewer chrome.
+   Specificity (0,1,1) beats theme element selectors; component rules
+   below that set these properties use two classes. */
+.reelup-viewer button,
+.reelup-story button {
+  letter-spacing: normal;
+  text-transform: none;
+  text-shadow: none;
+  box-shadow: none;
+  min-height: 0;
+  min-width: 0;
+  font-family: inherit;
+  line-height: normal;
+}
+
+/* Permanent, visually hidden live region. display is forced because
+   themes like Dawn hide div:empty, which would mute the region. */
+.reelup-live {
+  position: absolute !important;
+  display: block !important;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .reelup-viewer::backdrop {
@@ -157,12 +203,14 @@ html.reelup-locked {
   gap: 20px;
   width: 100%;
   height: 100%;
-  padding: 24px 96px 24px 24px;
+  padding-block: 24px;
+  padding-inline: 24px 96px;
 }
 
 .reelup-viewer__player {
   position: relative;
   flex: 0 0 auto;
+  height: min(88vh, 860px);
   height: min(88dvh, 860px);
   aspect-ratio: 9 / 16;
   max-width: calc(100vw - 520px);
@@ -185,8 +233,11 @@ html.reelup-locked {
   cursor: pointer;
 }
 
-.reelup-viewer__shade,
-.reelup-story__shade {
+/* Two classes: Dawn's `div:empty { display: none }` (0,1,1) would
+   otherwise remove these empty overlay divs. */
+.reelup-viewer .reelup-viewer__shade,
+.reelup-story .reelup-story__shade {
+  display: block;
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -209,22 +260,21 @@ html.reelup-locked {
   height: 100%;
   background: #fff;
   transform: scaleX(0);
-  transform-origin: left;
+  transform-origin: var(--ru-origin, left);
   transition: transform 0.25s linear;
 }
 
 .reelup-viewer__top {
   position: absolute;
   top: 14px;
-  left: 14px;
-  right: 14px;
+  inset-inline: 14px;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
 .reelup-viewer__count {
-  margin-right: auto;
+  margin-inline-end: auto;
   padding: 4px 10px;
   border-radius: 999px;
   background: rgb(0 0 0 / 0.35);
@@ -235,8 +285,48 @@ html.reelup-locked {
   font-variant-numeric: tabular-nums;
 }
 
-.reelup-viewer__count[hidden] + .reelup-viewer__icon {
-  margin-left: auto;
+.reelup-viewer__count[hidden] + .reelup-viewer__icon,
+.reelup-viewer__count[hidden] + .reelup-viewer__icon[hidden] + .reelup-viewer__icon {
+  margin-inline-start: auto;
+}
+
+/* ---------- playback error ---------- */
+
+.reelup-viewer__error {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  background: rgb(0 0 0 / 0.6);
+  color: #fff;
+  text-align: center;
+  font-size: 15px;
+}
+
+.reelup-viewer__error[hidden] {
+  display: none;
+}
+
+.reelup-viewer__error p {
+  margin: 0;
+}
+
+.reelup-viewer .reelup-viewer__error button {
+  appearance: none;
+  min-height: 40px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  background: #fff;
+  color: #141414;
+  font-size: 14px;
+  font-weight: 650;
+  cursor: pointer;
 }
 
 .reelup-viewer__toggle {
@@ -272,14 +362,19 @@ html.reelup-locked {
 
 .reelup-viewer__title {
   position: absolute;
-  left: 18px;
-  right: 18px;
+  inset-inline: 18px;
   bottom: 18px;
   margin: 0;
   color: #fff;
   font-size: 17px;
   font-weight: 600;
   line-height: 1.3;
+  letter-spacing: normal;
+  text-transform: none;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
   text-shadow: 0 1px 8px rgb(0 0 0 / 0.4);
   pointer-events: none;
 }
@@ -288,6 +383,7 @@ html.reelup-locked {
 
 .reelup-viewer__panel {
   flex: 0 0 360px;
+  max-height: min(88vh, 860px);
   max-height: min(88dvh, 860px);
   display: flex;
   flex-direction: column;
@@ -319,7 +415,7 @@ html.reelup-locked {
   font: inherit;
   font-size: 15px;
   font-weight: 650;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 
@@ -572,7 +668,7 @@ html.reelup-locked {
 .reelup-viewer__nav {
   position: absolute;
   top: 50%;
-  right: 28px;
+  inset-inline-end: 28px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -672,9 +768,9 @@ html.reelup-locked {
 
   .reelup-viewer__panel {
     position: absolute;
-    left: 8px;
-    right: 8px;
+    inset-inline: 8px;
     bottom: calc(8px + env(safe-area-inset-bottom));
+    max-height: 62vh;
     max-height: 62dvh;
     border-radius: 16px;
     transition: max-height 0.35s var(--rv-ease);
@@ -718,8 +814,24 @@ html.reelup-locked {
     padding-top: 10px;
   }
 
-  .reelup-viewer__nav {
-    display: none;
+  /* Swipe replaces the buttons visually, but screen-reader and keyboard
+     users still need them: visually hidden, still focusable, and shown
+     again while focused. */
+  .reelup-viewer__nav:not([hidden]) {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .reelup-viewer__nav:not([hidden]):focus-within {
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip: auto;
+    inset-inline-end: 12px;
   }
 }
 
@@ -734,6 +846,7 @@ html.reelup-locked {
 
 .reelup-story__frame {
   position: relative;
+  height: min(92vh, 880px);
   height: min(92dvh, 880px);
   aspect-ratio: 9 / 16;
   max-width: 100vw;
@@ -748,6 +861,7 @@ html.reelup-locked {
 @media (max-width: 749px) {
   .reelup-story__frame {
     width: 100vw;
+    height: 100vh;
     height: 100dvh;
     aspect-ratio: auto;
     border-radius: 0;
@@ -765,8 +879,7 @@ html.reelup-locked {
 .reelup-story__progress {
   position: absolute;
   top: calc(10px + env(safe-area-inset-top));
-  left: 10px;
-  right: 10px;
+  inset-inline: 10px;
   z-index: 3;
   display: flex;
   gap: 4px;
@@ -786,14 +899,13 @@ html.reelup-locked {
   height: 100%;
   background: #fff;
   transform: scaleX(0);
-  transform-origin: left;
+  transform-origin: var(--ru-origin, left);
 }
 
 .reelup-story__header {
   position: absolute;
   top: calc(22px + env(safe-area-inset-top));
-  left: 12px;
-  right: 12px;
+  inset-inline: 12px;
   z-index: 4;
   display: flex;
   align-items: center;
@@ -834,14 +946,15 @@ html.reelup-locked {
   cursor: pointer;
 }
 
-.reelup-story__tap--prev { left: 0; width: 30%; }
-.reelup-story__tap--next { right: 0; width: 70%; }
+/* "Previous" sits at the inline start (the right edge in RTL). */
+.reelup-story__tap--prev { inset-inline-start: 0; width: 30%; }
+.reelup-story__tap--next { inset-inline-end: 0; width: 70%; }
 
 .reelup-story__tap:focus-visible {
   outline-offset: -4px !important;
 }
 
-.reelup-story__sticker {
+.reelup-story .reelup-story__sticker {
   appearance: none;
   position: absolute;
   left: 50%;
@@ -850,7 +963,8 @@ html.reelup-locked {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 16px 6px 6px;
+  padding-block: 6px;
+  padding-inline: 6px 16px;
   border: 0;
   border-radius: 999px;
   background: #fff;
@@ -880,8 +994,8 @@ html.reelup-locked {
   display: none;
 }
 
-.reelup-story__sticker:has(.reelup-story__sticker-thumb[hidden]) {
-  padding-left: 16px;
+.reelup-story .reelup-story__sticker:has(.reelup-story__sticker-thumb[hidden]) {
+  padding-inline-start: 16px;
 }
 
 .reelup-story__sticker-count {
@@ -931,7 +1045,8 @@ html.reelup-locked {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 14px 10px 18px;
+  padding-block: 14px 10px;
+  padding-inline: 18px 14px;
   font-size: 15px;
   font-weight: 650;
 }

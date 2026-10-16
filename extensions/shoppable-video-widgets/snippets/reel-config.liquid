@@ -1,0 +1,59 @@
+{% doc %}
+Shared storefront config for the JS runtime: brand-kit CSS variables plus a
+JSON blob of viewer labels, locale-aware cart routes and the shop's money
+format. Rendered by the app embed AND by every section block, so blocks keep
+working (translated, locale-routed) when the embed is turned off. The copies
+are identical; reel-lightbox.js reads the first [data-reelup-config].
+
+@example
+{% render 'reel-config' %}
+{% enddoc %}
+{% assign reel_namespace = 'app--404281098241' %}
+{%- assign brand = shop.metafields[reel_namespace].brand.value -%}
+{%- if brand -%}
+  <style>
+    :root {
+      {%- if brand.accentColor != blank %}--ru-brand-accent: {{ brand.accentColor | escape }};{% endif -%}
+      {%- if brand.buttonColor != blank %}--ru-brand-cta: {{ brand.buttonColor | escape }};{% endif -%}
+      {%- if brand.buttonTextColor != blank %}--ru-brand-cta-text: {{ brand.buttonTextColor | escape }};{% endif -%}
+      {%- if brand.salePriceColor != blank %}--ru-brand-sale: {{ brand.salePriceColor | escape }};{% endif -%}
+    }
+    {%- if brand.fontFamily == 'system' %}
+    .reelup, .reelup-viewer, .reelup-story { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    {%- endif %}
+  </style>
+{%- endif -%}
+<script type="application/json" data-reelup-config>
+  {
+    "cartUrl": {{ routes.cart_url | json }},
+    "cartAddUrl": {{ routes.cart_add_url | append: '.js' | json }},
+    "cartJsUrl": {{ routes.cart_url | append: '.js' | json }},
+    "recommendationsUrl": {{ routes.product_recommendations_url | append: '.json' | json }},
+    "currency": {{ cart.currency.iso_code | json }},
+    "moneyFormat": {{ shop.money_format | json }},
+    "locale": {{ request.locale.iso_code | json }},
+    "viewerTheme": {{ brand.viewerTheme | default: 'dark' | json }},
+    "labels": {
+      "close": {{ 'reels.close_label' | t | json }},
+      "play": {{ 'reels.play_label' | t | json }},
+      "pause": {{ 'reels.pause_label' | t | json }},
+      "mute": {{ 'reels.mute_label' | t | json }},
+      "unmute": {{ 'reels.unmute_label' | t | json }},
+      "shop": {{ 'reels.shop_this_video_label' | t | json }},
+      "previous": {{ 'reels.previous_label' | t | json }},
+      "next": {{ 'reels.next_label' | t | json }},
+      "viewCart": {{ 'reels.view_cart' | t | json }},
+      "addedToCart": {{ 'reels.added_to_cart_status' | t | json }},
+      "addFailed": {{ 'reels.add_failed' | t | json }},
+      "closeProducts": {{ 'reels.close_products_label' | t | json }},
+      "share": {{ 'reels.share_label' | t | json }},
+      "learnMore": {{ 'reels.learn_more' | t | json }},
+      "linkCopied": {{ 'reels.link_copied' | t | json }},
+      "youMayLike": {{ 'reels.you_may_like' | t | json }},
+      "video": {{ 'reels.video_label' | t | json }},
+      "playbackError": {{ 'reels.playback_error' | t | json }},
+      "retry": {{ 'reels.retry_label' | t | json }},
+      "of": {{ 'reels.position_label' | t: current: '__CURRENT__', total: '__TOTAL__' | json }}
+    }
+  }
+</script>

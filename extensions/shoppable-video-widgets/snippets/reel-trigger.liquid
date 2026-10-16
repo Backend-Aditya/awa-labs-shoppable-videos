@@ -61,15 +61,15 @@ its look; this snippet owns the contract with the JS.
   data-title="{{ reel.title.value | escape }}"
   data-cta-color="{{ style.ctaColor | escape }}"
   data-cta-text-color="{{ style.ctaTextColor | escape }}"
-  data-cta-hover-color="{{ cta_hover }}"
-  data-cta-style="{{ style.ctaStyle | default: 'pill' }}"
+  data-cta-hover-color="{{ cta_hover | escape }}"
+  data-cta-style="{{ style.ctaStyle | default: 'pill' | escape }}"
   data-show-title="{{ show_title }}"
-  data-tag-reveal-mode="{{ style.tagRevealMode | default: 'always' }}"
+  data-tag-reveal-mode="{{ style.tagRevealMode | default: 'always' | escape }}"
   data-muted-default="{{ muted }}"
   data-loop="{% if style.loop %}true{% else %}false{% endif %}"
-  data-play-trigger="{{ style.playTrigger | default: 'click' }}"
+  data-play-trigger="{{ style.playTrigger | default: 'click' | escape }}"
   data-autoplay-scroll="{{ autoplay }}"
-  data-story-duration="{{ style.storyDuration | default: 15 | times: 1000 }}"
+  data-story-duration="{{ style.storyDuration | default: 15 | times: 1000 | round }}"
   data-product-count="{{ reel.tagged_products.value.size | default: 0 }}"
   data-link-url="{{ reel.config.value.interactions.ctaUrl | escape }}"
   data-link-label="{{ reel.config.value.interactions.ctaLabel | default: '' | escape }}"
@@ -81,5 +81,13 @@ its look; this snippet owns the contract with the JS.
     <template data-reelup-products>
       {%- render 'reel-product-card' for reel.tagged_products.value as product, style: style -%}
     </template>
+    {%- comment -%} Without JS the trigger can't play; still let shoppers reach what's in the video. {%- endcomment -%}
+    <noscript>
+      <ul class="reelup-noscript">
+        {%- for tagged in reel.tagged_products.value -%}
+          <li><a href="{{ tagged.url }}">{{ tagged.title | escape }}</a></li>
+        {%- endfor -%}
+      </ul>
+    </noscript>
   {%- endif -%}
 </div>

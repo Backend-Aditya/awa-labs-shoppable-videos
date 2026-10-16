@@ -1,0 +1,47 @@
+{% doc %}
+A reel's poster <img>, sized for where it's shown. Cloudflare Stream
+thumbnails (cloudflarestream.com / videodelivery.net) accept ?height=, so the
+browser downloads roughly 2x the display size instead of the full-resolution
+frame; any other URL is used untouched.
+
+@param url {string} - the reel's posterUrl
+@param height {number} - Stream height to request for `src` (~2x display height)
+@param width_attr {number} - intrinsic width attribute
+@param height_attr {number} - intrinsic height attribute
+@param srcset_heights {string} [optional] - comma-separated Stream heights for a 9:16 srcset, e.g. '640,960,1280'
+@param sizes {string} [optional] - sizes attribute to pair with srcset
+@param eager {boolean} [optional] - load eagerly (above-the-fold / first card)
+@param priority {boolean} [optional] - fetchpriority="high" (LCP candidates)
+
+@example
+{% render 'reel-poster', url: reel.config.value.posterUrl, height: 800, width_attr: 360, height_attr: 640 %}
+{% enddoc %}
+{%- liquid
+  assign poster_url = url | strip
+  assign sized = false
+  if poster_url contains 'cloudflarestream.com' or poster_url contains 'videodelivery.net'
+    unless poster_url contains 'height='
+      assign sized = true
+    endunless
+  endif
+  assign separator = '?'
+  if poster_url contains '?'
+    assign separator = '&'
+  endif
+-%}
+{%- comment -%} Posters live on Cloudflare Stream, not Shopify's CDN — remote by design. {%- endcomment -%}
+{% # theme-check-disable-next-line RemoteAsset %}
+<img
+  class="reelup-trigger__poster"
+  src="{% if sized %}{{ poster_url | append: separator | append: 'height=' | append: height | escape }}{% else %}{{ poster_url | escape }}{% endif %}"
+  {%- if sized and srcset_heights != blank %}
+    {%- assign heights = srcset_heights | split: ',' %}
+    srcset="{% for h in heights %}{{ poster_url | append: separator | append: 'height=' | append: h | escape }} {{ h | times: 9 | divided_by: 16 }}w{% unless forloop.last %}, {% endunless %}{% endfor %}"
+    {%- if sizes != blank %} sizes="{{ sizes | escape }}"{% endif %}
+  {%- endif %}
+  alt=""
+  {% if eager %}loading="eager"{% else %}loading="lazy"{% endif %}
+  {%- if priority %} fetchpriority="high"{% endif %}
+  width="{{ width_attr }}"
+  height="{{ height_attr }}"
+>

@@ -10,6 +10,8 @@
     "added_to_cart_status": "Added to your cart",
     "add_failed": "Couldn't add to cart. Try again.",
     "sold_out": "Sold out",
+    "choose_options": "Choose options",
+    "price_from": "From {{ price }}",
     "options_label": "Options for {{ product }}",
     "view_cart": "View cart",
     "close_label": "Close",
@@ -33,6 +35,12 @@
     "quantity_label": "Quantity",
     "decrease_quantity": "Decrease quantity",
     "increase_quantity": "Increase quantity",
-    "learn_more": "Learn more"
+    "learn_more": "Learn more",
+    "video_label": "Shoppable video",
+    "videos_label": "Shoppable videos",
+    "carousel_label": "carousel",
+    "playback_error": "This video couldn't be played.",
+    "retry_label": "Try again",
+    "editor_placeholder": "Shoppable videos: nothing to show here yet. Publish this widget and add videos in the app under Widgets (check its page targeting too). Only visible in the theme editor."
   }
 }

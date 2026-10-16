@@ -3,16 +3,40 @@
 // viewer, the story drawer and the featured-video block alike), and the
 // video viewer itself.
 (() => {
+  // This file can be loaded twice on one page (app embed + a block's
+  // loader when both are present). Everything below — including the
+  // document-level delegated cart listeners — must exist exactly once, or
+  // one click would add the product to the cart twice.
+  if (window.ReelupLightbox) return;
+
   /* ------------------------------------------------------------ config */
 
+  // Translations reach us through `t | json`, and Shopify HTML-escapes
+  // non-_html translations ("Couldn&#39;t…"); decode once here so labels
+  // can be used with textContent (and re-escaped for innerHTML).
+  const decodeEntities = (value) => {
+    const text = String(value ?? "");
+    if (!/&(#\d+|#x[\da-f]+|[a-z]+);/i.test(text)) return text;
+    const area = document.createElement("textarea");
+    area.innerHTML = text;
+    return area.value;
+  };
+
   const readConfig = () => {
+    // The embed and every block render their own copy (blocks must work
+    // with the embed off); they're identical, so the first one wins.
+    const el = document.querySelector("script[data-reelup-config]") ?? document.getElementById("reelup-config");
     try {
-      return JSON.parse(document.getElementById("reelup-config")?.textContent ?? "{}");
+      return JSON.parse(el?.textContent ?? "{}");
     } catch {
       return {};
     }
   };
   const config = readConfig();
+  const configLabels = {};
+  for (const [key, value] of Object.entries(config.labels ?? {})) {
+    if (typeof value === "string" && value) configLabels[key] = decodeEntities(value);
+  }
   const labels = {
     close: "Close",
     play: "Play video",
@@ -30,13 +54,27 @@
     linkCopied: "Link copied",
     youMayLike: "You may also like",
     learnMore: "Learn more",
+    video: "Shoppable video",
+    playbackError: "This video couldn't be played.",
+    retry: "Try again",
     of: "__CURRENT__ of __TOTAL__",
-    ...(config.labels ?? {}),
+    ...configLabels,
   };
   const cartUrl = config.cartUrl ?? "/cart";
   const cartAddUrl = config.cartAddUrl ?? "/cart/add.js";
   const cartJsUrl = config.cartJsUrl ?? "/cart.js";
   const recommendationsUrl = config.recommendationsUrl ?? "/recommendations/products.json";
+
+  const ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+  const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ESCAPES[c]);
+
+  const isRtl = (el) => {
+    try {
+      return getComputedStyle(el || document.documentElement).direction === "rtl";
+    } catch {
+      return document.documentElement.dir === "rtl";
+    }
+  };
 
   // Views count once per reel per 30 minutes in a tab, so replaying, swiping
   // back and forth or reopening doesn't inflate numbers (or plan usage).
@@ -71,10 +109,64 @@
 
   const reelIdFor = (el) => el.closest("[data-reelup-reel-id]")?.getAttribute("data-reelup-reel-id") ?? "";
 
+  /* ------------------------------------------- shopper mute preference */
+
+  // Once the shopper touches a mute button, that choice sticks for the
+  // session and overrides each widget's mutedDefault.
+  const MUTE_KEY = "reelup-muted";
+  let memoryMuted = null;
+  const getUserMuted = () => {
+    try {
+      const stored = sessionStorage.getItem(MUTE_KEY);
+      if (stored !== null) return stored === "true";
+    } catch {
+      // fall through to the in-memory copy
+    }
+    return memoryMuted;
+  };
+  const setUserMuted = (muted) => {
+    memoryMuted = Boolean(muted);
+    try {
+      sessionStorage.setItem(MUTE_KEY, String(Boolean(muted)));
+    } catch {
+      // in-memory only
+    }
+  };
+
+  /* --------------------------------------------------- live regions */
+
+  // Permanent, visually hidden live regions: one for the page (featured
+  // block) and one inside each viewer dialog (content outside a modal
+  // dialog is inert and wouldn't be announced). Created up front, never
+  // inside hidden parents, so screen readers register them before use.
+  const makeLiveRegion = () => {
+    const el = document.createElement("div");
+    el.className = "reelup-live";
+    el.setAttribute("role", "status");
+    el.setAttribute("aria-live", "polite");
+    el.setAttribute("aria-atomic", "true");
+    el.dataset.reelupLive = "";
+    return el;
+  };
+  const pageLive = makeLiveRegion();
+  const mountPageLive = () => document.body && !pageLive.isConnected && document.body.appendChild(pageLive);
+  if (document.body) mountPageLive();
+  else document.addEventListener("DOMContentLoaded", mountPageLive, { once: true });
+
+  const announce = (scope, message) => {
+    const region = scope?.closest?.("dialog")?.querySelector("[data-reelup-live]") ?? pageLive;
+    region.textContent = "";
+    // A tick between clear and set makes repeated identical messages
+    // announce again.
+    setTimeout(() => {
+      region.textContent = message;
+    }, 60);
+  };
+
   /* ----------------------------------------------- product card + cart */
 
-  // Variant picker: keeps the card's price, compare-at price and add
-  // button in step with the chosen option.
+  // Variant picker: keeps the card's price, compare-at price, image and
+  // add button in step with the chosen option.
   document.addEventListener("change", (event) => {
     const select = event.target.closest?.("[data-reelup-variant]");
     if (!select) return;
@@ -89,6 +181,11 @@
       compare.textContent = option.dataset.compare ?? "";
       compare.hidden = !option.dataset.compare;
     }
+    const image = card.querySelector(".reelup-product__media img");
+    if (image && option.dataset.image) {
+      image.removeAttribute("srcset");
+      image.src = option.dataset.image;
+    }
     const button = card.querySelector("[data-reelup-add-to-cart]");
     if (button) {
       const available = option.dataset.available === "true";
@@ -99,18 +196,63 @@
     }
   });
 
-  const notifyTheme = async (addedItem) => {
+  // Section Rendering API: ask /cart/add.js to render the theme's cart
+  // sections in the same round trip. Dawn-family themes expose the list on
+  // their <cart-drawer>/<cart-notification> element.
+  const DEFAULT_CART_SECTIONS = ["cart-icon-bubble", "cart-drawer", "cart-notification-button", "cart-live-region-text"];
+  const themeCartElement = () => document.querySelector("cart-drawer, cart-notification");
+  const cartSections = () => {
+    let ids = [];
+    try {
+      ids = (themeCartElement()?.getSectionsToRender?.() ?? []).map((s) => s.id).filter(Boolean);
+    } catch {
+      ids = [];
+    }
+    // The API renders at most five sections per request.
+    return [...new Set([...ids, ...DEFAULT_CART_SECTIONS])].slice(0, 5);
+  };
+
+  const sectionInnerHtml = (html) => {
+    if (!html) return null;
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    return (doc.querySelector(".shopify-section") ?? doc.body).innerHTML;
+  };
+
+  const notifyTheme = async (addResponse) => {
+    const item = addResponse?.items?.[0] ?? addResponse ?? null;
+    const sections = addResponse?.sections ?? null;
+
+    // 1. Let the theme's own cart UI re-render (Dawn and descendants).
+    let rendered = false;
+    const cartEl = themeCartElement();
+    if (sections && item && typeof cartEl?.renderContents === "function") {
+      try {
+        cartEl.classList.remove("is-empty");
+        cartEl.renderContents({ ...item, sections });
+        rendered = true;
+      } catch {
+        rendered = false;
+      }
+    }
+    // 2. Otherwise at least refresh the header cart bubble.
+    if (!rendered && sections?.["cart-icon-bubble"]) {
+      const bubble = document.getElementById("cart-icon-bubble");
+      const inner = sectionInnerHtml(sections["cart-icon-bubble"]);
+      if (bubble && inner !== null) bubble.innerHTML = inner;
+    }
+
     document.dispatchEvent(new CustomEvent("cart:refresh", { bubbles: true }));
     try {
       const cart = await (await fetch(cartJsUrl, { headers: { Accept: "application/json" } })).json();
-      document.dispatchEvent(new CustomEvent("cart:updated", { bubbles: true, detail: { cart, item: addedItem } }));
-      // Dawn and its many descendants listen on their own pub/sub.
-      if (typeof window.publish === "function" && window.PUB_SUB_EVENTS?.cartUpdate) {
-        window.publish(window.PUB_SUB_EVENTS.cartUpdate, { source: "reelup", cartData: cart });
+      document.dispatchEvent(new CustomEvent("cart:updated", { bubbles: true, detail: { cart, item } }));
+      // Dawn declares PUB_SUB_EVENTS and publish() as top-level bindings
+      // of a classic script: global lexical scope, not window properties.
+      /* global PUB_SUB_EVENTS, publish */
+      const events = typeof PUB_SUB_EVENTS !== "undefined" ? PUB_SUB_EVENTS : window.PUB_SUB_EVENTS;
+      const publishFn = typeof publish === "function" ? publish : window.publish;
+      if (typeof publishFn === "function" && events?.cartUpdate) {
+        publishFn(events.cartUpdate, { source: "reelup", productVariantId: item?.variant_id, cartData: cart });
       }
-      document.querySelectorAll("[data-reelup-cart-count]").forEach((el) => {
-        el.textContent = String(cart.item_count);
-      });
     } catch {
       // The add itself succeeded; a theme that can't be told just refreshes
       // its cart count on the next page view.
@@ -159,7 +301,11 @@
       // webhook reads it back off the order to attribute revenue.
       const qtyInput = button.closest("[data-reelup-product]")?.querySelector("[data-reelup-qty-input]");
       const quantity = Math.min(Math.max(parseInt(qtyInput?.value ?? "1", 10) || 1, 1), 99);
-      const body = { items: [{ id: Number(button.dataset.variantId), quantity }] };
+      const body = {
+        items: [{ id: Number(button.dataset.variantId), quantity }],
+        sections: cartSections().join(","),
+        sections_url: window.location.pathname,
+      };
       if (reelId) body.items[0].properties = { _reelup_reel_id: reelId };
       const response = await fetch(cartAddUrl, {
         method: "POST",
@@ -167,21 +313,29 @@
         body: JSON.stringify(body),
       });
       if (!response.ok) {
-        // Shopify explains stock problems ("You can only add 2 of …") in
-        // `description`; show that rather than a generic failure.
+        // Shopify explains stock problems ("You can only add 2 of …") in a
+        // 4xx JSON `description`; only that is shopper-safe — network and
+        // server errors fall back to the generic label.
         const problem = await response.json().catch(() => null);
-        throw new Error(problem?.description || problem?.message || "");
+        const shopify =
+          response.status >= 400 && response.status < 500 && typeof problem?.description === "string"
+            ? problem.description
+            : "";
+        throw Object.assign(new Error("add failed"), { shopperMessage: shopify });
       }
       const added = await response.json().catch(() => null);
 
       button.dataset.state = "added";
       button.textContent = button.dataset.addedLabel ?? addLabel;
       showStatus(status, labels.addedToCart, false);
-      notifyTheme(added?.items?.[0]);
+      announce(button, labels.addedToCart);
+      notifyTheme(added);
     } catch (error) {
+      const message = error?.shopperMessage || labels.addFailed;
       button.dataset.state = "";
       button.textContent = addLabel;
-      showStatus(status, error?.message || labels.addFailed, true);
+      showStatus(status, message, true);
+      announce(button, message);
       button.removeAttribute("aria-busy");
       return;
     }
@@ -212,11 +366,24 @@
       else dialog.style.removeProperty(name);
     }
     dialog.classList.remove(...CTA_STYLES);
-    dialog.classList.add(`reelup-cta--${trigger.dataset.ctaStyle || "pill"}`);
+    const ctaStyle = ["pill", "square", "text-link"].includes(trigger.dataset.ctaStyle) ? trigger.dataset.ctaStyle : "pill";
+    dialog.classList.add(`reelup-cta--${ctaStyle}`);
 
-    video.muted = trigger.dataset.mutedDefault === "true";
+    const userMuted = getUserMuted();
+    video.muted = userMuted ?? trigger.dataset.mutedDefault === "true";
     video.loop = trigger.dataset.loop === "true";
     if (titleEl) titleEl.hidden = trigger.dataset.showTitle === "false";
+  };
+
+  // Gives the dialog an accessible name even when the reel has no title.
+  const nameDialog = (dialog, titleId, title) => {
+    if (title) {
+      dialog.setAttribute("aria-labelledby", titleId);
+      dialog.removeAttribute("aria-label");
+    } else {
+      dialog.removeAttribute("aria-labelledby");
+      dialog.setAttribute("aria-label", labels.video);
+    }
   };
 
   const cloneProducts = (trigger, listEl) => {
@@ -231,20 +398,33 @@
   // then restores the wanted mute state once the source is attached —
   // attach() may await network fetches that outlast the user activation,
   // after which unmuted play() can be silently rejected.
-  const startPlayback = async (video, src) => {
+  //
+  // `isCurrent` is checked after every await: if the viewer closed or moved
+  // on meanwhile, this call stops touching the video (returns false) so a
+  // stale load can never start audio in a hidden dialog or re-mute the
+  // newer reel. Throws only for real failures (not for supersession).
+  const startPlayback = async (video, src, isCurrent = () => true) => {
     const desiredMuted = video.muted;
     video.muted = true;
     video.play().catch(() => {});
-    await window.ReelupHls.attach(video, src);
+    try {
+      await window.ReelupHls.attach(video, src);
+    } catch (error) {
+      if (error?.name === "AbortError" || !isCurrent()) return false;
+      throw error;
+    }
+    if (!isCurrent()) return false;
     video.muted = desiredMuted;
     try {
       await video.play();
     } catch {
+      if (!isCurrent()) return false;
       // Unmuted autoplay refused after all — keep playing muted rather than
       // leaving a frozen first frame.
       video.muted = true;
       await video.play().catch(() => {});
     }
+    return isCurrent();
   };
 
   /* ----------------------------------------------- share + deep links */
@@ -260,18 +440,17 @@
     return url.toString();
   };
 
+  // The toast element is permanent (created with each viewer); it's purely
+  // visual — the message is announced through the dialog's live region.
   const toast = (host, message) => {
-    let el = host.querySelector(".reelup-toast");
-    if (!el) {
-      el = document.createElement("div");
-      el.className = "reelup-toast";
-      el.setAttribute("role", "status");
-      host.appendChild(el);
+    const el = host.querySelector(".reelup-toast");
+    if (el) {
+      el.textContent = message;
+      el.classList.remove("is-visible");
+      void el.offsetWidth;
+      el.classList.add("is-visible");
     }
-    el.textContent = message;
-    el.classList.remove("is-visible");
-    void el.offsetWidth;
-    el.classList.add("is-visible");
+    announce(host, message);
   };
 
   const share = async (host, reelId, title) => {
@@ -294,15 +473,41 @@
 
   /* -------------------------------------------------- recommendations */
 
+  // Shopify-style money formatting from shop.money_format, so prices match
+  // the rest of the storefront ("{{amount_with_comma_separator}} €" etc.).
+  const moneyFormat = decodeEntities(String(config.moneyFormat || "${{amount}}").replace(/<[^>]*>/g, ""));
   const formatMoney = (cents) => {
-    try {
-      return new Intl.NumberFormat(config.locale || document.documentElement.lang || undefined, {
-        style: "currency",
-        currency: config.currency || window.Shopify?.currency?.active || "USD",
-      }).format(cents / 100);
-    } catch {
-      return (cents / 100).toFixed(2);
+    const value = Number(cents) || 0;
+    const formatWith = (decimals, thousands = ",", decimal = ".") => {
+      const [whole, fraction] = (value / 100).toFixed(decimals).split(".");
+      return whole.replace(/\B(?=(\d{3})+(?!\d))/g, thousands) + (fraction ? decimal + fraction : "");
+    };
+    const match = moneyFormat.match(/\{\{\s*(\w+)\s*\}\}/);
+    if (!match) return formatWith(2);
+    let amount;
+    switch (match[1]) {
+      case "amount_no_decimals":
+        amount = formatWith(0);
+        break;
+      case "amount_with_comma_separator":
+        amount = formatWith(2, ".", ",");
+        break;
+      case "amount_no_decimals_with_comma_separator":
+        amount = formatWith(0, ".", ",");
+        break;
+      case "amount_with_apostrophe_separator":
+        amount = formatWith(2, "'", ".");
+        break;
+      case "amount_no_decimals_with_space_separator":
+        amount = formatWith(0, " ", ",");
+        break;
+      case "amount_with_space_separator":
+        amount = formatWith(2, " ", ",");
+        break;
+      default:
+        amount = formatWith(2);
     }
+    return moneyFormat.replace(match[0], amount);
   };
 
   const recsCache = new Map();
@@ -320,9 +525,6 @@
     return recsCache.get(productId);
   };
 
-  const ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
-  const escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ESCAPES[c]);
-
   // Fills `container` with related products for the first tagged product,
   // skipping anything already tagged. `isCurrent` guards against a slow
   // response landing after the shopper has moved to another reel.
@@ -338,8 +540,10 @@
     if (!isCurrent() || products.length === 0) return;
     row.innerHTML = products
       .map((p) => {
-        const image = p.featured_image ? `${p.featured_image}${p.featured_image.includes("?") ? "&" : "?"}width=240` : "";
-        return `<a class="reelup-rec" href="${escapeHtml(p.url)}" data-reelup-product-link>
+        const href = safeLink(p.url) || "#";
+        const rawImage = typeof p.featured_image === "string" ? p.featured_image : "";
+        const image = rawImage ? `${rawImage}${rawImage.includes("?") ? "&" : "?"}width=240` : "";
+        return `<a class="reelup-rec" href="${escapeHtml(href)}" data-reelup-product-link>
           <span class="reelup-rec__media">${image ? `<img src="${escapeHtml(image)}" alt="" loading="lazy" width="120" height="120">` : ""}</span>
           <span class="reelup-rec__title">${escapeHtml(p.title)}</span>
           <span class="reelup-rec__price">${escapeHtml(formatMoney(p.price))}</span>
@@ -356,6 +560,8 @@
   const ICONS = {
     play: icon('<path d="M8 5.14v13.72a1 1 0 0 0 1.52.85l10.6-6.86a1 1 0 0 0 0-1.7L9.52 4.29A1 1 0 0 0 8 5.14Z"/>', 28),
     pause: icon('<path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/>', 28),
+    playSmall: icon('<path d="M8 5.14v13.72a1 1 0 0 0 1.52.85l10.6-6.86a1 1 0 0 0 0-1.7L9.52 4.29A1 1 0 0 0 8 5.14Z"/>', 18),
+    pauseSmall: icon('<path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/>', 18),
     muted: icon('<path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="m16 9 6 6m0-6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>'),
     unmuted: icon('<path d="M11 5 6 9H3v6h3l5 4V5Zm4.5 3.5a5 5 0 0 1 0 7l-1.4-1.4a3 3 0 0 0 0-4.2l1.4-1.4Zm2.8-2.8a9 9 0 0 1 0 12.6l-1.4-1.4a7 7 0 0 0 0-9.8l1.4-1.4Z"/>'),
     close: icon('<path d="M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5Z"/>'),
@@ -370,13 +576,18 @@
   let group = [];
   let index = 0;
   let initialPanelState = "peek";
+  // Bumped by every load() and by close: async work started for an older
+  // value must not touch the (shared) video element any more.
+  let loadSeq = 0;
 
-  const isMobile = () => window.matchMedia("(max-width: 749px)").matches;
+  const mobileQuery = window.matchMedia("(max-width: 749px)");
+  const isMobile = () => mobileQuery.matches;
 
   const buildViewer = () => {
     const existing = document.getElementById("reelup-lightbox");
     if (existing) return existing;
 
+    const L = Object.fromEntries(Object.entries(labels).map(([k, v]) => [k, escapeHtml(v)]));
     const dialog = document.createElement("dialog");
     dialog.id = "reelup-lightbox";
     dialog.className = `reelup-viewer${config.viewerTheme === "light" ? " reelup-viewer--light" : ""}`;
@@ -389,37 +600,43 @@
           <div class="reelup-viewer__progress" aria-hidden="true"><span data-reelup-progress></span></div>
           <div class="reelup-viewer__top">
             <span class="reelup-viewer__count" data-reelup-count hidden></span>
-            <button type="button" class="reelup-viewer__icon" data-reelup-share aria-label="${labels.share}" hidden>${ICONS.share}</button>
+            <button type="button" class="reelup-viewer__icon" data-reelup-share aria-label="${L.share}" hidden>${ICONS.share}</button>
             <button type="button" class="reelup-viewer__icon" data-reelup-mute></button>
-            <button type="button" class="reelup-viewer__icon" data-reelup-close aria-label="${labels.close}">${ICONS.close}</button>
+            <button type="button" class="reelup-viewer__icon" data-reelup-close aria-label="${L.close}">${ICONS.close}</button>
           </div>
-          <button type="button" class="reelup-viewer__toggle" data-reelup-play-pause aria-label="${labels.play}">${ICONS.play}</button>
+          <button type="button" class="reelup-viewer__toggle" data-reelup-play-pause aria-label="${L.play}">${ICONS.play}</button>
+          <div class="reelup-viewer__error" data-reelup-error hidden>
+            <p>${L.playbackError}</p>
+            <button type="button" data-reelup-retry>${L.retry}</button>
+          </div>
           <h2 class="reelup-viewer__title" id="reelup-viewer-title"></h2>
+          <div class="reelup-toast" aria-hidden="true"></div>
         </div>
         <aside class="reelup-viewer__panel" data-reelup-panel hidden>
           <button type="button" class="reelup-viewer__panel-head" data-reelup-panel-toggle aria-expanded="true">
             ${ICONS.bag}
-            <span class="reelup-viewer__panel-title">${labels.shop}</span>
+            <span class="reelup-viewer__panel-title">${L.shop}</span>
             <span class="reelup-viewer__panel-count" data-reelup-panel-count></span>
             <span class="reelup-viewer__chevron" aria-hidden="true">${ICONS.up}</span>
           </button>
           <div class="reelup-viewer__list" data-reelup-list></div>
           <section class="reelup-viewer__recs" data-reelup-recs hidden>
-            <h3 class="reelup-viewer__recs-title">${labels.youMayLike}</h3>
+            <h3 class="reelup-viewer__recs-title">${L.youMayLike}</h3>
             <div class="reelup-viewer__recs-row" data-reelup-recs-row></div>
           </section>
           <a class="reelup-viewer__link" data-reelup-link data-reelup-product-link hidden></a>
           <p class="reelup-viewer__cart" data-reelup-cart-status hidden>
-            <span class="reelup-cart-message" aria-live="polite"></span>
-            <a href="${cartUrl}">${labels.viewCart}</a>
+            <span class="reelup-cart-message"></span>
+            <a href="${escapeHtml(cartUrl)}">${L.viewCart}</a>
           </p>
         </aside>
       </div>
       <div class="reelup-viewer__nav" data-reelup-nav hidden>
-        <button type="button" class="reelup-viewer__navbtn" data-reelup-prev aria-label="${labels.previous}">${ICONS.up}</button>
-        <button type="button" class="reelup-viewer__navbtn" data-reelup-next aria-label="${labels.next}">${ICONS.down}</button>
+        <button type="button" class="reelup-viewer__navbtn" data-reelup-prev aria-label="${L.previous}">${ICONS.up}</button>
+        <button type="button" class="reelup-viewer__navbtn" data-reelup-next aria-label="${L.next}">${ICONS.down}</button>
       </div>
     `;
+    dialog.appendChild(makeLiveRegion());
     document.body.appendChild(dialog);
 
     const video = dialog.querySelector("video");
@@ -430,6 +647,7 @@
     const panel = dialog.querySelector("[data-reelup-panel]");
     const panelToggle = dialog.querySelector("[data-reelup-panel-toggle]");
     const cartStatus = dialog.querySelector("[data-reelup-cart-status]");
+    const errorBox = dialog.querySelector("[data-reelup-error]");
 
     const syncPlayState = () => {
       toggle.innerHTML = video.paused ? ICONS.play : ICONS.pause;
@@ -448,7 +666,21 @@
       progress.style.transform = `scaleX(${ratio})`;
     });
     video.addEventListener("ended", () => {
-      if (!video.loop && index < group.length - 1) go(1);
+      if (dialog.open && !video.loop && index < group.length - 1) go(1);
+    });
+
+    const showError = () => {
+      if (!dialog.open) return;
+      errorBox.hidden = false;
+      announce(dialog, labels.playbackError);
+    };
+    video.addEventListener("reelup:playback-error", showError);
+    video.addEventListener("error", () => {
+      // Native HLS errors (Safari); ignore the empty-src error from teardown.
+      if (video.getAttribute("src")) showError();
+    });
+    dialog.querySelector("[data-reelup-retry]").addEventListener("click", () => {
+      if (group[index]) load(dialog, group[index]);
     });
 
     const togglePlayback = () => (video.paused ? video.play().catch(() => {}) : video.pause());
@@ -459,6 +691,7 @@
     video.addEventListener("click", togglePlayback);
     mute.addEventListener("click", () => {
       video.muted = !video.muted;
+      setUserMuted(video.muted);
     });
     dialog.querySelector("[data-reelup-close]").addEventListener("click", () => dialog.close());
     dialog.querySelector("[data-reelup-share]").addEventListener("click", () => {
@@ -468,10 +701,26 @@
     dialog.querySelector("[data-reelup-prev]").addEventListener("click", () => go(-1));
     dialog.querySelector("[data-reelup-next]").addEventListener("click", () => go(1));
 
+    // On mobile the "peek" sheet clips everything below the first product,
+    // so those rows (and anything after the list) are made inert until the
+    // sheet is expanded — no tabbing into invisible controls.
+    const syncPeekInert = () => {
+      const collapsed = panel.dataset.state === "peek" && isMobile();
+      dialog.querySelectorAll("[data-reelup-list] [data-reelup-product]").forEach((row, i) => {
+        row.inert = collapsed && i > 0;
+      });
+      const linkEl = dialog.querySelector("[data-reelup-link]");
+      const hasProducts = Boolean(dialog.querySelector("[data-reelup-list] [data-reelup-product]"));
+      linkEl.inert = collapsed && hasProducts;
+    };
     const setPanelState = (state) => {
       panel.dataset.state = state;
       panelToggle.setAttribute("aria-expanded", String(state === "open" || (state === "peek" && !isMobile())));
+      syncPeekInert();
     };
+    mobileQuery.addEventListener?.("change", () => {
+      if (dialog.open) setPanelState(panel.dataset.state || initialPanelState);
+    });
     panelToggle.addEventListener("click", () => {
       const open = panel.dataset.state === "open" || (panel.dataset.state === "peek" && !isMobile());
       setPanelState(open ? (initialPanelState === "open" ? "closed" : initialPanelState) : "open");
@@ -484,11 +733,15 @@
     });
 
     dialog.addEventListener("keydown", (event) => {
-      if (event.target.closest?.("select, input")) return;
-      if (event.key === "ArrowDown" || event.key === "ArrowRight") {
+      if (event.target.closest?.("select, input, textarea")) return;
+      // Horizontal arrows follow reading direction.
+      const rtl = isRtl(dialog);
+      const nextKeys = ["ArrowDown", rtl ? "ArrowLeft" : "ArrowRight"];
+      const prevKeys = ["ArrowUp", rtl ? "ArrowRight" : "ArrowLeft"];
+      if (nextKeys.includes(event.key)) {
         event.preventDefault();
         go(1);
-      } else if (event.key === "ArrowUp" || event.key === "ArrowLeft") {
+      } else if (prevKeys.includes(event.key)) {
         event.preventDefault();
         go(-1);
       }
@@ -507,14 +760,19 @@
     });
 
     dialog.addEventListener("close", () => {
+      loadSeq += 1;
       window.ReelupHls?.teardown(video);
       dialog.querySelector("[data-reelup-list]").replaceChildren();
       cartStatus.hidden = true;
+      errorBox.hidden = true;
       document.documentElement.classList.remove("reelup-locked");
       document.dispatchEvent(new CustomEvent("reelup:viewer-change"));
-      const returnTo = group[index]?.querySelector(".reelup-trigger__button");
+      const lastTrigger = group[index];
       group = [];
-      returnTo?.focus({ preventScroll: true });
+      // Lets a deck bring the last viewed reel to the front before focus
+      // returns to it (its button may be tabindex=-1 / aria-hidden now).
+      if (lastTrigger) document.dispatchEvent(new CustomEvent("reelup:viewer-closed", { detail: { trigger: lastTrigger } }));
+      lastTrigger?.querySelector(".reelup-trigger__button")?.focus({ preventScroll: true });
     });
 
     syncMute();
@@ -522,6 +780,8 @@
   };
 
   const load = async (dialog, trigger) => {
+    const token = ++loadSeq;
+    const isCurrent = () => dialog.open && token === loadSeq;
     const video = dialog.querySelector("video");
     const title = dialog.querySelector(".reelup-viewer__title");
     const panel = dialog.querySelector("[data-reelup-panel]");
@@ -530,9 +790,11 @@
     const cartStatus = dialog.querySelector("[data-reelup-cart-status]");
 
     window.ReelupHls?.teardown(video);
+    dialog.querySelector("[data-reelup-error]").hidden = true;
     const reelId = trigger.dataset.reelId ?? "";
     dialog.setAttribute("data-reelup-reel-id", reelId);
     title.textContent = trigger.dataset.title ?? "";
+    nameDialog(dialog, "reelup-viewer-title", trigger.dataset.title);
     if (trigger.dataset.posterUrl) video.setAttribute("poster", trigger.dataset.posterUrl);
     else video.removeAttribute("poster");
     dialog.querySelector("[data-reelup-progress]").style.transform = "scaleX(0)";
@@ -563,7 +825,7 @@
     if (trigger.dataset.showRecommendations === "false" || productCount === 0) {
       recs.hidden = true;
     } else {
-      renderRecommendations(recs, list, () => dialog.open && group[index] === trigger);
+      renderRecommendations(recs, list, isCurrent);
     }
 
     const nav = dialog.querySelector("[data-reelup-nav]");
@@ -575,16 +837,26 @@
 
     trackAnalytics(reelId, "view");
     try {
-      await startPlayback(video, trigger.dataset.hlsSrc);
+      await startPlayback(video, trigger.dataset.hlsSrc, isCurrent);
     } catch {
-      // Playback failed to start; the poster and product list stay usable.
+      // Playback failed to start; the poster and product list stay usable,
+      // and the shopper gets a retry button.
+      if (isCurrent()) {
+        dialog.querySelector("[data-reelup-error]").hidden = false;
+        announce(dialog, labels.playbackError);
+      }
+    }
+    if (!dialog.open) {
+      // Closed while loading: make sure nothing keeps playing in the
+      // hidden dialog (close already tore down; this is belt and braces).
+      window.ReelupHls?.teardown(video);
     }
   };
 
   const go = (delta) => {
     const dialog = document.getElementById("reelup-lightbox");
     const next = index + delta;
-    if (!dialog || next < 0 || next >= group.length) return;
+    if (!dialog?.open || next < 0 || next >= group.length) return;
     index = next;
     load(dialog, group[index]);
   };
@@ -600,10 +872,32 @@
       dialog.showModal();
       document.documentElement.classList.add("reelup-locked");
       document.dispatchEvent(new CustomEvent("reelup:viewer-change"));
+      // Start keyboard and screen-reader users on a predictable control.
+      dialog.querySelector("[data-reelup-close]")?.focus();
     }
     load(dialog, trigger);
   };
 
   window.ReelupLightbox = { open, trackAnalytics };
-  window.ReelupViewer = { labels, cartUrl, share, shortId, safeLink, theme: config.viewerTheme === "light" ? "light" : "dark", icons: ICONS, applyViewerSettings, cloneProducts, startPlayback, trackAnalytics };
+  window.ReelupViewer = {
+    labels,
+    cartUrl,
+    share,
+    shortId,
+    safeLink,
+    escapeHtml,
+    isRtl,
+    announce,
+    makeLiveRegion,
+    nameDialog,
+    getUserMuted,
+    setUserMuted,
+    formatMoney,
+    theme: config.viewerTheme === "light" ? "light" : "dark",
+    icons: ICONS,
+    applyViewerSettings,
+    cloneProducts,
+    startPlayback,
+    trackAnalytics,
+  };
 })();

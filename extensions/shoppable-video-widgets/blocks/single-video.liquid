@@ -4,11 +4,12 @@ listed beside it — variant picker and add to cart right on the page, no
 need to open the video first. "Video only" drops the product column for a
 centred poster. The poster opens the shared viewer.
 
+Self-sufficient: the schema loads reel-widgets.css and reel-loader.js, which
+pulls in the viewer runtime when the app embed is off.
+
 @example
 {% content_for 'block', type: 'single-video', id: 'single-video' %}
 {% enddoc %}
-
-{{ 'reel-widgets.css' | asset_url | stylesheet_tag }}
 
 {% assign reel_namespace = 'app--404281098241' %}
 
@@ -16,6 +17,7 @@ centred poster. The poster opens the shared viewer.
   assign widget = shop.metafields[reel_namespace].single_video_widget.value
   assign widget_style = widget.style
   assign reel = shop.metafields[reel_namespace].single_video_featured_reel.value
+  assign target_product = block.settings.product | default: product
 
   assign show_widget = false
   if widget.published
@@ -23,16 +25,20 @@ centred poster. The poster opens the shared viewer.
       when 'all_products'
         assign show_widget = true
       when 'handles'
-        if product and widget.targetRule.handles contains product.handle
+        if target_product and widget.targetRule.handles contains target_product.handle
           assign show_widget = true
         endif
       when 'collections'
-        for collection in product.collections
-          if widget.targetRule.handles contains collection.handle
-            assign show_widget = true
-            break
-          endif
-        endfor
+        if collection and widget.targetRule.handles contains collection.handle
+          assign show_widget = true
+        elsif target_product
+          for product_collection in target_product.collections
+            if widget.targetRule.handles contains product_collection.handle
+              assign show_widget = true
+              break
+            endif
+          endfor
+        endif
     endcase
   endif
   if widget.pageTypes.size > 0
@@ -45,6 +51,9 @@ centred poster. The poster opens the shared viewer.
   endunless
 
   assign layout = widget_style.singleLayout | default: 'split'
+  if layout != 'poster'
+    assign layout = 'split'
+  endif
   if reel.tagged_products.value.size == 0
     assign layout = 'poster'
   endif
@@ -62,23 +71,36 @@ centred poster. The poster opens the shared viewer.
     else
       assign radius = '10px'
   endcase
+
+  assign video_width = widget_style.triggerSize | default: 340 | times: 1
+
+  assign play_label = 'reels.play_label' | t
+  if reel.title.value != blank
+    assign play_label = 'reels.play_named_label' | t: title: reel.title.value
+  endif
+  assign section_label = widget_style.heading | default: reel.title.value | escape
+  if section_label == blank
+    assign section_label = 'reels.video_label' | t
+  endif
 -%}
 
 {%- if show_widget -%}
+  {%- render 'reel-config' -%}
   {%- render 'reel-video-schema', reel: reel -%}
   {%- capture wrapper_style -%}
     --ru-radius: {{ radius }};
-    --ru-video-width: {{ widget_style.triggerSize | default: 340 }}px;
-    {%- if widget_style.accentColor != blank %}--ru-accent: {{ widget_style.accentColor }};{% endif -%}
-    {%- if widget_style.backgroundColor != blank %}--ru-bg: {{ widget_style.backgroundColor }};{% endif -%}
-    {%- if widget_style.textColor != blank %}--ru-text: {{ widget_style.textColor }};{% endif -%}
-    {%- if widget_style.ctaColor != blank %}--ru-cta: {{ widget_style.ctaColor }};{% endif -%}
-    {%- if widget_style.ctaTextColor != blank %}--ru-cta-text: {{ widget_style.ctaTextColor }};{% endif -%}
+    --ru-video-width: {{ video_width }}px;
+    {%- if widget_style.accentColor != blank %}--ru-accent: {{ widget_style.accentColor | escape }}; --ru-play: {{ widget_style.accentColor | escape }};{% endif -%}
+    {%- if widget_style.backgroundColor != blank %}--ru-bg: {{ widget_style.backgroundColor | escape }};{% endif -%}
+    {%- if widget_style.textColor != blank %}--ru-text: {{ widget_style.textColor | escape }};{% endif -%}
+    {%- if widget_style.ctaColor != blank %}--ru-cta: {{ widget_style.ctaColor | escape }};{% endif -%}
+    {%- if widget_style.ctaTextColor != blank %}--ru-cta-text: {{ widget_style.ctaTextColor | escape }};{% endif -%}
   {%- endcapture -%}
   {%- capture poster -%}
-    <button type="button" class="reelup-trigger__button reelup-feature__poster" aria-label="{{ 'reels.play_named_label' | t: title: reel.title.value | escape }}">
+    <button type="button" class="reelup-trigger__button reelup-feature__poster" aria-label="{{ play_label }}">
       {%- if reel.config.value.posterUrl != blank -%}
-        <img class="reelup-trigger__poster" src="{{ reel.config.value.posterUrl | escape }}" alt="" loading="lazy" width="540" height="960">
+        {%- capture poster_sizes %}min({{ video_width }}px, 78vw){% endcapture -%}
+        {%- render 'reel-poster', url: reel.config.value.posterUrl, height: 1000, width_attr: 540, height_attr: 960, srcset_heights: '640,1000,1440', sizes: poster_sizes, eager: true, priority: true -%}
       {%- endif -%}
       <span class="reelup-feature__play" aria-hidden="true">
         <svg width="22" height="22" viewBox="0 0 10 10" focusable="false"><path fill="currentColor" d="M2 1.2v7.6a.5.5 0 0 0 .76.43l6.1-3.8a.5.5 0 0 0 0-.86L2.76.77A.5.5 0 0 0 2 1.2Z"/></svg>
@@ -87,9 +109,9 @@ centred poster. The poster opens the shared viewer.
     </button>
   {%- endcapture -%}
   <section
-    class="reelup reelup-feature reelup-feature--{{ layout }} reelup-shadow--{{ widget_style.shadowPreset | default: 'soft' }} reelup-device--{{ widget.deviceVisibility | default: 'all' }}{% if widget_style.backgroundColor != blank %} reelup--filled{% endif %} reelup-cta--{{ widget_style.ctaStyle | default: 'pill' }}"
+    class="reelup reelup-feature reelup-feature--{{ layout }} reelup-shadow--{{ widget_style.shadowPreset | default: 'soft' | escape }} reelup-device--{{ widget.deviceVisibility | default: 'all' | escape }}{% if widget_style.backgroundColor != blank %} reelup--filled{% endif %} reelup-cta--{{ widget_style.ctaStyle | default: 'pill' | escape }}"
     style="{{ wrapper_style | strip_newlines }}"
-    aria-label="{{ widget_style.heading | default: reel.title.value | escape }}"
+    aria-label="{{ section_label }}"
     {{ block.shopify_attributes }}
   >
     {%- if layout == 'poster' and widget_style.heading != blank -%}
@@ -103,28 +125,34 @@ centred poster. The poster opens the shared viewer.
         {%- if widget_style.heading != blank -%}
           <h2 class="reelup-feature__heading">{{ widget_style.heading | escape }}</h2>
         {%- endif -%}
-        <p class="reelup-feature__subtitle">{{ reel.title.value | escape }}</p>
+        {%- if reel.title.value != blank -%}
+          <p class="reelup-feature__subtitle">{{ reel.title.value | escape }}</p>
+        {%- endif -%}
         <div class="reelup-feature__products">
           {%- render 'reel-product-card' for reel.tagged_products.value as product, style: widget_style -%}
         </div>
         <p class="reelup-feature__status" data-reelup-cart-status hidden>
-          <span class="reelup-cart-message" aria-live="polite"></span>
+          <span class="reelup-cart-message"></span>
           <a href="{{ routes.cart_url }}">{{ 'reels.view_cart' | t }}</a>
         </p>
       </div>
     {%- endif -%}
   </section>
+{%- elsif request.design_mode -%}
+  <div class="reelup reelup-placeholder" {{ block.shopify_attributes }}>{{ 'reels.editor_placeholder' | t }}</div>
 {%- endif -%}
 
 {% schema %}
 {
   "name": "Featured video",
   "target": "section",
+  "javascript": "reel-loader.js",
+  "stylesheet": "reel-widgets.css",
   "settings": [
     { "type": "product", "id": "product", "label": "Product", "autofill": true },
     {
       "type": "paragraph",
-      "content": "The video, layout and colors are set in the app under Widgets › Featured video. Needs the Shoppable Videos app embed turned on."
+      "content": "The video, layout and colors are set in the app under Widgets › Featured video."
     }
   ]
 }

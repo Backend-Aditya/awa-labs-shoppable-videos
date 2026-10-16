@@ -6,6 +6,11 @@ and story drawer by JS) and rendered directly by the featured-video block's
 inline product list. Click/change behaviour is delegated document-wide in
 reel-lightbox.js, so the same markup works in all three places.
 
+Products with more than 30 variants get a "Choose options" link to the
+product page instead of a picker: the <select> would bloat every template
+(each reel repeats it), and above 100 variants it couldn't list them all
+anyway — adding a variant the shopper never chose would be wrong.
+
 @param product {product} - the tagged product
 @param style {object} - the widget's style object (showPrice, showProductImage, ctaLabel)
 
@@ -24,7 +29,12 @@ reel-lightbox.js, so the same markup works in all three places.
   endif
   assign add_label = 'reels.add_to_cart' | t
   if style.ctaLabel != blank
-    assign add_label = style.ctaLabel
+    assign add_label = style.ctaLabel | escape
+  endif
+  assign variant_count = product.variants_count | default: product.variants.size
+  assign choose_on_page = false
+  if variant_count > 30
+    assign choose_on_page = true
   endif
 -%}
 {%- if variant -%}
@@ -41,23 +51,31 @@ reel-lightbox.js, so the same markup works in all three places.
     </a>
   {%- endif -%}
   <div class="reelup-product__info">
-    <a class="reelup-product__title" href="{{ product.url }}" data-reelup-product-link>{{ product.title }}</a>
+    <a class="reelup-product__title" href="{{ product.url }}" data-reelup-product-link>{{ product.title | escape }}</a>
     {%- if show_price -%}
       <span class="reelup-product__price">
-        <span data-reelup-price>{{ variant.price | money }}</span>
-        <s class="reelup-product__compare" data-reelup-compare{% unless variant.compare_at_price > variant.price %} hidden{% endunless %}>
+        <span data-reelup-price>
+          {%- if choose_on_page and product.price_varies -%}
+            {%- assign from_price = product.price_min | money_without_trailing_zeros | strip_html -%}
+            {{ 'reels.price_from' | t: price: from_price }}
+          {%- else -%}
+            {{ variant.price | money }}
+          {%- endif -%}
+        </span>
+        <s class="reelup-product__compare" data-reelup-compare{% unless variant.compare_at_price > variant.price and choose_on_page == false %} hidden{% endunless %}>
           {{- variant.compare_at_price | money -}}
         </s>
       </span>
     {%- endif -%}
-    {%- unless product.has_only_default_variant -%}
+    {%- unless product.has_only_default_variant or choose_on_page -%}
       <select class="reelup-product__variant" data-reelup-variant aria-label="{{ 'reels.options_label' | t: product: product.title }}">
-        {%- for option_variant in product.variants limit: 100 -%}
+        {%- for option_variant in product.variants -%}
           <option
             value="{{ option_variant.id }}"
             data-price="{{ option_variant.price | money | escape }}"
             data-compare="{% if option_variant.compare_at_price > option_variant.price %}{{ option_variant.compare_at_price | money | escape }}{% endif %}"
             data-available="{{ option_variant.available }}"
+            {%- if option_variant.featured_image %} data-image="{{ option_variant.featured_image | image_url: width: 192 }}"{% endif %}
             {% if option_variant.id == variant.id %}selected{% endif %}
           >
             {{- option_variant.title | escape -}}
@@ -67,24 +85,30 @@ reel-lightbox.js, so the same markup works in all three places.
       </select>
     {%- endunless -%}
   </div>
-  {%- if style.showQuantity -%}
-    <div class="reelup-qty" data-reelup-qty>
-      <button type="button" class="reelup-qty__step" data-reelup-qty-step="-1" aria-label="{{ 'reels.decrease_quantity' | t }}">&minus;</button>
-      <input class="reelup-qty__input" data-reelup-qty-input type="number" inputmode="numeric" min="1" max="99" value="1" aria-label="{{ 'reels.quantity_label' | t }}">
-      <button type="button" class="reelup-qty__step" data-reelup-qty-step="1" aria-label="{{ 'reels.increase_quantity' | t }}">+</button>
-    </div>
+  {%- if choose_on_page -%}
+    <a class="reelup-product__add reelup-product__choose" href="{{ product.url }}" data-reelup-product-link>
+      {{- 'reels.choose_options' | t -}}
+    </a>
+  {%- else -%}
+    {%- if style.showQuantity -%}
+      <div class="reelup-qty" data-reelup-qty>
+        <button type="button" class="reelup-qty__step" data-reelup-qty-step="-1" aria-label="{{ 'reels.decrease_quantity' | t }}">&minus;</button>
+        <input class="reelup-qty__input" data-reelup-qty-input type="number" inputmode="numeric" min="1" max="99" value="1" aria-label="{{ 'reels.quantity_label' | t }}">
+        <button type="button" class="reelup-qty__step" data-reelup-qty-step="1" aria-label="{{ 'reels.increase_quantity' | t }}">+</button>
+      </div>
+    {%- endif -%}
+    <button
+      type="button"
+      class="reelup-product__add"
+      data-reelup-add-to-cart
+      data-variant-id="{{ variant.id }}"
+      data-add-label="{{ add_label }}"
+      data-added-label="{{ 'reels.added_to_cart' | t }}"
+      data-sold-out-label="{{ 'reels.sold_out' | t }}"
+      {% unless variant.available %}disabled{% endunless %}
+    >
+      {%- if variant.available %}{{ add_label }}{% else %}{{ 'reels.sold_out' | t }}{% endif -%}
+    </button>
   {%- endif -%}
-  <button
-    type="button"
-    class="reelup-product__add"
-    data-reelup-add-to-cart
-    data-variant-id="{{ variant.id }}"
-    data-add-label="{{ add_label | escape }}"
-    data-added-label="{{ 'reels.added_to_cart' | t }}"
-    data-sold-out-label="{{ 'reels.sold_out' | t }}"
-    {% unless variant.available %}disabled{% endunless %}
-  >
-    {%- if variant.available %}{{ add_label | escape }}{% else %}{{ 'reels.sold_out' | t }}{% endif -%}
-  </button>
 </div>
 {%- endif -%}
