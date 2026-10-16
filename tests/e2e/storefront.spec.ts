@@ -164,7 +164,7 @@ test.describe("mobile, video fails to play", () => {
   // sheet's head and intercepts taps, so shoppers can't open the product
   // list of a reel that won't play. Remove test.fail once the overlay no
   // longer covers the sheet.
-  test.fail("@real-hls products stay reachable", async ({ page }) => {
+  test("@real-hls products stay reachable", async ({ page }) => {
     await mockShop(page);
     await stripTrigger(page, "Morning routine").click();
     await expect(viewer(page).locator("[data-reelup-error]")).toBeVisible();

@@ -306,6 +306,13 @@ html[dir="rtl"] .reelup-story {
   color: #fff;
   text-align: center;
   font-size: 15px;
+  /* Only the retry button takes taps, so the mobile product sheet that the
+     overlay sits over stays usable when a video won't play. */
+  pointer-events: none;
+}
+
+.reelup-viewer__error button {
+  pointer-events: auto;
 }
 
 .reelup-viewer__error[hidden] {

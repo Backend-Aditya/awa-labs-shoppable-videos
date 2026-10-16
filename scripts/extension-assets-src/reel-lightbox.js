@@ -104,7 +104,8 @@
 
   const safeLink = (value) => {
     const url = String(value ?? "").trim();
-    return /^(https?:\/\/|\/)/i.test(url) ? url : "";
+    // A lone "/" is a same-site path; "//host" and "/\host" are off-site.
+    return /^(https?:\/\/|\/(?![/\\]))/i.test(url) ? url : "";
   };
 
   const reelIdFor = (el) => el.closest("[data-reelup-reel-id]")?.getAttribute("data-reelup-reel-id") ?? "";

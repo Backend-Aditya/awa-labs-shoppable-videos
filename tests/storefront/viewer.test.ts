@@ -202,13 +202,13 @@ describe("safeLink", () => {
   // starting with "/", so a protocol-relative "//evil.test" URL passes and
   // becomes an off-site link in the viewer. Remove `.fails` once
   // safeLink rejects "//".
-  it.fails("rejects protocol-relative //host URLs", async () => {
+  it("rejects protocol-relative //host URLs", async () => {
     await mount("", ["lightbox"]);
     const { safeLink } = (window as unknown as { ReelupViewer: { safeLink: (v: unknown) => string } }).ReelupViewer;
     expect(safeLink("//evil.test/x")).toBe("");
   });
 
-  it.fails("a reel link to //host is not rendered", async () => {
+  it("a reel link to //host is not rendered", async () => {
     await mountStrip({}, [makeReel({ id: 1, ctaUrl: "//evil.test/phish", ctaLabel: "Go" })]);
     click(triggerButton(0));
     expect(q("[data-reelup-link]").hidden).toBe(true);
