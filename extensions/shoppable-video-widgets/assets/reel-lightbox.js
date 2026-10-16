@@ -22,6 +22,7 @@
           <h2 class="reelup-viewer__title" id="reelup-viewer-title"></h2>
           <div class="reelup-toast" aria-hidden="true"></div>
         </div>
+        <div class="reelup-viewer__side">
         <aside class="reelup-viewer__panel" data-reelup-panel hidden>
           <button type="button" class="reelup-viewer__panel-head" data-reelup-panel-toggle aria-expanded="true">
             ${f.bag}
@@ -40,6 +41,7 @@
             <a href="${C(Y)}">${a.viewCart}</a>
           </p>
         </aside>
+        </div>
       </div>
       <div class="reelup-viewer__nav" data-reelup-nav hidden>
         <button type="button" class="reelup-viewer__navbtn" data-reelup-prev aria-label="${a.previous}">${f.up}</button>

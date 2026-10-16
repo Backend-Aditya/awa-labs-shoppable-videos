@@ -388,10 +388,26 @@ html[dir="rtl"] .reelup-story {
 
 /* ---------- products panel ---------- */
 
-.reelup-viewer__panel {
+/* Column the same height as the player, with the panel pinned to its top,
+   so collapsing the list keeps the header level with the top of the video
+   instead of re-centering it. */
+.reelup-viewer__side {
   flex: 0 0 360px;
-  max-height: min(88vh, 860px);
-  max-height: min(88dvh, 860px);
+  height: min(88vh, 860px);
+  height: min(88dvh, 860px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.reelup-viewer__side:not(:has(> .reelup-viewer__panel:not([hidden]))) {
+  display: none;
+}
+
+.reelup-viewer__panel {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
   border-radius: 18px;
@@ -730,7 +746,7 @@ html[dir="rtl"] .reelup-story {
 /* ---------- mid-size: panel under nothing, narrower ---------- */
 
 @media (max-width: 1080px) and (min-width: 750px) {
-  .reelup-viewer__panel {
+  .reelup-viewer__side {
     flex-basis: 300px;
   }
   .reelup-viewer__player {
@@ -743,6 +759,11 @@ html[dir="rtl"] .reelup-story {
 @media (max-width: 749px) {
   .reelup-viewer::backdrop {
     background: #000;
+  }
+
+  /* The bottom sheet positions itself; the desktop column steps aside. */
+  .reelup-viewer__side {
+    display: contents;
   }
 
   .reelup-viewer__stage {
