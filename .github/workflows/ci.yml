@@ -12,7 +12,9 @@ permissions:
   contents: read
 
 env:
-  NODE_VERSION: "20"
+  # Matches local dev and Render; @shopify/polaris-types needs Node >= 22.18
+  # and .npmrc has engine-strict, so Node 20 fails at npm ci.
+  NODE_VERSION: "22"
   # Prisma reads these at generate/typecheck time; nothing connects to them
   # outside the integration job.
   DATABASE_URL: postgresql://unused@127.0.0.1:1/none?schema=test

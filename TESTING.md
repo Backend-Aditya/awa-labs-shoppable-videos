@@ -166,7 +166,7 @@ tests only parse the JSON).
 ## CI
 
 `.github/workflows/ci.yml` runs on every push and pull request, four
-parallel jobs on Node 20 with the npm cache:
+parallel jobs on Node 22 with the npm cache:
 
 1. **Lint, typecheck, build** — `npm run lint`, `npm run typecheck`, `npm run build`, `npm run build:extension`.
 2. **Fast tests** — `npm run test:coverage` (unit, components, storefront, liquid) with thresholds; `coverage/` uploaded as an artifact.
