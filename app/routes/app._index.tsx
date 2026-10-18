@@ -252,10 +252,31 @@ function Performance({ stats }: { stats: NonNullable<Data["stats"]> }) {
   );
 }
 
+type SortKey = "views" | "clicks" | "rate" | "sales";
+const SORT_COLUMNS: { key: SortKey; label: string }[] = [
+  { key: "views", label: "Views" },
+  { key: "clicks", label: "Clicks" },
+  { key: "rate", label: "Click rate" },
+  { key: "sales", label: "Sales" },
+];
+
 function TopVideos({ data }: { data: Data }) {
   const navigate = useNavigate();
   const currency = data.stats?.current.revenue[0]?.currencyCode;
   const multiCurrency = (data.stats?.current.revenue.length ?? 0) > 1;
+  // Click a column to rank by it; click again to flip the order.
+  const [sort, setSort] = useState<{ key: SortKey; desc: boolean }>({ key: "sales", desc: true });
+  const metric = (r: Data["topReels"][number]) =>
+    sort.key === "views"
+      ? r.views
+      : sort.key === "clicks"
+        ? r.clicks
+        : sort.key === "rate"
+          ? r.views
+            ? r.clicks / r.views
+            : -1
+          : r.revenue * 1e6 + r.unitsSold * 1e3 + r.views / 1e3;
+  const rows = [...data.topReels].sort((a, b) => (sort.desc ? metric(b) - metric(a) : metric(a) - metric(b)));
   return (
     <section className={styles.card}>
       <header className={styles.cardHeader}>
@@ -272,14 +293,28 @@ function TopVideos({ data }: { data: Data }) {
             <thead>
               <tr>
                 <th scope="col">Video</th>
-                <th scope="col">Views</th>
-                <th scope="col">Clicks</th>
-                <th scope="col">Click rate</th>
-                <th scope="col">Sales</th>
+                {SORT_COLUMNS.map((col) => {
+                  const active = sort.key === col.key;
+                  return (
+                    <th key={col.key} scope="col" aria-sort={active ? (sort.desc ? "descending" : "ascending") : "none"}>
+                      <button
+                        type="button"
+                        className={styles.sortButton}
+                        data-active={active || undefined}
+                        onClick={() => setSort(active ? { key: col.key, desc: !sort.desc } : { key: col.key, desc: true })}
+                      >
+                        {col.label}
+                        <span className={styles.sortArrow} aria-hidden="true">
+                          {active ? (sort.desc ? "↓" : "↑") : "↕"}
+                        </span>
+                      </button>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
-              {data.topReels.map((r) => (
+              {rows.map((r) => (
                 <tr key={r.id}>
                   <th scope="row">
                     <button
