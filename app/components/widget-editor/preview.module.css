@@ -825,3 +825,96 @@
     transition: none;
   }
 }
+
+/* ---------------------------------------------------- interactive mock */
+
+.posterGif {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+}
+
+[data-hit] {
+  cursor: pointer;
+}
+
+[data-hit]:focus-visible {
+  outline: 2px solid #005bd3;
+  outline-offset: 2px;
+}
+
+.filmPosterWrap[data-hit],
+.deckGridCard[data-hit] {
+  transition: transform 0.2s ease;
+}
+
+.filmPosterWrap[data-hit]:hover,
+.deckGridCard[data-hit]:hover {
+  transform: translateY(-2px);
+}
+
+.deckArrow {
+  appearance: none;
+  border: 0;
+  background: none;
+  padding: 0 4px;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.viewerStep {
+  appearance: none;
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-top: -13px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.45);
+  color: #fff;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.viewerStep[data-dir="prev"] {
+  left: 6px;
+}
+
+.viewerStep[data-dir="next"] {
+  right: 6px;
+}
+
+.viewerStep:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 1px;
+}
+
+.viewerCount {
+  position: absolute;
+  left: 8px;
+  top: 10px;
+  z-index: 2;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.45);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .filmPosterWrap[data-hit],
+  .deckGridCard[data-hit] {
+    transition: none;
+  }
+}

@@ -24,6 +24,7 @@ import { getKindMeta } from "../models/widget-kinds";
 import type { WidgetConfig } from "../models/widget-kinds";
 import { getReelStats } from "../models/analytics.server";
 import { Card, Field, TextInput, handleRovingKeys } from "../components/widget-editor/controls";
+import { SortableList } from "../components/SortableList";
 import { useEditorGuards } from "../components/useEditorGuards";
 import { ViewsChart } from "../components/ViewsChart";
 import { replaceReelVideo, validateVideoFile } from "../components/reels/upload";
@@ -672,13 +673,6 @@ function ProductsTab({
     onChange(next.slice(0, MAX_PRODUCTS));
   };
 
-  const move = (index: number, delta: number) => {
-    const next = [...products];
-    const [item] = next.splice(index, 1);
-    next.splice(index + delta, 0, item);
-    onChange(next);
-  };
-
   return (
     <Card
       title="Tagged products"
@@ -693,9 +687,16 @@ function ProductsTab({
           </s-button>
         </div>
       ) : (
-        <ol className={styles.productList}>
-          {products.map((p, i) => (
-            <li key={p.id} className={styles.productRow}>
+        <SortableList
+          items={products}
+          getKey={(p) => p.id}
+          getLabel={(p) => p.title}
+          onReorder={onChange}
+          className={styles.productList}
+          itemClassName={styles.productRow}
+          renderItem={(p, i, handle) => (
+            <>
+              {handle}
               <span className={styles.productIndex}>{i + 1}</span>
               <span
                 className={styles.productThumb}
@@ -705,18 +706,12 @@ function ProductsTab({
                 <span className={styles.productTitle}>{p.title}</span>
                 <span className={styles.muted}>{i === 0 ? `Featured${p.price ? ` · ${p.price}` : ""}` : p.price}</span>
               </span>
-              <IconButton label={`Move ${p.title} up`} disabled={i === 0} onClick={() => move(i, -1)}>
-                <path d="M10 4.5a.75.75 0 0 1 .53.22l4.25 4.25a.75.75 0 1 1-1.06 1.06l-2.97-2.97v8.19a.75.75 0 0 1-1.5 0V7.06L6.28 10.03a.75.75 0 0 1-1.06-1.06l4.25-4.25A.75.75 0 0 1 10 4.5Z" />
-              </IconButton>
-              <IconButton label={`Move ${p.title} down`} disabled={i === products.length - 1} onClick={() => move(i, 1)}>
-                <path d="M10 15.5a.75.75 0 0 1-.53-.22l-4.25-4.25a.75.75 0 1 1 1.06-1.06l2.97 2.97V4.75a.75.75 0 0 1 1.5 0v8.19l2.97-2.97a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-.53.22Z" />
-              </IconButton>
               <IconButton label={`Remove ${p.title}`} onClick={() => onChange(products.filter((x) => x.id !== p.id))}>
                 <path d="M5.72 5.72a.75.75 0 0 1 1.06 0L10 8.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L11.06 10l3.22 3.22a.75.75 0 1 1-1.06 1.06L10 11.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L8.94 10 5.72 6.78a.75.75 0 0 1 0-1.06Z" />
               </IconButton>
-            </li>
-          ))}
-        </ol>
+            </>
+          )}
+        />
       )}
     </Card>
   );

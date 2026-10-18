@@ -11,7 +11,7 @@ import { SaveBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { getOrCreateShop } from "../models/shop.server";
-import { createWidget, deleteWidget, getWidget, listWidgetsForShop, saveWidgetSettings } from "../models/widget.server";
+import { createWidget, deleteWidget, getWidget, listWidgetsForShop, saveWidgetSettings, updateWidget } from "../models/widget.server";
 import {
   PAGE_TYPE_OPTIONS,
   getKindMeta,
@@ -42,6 +42,7 @@ import {
   TextInput,
   Toggle,
 } from "../components/widget-editor/controls";
+import { SortableList } from "../components/SortableList";
 import { useEditorGuards } from "../components/useEditorGuards";
 import { useThemeStatus } from "../components/useThemeStatus";
 import { blockHandleFor, themeEditorUrl } from "../components/themeEditor";
@@ -91,6 +92,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
         cloudflareStreamUid: reel.config.cloudflareStreamUid,
         uploadFailedAt: reel.config.uploadFailedAt,
         durationSeconds: reel.config.durationSeconds,
+        coverTimeSeconds: reel.config.coverTimeSeconds,
         productIds: reel.config.productIds ?? [],
       },
     })),
@@ -119,6 +121,13 @@ export const action = async ({ request, params }: ActionFunctionArgs): Promise<A
 
     const formData = await request.formData();
     const intent = formData.get("intent");
+
+    // One-click Live/Draft from the widget list. updateWidget keeps the
+    // one-live-per-type rule (taking a live sibling off) and syncs the store.
+    if (intent === "publish") {
+      await updateWidget(admin, shop.id, widget.id, { published: formData.get("published") === "true" });
+      return { ok: true, error: null };
+    }
 
     if (intent === "delete") {
       await deleteWidget(admin, shop.id, widget.id);
@@ -458,6 +467,7 @@ function buildPreviewReels(
       title: reel.title,
       posterUrl: reel.config.posterUrl,
       durationSeconds: reel.config.durationSeconds,
+      coverTime: reel.config.coverTimeSeconds,
       products: reel.config.productIds
         .map((pid) => productById.get(pid))
         .filter((p): p is NonNullable<typeof p> => Boolean(p))
@@ -676,13 +686,6 @@ function ReelListPicker({
     query,
   );
 
-  const move = (index: number, delta: number) => {
-    const next = [...selected];
-    const [item] = next.splice(index, 1);
-    next.splice(index + delta, 0, item);
-    onChange(next);
-  };
-
   return (
     <Card
       title="Videos"
@@ -703,9 +706,16 @@ function ReelListPicker({
         <>
           <NotLiveNotice reels={chosen} />
           {chosen.length > 0 && (
-            <ol className={styles.orderList}>
-              {chosen.map((reel, index) => (
-                <li key={reel.id} className={styles.orderItem}>
+            <SortableList
+              items={chosen}
+              getKey={(reel) => reel.id}
+              getLabel={(reel) => reel.title}
+              onReorder={(next) => onChange(next.map((reel) => reel.id))}
+              className={styles.orderList}
+              itemClassName={styles.orderItem}
+              renderItem={(reel, index, handle) => (
+                <>
+                  {handle}
                   <span className={styles.orderIndex}>{index + 1}</span>
                   <ReelThumb reel={reel} />
                   <span className={styles.reelMeta}>
@@ -717,32 +727,14 @@ function ReelListPicker({
                   <button
                     type="button"
                     className={styles.iconButton}
-                    aria-label={`Move ${reel.title} up`}
-                    disabled={index === 0}
-                    onClick={() => move(index, -1)}
-                  >
-                    <ArrowIcon dir="up" />
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.iconButton}
-                    aria-label={`Move ${reel.title} down`}
-                    disabled={index === chosen.length - 1}
-                    onClick={() => move(index, 1)}
-                  >
-                    <ArrowIcon dir="down" />
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.iconButton}
                     aria-label={`Remove ${reel.title}`}
                     onClick={() => onChange(selected.filter((id) => id !== reel.id))}
                   >
                     <CloseIcon />
                   </button>
-                </li>
-              ))}
-            </ol>
+                </>
+              )}
+            />
           )}
 
           {reels.length > selected.length ? (
@@ -1451,15 +1443,6 @@ function CloseIcon() {
     </svg>
   );
 }
-
-function ArrowIcon({ dir }: { dir: "up" | "down" }) {
-  return (
-    <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" style={dir === "down" ? { transform: "rotate(180deg)" } : undefined}>
-      <path d="M10 4.5a.75.75 0 0 1 .53.22l4.25 4.25a.75.75 0 1 1-1.06 1.06l-2.97-2.97v8.19a.75.75 0 0 1-1.5 0V7.06L6.28 10.03a.75.75 0 0 1-1.06-1.06l4.25-4.25A.75.75 0 0 1 10 4.5Z" />
-    </svg>
-  );
-}
-
 
 // After a delete the page navigates away itself; re-running this loader
 // first would 404 and replace the page with the error screen.

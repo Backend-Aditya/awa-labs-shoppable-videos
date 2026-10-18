@@ -3,8 +3,9 @@
 // reloading their theme. Mirrors the shapes, spacing and style variables of
 // extensions/shoppable-video-widgets/assets/*.css — keep the two in step when
 // changing either.
-import type { CSSProperties } from "react";
+import type { CSSProperties, KeyboardEvent } from "react";
 import { useState } from "react";
+import { animatedPreviewUrl } from "../../models/reel-media";
 import type { WidgetKind, WidgetStyleConfig } from "../../models/widget-kinds";
 import type { BrandConfig } from "../../models/brand";
 import { BRAND_DEFAULTS } from "../../models/brand";
@@ -23,6 +24,7 @@ export interface PreviewReel {
   title: string;
   posterUrl?: string;
   durationSeconds?: number;
+  coverTime?: number;
   products: PreviewProduct[];
 }
 
@@ -59,15 +61,51 @@ export function formatDuration(seconds?: number) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
-function Poster({ reel, index, className }: { reel: PreviewReel; index: number; className?: string }) {
+// `playing` swaps in Stream's short animated preview, the same clip the
+// storefront plays on hover, so the mock moves like the real thing.
+function Poster({
+  reel,
+  index,
+  className,
+  playing = false,
+}: {
+  reel: PreviewReel;
+  index: number;
+  className?: string;
+  playing?: boolean;
+}) {
+  const gif = playing ? animatedPreviewUrl(reel.posterUrl, reel.coverTime) : null;
   return (
     <div
       className={`${styles.poster} ${className ?? ""}`}
       style={{
         backgroundImage: reel.posterUrl ? `url("${reel.posterUrl}")` : SAMPLE_POSTERS[index % SAMPLE_POSTERS.length],
       }}
-    />
+    >
+      {gif && <img className={styles.posterGif} src={gif} alt="" />}
+    </div>
   );
+}
+
+// Shared by every mock trigger: hover/focus plays its preview, click or
+// Enter opens that reel in the viewer preview.
+interface Interact {
+  hovered: number | null;
+  bind: (
+    index: number,
+    title: string,
+  ) => {
+    role: "button";
+    tabIndex: 0;
+    "aria-label": string;
+    "data-hit": "";
+    onClick: () => void;
+    onKeyDown: (event: KeyboardEvent) => void;
+    onMouseEnter: () => void;
+    onMouseLeave: () => void;
+    onFocus: () => void;
+    onBlur: () => void;
+  };
 }
 
 function ProductThumb({ product, size }: { product: PreviewProduct; size: number }) {
@@ -103,8 +141,37 @@ export function WidgetPreview({
 }) {
   const [device, setDevice] = useState<Device>("desktop");
   const [mode, setMode] = useState<Mode>("page");
+  const [viewerIndex, setViewerIndex] = useState(0);
+  const [hovered, setHovered] = useState<number | null>(null);
   const usingSamples = reels.length === 0;
   const shown = usingSamples ? SAMPLE_REELS : reels;
+  const current = Math.min(viewerIndex, shown.length - 1);
+
+  const openViewer = (index: number) => {
+    setViewerIndex(index);
+    setHovered(null);
+    setMode("viewer");
+  };
+  const interact: Interact = {
+    hovered,
+    bind: (index, title) => ({
+      role: "button",
+      tabIndex: 0,
+      "aria-label": `Preview “${title}” in the video viewer`,
+      "data-hit": "",
+      onClick: () => openViewer(index),
+      onKeyDown: (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openViewer(index);
+        }
+      },
+      onMouseEnter: () => setHovered(index),
+      onMouseLeave: () => setHovered((h) => (h === index ? null : h)),
+      onFocus: () => setHovered(index),
+      onBlur: () => setHovered((h) => (h === index ? null : h)),
+    }),
+  };
 
   const vars = {
     "--pv-radius": RADIUS[style.cornerStyle ?? "rounded"],
@@ -174,15 +241,25 @@ export function WidgetPreview({
       <div className={styles.stage} data-device={device}>
         <div className={styles.viewport} style={vars} data-device={device}>
           {mode === "viewer" ? (
-            <ViewerPreview reel={shown[0]} index={0} style={style} device={device} theme={brand.viewerTheme} />
+            <ViewerPreview
+              reel={shown[current]}
+              index={current}
+              count={shown.length}
+              onStep={(delta) => setViewerIndex((current + delta + shown.length) % shown.length)}
+              style={style}
+              device={device}
+              theme={brand.viewerTheme}
+            />
           ) : (
-            <PagePreview kind={kind} style={style} reels={shown} device={device} />
+            <PagePreview kind={kind} style={style} reels={shown} device={device} interact={interact} />
           )}
         </div>
       </div>
 
-      {usingSamples && (
+      {usingSamples ? (
         <p className={styles.footnote}>Showing sample videos. Add reels on the Content tab to preview your own.</p>
+      ) : (
+        mode === "page" && <p className={styles.footnote}>Hover a video to play it; click it to open the viewer.</p>
       )}
     </div>
   );
@@ -193,40 +270,42 @@ function PagePreview({
   style,
   reels,
   device,
+  interact,
 }: {
   kind: WidgetKind;
   style: WidgetStyleConfig;
   reels: PreviewReel[];
   device: Device;
+  interact: Interact;
 }) {
   switch (kind) {
     case "PRODUCT_PAGE_REELS":
       return (
         <>
           <ProductPageMock device={device} />
-          <Filmstrip style={style} reels={reels} />
+          <Filmstrip style={style} reels={reels} interact={interact} />
         </>
       );
     case "CAROUSEL":
       return (
         <>
           <HomeHeroMock />
-          <Deck style={style} reels={reels} device={device} />
+          <Deck style={style} reels={reels} device={device} interact={interact} />
         </>
       );
     case "STORIES":
       return (
         <>
-          <Stories style={style} reels={reels} />
+          <Stories style={style} reels={reels} interact={interact} />
           <HomeHeroMock />
         </>
       );
     case "SINGLE_VIDEO":
-      return <Feature style={style} reel={reels[0]} device={device} />;
+      return <Feature style={style} reel={reels[0]} device={device} interact={interact} />;
     case "REEL_POPS":
-      return <Pop style={style} reel={reels[0]} />;
+      return <Pop style={style} reel={reels[0]} interact={interact} />;
     case "ADD_TO_CART_VIDEO":
-      return <AtcMock style={style} reel={reels[0]} device={device} />;
+      return <AtcMock style={style} reel={reels[0]} device={device} interact={interact} />;
     default:
       return null;
   }
@@ -267,7 +346,7 @@ function Heading({ text, align = "start" }: { text?: string; align?: "start" | "
 
 /* ------------------------------------------------------------- filmstrip */
 
-function Filmstrip({ style, reels }: { style: WidgetStyleConfig; reels: PreviewReel[] }) {
+function Filmstrip({ style, reels, interact }: { style: WidgetStyleConfig; reels: PreviewReel[]; interact: Interact }) {
   const grid = style.layoutMode === "grid";
   return (
     <div className={styles.section} style={{ background: "var(--pv-bg)" }}>
@@ -275,8 +354,8 @@ function Filmstrip({ style, reels }: { style: WidgetStyleConfig; reels: PreviewR
       <div className={grid ? styles.filmGrid : styles.filmRow}>
         {reels.map((reel, i) => (
           <div key={reel.id} className={styles.filmCard}>
-            <div className={styles.filmPosterWrap}>
-              <Poster reel={reel} index={i} />
+            <div className={styles.filmPosterWrap} {...interact.bind(i, reel.title)}>
+              <Poster reel={reel} index={i} playing={interact.hovered === i} />
               {style.showDuration && formatDuration(reel.durationSeconds) && (
                 <span className={styles.chip}>
                   <PlayGlyph size={8} />
@@ -303,7 +382,17 @@ function Filmstrip({ style, reels }: { style: WidgetStyleConfig; reels: PreviewR
 
 /* ------------------------------------------------------------------ deck */
 
-function Deck({ style, reels, device }: { style: WidgetStyleConfig; reels: PreviewReel[]; device: Device }) {
+function Deck({
+  style,
+  reels,
+  device,
+  interact,
+}: {
+  style: WidgetStyleConfig;
+  reels: PreviewReel[];
+  device: Device;
+  interact: Interact;
+}) {
   const [requested, setActive] = useState(1);
   const active = Math.max(0, Math.min(requested, reels.length - 1));
   // Same rule as the storefront block: a deck needs at least 3 cards,
@@ -317,8 +406,8 @@ function Deck({ style, reels, device }: { style: WidgetStyleConfig; reels: Previ
         <Heading text={style.heading} align="center" />
         <div className={mode === "grid" ? styles.deckGrid : styles.deckSlider}>
           {reels.map((reel, i) => (
-            <div key={reel.id} className={styles.deckGridCard}>
-              <Poster reel={reel} index={i} />
+            <div key={reel.id} className={styles.deckGridCard} {...interact.bind(i, reel.title)}>
+              <Poster reel={reel} index={i} playing={interact.hovered === i} />
               {style.showCaption && <span className={styles.overlayCaption}>{reel.title}</span>}
             </div>
           ))}
@@ -342,15 +431,21 @@ function Deck({ style, reels, device }: { style: WidgetStyleConfig; reels: Previ
               key={reel.id}
               className={styles.deckCard}
               data-active={offset === 0 || undefined}
-              onClick={() => setActive(i)}
-              aria-label={reel.title}
+              // Like the storefront: a side card comes forward, the front
+              // card opens the viewer.
+              onClick={() => (offset === 0 ? interact.bind(i, reel.title).onClick() : setActive(i))}
+              aria-label={
+                offset === 0
+                  ? `Preview “${reel.title}” in the video viewer`
+                  : `Bring “${reel.title}” forward`
+              }
               style={{
                 transform: `translateX(calc(-50% + ${offset * spread}%)) scale(${1 - abs * 0.14})`,
                 zIndex: 10 - abs,
                 filter: abs ? `brightness(${1 - abs * 0.18})` : undefined,
               }}
             >
-              <Poster reel={reel} index={i} />
+              <Poster reel={reel} index={i} playing={offset === 0} />
               {offset === 0 && (
                 <>
                   <span className={styles.deckPlay}>
@@ -364,11 +459,25 @@ function Deck({ style, reels, device }: { style: WidgetStyleConfig; reels: Previ
         })}
       </div>
       <div className={styles.deckNav}>
-        <span className={styles.deckArrow} aria-hidden="true">‹</span>
+        <button
+          type="button"
+          className={styles.deckArrow}
+          aria-label="Previous video"
+          onClick={() => setActive((active - 1 + reels.length) % reels.length)}
+        >
+          ‹
+        </button>
         {reels.map((reel, i) => (
           <span key={reel.id} className={styles.deckDot} data-active={i === active || undefined} />
         ))}
-        <span className={styles.deckArrow} aria-hidden="true">›</span>
+        <button
+          type="button"
+          className={styles.deckArrow}
+          aria-label="Next video"
+          onClick={() => setActive((active + 1) % reels.length)}
+        >
+          ›
+        </button>
       </div>
     </div>
   );
@@ -376,7 +485,7 @@ function Deck({ style, reels, device }: { style: WidgetStyleConfig; reels: Previ
 
 /* --------------------------------------------------------------- stories */
 
-function Stories({ style, reels }: { style: WidgetStyleConfig; reels: PreviewReel[] }) {
+function Stories({ style, reels, interact }: { style: WidgetStyleConfig; reels: PreviewReel[]; interact: Interact }) {
   const ring =
     style.ringStyle === "solid"
       ? "var(--pv-accent)"
@@ -386,10 +495,10 @@ function Stories({ style, reels }: { style: WidgetStyleConfig; reels: PreviewRee
       <Heading text={style.heading} />
       <div className={styles.storyRow}>
         {reels.map((reel, i) => (
-          <div key={reel.id} className={styles.story}>
+          <div key={reel.id} className={styles.story} {...interact.bind(i, reel.title)}>
             <span className={styles.storyRing} style={{ background: i === reels.length - 1 ? "#d4d4d4" : ring }}>
               <span className={styles.storyInner}>
-                <Poster reel={reel} index={i} className={styles.storyPoster} />
+                <Poster reel={reel} index={i} className={styles.storyPoster} playing={interact.hovered === i} />
               </span>
             </span>
             {style.showCaption && <span className={styles.storyLabel}>{reel.title}</span>}
@@ -402,11 +511,21 @@ function Stories({ style, reels }: { style: WidgetStyleConfig; reels: PreviewRee
 
 /* --------------------------------------------------------------- feature */
 
-function Feature({ style, reel, device }: { style: WidgetStyleConfig; reel: PreviewReel; device: Device }) {
+function Feature({
+  style,
+  reel,
+  device,
+  interact,
+}: {
+  style: WidgetStyleConfig;
+  reel: PreviewReel;
+  device: Device;
+  interact: Interact;
+}) {
   const split = style.singleLayout !== "poster";
   const video = (
-    <div className={styles.featureVideo}>
-      <Poster reel={reel} index={0} />
+    <div className={styles.featureVideo} {...interact.bind(0, reel.title)}>
+      <Poster reel={reel} index={0} playing={interact.hovered === 0} />
       <span className={styles.featurePlay}>
         <PlayGlyph size={18} />
       </span>
@@ -459,7 +578,7 @@ const POP_POSITION: Record<string, CSSProperties> = {
   top_left: { left: 14, top: 14 },
 };
 
-function Pop({ style, reel }: { style: WidgetStyleConfig; reel: PreviewReel }) {
+function Pop({ style, reel, interact }: { style: WidgetStyleConfig; reel: PreviewReel; interact: Interact }) {
   const portrait = style.popShape !== "circle";
   const size = Math.round((style.triggerSize ?? 96) * 0.8);
   const position = POP_POSITION[style.position ?? "bottom_right"];
@@ -474,6 +593,7 @@ function Pop({ style, reel }: { style: WidgetStyleConfig; reel: PreviewReel }) {
       </div>
       <div className={styles.pop} style={{ ...position, flexDirection: onLeft ? "row" : "row-reverse" }}>
         <span
+          {...interact.bind(0, reel.title)}
           className={styles.popPlayer}
           data-pulse={style.showPulse || undefined}
           style={{
@@ -482,7 +602,8 @@ function Pop({ style, reel }: { style: WidgetStyleConfig; reel: PreviewReel }) {
             borderRadius: portrait ? 14 : "50%",
           }}
         >
-          <Poster reel={reel} index={0} />
+          {/* The floating player autoplays muted on the store, so it moves here too. */}
+          <Poster reel={reel} index={0} playing />
           <span className={styles.popDismiss}>×</span>
         </span>
         {style.bubbleLabel && (
@@ -498,7 +619,17 @@ function Pop({ style, reel }: { style: WidgetStyleConfig; reel: PreviewReel }) {
 
 /* ------------------------------------------------------------------- atc */
 
-function AtcMock({ style, reel, device }: { style: WidgetStyleConfig; reel: PreviewReel; device: Device }) {
+function AtcMock({
+  style,
+  reel,
+  device,
+  interact,
+}: {
+  style: WidgetStyleConfig;
+  reel: PreviewReel;
+  device: Device;
+  interact: Interact;
+}) {
   const size = style.triggerSize ?? 56;
   const sub = [reel.title, style.showDuration ? formatDuration(reel.durationSeconds) : ""].filter(Boolean).join(" · ");
   return (
@@ -513,9 +644,9 @@ function AtcMock({ style, reel, device }: { style: WidgetStyleConfig; reel: Prev
           <Skeleton w={36} h={24} r={6} />
         </div>
         <span className={styles.mockAtc}>Add to cart</span>
-        <div className={styles.atcRow} style={{ background: "var(--pv-bg)" }}>
+        <div className={styles.atcRow} style={{ background: "var(--pv-bg)" }} {...interact.bind(0, reel.title)}>
           <span className={styles.atcThumb} style={{ width: size, height: size }}>
-            <Poster reel={reel} index={0} />
+            <Poster reel={reel} index={0} playing={interact.hovered === 0} />
             <span className={styles.atcPlay}>
               <PlayGlyph size={8} />
             </span>
@@ -545,12 +676,16 @@ function CtaButton({ style, small = false }: { style: WidgetStyleConfig; small?:
 function ViewerPreview({
   reel,
   index,
+  count,
+  onStep,
   style,
   device,
   theme,
 }: {
   reel: PreviewReel;
   index: number;
+  count: number;
+  onStep: (delta: number) => void;
   style: WidgetStyleConfig;
   device: Device;
   theme: BrandConfig["viewerTheme"];
@@ -559,7 +694,32 @@ function ViewerPreview({
   return (
     <div className={styles.viewer} data-device={device} data-theme={theme}>
       <div className={styles.viewerPlayer}>
-        <Poster reel={reel} index={index} />
+        <Poster reel={reel} index={index} playing />
+        {count > 1 && (
+          <>
+            <button
+              type="button"
+              className={styles.viewerStep}
+              data-dir="prev"
+              aria-label="Previous video"
+              onClick={() => onStep(-1)}
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              className={styles.viewerStep}
+              data-dir="next"
+              aria-label="Next video"
+              onClick={() => onStep(1)}
+            >
+              ›
+            </button>
+            <span className={styles.viewerCount}>
+              {index + 1} / {count}
+            </span>
+          </>
+        )}
         <span className={styles.viewerProgress}>
           <span style={{ width: "38%" }} />
         </span>

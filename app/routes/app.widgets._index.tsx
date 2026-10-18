@@ -4,7 +4,7 @@ import type {
   LoaderFunctionArgs,
 } from "react-router";
 import { useEffect, useRef, useState } from "react";
-import { useFetcher, useLoaderData, useNavigate, useSearchParams } from "react-router";
+import { useFetcher, useFetchers, useLoaderData, useNavigate, useSearchParams } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
@@ -178,6 +178,56 @@ function CreateWidgetModal({ liveKinds }: { liveKinds: Set<string> }) {
   );
 }
 
+// Puts a widget live or back to draft without opening the editor.
+function LiveSwitch({
+  widget,
+  live,
+  siblingName,
+}: {
+  widget: Widget;
+  live: boolean;
+  siblingName: string | null;
+}) {
+  const fetcher = useFetcher<{ ok: boolean; error: string | null }>({ key: `publish:${widget.id}` });
+  const shopify = useAppBridge();
+  const intended = useRef<{ published: boolean; sibling: string | null } | null>(null);
+
+  useEffect(() => {
+    if (fetcher.state !== "idle" || !intended.current || !fetcher.data) return;
+    const { published, sibling } = intended.current;
+    intended.current = null;
+    if (!fetcher.data.ok) {
+      shopify.toast.show(fetcher.data.error ?? "Couldn't update the widget. Try again.", { isError: true });
+      return;
+    }
+    shopify.toast.show(
+      published ? (sibling ? `${widget.name} is live — “${sibling}” is now a draft` : `${widget.name} is live`) : `${widget.name} is now a draft`,
+    );
+  }, [fetcher.state, fetcher.data, shopify, widget.name]);
+
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={live}
+      aria-label={`Show ${widget.name} on your store`}
+      title={live ? "Live — click to switch to draft" : "Draft — click to put live"}
+      className={styles.liveSwitch}
+      disabled={fetcher.state !== "idle"}
+      onClick={() => {
+        const published = !live;
+        intended.current = { published, sibling: published ? siblingName : null };
+        const formData = new FormData();
+        formData.set("intent", "publish");
+        formData.set("published", String(published));
+        fetcher.submit(formData, { method: "post", action: `/app/widgets/${encodeURIComponent(widget.id)}` });
+      }}
+    >
+      <span className={styles.liveSwitchThumb} />
+    </button>
+  );
+}
+
 function WidgetDeleteModal({ widget, onClose }: { widget: Widget | null; onClose: () => void }) {
   const deleteFetcher = useFetcher();
   const shopify = useAppBridge();
@@ -239,7 +289,21 @@ export default function Widgets() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- run once per arrival
   }, []);
-  const liveCount = widgets.filter((w) => w.published).length;
+  // Optimistic Live/Draft: in-flight switches win over loader data, and a
+  // widget going live takes its live sibling of the same type off with it.
+  const fetchers = useFetchers();
+  const pending = new Map<string, boolean>();
+  for (const f of fetchers) {
+    if (f.key.startsWith("publish:") && f.formData) {
+      pending.set(f.key.slice("publish:".length), f.formData.get("published") === "true");
+    }
+  }
+  const isLive = (w: (typeof widgets)[number]) => {
+    if (pending.has(w.id)) return pending.get(w.id)!;
+    const goingLive = widgets.some((o) => o.id !== w.id && o.type === w.type && pending.get(o.id) === true);
+    return goingLive ? false : w.published;
+  };
+  const liveCount = widgets.filter(isLive).length;
 
   return (
     <s-page heading="Widgets" inlineSize="large">
@@ -269,6 +333,8 @@ export default function Widgets() {
               const meta = getKindMeta(widget.type);
               const config = widget.config as unknown as WidgetConfig;
               const href = `/app/widgets/${encodeURIComponent(widget.id)}`;
+              const live = isLive(widget);
+              const sibling = widgets.find((o) => o.id !== widget.id && o.type === widget.type && isLive(o));
               return (
                 <article key={widget.id} className={styles.widgetCard}>
                   <button type="button" className={styles.widgetOpen} onClick={() => navigate(href)}>
@@ -278,8 +344,8 @@ export default function Widgets() {
                     <span className={styles.widgetBody}>
                       <span className={styles.widgetTitleRow}>
                         <span className={styles.widgetName}>{widget.name}</span>
-                        <span className={styles.status} data-live={widget.published || undefined}>
-                          {widget.published ? (isEmpty(widget) ? "Live — no videos yet" : "Live") : "Draft"}
+                        <span className={styles.status} data-live={live || undefined}>
+                          {live ? (isEmpty(widget) ? "Live — no videos yet" : "Live") : "Draft"}
                         </span>
                       </span>
                       <span className={styles.widgetKind}>{meta?.name ?? widget.type}</span>
@@ -291,6 +357,7 @@ export default function Widgets() {
                       </span>
                     </span>
                   </button>
+                  <LiveSwitch widget={widget} live={live} siblingName={sibling?.name ?? null} />
                   <button
                     type="button"
                     className={styles.widgetDelete}

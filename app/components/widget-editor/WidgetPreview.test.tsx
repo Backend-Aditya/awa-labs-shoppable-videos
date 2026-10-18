@@ -77,14 +77,57 @@ describe("WidgetPreview — page mode per kind", () => {
     const deck = container.querySelector(".deck")!;
     // active=1 by default; cards more than 2 away are not drawn.
     const cards = within(deck as HTMLElement).getAllByRole("button");
-    expect(cards.map((c) => c.getAttribute("aria-label"))).toEqual(["Reel 1", "Reel 2", "Reel 3", "Reel 4"]);
-    expect(screen.getByRole("button", { name: "Reel 2" })).toHaveAttribute("data-active", "true");
+    expect(cards.map((c) => c.getAttribute("aria-label"))).toEqual([
+      "Bring “Reel 1” forward",
+      "Preview “Reel 2” in the video viewer",
+      "Bring “Reel 3” forward",
+      "Bring “Reel 4” forward",
+    ]);
+    expect(cards[1]).toHaveAttribute("data-active", "true");
 
-    await userEvent.click(screen.getByRole("button", { name: "Reel 4" }));
-    expect(screen.getByRole("button", { name: "Reel 4" })).toHaveAttribute("data-active", "true");
-    expect(screen.getByRole("button", { name: "Reel 2" })).not.toHaveAttribute("data-active");
+    await userEvent.click(screen.getByRole("button", { name: /Reel 4/ }));
+    expect(screen.getByRole("button", { name: /Reel 4/ })).toHaveAttribute("data-active", "true");
+    expect(screen.getByRole("button", { name: /Reel 2/ })).not.toHaveAttribute("data-active");
     expect(container.querySelectorAll(".deckDot[data-active]")).toHaveLength(1);
     expect(container.querySelectorAll(".deckDot")[3]).toHaveAttribute("data-active", "true");
+
+    // The arrows step through the deck too.
+    await userEvent.click(screen.getByRole("button", { name: "Next video" }));
+    expect(container.querySelectorAll(".deckDot")[4]).toHaveAttribute("data-active", "true");
+  });
+
+  it("CAROUSEL: clicking the front card opens it in the viewer preview", async () => {
+    renderPreview("CAROUSEL", { layoutMode: "stack" }, reels(6));
+    await userEvent.click(screen.getByRole("button", { name: "Preview “Reel 2” in the video viewer" }));
+    expect(screen.getByRole("radio", { name: "Video viewer" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByText("2 / 6")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Next video" }));
+    expect(screen.getByText("3 / 6")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Previous video" }));
+    await userEvent.click(screen.getByRole("button", { name: "Previous video" }));
+    await userEvent.click(screen.getByRole("button", { name: "Previous video" }));
+    expect(screen.getByText("6 / 6")).toBeInTheDocument();
+  });
+
+  it("PRODUCT_PAGE_REELS: a filmstrip card opens with Enter and plays its preview on hover", async () => {
+    // Only Stream posters have an animated preview to swap in.
+    const streamReels = reels(3).map((r, i) => ({
+      ...r,
+      posterUrl: `https://customer-x.cloudflarestream.com/uid${i}/thumbnails/thumbnail.jpg?time=2s`,
+      coverTime: 2,
+    }));
+    const { container } = renderPreview("PRODUCT_PAGE_REELS", {}, streamReels);
+    const card = screen.getByRole("button", { name: "Preview “Reel 3” in the video viewer" });
+    await userEvent.hover(card);
+    expect(card.querySelector("img")?.getAttribute("src")).toBe(
+      "https://customer-x.cloudflarestream.com/uid2/thumbnails/thumbnail.gif?time=2s&duration=4s&height=360&fps=12",
+    );
+    await userEvent.unhover(card);
+    expect(card.querySelector("img")).toBeNull();
+    card.focus();
+    await userEvent.keyboard("{Enter}");
+    expect(screen.getByText("3 / 3")).toBeInTheDocument();
+    expect(container.querySelector(".viewer")).not.toBeNull();
   });
 
   it.each([1, 2])("CAROUSEL: a stack with %i reel(s) falls back to the slider, like the storefront", (count) => {
