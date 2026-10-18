@@ -2,12 +2,14 @@ import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { log } from "../lib/logger.server";
+import { recordEvent } from "../models/analytics.server";
+import type { TrackedEvent } from "../models/analytics.server";
 
 // Storefront view/click events, reached only through Shopify's app proxy
 // (/apps/reels/analytics), which signs each request and supplies the shop.
 // The signature proves the shop, not the visitor, so this endpoint also:
 // - accepts only known event types and reel-id shapes,
-// - stores reel ids in one canonical numeric form,
+// - counts into per-day rollups keyed by the canonical numeric reel id,
 // - caps events per shop per minute in this process (best effort — a
 //   single Render instance today; move to a shared store if scaled out),
 // - caches the shop lookup instead of hitting the DB on every event.
@@ -70,7 +72,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     if (!shopId) return Response.json({ error: "Shop not found" }, { status: 404 });
     if (overLimit(shopId)) return Response.json({ error: "Too many events" }, { status: 429 });
 
-    await prisma.reelEvent.create({ data: { shopId, reelId: match[1], eventType } });
+    await recordEvent(shopId, match[1], eventType as TrackedEvent);
     return Response.json({ success: true });
   } catch (error) {
     log.error("analytics.record_failed", { shop: shopDomain, eventType }, error);

@@ -509,3 +509,45 @@
 .empty p {
   margin: 0;
 }
+
+.card[data-loading] {
+  opacity: 0.55;
+  transition: opacity 0.15s ease;
+}
+
+.range {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 10px;
+  background: var(--p-color-bg-surface-secondary, #f1f1f1);
+  flex: none;
+}
+
+.rangeOption {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--p-color-text-secondary, #616161);
+  padding: 4px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.rangeOption:hover {
+  color: var(--p-color-text, #303030);
+}
+
+.rangeOption[aria-checked="true"] {
+  background: var(--p-color-bg-surface, #fff);
+  color: var(--p-color-text, #303030);
+  box-shadow: 0 1px 0 rgb(0 0 0 / 0.08), 0 0 0 1px rgb(0 0 0 / 0.06);
+}
+
+.rangeOption:focus-visible {
+  outline: 2px solid var(--p-color-border-focus, #005bd3);
+  outline-offset: 1px;
+}

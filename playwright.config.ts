@@ -9,6 +9,9 @@ export default defineConfig({
   testDir: "tests/e2e",
   testMatch: "**/*.spec.ts",
   fullyParallel: true,
+  // Several specs time real playback and story auto-advance; too many
+  // parallel Chromiums on a laptop starve them and they flake.
+  workers: process.env.CI ? 2 : 3,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [["list"], ["html", { open: "never" }]] : [["list"]],

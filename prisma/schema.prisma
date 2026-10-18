@@ -53,6 +53,7 @@ model Shop {
   updatedAt         DateTime           @updatedAt
   widgets           Widget[]
   reelEvents        ReelEvent[]
+  reelDailyStats    ReelDailyStat[]
   orderAttributions OrderAttribution[]
   streamAssets      StreamAsset[]
 }
@@ -87,6 +88,24 @@ model Widget {
   @@index([shopId])
 }
 
+// One row per shop, reel and UTC day, incremented as storefront events
+// arrive (analytics.server.ts recordEvent). All analytics reads come from
+// here, so their cost grows with days × reels rather than with traffic.
+model ReelDailyStat {
+  shop   Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  shopId String
+  // Numeric metaobject id (see reelKey).
+  reelId String
+  day    DateTime @db.Date
+  views  Int      @default(0)
+  clicks Int      @default(0)
+
+  @@id([shopId, reelId, day])
+  @@index([shopId, day])
+}
+
+// Legacy per-event log. No longer written: events were rolled up into
+// ReelDailyStat by migration 20261018090000_reel_daily_stats.
 model ReelEvent {
   id        String   @id @default(cuid())
   shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)

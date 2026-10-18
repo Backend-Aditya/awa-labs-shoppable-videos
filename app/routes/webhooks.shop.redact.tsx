@@ -5,7 +5,7 @@ import { purgeShopStreamAssets } from "../models/stream-assets.server";
 import { log } from "../lib/logger.server";
 
 // Mandatory GDPR webhook — fires ~48h after uninstall. Must erase all data
-// this app holds for the shop. Widget and ReelEvent both have an
+// this app holds for the shop. Widget, ReelEvent and ReelDailyStat have an
 // onDelete: Cascade relation to Shop, so deleting the Shop row alone
 // takes them with it.
 export const action = async ({ request }: ActionFunctionArgs) => {

@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Prisma } from "@prisma/client";
 import prisma from "../db.server";
 import { getOrCreateShop } from "./shop.server";
-import { getDashboardStats, reelKey } from "./analytics.server";
+import { getDashboardStats, getReelStats, getViewCountsByReel, parseRange, recordEvent, reelKey } from "./analytics.server";
 import { BRAND_DEFAULTS, resolveBrand } from "./brand";
 
 describe("reelKey", () => {
@@ -25,7 +25,7 @@ describe("resolveBrand", () => {
 
 describe("getDashboardStats", () => {
   beforeEach(async () => {
-    await prisma.reelEvent.deleteMany();
+    await prisma.reelDailyStat.deleteMany();
     await prisma.orderAttribution.deleteMany();
     await prisma.widget.deleteMany();
     await prisma.shop.deleteMany();
@@ -33,7 +33,7 @@ describe("getDashboardStats", () => {
 
   // Leave nothing behind: other files use the same order/line-item ids.
   afterEach(async () => {
-    await prisma.reelEvent.deleteMany();
+    await prisma.reelDailyStat.deleteMany();
     await prisma.orderAttribution.deleteMany();
     await prisma.shop.deleteMany({ where: { shopDomain: "dashboard.myshopify.com" } });
   });
@@ -47,14 +47,10 @@ describe("getDashboardStats", () => {
     const now = new Date("2026-10-10T12:00:00Z");
     const daysAgo = (n: number) => new Date(now.getTime() - n * 86_400_000);
 
-    await prisma.reelEvent.createMany({
-      data: [
-        { shopId: shop.id, reelId: "gid://shopify/Metaobject/7", eventType: "view", createdAt: daysAgo(1) },
-        { shopId: shop.id, reelId: "7", eventType: "view", createdAt: daysAgo(2) },
-        { shopId: shop.id, reelId: "7", eventType: "click_product", createdAt: daysAgo(2) },
-        { shopId: shop.id, reelId: "9", eventType: "view", createdAt: daysAgo(40) },
-      ],
-    });
+    await recordEvent(shop.id, "gid://shopify/Metaobject/7", "view", daysAgo(1));
+    await recordEvent(shop.id, "7", "view", daysAgo(2));
+    await recordEvent(shop.id, "7", "click_product", daysAgo(2));
+    await recordEvent(shop.id, "9", "view", daysAgo(40));
     await prisma.orderAttribution.create({
       data: {
         shopId: shop.id,
@@ -77,5 +73,45 @@ describe("getDashboardStats", () => {
     expect(stats.daily).toHaveLength(30);
     expect(stats.daily.reduce((n, d) => n + d.views, 0)).toBe(2);
     expect(stats.reels).toEqual([{ key: "7", views: 2, clicks: 1, unitsSold: 2, revenue: 50 }]);
+  });
+
+  it("accumulates concurrent events into one row per reel and day", async () => {
+    const shop = await getOrCreateShop("dashboard.myshopify.com");
+    const at = new Date("2026-10-10T08:00:00Z");
+    // Small bursts: the hosted test database's pooler caps connections.
+    for (let i = 0; i < 3; i++) {
+      await Promise.all(Array.from({ length: 4 }, () => recordEvent(shop.id, "5", "view", at)));
+    }
+    await Promise.all(Array.from({ length: 3 }, () => recordEvent(shop.id, "gid://shopify/Metaobject/5", "click_product", at)));
+    await recordEvent(shop.id, "5", "view", new Date("2026-10-10T23:59:59Z"));
+
+    const rows = await prisma.reelDailyStat.findMany({ where: { shopId: shop.id } });
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ reelId: "5", views: 13, clicks: 3 });
+    expect(await getViewCountsByReel(shop.id)).toEqual({ "5": 13 });
+  });
+
+  it("reports one reel's window with a zero-filled daily series", async () => {
+    const shop = await getOrCreateShop("dashboard.myshopify.com");
+    const now = new Date("2026-10-10T12:00:00Z");
+    await recordEvent(shop.id, "5", "view", new Date("2026-10-09T10:00:00Z"));
+    await recordEvent(shop.id, "5", "click_product", new Date("2026-10-09T11:00:00Z"));
+    await recordEvent(shop.id, "5", "view", new Date("2026-09-01T10:00:00Z"));
+    await recordEvent(shop.id, "6", "view", new Date("2026-10-09T10:00:00Z"));
+
+    const stats = await getReelStats(shop.id, "gid://shopify/Metaobject/5", 7, now);
+    expect(stats).toMatchObject({ days: 7, views: 1, clicks: 1, orders: 0 });
+    expect(stats.daily).toHaveLength(7);
+    expect(stats.daily.at(-1)?.date).toBe("2026-10-10");
+    expect(stats.daily.find((d) => d.date === "2026-10-09")).toEqual({ date: "2026-10-09", views: 1, clicks: 1 });
+  });
+});
+
+describe("parseRange", () => {
+  it("accepts the supported windows and falls back to 30 days", () => {
+    expect(parseRange("7")).toBe(7);
+    expect(parseRange("90")).toBe(90);
+    expect(parseRange("365")).toBe(30);
+    expect(parseRange(null)).toBe(30);
   });
 });

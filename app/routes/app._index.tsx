@@ -1,6 +1,6 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
 import { useEffect, useState } from "react";
-import { useLoaderData, useNavigate } from "react-router";
+import { useLoaderData, useNavigate, useNavigation, useSearchParams } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { getOrCreateShop } from "../models/shop.server";
@@ -8,7 +8,7 @@ import { listReels } from "../models/reel.server";
 import { deriveReelStatus } from "../models/reel-status";
 import { listWidgetsForShop } from "../models/widget.server";
 import { getKindMeta } from "../models/widget-kinds";
-import { getDashboardStats, reelKey } from "../models/analytics.server";
+import { getDashboardStats, parseRange, reelKey } from "../models/analytics.server";
 import { KindSchematic } from "../components/widget-editor/KindSchematic";
 import { ViewsChart } from "../components/ViewsChart";
 import type { WidgetKind } from "../models/widget-kinds";
@@ -17,16 +17,18 @@ import { log } from "../lib/logger.server";
 import { useThemeStatus } from "../components/useThemeStatus";
 import type { ThemeStatus } from "../components/useThemeStatus";
 import { themeEditorUrl } from "../components/themeEditor";
+import { handleRovingKeys } from "../components/widget-editor/controls";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
   const shop = await getOrCreateShop(session.shop);
+  const days = parseRange(new URL(request.url).searchParams.get("days"));
   // Each source degrades on its own: a slow Shopify API or analytics query
   // hides that card instead of taking the whole page down.
   const [reelsResult, widgetsResult, statsResult] = await Promise.allSettled([
     listReels(admin),
     listWidgetsForShop(shop.id),
-    getDashboardStats(shop.id, 30),
+    getDashboardStats(shop.id, days),
   ]);
   for (const result of [reelsResult, widgetsResult, statsResult]) {
     if (result.status === "rejected") {
@@ -175,7 +177,47 @@ export default function Dashboard() {
   );
 }
 
+const RANGES = [
+  { days: 7, label: "7 days" },
+  { days: 30, label: "30 days" },
+  { days: 90, label: "90 days" },
+] as const;
+
+// Switches the reporting window without leaving Home; the card dims while
+// the new numbers load instead of the page jumping.
+function RangePicker({ days }: { days: number }) {
+  const [, setSearchParams] = useSearchParams();
+  const choose = (next: number) => {
+    if (next === days) return;
+    setSearchParams(next === 30 ? {} : { days: String(next) }, { preventScrollReset: true });
+  };
+  return (
+    <div /* eslint-disable-line jsx-a11y/interactive-supports-focus -- roving tabindex: the chosen child is the tab stop */
+      className={styles.range}
+      role="radiogroup"
+      aria-label="Reporting period"
+      onKeyDown={(e) => handleRovingKeys(e, RANGES.map((r) => r.days), days, choose)}
+    >
+      {RANGES.map((r) => (
+        <button
+          key={r.days}
+          type="button"
+          role="radio"
+          aria-checked={r.days === days}
+          tabIndex={r.days === days ? 0 : -1}
+          className={styles.rangeOption}
+          onClick={() => choose(r.days)}
+        >
+          {r.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function Performance({ stats }: { stats: NonNullable<Data["stats"]> }) {
+  const navigation = useNavigation();
+  const loading = navigation.state === "loading" && navigation.location?.pathname === "/app";
   const { current, previous } = stats;
   const ctr = current.views ? (current.clicks / current.views) * 100 : 0;
   const prevCtr = previous.views ? (previous.clicks / previous.views) * 100 : 0;
@@ -186,10 +228,13 @@ function Performance({ stats }: { stats: NonNullable<Data["stats"]> }) {
   const otherCurrencies = current.revenue.length - 1;
 
   return (
-    <section className={styles.card}>
+    <section className={styles.card} data-loading={loading || undefined} aria-busy={loading}>
       <header className={styles.cardHeader}>
-        <h2 className={styles.cardTitle}>Last {stats.days} days</h2>
-        <span className={styles.muted}>Compared with the {stats.days} days before</span>
+        <div>
+          <h2 className={styles.cardTitle}>Last {stats.days} days</h2>
+          <span className={styles.muted}>Compared with the {stats.days} days before</span>
+        </div>
+        <RangePicker days={stats.days} />
       </header>
       <div className={styles.kpis}>
         <Kpi label="Video views" value={current.views.toLocaleString()} delta={change(current.views, previous.views)} />
