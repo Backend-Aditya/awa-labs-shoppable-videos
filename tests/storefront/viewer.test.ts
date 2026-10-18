@@ -124,6 +124,103 @@ describe("opening the viewer", () => {
     expect(q("[data-reelup-play-pause]").getAttribute("aria-label")).toBe("Play video");
   });
 
+  it("the progress strip is a seek slider: pointer, keyboard and live values", async () => {
+    await mountStrip();
+    click(triggerButton(0));
+    await flush();
+    const video = q<HTMLVideoElement>("video");
+    let time = 0;
+    Object.defineProperty(video, "duration", { configurable: true, value: 80 });
+    Object.defineProperty(video, "currentTime", { configurable: true, get: () => time, set: (v: number) => (time = v) });
+    video.dispatchEvent(new Event("loadedmetadata"));
+    const seek = q("[data-reelup-seek]");
+    expect(seek.getAttribute("role")).toBe("slider");
+    expect(seek.getAttribute("aria-valuemax")).toBe("80");
+
+    seek.getBoundingClientRect = () => ({ left: 100, width: 400, top: 0, height: 3, right: 500, bottom: 3, x: 100, y: 0, toJSON: () => ({}) });
+    fireEvent.pointerDown(seek, { pointerId: 1, clientX: 300 });
+    expect(time).toBe(40);
+    expect(q("[data-reelup-player]").classList.contains("is-seeking")).toBe(true);
+    fireEvent.pointerMove(seek, { pointerId: 1, clientX: 400 });
+    expect(time).toBe(60);
+    fireEvent.pointerUp(seek, { pointerId: 1 });
+    expect(q("[data-reelup-player]").classList.contains("is-seeking")).toBe(false);
+    expect(seek.getAttribute("aria-valuetext")).toBe("1:00 / 1:20");
+
+    // Arrow keys seek instead of changing reels.
+    fireEvent.keyDown(seek, { key: "ArrowRight" });
+    expect(time).toBe(65);
+    fireEvent.keyDown(seek, { key: "ArrowLeft" });
+    fireEvent.keyDown(seek, { key: "ArrowLeft" });
+    expect(time).toBe(55);
+    fireEvent.keyDown(seek, { key: "Home" });
+    expect(time).toBe(0);
+    expect(q("#reelup-viewer-title").textContent).toBe("First");
+  });
+
+  it("K or Space toggles playback and M toggles sound", async () => {
+    await mountStrip({ mutedDefault: true });
+    click(triggerButton(0));
+    await flush();
+    const video = q<HTMLVideoElement>("video");
+    expect(video.paused).toBe(false);
+    fireEvent.keyDown(q("#reelup-viewer-title"), { key: "k" });
+    expect(video.paused).toBe(true);
+    fireEvent.keyDown(q("#reelup-viewer-title"), { key: " " });
+    expect(video.paused).toBe(false);
+    // Space on a focused button presses that button instead.
+    fireEvent.keyDown(q("[data-reelup-close]"), { key: " " });
+    expect(video.paused).toBe(false);
+    fireEvent.keyDown(viewer()!, { key: "m" });
+    expect(video.muted).toBe(false);
+    fireEvent.keyDown(viewer()!, { key: "M" });
+    expect(video.muted).toBe(true);
+    // Browser shortcuts pass through untouched.
+    fireEvent.keyDown(viewer()!, { key: "k", ctrlKey: true });
+    expect(video.paused).toBe(false);
+  });
+
+  it("one trackpad or wheel gesture over the video moves one reel", async () => {
+    await mountStrip();
+    click(triggerButton(0));
+    const player = q("[data-reelup-player]");
+    const now = vi.spyOn(Date, "now");
+    now.mockReturnValue(1_000);
+    fireEvent.wheel(player, { deltaY: 15 });
+    fireEvent.wheel(player, { deltaY: 15 });
+    expect(q("#reelup-viewer-title").textContent).toBe("First");
+    fireEvent.wheel(player, { deltaY: 15 });
+    expect(q("#reelup-viewer-title").textContent).toBe("Second");
+    // Momentum events right after are swallowed...
+    now.mockReturnValue(1_200);
+    fireEvent.wheel(player, { deltaY: 80 });
+    expect(q("#reelup-viewer-title").textContent).toBe("Second");
+    // ...and a fresh gesture later moves again; sideways scrolling never does.
+    now.mockReturnValue(3_000);
+    fireEvent.wheel(player, { deltaX: 120, deltaY: 5 });
+    expect(q("#reelup-viewer-title").textContent).toBe("Second");
+    fireEvent.wheel(player, { deltaY: -60 });
+    expect(q("#reelup-viewer-title").textContent).toBe("First");
+    now.mockRestore();
+  });
+
+  it("preloads the next reel's poster", async () => {
+    const created: string[] = [];
+    vi.stubGlobal(
+      "Image",
+      class {
+        decoding = "";
+        set src(value: string) {
+          created.push(value);
+        }
+      },
+    );
+    await mountStrip();
+    click(triggerButton(0));
+    expect(created).toContain("https://cdn.test/posters/22.jpg");
+    vi.unstubAllGlobals();
+  });
+
   it("keeps the viewer usable when playback fails", async () => {
     hls.attach.mockRejectedValueOnce(new Error("HLS not supported"));
     await mountStrip();

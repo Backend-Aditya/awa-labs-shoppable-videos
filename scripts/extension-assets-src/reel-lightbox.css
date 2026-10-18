@@ -251,8 +251,30 @@ html[dir="rtl"] .reelup-story {
   top: 0;
   left: 0;
   right: 0;
+  z-index: 2;
   height: 3px;
   background: rgb(255 255 255 / 0.2);
+  cursor: pointer;
+  touch-action: none;
+  transition: height 0.15s ease;
+}
+
+/* A taller invisible hit area so the thin strip is easy to grab. */
+.reelup-viewer__progress::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 -12px;
+}
+
+.reelup-viewer__progress:hover,
+.reelup-viewer__progress:focus-visible,
+.reelup-viewer__player.is-seeking .reelup-viewer__progress {
+  height: 6px;
+}
+
+.reelup-viewer__progress:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
 }
 
 .reelup-viewer__progress span {
@@ -262,6 +284,11 @@ html[dir="rtl"] .reelup-story {
   transform: scaleX(0);
   transform-origin: var(--ru-origin, left);
   transition: transform 0.25s linear;
+  pointer-events: none;
+}
+
+.reelup-viewer__player.is-seeking .reelup-viewer__progress span {
+  transition: none;
 }
 
 .reelup-viewer__top {

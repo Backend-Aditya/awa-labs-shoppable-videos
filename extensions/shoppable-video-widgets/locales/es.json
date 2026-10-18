@@ -41,6 +41,7 @@
     "carousel_label": "carrusel",
     "playback_error": "No se pudo reproducir este video.",
     "retry_label": "Reintentar",
+    "seek_label": "Progreso del vídeo",
     "editor_placeholder": "Videos comprables: todavía no hay nada que mostrar. Publica este widget y agrega videos en la app, en Widgets (revisa también su segmentación). Solo visible en el editor de temas."
   }
 }

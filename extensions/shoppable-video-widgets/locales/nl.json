@@ -41,6 +41,7 @@
     "carousel_label": "carrousel",
     "playback_error": "Deze video kan niet worden afgespeeld.",
     "retry_label": "Opnieuw proberen",
+    "seek_label": "Videovoortgang",
     "editor_placeholder": "Shopbare video's: nog niets om te tonen. Publiceer deze widget en voeg video's toe in de app onder Widgets (controleer ook de targeting). Alleen zichtbaar in de thema-editor."
   }
 }

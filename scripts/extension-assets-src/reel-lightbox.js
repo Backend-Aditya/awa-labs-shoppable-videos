@@ -57,6 +57,7 @@
     video: "Shoppable video",
     playbackError: "This video couldn't be played.",
     retry: "Try again",
+    seek: "Video progress",
     of: "__CURRENT__ of __TOTAL__",
     ...configLabels,
   };
@@ -598,7 +599,7 @@
         <div class="reelup-viewer__player" data-reelup-player>
           <video class="reelup-viewer__video" playsinline preload="auto"></video>
           <div class="reelup-viewer__shade" aria-hidden="true"></div>
-          <div class="reelup-viewer__progress" aria-hidden="true"><span data-reelup-progress></span></div>
+          <div class="reelup-viewer__progress" data-reelup-seek role="slider" tabindex="0" aria-label="${L.seek}" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0"><span data-reelup-progress></span></div>
           <div class="reelup-viewer__top">
             <span class="reelup-viewer__count" data-reelup-count hidden></span>
             <button type="button" class="reelup-viewer__icon" data-reelup-share aria-label="${L.share}" hidden>${ICONS.share}</button>
@@ -664,10 +665,77 @@
     video.addEventListener("play", syncPlayState);
     video.addEventListener("pause", syncPlayState);
     video.addEventListener("volumechange", syncMute);
-    video.addEventListener("timeupdate", () => {
-      const ratio = video.duration ? video.currentTime / video.duration : 0;
+    // The progress strip doubles as a seek slider: click or drag along it,
+    // or focus it and use the arrow keys (5s steps, Home/End for the ends).
+    const seekBar = dialog.querySelector("[data-reelup-seek]");
+    let seeking = false;
+    const clock = (t) => {
+      const s = Math.max(0, Math.floor(t || 0));
+      return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+    };
+    const syncSeek = () => {
+      const duration = Number.isFinite(video.duration) ? video.duration : 0;
+      const ratio = duration ? Math.min(1, video.currentTime / duration) : 0;
       progress.style.transform = `scaleX(${ratio})`;
+      seekBar.setAttribute("aria-valuemax", String(Math.round(duration)));
+      seekBar.setAttribute("aria-valuenow", String(Math.round(video.currentTime || 0)));
+      seekBar.setAttribute("aria-valuetext", `${clock(video.currentTime)} / ${clock(duration)}`);
+    };
+    const seekTo = (time) => {
+      if (!Number.isFinite(video.duration) || !video.duration) return;
+      video.currentTime = Math.max(0, Math.min(video.duration - 0.05, time));
+      syncSeek();
+    };
+    const seekToPointer = (clientX) => {
+      const rect = seekBar.getBoundingClientRect();
+      if (!rect.width) return;
+      let ratio = (clientX - rect.left) / rect.width;
+      if (isRtl(dialog)) ratio = 1 - ratio;
+      seekTo(Math.max(0, Math.min(1, ratio)) * (video.duration || 0));
+    };
+    seekBar.addEventListener("pointerdown", (event) => {
+      if (!video.duration) return;
+      event.preventDefault();
+      event.stopPropagation();
+      seeking = true;
+      seekBar.setPointerCapture?.(event.pointerId);
+      player.classList.add("is-seeking");
+      seekToPointer(event.clientX);
     });
+    seekBar.addEventListener("pointermove", (event) => {
+      if (seeking) seekToPointer(event.clientX);
+    });
+    const endSeek = (event) => {
+      if (!seeking) return;
+      seeking = false;
+      if (seekBar.hasPointerCapture?.(event.pointerId)) seekBar.releasePointerCapture(event.pointerId);
+      player.classList.remove("is-seeking");
+    };
+    seekBar.addEventListener("pointerup", endSeek);
+    seekBar.addEventListener("pointercancel", endSeek);
+    // A click on the strip must not reach the video (which toggles play).
+    seekBar.addEventListener("click", (event) => event.stopPropagation());
+    seekBar.addEventListener("keydown", (event) => {
+      const rtl = isRtl(dialog);
+      const step = { ArrowRight: 5, ArrowUp: 5, ArrowLeft: -5, ArrowDown: -5 }[event.key];
+      if (step !== undefined) {
+        const horizontal = event.key === "ArrowLeft" || event.key === "ArrowRight";
+        seekTo(video.currentTime + (horizontal && rtl ? -step : step));
+      } else if (event.key === "Home") {
+        seekTo(0);
+      } else if (event.key === "End") {
+        seekTo(video.duration);
+      } else {
+        return;
+      }
+      // Keep the dialog's arrow keys (next/previous reel) out of it.
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    video.addEventListener("timeupdate", () => {
+      if (!seeking) syncSeek();
+    });
+    video.addEventListener("loadedmetadata", syncSeek);
     video.addEventListener("ended", () => {
       if (dialog.open && !video.loop && index < group.length - 1) go(1);
     });
@@ -739,6 +807,21 @@
 
     dialog.addEventListener("keydown", (event) => {
       if (event.target.closest?.("select, input, textarea")) return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      // Player shortcuts: K (or Space away from buttons and links) plays and
+      // pauses, M mutes.
+      const key = event.key.toLowerCase();
+      const onControl = event.target.closest?.("button, a, [role='slider']");
+      if (key === "k" || (key === " " && !onControl)) {
+        event.preventDefault();
+        togglePlayback();
+        return;
+      }
+      if (key === "m") {
+        event.preventDefault();
+        mute.click();
+        return;
+      }
       // Horizontal arrows follow reading direction.
       const rtl = isRtl(dialog);
       const nextKeys = ["ArrowDown", rtl ? "ArrowLeft" : "ArrowRight"];
@@ -751,6 +834,32 @@
         go(-1);
       }
     });
+
+    // Trackpad or mouse-wheel scrolling over the video moves through the
+    // group, one reel per gesture: momentum scrolling keeps firing wheel
+    // events, so after a move further ones are ignored for a moment.
+    let wheelTotal = 0;
+    let wheelQuietUntil = 0;
+    player.addEventListener(
+      "wheel",
+      (event) => {
+        if (group.length < 2 || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+        event.preventDefault();
+        const now = Date.now();
+        if (now < wheelQuietUntil) {
+          wheelQuietUntil = now + 250;
+          return;
+        }
+        wheelTotal += event.deltaY;
+        if (Math.abs(wheelTotal) >= 40) {
+          const delta = wheelTotal > 0 ? 1 : -1;
+          wheelTotal = 0;
+          wheelQuietUntil = now + 600;
+          go(delta);
+        }
+      },
+      { passive: false },
+    );
 
     // Vertical swipe on the player moves through the group (mobile).
     let startY = null;
@@ -841,6 +950,7 @@
     dialog.querySelector("[data-reelup-next]").disabled = index === group.length - 1;
 
     trackAnalytics(reelId, "view");
+    preloadPoster(group[index + 1]);
     try {
       await startPlayback(video, trigger.dataset.hlsSrc, isCurrent);
     } catch {
@@ -856,6 +966,18 @@
       // hidden dialog (close already tore down; this is belt and braces).
       window.ReelupHls?.teardown(video);
     }
+  };
+
+  // Warm the next reel's poster so moving on shows a picture instantly
+  // instead of a black frame while its stream starts.
+  const preloaded = new Set();
+  const preloadPoster = (trigger) => {
+    const url = trigger?.dataset.posterUrl;
+    if (!url || preloaded.has(url)) return;
+    preloaded.add(url);
+    const img = new Image();
+    img.decoding = "async";
+    img.src = url;
   };
 
   const go = (delta) => {

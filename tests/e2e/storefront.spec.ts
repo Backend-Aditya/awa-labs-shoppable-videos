@@ -66,6 +66,34 @@ test("open the viewer from the filmstrip and move next / previous", async ({ pag
   await expect(dialog.locator("[data-reelup-count]")).toHaveText("2 of 3");
 });
 
+test("drag along the progress strip to seek; scroll over the video to change reels", async ({ page }) => {
+  await mockShop(page);
+  await stripTrigger(page, "Morning routine").click();
+  const dialog = viewer(page);
+  const video = dialog.locator("video");
+  await expect.poll(() => video.evaluate((v: HTMLVideoElement) => v.duration)).toBeGreaterThan(0);
+  await video.evaluate((v: HTMLVideoElement) => v.pause());
+
+  const seek = dialog.getByRole("slider", { name: "Video progress" });
+  const box = (await seek.boundingBox())!;
+  // Start inside the visible strip: its ends sit under the player's rounded corners.
+  await page.mouse.move(box.x + box.width * 0.25, box.y + 1);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.75, box.y + 1, { steps: 4 });
+  await page.mouse.up();
+  const ratio = await video.evaluate((v: HTMLVideoElement) => v.currentTime / v.duration);
+  expect(ratio).toBeGreaterThan(0.6);
+  expect(ratio).toBeLessThan(0.9);
+  // Seeking didn't toggle playback or close anything.
+  await expect(dialog).toBeVisible();
+  await expect(dialog.locator("#reelup-viewer-title")).toHaveText("Morning routine");
+
+  const player = (await dialog.locator("[data-reelup-player]").boundingBox())!;
+  await page.mouse.move(player.x + player.width / 2, player.y + player.height / 2);
+  await page.mouse.wheel(0, 120);
+  await expect(dialog.locator("#reelup-viewer-title")).toHaveText("Styling tips");
+});
+
 test("add to cart from the viewer posts the reel attribution", async ({ page }) => {
   const { adds } = await mockShop(page);
   await stripTrigger(page, "Morning routine").click();

@@ -41,6 +41,7 @@
     "carousel_label": "carrousel",
     "playback_error": "Impossible de lire cette vidéo.",
     "retry_label": "Réessayer",
+    "seek_label": "Progression de la vidéo",
     "editor_placeholder": "Vidéos shoppables : rien à afficher pour l'instant. Publiez ce widget et ajoutez des vidéos dans l'app, sous Widgets (vérifiez aussi son ciblage). Visible uniquement dans l'éditeur de thème."
   }
 }

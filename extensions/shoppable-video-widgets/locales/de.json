@@ -41,6 +41,7 @@
     "carousel_label": "Karussell",
     "playback_error": "Dieses Video konnte nicht abgespielt werden.",
     "retry_label": "Erneut versuchen",
+    "seek_label": "Videofortschritt",
     "editor_placeholder": "Shoppable Videos: Hier gibt es noch nichts anzuzeigen. Veröffentliche dieses Widget und füge in der App unter Widgets Videos hinzu (prüfe auch die Seitenauswahl). Nur im Theme-Editor sichtbar."
   }
 }

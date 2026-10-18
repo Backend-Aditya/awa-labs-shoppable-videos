@@ -41,6 +41,7 @@
     "carousel_label": "carosello",
     "playback_error": "Impossibile riprodurre questo video.",
     "retry_label": "Riprova",
+    "seek_label": "Avanzamento del video",
     "editor_placeholder": "Video acquistabili: ancora niente da mostrare. Pubblica questo widget e aggiungi i video nell'app, in Widget (controlla anche il targeting). Visibile solo nell'editor del tema."
   }
 }

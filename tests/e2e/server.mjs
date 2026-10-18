@@ -64,8 +64,24 @@ createServer(async (req, res) => {
       return;
     }
     if (url.pathname === "/media/sample.webm") {
-      res.writeHead(200, { "Content-Type": "video/webm" });
-      res.end(await readFile(path.join(here, "fixtures/sample.webm")));
+      // Byte ranges, like a real CDN: without them Chromium treats the video
+      // as unseekable and seeking specs can't run.
+      const body = await readFile(path.join(here, "fixtures/sample.webm"));
+      const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range ?? "");
+      if (range) {
+        const start = range[1] ? Number(range[1]) : 0;
+        const end = range[2] ? Math.min(Number(range[2]), body.length - 1) : body.length - 1;
+        res.writeHead(206, {
+          "Content-Type": "video/webm",
+          "Accept-Ranges": "bytes",
+          "Content-Range": `bytes ${start}-${end}/${body.length}`,
+          "Content-Length": end - start + 1,
+        });
+        res.end(body.subarray(start, end + 1));
+        return;
+      }
+      res.writeHead(200, { "Content-Type": "video/webm", "Accept-Ranges": "bytes", "Content-Length": body.length });
+      res.end(body);
       return;
     }
     if (url.pathname.startsWith("/assets/")) {
