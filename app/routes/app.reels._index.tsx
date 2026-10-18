@@ -129,6 +129,20 @@ export default function ReelsLibrary() {
   const shopify = useAppBridge();
   const bulkFetcher = useFetcher<typeof action>();
   const [query, setQuery] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+  // "/" jumps to search from anywhere on the page (unless typing already);
+  // Escape in the box clears it.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest("input, textarea, select, [contenteditable='true']")) return;
+      event.preventDefault();
+      searchRef.current?.focus();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
   const [filter, setFilter] = useState<Filter>("all");
   const [sort, setSort] = useState<Sort>("newest");
   const [view, setView] = useState<"grid" | "list">("grid");
@@ -309,11 +323,22 @@ export default function ReelsLibrary() {
                   <SearchIcon />
                   <span className={styles.srOnly}>Search videos</span>
                   <input
+                    ref={searchRef}
                     type="search"
                     placeholder="Search by title"
+                    aria-keyshortcuts="/"
                     value={query}
                     onChange={(e) => setQuery(e.currentTarget.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape" && query) {
+                        e.preventDefault();
+                        setQuery("");
+                      }
+                    }}
                   />
+                  <kbd className={styles.searchKey} aria-hidden="true">
+                    /
+                  </kbd>
                 </label>
                 <label className={styles.sort}>
                   <span className={styles.srOnly}>Sort</span>
