@@ -32,6 +32,23 @@ const igReel = {
   video_duration: 27.4,
 };
 
+// The embed page: a ServerJS handle() payload whose contextJSON field is a
+// JSON string holding the GraphQL-shaped media.
+const igEmbedPage = (shortcodeMedia: object) => {
+  const contextJSON = JSON.stringify({ context: { type: "GraphVideo" }, gql_data: { shortcode_media: shortcodeMedia } });
+  const payload = { require: [["PolarisEmbedSimple", "init", [], [{ isRichEmbed: true, contextJSON }]]] };
+  return `<html><script nonce="x">requireLazy(["ServerJS"],function(ServerJS){var s=(new ServerJS());s.handle(${JSON.stringify(payload)});});</script></html>`;
+};
+
+const igEmbedReel = {
+  __typename: "GraphVideo",
+  shortcode: "DXMVbNOEmWh",
+  is_video: true,
+  video_url: "https://instagram.fcdn.test/v/embed-360.mp4",
+  display_url: "https://instagram.fcdn.test/p/embed-cover.jpg",
+  edge_media_to_caption: { edges: [{ node: { text: "Website no one really talks about" } }] },
+};
+
 const tiktokPage = (detail: object) =>
   `<html><script id="__UNIVERSAL_DATA_FOR_REHYDRATION__" type="application/json">${JSON.stringify({
     __DEFAULT_SCOPE__: { "webapp.app-context": {}, "webapp.video-detail": detail },
@@ -81,6 +98,39 @@ describe("extractInstagramVideo", () => {
       ],
     };
     expect(extractInstagramVideo(igPage(carousel), "CAROUSEL01")).toMatchObject({
+      videoUrl: "https://v/2.mp4",
+      posterUrl: "https://i/2.jpg",
+    });
+  });
+
+  it("skips a light stub of the same post and uses the object with the video", () => {
+    const stub = { code: "DRcloKUDRAd", __typename: "XDTMediaDict", caption: { text: "Stub caption" } };
+    expect(extractInstagramVideo(igPage(igReel, [{ header: stub }]), "DRcloKUDRAd")).toMatchObject({
+      videoUrl: "https://instagram.fcdn.test/v/main.mp4?oh=1",
+    });
+  });
+
+  it("reads the embed page's nested contextJSON", () => {
+    expect(extractInstagramVideo(igEmbedPage(igEmbedReel), "DXMVbNOEmWh")).toEqual({
+      videoUrl: "https://instagram.fcdn.test/v/embed-360.mp4",
+      posterUrl: "https://instagram.fcdn.test/p/embed-cover.jpg",
+      title: "Website no one really talks about",
+      durationSeconds: null,
+    });
+  });
+
+  it("uses the first video in an embed-format carousel", () => {
+    const sidecar = {
+      __typename: "GraphSidecar",
+      shortcode: "SIDECAR001",
+      edge_sidecar_to_children: {
+        edges: [
+          { node: { __typename: "GraphImage", display_url: "https://i/1.jpg" } },
+          { node: { __typename: "GraphVideo", video_url: "https://v/2.mp4", display_url: "https://i/2.jpg" } },
+        ],
+      },
+    };
+    expect(extractInstagramVideo(igEmbedPage(sidecar), "SIDECAR001")).toMatchObject({
       videoUrl: "https://v/2.mp4",
       posterUrl: "https://i/2.jpg",
     });
@@ -189,10 +239,46 @@ describe("resolveSocialVideo", () => {
     [429, /limiting requests/],
     [500, /didn't share/],
   ])("maps HTTP %i to a merchant message", async (status, message) => {
-    const fetchMock = vi.fn().mockResolvedValue(pageResponse("", { status }));
+    const fetchMock = vi.fn().mockImplementation(async () => pageResponse("", { status }));
     await expect(
       resolveSocialVideo("instagram", "https://www.instagram.com/p/DRcloKUDRAd/", fetchMock as never),
     ).rejects.toThrow(message);
+  });
+
+  it("Instagram: falls back to the embed page when the post page is rate-limited", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(pageResponse("", { status: 429 }))
+      .mockResolvedValueOnce(pageResponse(igEmbedPage(igEmbedReel)));
+    const video = await resolveSocialVideo("instagram", "https://www.instagram.com/reel/DXMVbNOEmWh/", fetchMock as never);
+    expect(fetchMock.mock.calls[1][0]).toBe("https://www.instagram.com/p/DXMVbNOEmWh/embed/captioned/");
+    expect(fetchMock.mock.calls[1][1].headers["sec-fetch-dest"]).toBe("iframe");
+    expect(video.videoUrl).toBe("https://instagram.fcdn.test/v/embed-360.mp4");
+  });
+
+  it("Instagram: tries the embed page when the post page has no data, and stops at a 404", async () => {
+    const shellThenEmbed = vi
+      .fn()
+      .mockResolvedValueOnce(pageResponse("<html><title>Instagram</title></html>"))
+      .mockResolvedValueOnce(pageResponse(igEmbedPage(igEmbedReel)));
+    await expect(
+      resolveSocialVideo("instagram", "https://www.instagram.com/reel/DXMVbNOEmWh/", shellThenEmbed as never),
+    ).resolves.toMatchObject({ videoUrl: "https://instagram.fcdn.test/v/embed-360.mp4" });
+
+    const notFound = vi.fn().mockResolvedValue(pageResponse("", { status: 404 }));
+    await expect(
+      resolveSocialVideo("instagram", "https://www.instagram.com/reel/DXMVbNOEmWh/", notFound as never),
+    ).rejects.toThrow(/doesn't exist/);
+    expect(notFound).toHaveBeenCalledTimes(1);
+  });
+
+  it("Instagram: a photo post on the first page is final", async () => {
+    const photo = { code: "PHOTOPOST1", media_type: 1, image_versions2: { candidates: [{ url: "https://i/1.jpg" }] } };
+    const fetchMock = vi.fn().mockResolvedValue(pageResponse(igPage(photo)));
+    await expect(
+      resolveSocialVideo("instagram", "https://www.instagram.com/p/PHOTOPOST1/", fetchMock as never),
+    ).rejects.toThrow(/photo, not a video/);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("reports an unreachable platform", async () => {

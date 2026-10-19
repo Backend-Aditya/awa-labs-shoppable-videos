@@ -2,8 +2,10 @@
 // can be created from a pasted link. Neither platform has a public API for
 // this, so it reads the same page data a logged-out browser renders from:
 // - Instagram: the post page embeds the media object (video_versions) in
-//   its JSON <script> blobs. The CDN link is signed and public for a while,
-//   so Cloudflare Stream can download it directly.
+//   its JSON <script> blobs. Instagram rate-limits that page for shared
+//   server addresses, so the embed page (what sites use to embed a post,
+//   lower resolution) is the fallback. The CDN link is signed and public
+//   for a while, so Cloudflare Stream can download it directly.
 // - TikTok: the video page embeds the item in __UNIVERSAL_DATA_FOR_
 //   REHYDRATION__ (older pages: SIGI_STATE). Its CDN only serves the file
 //   to a request carrying the cookies the page set, so this server
@@ -85,94 +87,181 @@ export function instagramShortcode(url: string): string | null {
   }
 }
 
+// Both shapes Instagram uses: the post page's API objects (video_versions,
+// image_versions2, caption.text) and the embed page's GraphQL ones
+// (video_url, display_url, edge_media_to_caption).
 type InstagramMedia = {
   code?: string;
+  shortcode?: string;
   media_type?: number;
-  video_versions?: { url?: string; width?: number }[];
-  carousel_media?: InstagramMedia[];
-  image_versions2?: { candidates?: { url?: string }[] };
-  caption?: { text?: string } | null;
+  __typename?: string;
+  is_video?: boolean;
+  video_versions?: { url?: string }[];
+  video_url?: string;
   video_duration?: number;
+  carousel_media?: InstagramMedia[];
+  edge_sidecar_to_children?: { edges?: { node?: InstagramMedia }[] };
+  image_versions2?: { candidates?: { url?: string }[] };
+  display_url?: string;
+  caption?: { text?: string } | null;
+  edge_media_to_caption?: { edges?: { node?: { text?: string } }[] };
 };
 
-function* jsonScriptBlobs(html: string): Generator<unknown> {
-  const re = /<script type="application\/json"[^>]*>([\s\S]*?)<\/script>/g;
+// The JSON payloads in a page: <script type="application/json"> blobs and
+// ServerJS `.handle({...})` calls (the embed page).
+function* pagePayloads(html: string): Generator<unknown> {
+  const json = /<script type="application\/json"[^>]*>([\s\S]*?)<\/script>/g;
   let match: RegExpExecArray | null;
-  while ((match = re.exec(html))) {
+  while ((match = json.exec(html))) {
     try {
       yield JSON.parse(match[1]);
     } catch {
       // Not every blob is JSON we can use.
     }
   }
+  let from = 0;
+  while ((from = html.indexOf(".handle({", from)) !== -1) {
+    const start = from + ".handle(".length;
+    const end = matchingBrace(html, start);
+    from = start;
+    if (end === -1) continue;
+    try {
+      yield JSON.parse(html.slice(start, end + 1));
+    } catch {
+      // Not plain JSON.
+    }
+  }
 }
 
-function findByCode(node: unknown, code: string, depth = 0): InstagramMedia | null {
-  if (!node || typeof node !== "object" || depth > 80) return null;
-  if (!Array.isArray(node)) {
-    const media = node as InstagramMedia;
-    if (media.code === code && typeof media.media_type === "number") return media;
+// Index of the brace closing the object that opens at `start`, skipping
+// braces inside strings.
+function matchingBrace(text: string, start: number): number {
+  let depth = 0;
+  let inString = false;
+  for (let i = start; i < text.length; i++) {
+    const c = text[i];
+    if (inString) {
+      if (c === "\\") i++;
+      else if (c === '"') inString = false;
+    } else if (c === '"') inString = true;
+    else if (c === "{") depth++;
+    else if (c === "}" && --depth === 0) return i;
   }
-  for (const value of Array.isArray(node) ? node : Object.values(node)) {
-    const hit = findByCode(value, code, depth + 1);
-    if (hit) return hit;
-  }
-  return null;
+  return -1;
 }
+
+function isPostMedia(node: InstagramMedia, code: string): boolean {
+  return (
+    (node.code === code || node.shortcode === code) &&
+    (typeof node.media_type === "number" || typeof node.__typename === "string" || typeof node.is_video === "boolean")
+  );
+}
+
+// Collects every object describing the post. A page can hold several (a
+// light stub for the header, the full media for the player), so the caller
+// picks the one with video. Some payloads carry JSON inside string fields
+// (the embed page's contextJSON); strings that mention the shortcode are
+// decoded and searched too.
+function collectMedia(node: unknown, code: string, out: InstagramMedia[], depth = 0): void {
+  if (depth > 80 || node == null || out.length >= 20) return;
+  if (typeof node === "string") {
+    if (node.length < 64 || !node.includes(code) || !/^\s*[[{]/.test(node)) return;
+    try {
+      collectMedia(JSON.parse(node), code, out, depth + 1);
+    } catch {
+      // Not JSON after all.
+    }
+    return;
+  }
+  if (typeof node !== "object") return;
+  if (!Array.isArray(node) && isPostMedia(node as InstagramMedia, code)) out.push(node as InstagramMedia);
+  for (const value of Array.isArray(node) ? node : Object.values(node)) collectMedia(value, code, out, depth + 1);
+}
+
+const videoOf = (m: InstagramMedia | undefined) => m?.video_versions?.find((v) => v.url)?.url ?? m?.video_url ?? null;
+const childrenOf = (m: InstagramMedia) =>
+  m.carousel_media ?? m.edge_sidecar_to_children?.edges?.map((e) => e.node ?? {}) ?? [];
 
 // Pure: page HTML -> the post's video, or a reason it has none.
 export function extractInstagramVideo(
   html: string,
   shortcode: string,
 ): Omit<ResolvedSocialVideo, "platform" | "downloadHeaders"> | { error: string } {
-  let media: InstagramMedia | null = null;
-  for (const blob of jsonScriptBlobs(html)) {
-    media = findByCode(blob, shortcode);
-    if (media) break;
-  }
+  const found: InstagramMedia[] = [];
+  for (const payload of pagePayloads(html)) collectMedia(payload, shortcode, found);
+  const hasVideo = (m: InstagramMedia) => Boolean(videoOf(m) || childrenOf(m).some((c) => videoOf(c)));
+  const media = found.find(hasVideo) ?? found[0];
   if (!media) {
     return {
       error: `Instagram didn't share this post. It may be private, age-restricted or removed. ${UPLOAD_INSTEAD}`,
     };
   }
   // A carousel: use its first video.
-  const withVideo = media.video_versions?.length ? media : media.carousel_media?.find((m) => m.video_versions?.length);
-  const url = withVideo?.video_versions?.find((v) => v.url)?.url;
+  const withVideo = videoOf(media) ? media : childrenOf(media).find((m) => videoOf(m));
+  const url = videoOf(withVideo);
   if (!withVideo || !url) return { error: "That Instagram post is a photo, not a video." };
+  const poster = (m: InstagramMedia) => m.image_versions2?.candidates?.[0]?.url ?? m.display_url ?? null;
   return {
     videoUrl: url,
-    posterUrl: withVideo.image_versions2?.candidates?.[0]?.url ?? media.image_versions2?.candidates?.[0]?.url ?? null,
-    title: captionTitle(media.caption?.text),
+    posterUrl: poster(withVideo) ?? poster(media),
+    title: captionTitle(
+      found.map((m) => m.caption?.text ?? m.edge_media_to_caption?.edges?.[0]?.node?.text).find(Boolean),
+    ),
     durationSeconds: typeof withVideo.video_duration === "number" ? withVideo.video_duration : null,
   };
 }
+
+type PageResult = { html: string } | { status: number } | { unreachable: true };
+
+async function loadInstagramPage(url: string, headers: Record<string, string>, fetchImpl: Fetch): Promise<PageResult> {
+  try {
+    const response = await fetchWithTimeout(fetchImpl, url, { headers, redirect: "follow" }, PAGE_TIMEOUT_MS);
+    return response.ok ? { html: await response.text() } : { status: response.status };
+  } catch {
+    return { unreachable: true };
+  }
+}
+
+// How a site embedding the post in an iframe asks for it.
+const EMBED_HEADERS: Record<string, string> = {
+  ...PAGE_HEADERS,
+  "sec-fetch-dest": "iframe",
+  "sec-fetch-site": "cross-site",
+};
 
 async function resolveInstagram(postUrl: string, fetchImpl: Fetch): Promise<ResolvedSocialVideo> {
   const shortcode = instagramShortcode(postUrl);
   if (!shortcode) throw new SocialImportError("Paste the link to one Instagram post or reel.");
 
-  let response: Response;
-  try {
-    response = await fetchWithTimeout(
-      fetchImpl,
-      `https://www.instagram.com/p/${shortcode}/`,
-      { headers: PAGE_HEADERS, redirect: "follow" },
-      PAGE_TIMEOUT_MS,
-    );
-  } catch {
-    throw new SocialImportError("Couldn't reach Instagram. Try again in a minute.");
-  }
-  if (response.status === 404) throw new SocialImportError("That Instagram post doesn't exist or was removed.");
-  if (response.status === 429) {
-    throw new SocialImportError("Instagram is limiting requests right now. Try again in a few minutes.");
-  }
-  if (!response.ok) {
-    throw new SocialImportError(`Instagram didn't share this post. ${UPLOAD_INSTEAD}`);
+  // Full-quality post page first; the embed page only if that fails.
+  const attempts = [
+    () => loadInstagramPage(`https://www.instagram.com/p/${shortcode}/`, PAGE_HEADERS, fetchImpl),
+    () => loadInstagramPage(`https://www.instagram.com/p/${shortcode}/embed/captioned/`, EMBED_HEADERS, fetchImpl),
+  ];
+  let lastError: string | null = null;
+  const statuses: number[] = [];
+  let reached = false;
+  for (const attempt of attempts) {
+    const page = await attempt();
+    if ("unreachable" in page) continue;
+    reached = true;
+    if ("status" in page) {
+      if (page.status === 404) throw new SocialImportError("That Instagram post doesn't exist or was removed.");
+      statuses.push(page.status);
+      continue;
+    }
+    const result = extractInstagramVideo(page.html, shortcode);
+    if (!("error" in result)) return { platform: "instagram", ...result, downloadHeaders: null };
+    // A definite answer about the post itself; no point trying further.
+    if (/photo, not a video/.test(result.error)) throw new SocialImportError(result.error);
+    lastError = result.error;
   }
 
-  const result = extractInstagramVideo(await response.text(), shortcode);
-  if ("error" in result) throw new SocialImportError(result.error);
-  return { platform: "instagram", ...result, downloadHeaders: null };
+  if (!reached) throw new SocialImportError("Couldn't reach Instagram. Try again in a minute.");
+  if (!lastError && statuses.includes(429)) {
+    throw new SocialImportError("Instagram is limiting requests right now. Try again in a few minutes.");
+  }
+  throw new SocialImportError(lastError ?? `Instagram didn't share this post. ${UPLOAD_INSTEAD}`);
 }
 
 /* ---------------------------------------------------------------- TikTok */
