@@ -212,7 +212,14 @@ export function extractInstagramVideo(
   };
 }
 
-type PageResult = { html: string } | { status: number } | { unreachable: true };
+type PageResult = { html: string } | { status: number; loginWall?: boolean } | { unreachable: true };
+
+// Instagram walls off addresses it considers bots: the post page redirects
+// to login (often flagged is_from_rle, "rate limit exceeded") and the embed
+// page becomes a challenge/checkpoint page. Not about the post itself.
+const BLOCKED_MESSAGE =
+  "Instagram is blocking imports from our server right now. Download the video and upload it, or paste a Dropbox link to the file.";
+const isChallengePage = (html: string) => /"(challenge|checkpoint)/.test(html) || html.includes("/challenge/");
 
 // What a failed Instagram page actually contained, so a change on their
 // side shows up in the logs instead of as a vague merchant error.
@@ -230,7 +237,7 @@ async function loadInstagramPage(url: string, headers: Record<string, string>, f
     const response = await fetchWithTimeout(fetchImpl, url, { headers, redirect: "follow" }, PAGE_TIMEOUT_MS);
     if (!response.ok) {
       log.info("social.instagram_page", { page: url.includes("/embed/") ? "embed" : "post", status: response.status, finalUrl: response.url });
-      return { status: response.status };
+      return { status: response.status, loginWall: /\/accounts\/login/.test(response.url) };
     }
     return { html: await response.text() };
   } catch {
@@ -257,6 +264,7 @@ async function resolveInstagram(postUrl: string, fetchImpl: Fetch): Promise<Reso
   let lastError: string | null = null;
   const statuses: number[] = [];
   let reached = false;
+  let walled = false;
   for (const attempt of attempts) {
     const page = await attempt();
     if ("unreachable" in page) continue;
@@ -264,6 +272,7 @@ async function resolveInstagram(postUrl: string, fetchImpl: Fetch): Promise<Reso
     if ("status" in page) {
       if (page.status === 404) throw new SocialImportError("That Instagram post doesn't exist or was removed.");
       statuses.push(page.status);
+      walled ||= Boolean(page.loginWall);
       continue;
     }
     const result = extractInstagramVideo(page.html, shortcode);
@@ -271,10 +280,12 @@ async function resolveInstagram(postUrl: string, fetchImpl: Fetch): Promise<Reso
     log.info("social.instagram_page", { page: attempts.indexOf(attempt) ? "embed" : "post", status: 200, ...describePage(page.html) });
     // A definite answer about the post itself; no point trying further.
     if (/photo, not a video/.test(result.error)) throw new SocialImportError(result.error);
+    walled ||= isChallengePage(page.html);
     lastError = result.error;
   }
 
   if (!reached) throw new SocialImportError("Couldn't reach Instagram. Try again in a minute.");
+  if (walled) throw new SocialImportError(BLOCKED_MESSAGE);
   if (!lastError && statuses.includes(429)) {
     throw new SocialImportError("Instagram is limiting requests right now. Try again in a few minutes.");
   }

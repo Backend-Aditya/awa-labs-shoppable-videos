@@ -272,6 +272,18 @@ describe("resolveSocialVideo", () => {
     expect(notFound).toHaveBeenCalledTimes(1);
   });
 
+  it("Instagram: says plainly when Instagram walls off the server (login redirect, challenge page)", async () => {
+    const walled = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("/embed/")) return pageResponse('<html><title>Instagram</title><script>{"challenge":1}</script></html>');
+      const response = pageResponse("", { status: 429 });
+      Object.defineProperty(response, "url", { value: "https://www.instagram.com/accounts/login/?next=%2Fp%2FX%2F&is_from_rle" });
+      return response;
+    });
+    await expect(
+      resolveSocialVideo("instagram", "https://www.instagram.com/reel/DRcloKUDRAd/", walled as never),
+    ).rejects.toThrow(/blocking imports from our server/);
+  });
+
   it("Instagram: a photo post on the first page is final", async () => {
     const photo = { code: "PHOTOPOST1", media_type: 1, image_versions2: { candidates: [{ url: "https://i/1.jpg" }] } };
     const fetchMock = vi.fn().mockResolvedValue(pageResponse(igPage(photo)));
