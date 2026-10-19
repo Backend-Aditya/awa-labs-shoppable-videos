@@ -925,3 +925,7 @@
     display: none;
   }
 }
+
+.hint[data-error] {
+  color: #8e1f0b;
+}

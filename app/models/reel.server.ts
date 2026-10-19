@@ -14,7 +14,7 @@ export interface ReelConfig {
   // Optional link button shown in the storefront viewer, e.g. "Shop the
   // collection" → /collections/summer.
   interactions: { ctaLabel?: string; ctaUrl?: string };
-  source: { type: "upload" | "instagram" | "tiktok"; originalUrl?: string };
+  source: { type: "upload" | "instagram" | "tiktok" | "link"; originalUrl?: string };
   // Feeds the storefront's VideoObject JSON-LD (schema.org) for this reel —
   // falls back to the reel's title/an empty description when unset. Kept in
   // config rather than as separate metaobject fields since nothing else

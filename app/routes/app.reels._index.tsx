@@ -15,6 +15,7 @@ import { deleteReelEverywhere } from "../models/reel-lifecycle.server";
 import { getOrCreateShop } from "../models/shop.server";
 import { getViewCountsByReel, reelKey } from "../models/analytics.server";
 import { animatedPreviewUrl, formatDuration } from "../models/reel-media";
+import { classifyImportLink } from "../models/video-link";
 import {
   importReel,
   isVideoFile,
@@ -662,7 +663,7 @@ function EmptyLibrary({ onUpload, onImport }: { onUpload: () => void; onImport: 
         <span />
       </div>
       <h2>Upload your first video</h2>
-      <p>Drop video files anywhere on this page, or import a public Instagram or TikTok post. Tag the products it features and it&rsquo;s ready for any widget.</p>
+      <p>Drop video files anywhere on this page, or import one from a link — an Instagram or TikTok post, a video file or a Dropbox share. Tag the products it features and it&rsquo;s ready for any widget.</p>
       <div className={styles.emptyActions}>
         <s-button variant="primary" onClick={onUpload}>
           Upload videos
@@ -936,6 +937,21 @@ function UploadModal({ initialFiles, onClear }: { initialFiles: File[]; onClear:
   );
 }
 
+// A readable starting title: the file's name for a file link ("summer-drop
+// .mp4" -> "summer drop"), otherwise "Instagram video" / "TikTok video".
+function defaultImportTitle(link: ReturnType<typeof classifyImportLink>, platform: string | null) {
+  if (link.kind === "file") {
+    try {
+      const last = decodeURIComponent(new URL(link.url).pathname.split("/").pop() ?? "");
+      const name = last.replace(/\.[a-z0-9]{2,5}$/i, "").replace(/[-_]+/g, " ").trim();
+      if (name) return name.slice(0, 120);
+    } catch {
+      // fall through
+    }
+  }
+  return `${platform ?? "Imported"} video`;
+}
+
 function ImportModal() {
   const shopify = useAppBridge();
   const navigate = useNavigate();
@@ -946,21 +962,33 @@ function ImportModal() {
   const [busy, setBusy] = useState(false);
   const [rights, setRights] = useState(false);
   const { products, setProducts, pick } = useProductPicker();
-  const platform = /instagram\.com/i.test(url) ? "Instagram" : /tiktok\.com/i.test(url) ? "TikTok" : null;
+  const link = classifyImportLink(url);
+  const importable = link.kind === "social" || link.kind === "file";
+  const platform = link.kind === "social" ? (link.platform === "instagram" ? "Instagram" : "TikTok") : null;
+  const hint =
+    link.kind === "social"
+      ? `${platform} post detected. It must be public.`
+      : link.kind === "file"
+        ? link.source === "dropbox"
+          ? "Dropbox file detected. The video is downloaded straight from Dropbox."
+          : "Video link detected. It must open or download the video file itself."
+        : link.kind === "invalid"
+          ? link.error
+          : "A public Instagram or TikTok post, a link to a video file (MP4, MOV, WebM), or a Dropbox share link.";
 
   const submit = async () => {
-    if (!platform || !rights || busy) return;
+    if (!importable || !rights || busy) return;
     setBusy(true);
     setError(null);
     try {
       const reelId = await importReel({
         sourceUrl: url.trim(),
-        title: title.trim() || `${platform ?? "Imported"} video`,
+        title: title.trim() || defaultImportTitle(link, platform),
         published,
         productIds: products.map((p) => p.id),
       });
       shopify.modal.hide("import-modal");
-      shopify.toast.show("Video imported — processing now");
+      shopify.toast.show(link.kind === "file" ? "Importing — the video is downloading and will be ready shortly" : "Video imported — processing now");
       navigate(`/app/reels/${reelId.split("/").pop()}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Import failed.");
@@ -972,7 +1000,7 @@ function ImportModal() {
   return (
     <s-modal
       id="import-modal"
-      heading="Import from Instagram or TikTok"
+      heading="Import from a link"
       onHide={() => {
         if (busy) return;
         setUrl("");
@@ -992,16 +1020,18 @@ function ImportModal() {
       >
         {error && <s-banner tone="critical">{error}</s-banner>}
         <label className={styles.fieldBlock}>
-          <span className={styles.fieldLabel}>Post link</span>
+          <span className={styles.fieldLabel}>Video link</span>
           <input
             className={styles.input}
             type="url"
-            placeholder="https://www.instagram.com/reel/…"
+            placeholder="Instagram, TikTok, Dropbox or video file link"
             value={url}
+            aria-invalid={link.kind === "invalid" || undefined}
+            aria-describedby="import-link-hint"
             onChange={(e) => setUrl(e.currentTarget.value)}
           />
-          <span className={styles.hint}>
-            {platform ? `${platform} post detected.` : "Public posts only. Some posts can't be fetched — upload the file instead if so."}
+          <span id="import-link-hint" className={styles.hint} data-error={link.kind === "invalid" || undefined}>
+            {hint}
           </span>
         </label>
         <label className={styles.fieldBlock}>
@@ -1025,7 +1055,7 @@ function ImportModal() {
         </label>
         <button type="submit" hidden aria-hidden="true" tabIndex={-1} />
       </form>
-      <s-button slot="primary-action" variant="primary" loading={busy} disabled={!platform || !rights} onClick={submit}>
+      <s-button slot="primary-action" variant="primary" loading={busy} disabled={!importable || !rights} onClick={submit}>
         Import video
       </s-button>
       <s-button slot="secondary-actions" commandFor="import-modal" command="--hide" disabled={busy}>

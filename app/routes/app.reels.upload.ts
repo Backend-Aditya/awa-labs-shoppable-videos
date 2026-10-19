@@ -8,15 +8,17 @@ import {
   updateReelConfig,
   upsertReel,
 } from "../models/reel.server";
-import type { AdminGraphqlClient } from "../models/reel.server";
+import type { AdminGraphqlClient, ReelConfig } from "../models/reel.server";
 import { getOrCreateShop } from "../models/shop.server";
 import { discardStreamAsset, recordStreamAsset, releaseStreamAssets } from "../models/stream-assets.server";
 import { log } from "../lib/logger.server";
 import {
+  copyVideoFromUrl,
   createDirectUploadUrl,
   getCloudflareConfig,
   uploadBufferToDirectUploadUrl,
 } from "../models/cloudflare-stream.server";
+import { classifyImportLink } from "../models/video-link";
 import {
   fetchSocialVideo,
   parseSocialVideoUrl,
@@ -31,6 +33,8 @@ import {
 //
 //   { intent: "create",  title, published, productIds } -> { reelId, uploadURL }
 //   { intent: "import",  title, published, productIds, sourceUrl } -> { reelId }
+//       sourceUrl: a public Instagram/TikTok post, or a link to a video
+//       file (incl. Dropbox share links) that Cloudflare downloads itself.
 //   { intent: "replace", reelId } -> { uploadURL }
 //   { intent: "failed",  reelId } -> {}
 
@@ -55,7 +59,7 @@ function cleanProductIds(value: unknown): string[] {
   return [...new Set(value.map(String).filter((id) => /^gid:\/\/shopify\/Product\/\d+$/.test(id)))].slice(0, 50);
 }
 
-async function createReel(admin: AdminGraphqlClient, body: Body, source: { type: "upload" | "instagram" | "tiktok"; originalUrl?: string }) {
+async function createReel(admin: AdminGraphqlClient, body: Body, source: ReelConfig["source"]) {
   const title = String(body.title ?? "").trim().slice(0, 120);
   const productIds = cleanProductIds(body.productIds);
   const reel = await upsertReel(admin, generateReelHandle(title || "reel"), title || "Untitled video", body.published !== false, {
@@ -113,7 +117,33 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       if (body.rightsConfirmed !== true) {
         return json({ error: "Confirm you own this video or have permission to use it." }, 400);
       }
-      const sourceUrl = String(body.sourceUrl ?? "").trim();
+      const sourceUrl = String(body.sourceUrl ?? "").trim().slice(0, 2048);
+      const link = classifyImportLink(sourceUrl);
+      if (link.kind === "empty") return json({ error: "Paste a link to the video." }, 400);
+      if (link.kind === "invalid") return json({ error: link.error }, 400);
+
+      // A video file (or Dropbox) link: Cloudflare fetches it directly.
+      if (link.kind === "file") {
+        const { reel, productIds } = await createReel(admin, body, { type: "link", originalUrl: sourceUrl });
+        try {
+          const { uid } = await copyVideoFromUrl(getCloudflareConfig(), link.url, {
+            reelId: reel.id,
+            shop: session.shop,
+            name: reel.title,
+          });
+          await recordStreamAsset(shop.id, uid);
+          await updateReelConfig(admin, reel.id, { cloudflareStreamUid: uid });
+          return json({ reelId: reel.id });
+        } catch (e) {
+          log.warn("upload.link_import_failed", { shop: session.shop, reelId: reel.id, source: link.source }, e);
+          await discardReel(admin, reel.id, productIds);
+          return json(
+            { error: "Cloudflare couldn't accept that link. Check it opens or downloads the video file, then try again." },
+            502,
+          );
+        }
+      }
+
       const parsed = parseSocialVideoUrl(sourceUrl);
       if (!parsed) return json({ error: "Paste a link to a public Instagram or TikTok video." }, 400);
 

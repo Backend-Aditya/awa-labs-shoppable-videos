@@ -585,7 +585,7 @@ function DetailsTab({
         <TextInput label="Video title" value={state.title} maxLength={120} onChange={(title) => update({ title })} />
         {source.type !== "upload" && (
           <p className={editorStyles.hint}>
-            Imported from {source.type === "instagram" ? "Instagram" : "TikTok"}
+            Imported from {source.type === "instagram" ? "Instagram" : source.type === "tiktok" ? "TikTok" : "a link"}
             {source.originalUrl && (
               <>
                 {" · "}

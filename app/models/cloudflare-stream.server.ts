@@ -92,6 +92,28 @@ export async function createDirectUploadUrl(
   return { uid: json.result.uid, uploadURL: json.result.uploadURL };
 }
 
+// "Upload via link": Cloudflare downloads the file from `url` itself, so
+// nothing passes through this server and large files are fine. The download
+// and encode happen asynchronously; the usual Stream webhook (or the
+// loaders' self-heal) reports ready or error for the returned uid.
+export async function copyVideoFromUrl(
+  config: CloudflareStreamConfig,
+  url: string,
+  meta: Record<string, string>,
+): Promise<{ uid: string }> {
+  const response = await fetch(`https://api.cloudflare.com/client/v4/accounts/${config.accountId}/stream/copy`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${config.apiToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ url, meta }),
+  });
+  const json = (await response.json()) as CloudflareApiResponse<{ uid: string }>;
+  throwOnCloudflareErrors(json);
+  return { uid: json.result.uid };
+}
+
 // Fills a Cloudflare-issued direct-upload URL with a video fetched
 // server-side instead of a browser's file input PUT — same endpoint, same
 // multipart "file" field, just sourced from fetch(videoUrl) (the social

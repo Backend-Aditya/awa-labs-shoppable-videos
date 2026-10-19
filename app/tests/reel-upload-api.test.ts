@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   deleteReel: vi.fn(),
   syncProductReelMetafields: vi.fn(),
   createDirectUploadUrl: vi.fn(),
+  copyVideoFromUrl: vi.fn(),
   recordStreamAsset: vi.fn(),
   discardStreamAsset: vi.fn(),
   releaseStreamAssets: vi.fn(),
@@ -39,6 +40,7 @@ vi.mock("../models/stream-assets.server", () => ({
 
 vi.mock("../models/cloudflare-stream.server", () => ({
   createDirectUploadUrl: mocks.createDirectUploadUrl,
+  copyVideoFromUrl: mocks.copyVideoFromUrl,
   getCloudflareConfig: () => ({ accountId: "a", apiToken: "t" }),
   uploadBufferToDirectUploadUrl: vi.fn(),
 }));
@@ -129,10 +131,63 @@ describe("reel upload API", () => {
     expect(mocks.deleteReel).toHaveBeenCalledWith(expect.anything(), REEL.id);
   });
 
-  it("rejects links that aren't Instagram or TikTok without creating anything", async () => {
-    const { status } = await call({ intent: "import", title: "x", sourceUrl: "https://example.com/v.mp4" });
+  it("refuses an import until the merchant confirms the rights", async () => {
+    const { status } = await call({ intent: "import", title: "x", sourceUrl: "https://cdn.shop.com/v.mp4" });
     expect(status).toBe(400);
     expect(mocks.upsertReel).not.toHaveBeenCalled();
+  });
+
+  it("imports a video file link by having Cloudflare download it", async () => {
+    mocks.copyVideoFromUrl.mockResolvedValue({ uid: "uid-copy" });
+
+    const { status, data } = await call({
+      intent: "import",
+      title: "Launch",
+      sourceUrl: "https://www.dropbox.com/scl/fi/abc/launch.mp4?rlkey=k&dl=0",
+      rightsConfirmed: true,
+    });
+
+    expect(status).toBe(200);
+    expect(data).toEqual({ reelId: REEL.id });
+    const [, url, meta] = mocks.copyVideoFromUrl.mock.calls[0];
+    expect(url).toBe("https://www.dropbox.com/scl/fi/abc/launch.mp4?rlkey=k&dl=1");
+    // The webhook finds the reel by these.
+    expect(meta).toMatchObject({ reelId: REEL.id, shop: "test.myshopify.com" });
+    const [, , , , config] = mocks.upsertReel.mock.calls[0];
+    expect(config.source).toEqual({ type: "link", originalUrl: "https://www.dropbox.com/scl/fi/abc/launch.mp4?rlkey=k&dl=0" });
+    expect(mocks.recordStreamAsset).toHaveBeenCalledWith("shop-1", "uid-copy");
+    expect(mocks.updateReelConfig).toHaveBeenCalledWith(expect.anything(), REEL.id, { cloudflareStreamUid: "uid-copy" });
+    // Nothing is downloaded through this server.
+    expect(mocks.createDirectUploadUrl).not.toHaveBeenCalled();
+  });
+
+  it("cleans up and explains when Cloudflare rejects the link", async () => {
+    mocks.copyVideoFromUrl.mockRejectedValue(new Error("Invalid URL"));
+
+    const { status, data } = await call({
+      intent: "import",
+      title: "x",
+      sourceUrl: "https://cdn.shop.com/v.mp4",
+      rightsConfirmed: true,
+    });
+
+    expect(status).toBe(502);
+    expect(data.error).toMatch(/couldn't accept that link/);
+    expect(mocks.deleteReel).toHaveBeenCalledWith(expect.anything(), REEL.id);
+    expect(mocks.recordStreamAsset).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["https://drive.google.com/file/d/1abc/view", /Google Drive/],
+    ["https://www.youtube.com/shorts/abc", /YouTube/],
+    ["http://localhost/v.mp4", /publicly reachable/],
+    ["", /Paste a link/],
+  ])("rejects %s with a reason and creates nothing", async (sourceUrl, message) => {
+    const { status, data } = await call({ intent: "import", title: "x", sourceUrl, rightsConfirmed: true });
+    expect(status).toBe(400);
+    expect(data.error).toMatch(message);
+    expect(mocks.upsertReel).not.toHaveBeenCalled();
+    expect(mocks.copyVideoFromUrl).not.toHaveBeenCalled();
   });
 
   it("starts a replacement without touching the live video", async () => {
