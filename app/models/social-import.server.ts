@@ -14,6 +14,7 @@
 // public posts. Every failure throws SocialImportError with a message for
 // the merchant.
 import type { SocialPlatform } from "./video-link";
+import { log } from "../lib/logger.server";
 
 export type { SocialPlatform };
 
@@ -213,10 +214,25 @@ export function extractInstagramVideo(
 
 type PageResult = { html: string } | { status: number } | { unreachable: true };
 
+// What a failed Instagram page actually contained, so a change on their
+// side shows up in the logs instead of as a vague merchant error.
+function describePage(html: string) {
+  return {
+    bytes: html.length,
+    title: html.match(/<title[^>]*>([^<]{0,60})/)?.[1]?.trim() ?? null,
+    markers: ["video_versions", "video_url", "contextJSON", "gql_data", "xdt_api__v1", "loginForm", "challenge", "checkpoint", "not-logged-in"]
+      .filter((m) => html.includes(m)),
+  };
+}
+
 async function loadInstagramPage(url: string, headers: Record<string, string>, fetchImpl: Fetch): Promise<PageResult> {
   try {
     const response = await fetchWithTimeout(fetchImpl, url, { headers, redirect: "follow" }, PAGE_TIMEOUT_MS);
-    return response.ok ? { html: await response.text() } : { status: response.status };
+    if (!response.ok) {
+      log.info("social.instagram_page", { page: url.includes("/embed/") ? "embed" : "post", status: response.status, finalUrl: response.url });
+      return { status: response.status };
+    }
+    return { html: await response.text() };
   } catch {
     return { unreachable: true };
   }
@@ -252,6 +268,7 @@ async function resolveInstagram(postUrl: string, fetchImpl: Fetch): Promise<Reso
     }
     const result = extractInstagramVideo(page.html, shortcode);
     if (!("error" in result)) return { platform: "instagram", ...result, downloadHeaders: null };
+    log.info("social.instagram_page", { page: attempts.indexOf(attempt) ? "embed" : "post", status: 200, ...describePage(page.html) });
     // A definite answer about the post itself; no point trying further.
     if (/photo, not a video/.test(result.error)) throw new SocialImportError(result.error);
     lastError = result.error;
