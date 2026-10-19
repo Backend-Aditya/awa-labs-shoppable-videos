@@ -19,12 +19,7 @@ import {
   uploadBufferToDirectUploadUrl,
 } from "../models/cloudflare-stream.server";
 import { classifyImportLink } from "../models/video-link";
-import {
-  fetchSocialVideo,
-  parseSocialVideoUrl,
-  resolveVideoSourceUrl,
-  SocialImportError,
-} from "../models/social-import.server";
+import { downloadSocialVideo, resolveSocialVideo, SocialImportError } from "../models/social-import.server";
 
 // JSON API behind the reels library's upload queue and the editor's
 // "Replace video". Browsers upload the file straight to Cloudflare with the
@@ -144,25 +139,45 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
       }
 
-      const parsed = parseSocialVideoUrl(sourceUrl);
-      if (!parsed) return json({ error: "Paste a link to a public Instagram or TikTok video." }, 400);
+      // An Instagram or TikTok post. Look the video up before creating
+      // anything, so a private or photo-only post leaves no trace.
+      const platformName = link.platform === "instagram" ? "Instagram" : "TikTok";
+      let resolved;
+      try {
+        resolved = await resolveSocialVideo(link.platform, sourceUrl);
+      } catch (e) {
+        log.warn("upload.social_resolve_failed", { shop: session.shop, platform: link.platform }, e);
+        const message =
+          e instanceof SocialImportError ? e.message : `Couldn't read that ${platformName} post. Try again in a minute.`;
+        return json({ error: message }, 502);
+      }
 
-      const { reel, productIds } = await createReel(admin, body, { type: parsed.platform, originalUrl: sourceUrl });
+      const title = String(body.title ?? "").trim() || resolved.title || `${platformName} video`;
+      const { reel, productIds } = await createReel(
+        admin,
+        { ...body, title },
+        { type: link.platform, originalUrl: sourceUrl },
+      );
       let createdUid: string | null = null;
       try {
-        const resolved = await resolveVideoSourceUrl(parsed.platform, sourceUrl);
-        const video = await fetchSocialVideo(resolved.videoUrl, sourceUrl);
-        const { uid, uploadURL } = await createDirectUploadUrl(getCloudflareConfig(), MAX_VIDEO_SECONDS, {
-          reelId: reel.id,
-          shop: session.shop,
-        });
-        createdUid = uid;
-        await recordStreamAsset(shop.id, uid);
-        await uploadBufferToDirectUploadUrl(uploadURL, video, `${reel.handle}.mp4`);
-        await updateReelConfig(admin, reel.id, { cloudflareStreamUid: uid });
+        const meta = { reelId: reel.id, shop: session.shop, name: reel.title };
+        if (!resolved.downloadHeaders) {
+          // Publicly fetchable (Instagram's signed CDN link): Cloudflare
+          // downloads it, nothing passes through this server.
+          createdUid = (await copyVideoFromUrl(getCloudflareConfig(), resolved.videoUrl, meta)).uid;
+          await recordStreamAsset(shop.id, createdUid);
+        } else {
+          // Needs the page's cookies (TikTok): fetch it here, hand it on.
+          const video = await downloadSocialVideo(resolved);
+          const { uid, uploadURL } = await createDirectUploadUrl(getCloudflareConfig(), MAX_VIDEO_SECONDS, meta);
+          createdUid = uid;
+          await recordStreamAsset(shop.id, uid);
+          await uploadBufferToDirectUploadUrl(uploadURL, video, `${reel.handle}.mp4`);
+        }
+        await updateReelConfig(admin, reel.id, { cloudflareStreamUid: createdUid });
         return json({ reelId: reel.id });
       } catch (e) {
-        log.warn("upload.import_failed", { shop: session.shop, reelId: reel.id }, e);
+        log.warn("upload.import_failed", { shop: session.shop, reelId: reel.id, platform: link.platform }, e);
         await discardReel(admin, reel.id, productIds);
         if (createdUid) await discardStreamAsset(shop.id, createdUid);
         const message =

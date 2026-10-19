@@ -983,7 +983,8 @@ function ImportModal() {
     try {
       const reelId = await importReel({
         sourceUrl: url.trim(),
-        title: title.trim() || defaultImportTitle(link, platform),
+        // Social posts are titled from their caption on the server.
+        title: title.trim() || (link.kind === "file" ? defaultImportTitle(link, platform) : ""),
         published,
         productIds: products.map((p) => p.id),
       });
@@ -1036,7 +1037,12 @@ function ImportModal() {
         </label>
         <label className={styles.fieldBlock}>
           <span className={styles.fieldLabel}>Title</span>
-          <input className={styles.input} value={title} placeholder="Shown in the video player" onChange={(e) => setTitle(e.currentTarget.value)} />
+          <input
+            className={styles.input}
+            value={title}
+            placeholder={link.kind === "social" ? "Leave empty to use the post's caption" : "Shown in the video player"}
+            onChange={(e) => setTitle(e.currentTarget.value)}
+          />
         </label>
         <ProductChips products={products} onPick={pick} onRemove={(id) => setProducts((p) => p.filter((x) => x.id !== id))} />
         <label className={styles.switchRow} htmlFor="import-publish">

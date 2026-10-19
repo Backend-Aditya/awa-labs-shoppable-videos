@@ -8,6 +8,9 @@ const mocks = vi.hoisted(() => ({
   syncProductReelMetafields: vi.fn(),
   createDirectUploadUrl: vi.fn(),
   copyVideoFromUrl: vi.fn(),
+  uploadBufferToDirectUploadUrl: vi.fn(),
+  resolveSocialVideo: vi.fn(),
+  downloadSocialVideo: vi.fn(),
   recordStreamAsset: vi.fn(),
   discardStreamAsset: vi.fn(),
   releaseStreamAssets: vi.fn(),
@@ -42,14 +45,13 @@ vi.mock("../models/cloudflare-stream.server", () => ({
   createDirectUploadUrl: mocks.createDirectUploadUrl,
   copyVideoFromUrl: mocks.copyVideoFromUrl,
   getCloudflareConfig: () => ({ accountId: "a", apiToken: "t" }),
-  uploadBufferToDirectUploadUrl: vi.fn(),
+  uploadBufferToDirectUploadUrl: mocks.uploadBufferToDirectUploadUrl,
 }));
 
 vi.mock("../models/social-import.server", () => ({
-  parseSocialVideoUrl: (url: string) => (url.includes("instagram.com") ? { platform: "instagram" } : null),
-  resolveVideoSourceUrl: vi.fn(),
-  fetchSocialVideo: vi.fn(),
-  SocialImportError: class extends Error {},
+  resolveSocialVideo: mocks.resolveSocialVideo,
+  downloadSocialVideo: mocks.downloadSocialVideo,
+  SocialImportError: class SocialImportError extends Error {},
 }));
 
 import { action } from "../routes/app.reels.upload";
@@ -188,6 +190,118 @@ describe("reel upload API", () => {
     expect(data.error).toMatch(message);
     expect(mocks.upsertReel).not.toHaveBeenCalled();
     expect(mocks.copyVideoFromUrl).not.toHaveBeenCalled();
+  });
+
+  it("imports an Instagram reel: titled from its caption, downloaded by Cloudflare", async () => {
+    mocks.resolveSocialVideo.mockResolvedValue({
+      platform: "instagram",
+      videoUrl: "https://instagram.fcdn.test/v.mp4",
+      posterUrl: null,
+      title: "Summer linen, three ways",
+      durationSeconds: 27,
+      downloadHeaders: null,
+    });
+    mocks.copyVideoFromUrl.mockResolvedValue({ uid: "uid-ig" });
+
+    const { status, data } = await call({
+      intent: "import",
+      title: "",
+      sourceUrl: "https://www.instagram.com/reel/DRcloKUDRAd/",
+      rightsConfirmed: true,
+    });
+
+    expect(status).toBe(200);
+    expect(data).toEqual({ reelId: REEL.id });
+    expect(mocks.resolveSocialVideo).toHaveBeenCalledWith("instagram", "https://www.instagram.com/reel/DRcloKUDRAd/");
+    const [, , title, , config] = mocks.upsertReel.mock.calls[0];
+    expect(title).toBe("Summer linen, three ways");
+    expect(config.source).toEqual({ type: "instagram", originalUrl: "https://www.instagram.com/reel/DRcloKUDRAd/" });
+    expect(mocks.copyVideoFromUrl.mock.calls[0][1]).toBe("https://instagram.fcdn.test/v.mp4");
+    expect(mocks.copyVideoFromUrl.mock.calls[0][2]).toMatchObject({ reelId: REEL.id, shop: "test.myshopify.com" });
+    expect(mocks.downloadSocialVideo).not.toHaveBeenCalled();
+    expect(mocks.recordStreamAsset).toHaveBeenCalledWith("shop-1", "uid-ig");
+    expect(mocks.updateReelConfig).toHaveBeenCalledWith(expect.anything(), REEL.id, { cloudflareStreamUid: "uid-ig" });
+  });
+
+  it("imports a TikTok: downloaded here with the page's cookies, then uploaded to Stream", async () => {
+    const resolved = {
+      platform: "tiktok",
+      videoUrl: "https://v16.tiktok.test/play.mp4",
+      posterUrl: null,
+      title: null,
+      durationSeconds: 18,
+      downloadHeaders: { cookie: "tt_chain_token=a" },
+    };
+    mocks.resolveSocialVideo.mockResolvedValue(resolved);
+    const file = new Response("bytes");
+    mocks.downloadSocialVideo.mockResolvedValue(file);
+
+    const { status } = await call({
+      intent: "import",
+      title: "My title",
+      sourceUrl: "https://www.tiktok.com/@shop/video/7590942601512013086",
+      rightsConfirmed: true,
+    });
+
+    expect(status).toBe(200);
+    expect(mocks.upsertReel.mock.calls[0][2]).toBe("My title");
+    expect(mocks.downloadSocialVideo).toHaveBeenCalledWith(resolved);
+    expect(mocks.uploadBufferToDirectUploadUrl).toHaveBeenCalledWith("https://upload.test/1", file, "h.mp4");
+    expect(mocks.copyVideoFromUrl).not.toHaveBeenCalled();
+    expect(mocks.updateReelConfig).toHaveBeenCalledWith(expect.anything(), REEL.id, { cloudflareStreamUid: "uid-1" });
+  });
+
+  it("falls back to a platform title when the post has no caption", async () => {
+    mocks.resolveSocialVideo.mockResolvedValue({
+      platform: "tiktok",
+      videoUrl: "https://v",
+      posterUrl: null,
+      title: null,
+      durationSeconds: null,
+      downloadHeaders: {},
+    });
+    mocks.downloadSocialVideo.mockResolvedValue(new Response("x"));
+    await call({ intent: "import", sourceUrl: "https://vm.tiktok.com/ZMabc/", rightsConfirmed: true });
+    expect(mocks.upsertReel.mock.calls[0][2]).toBe("TikTok video");
+  });
+
+  it("creates nothing when the post can't be read, and passes the reason on", async () => {
+    const { SocialImportError } = await import("../models/social-import.server");
+    mocks.resolveSocialVideo.mockRejectedValue(new SocialImportError("That Instagram post is a photo, not a video."));
+
+    const { status, data } = await call({
+      intent: "import",
+      sourceUrl: "https://www.instagram.com/p/CUbHfhpswxt/",
+      rightsConfirmed: true,
+    });
+
+    expect(status).toBe(502);
+    expect(data.error).toBe("That Instagram post is a photo, not a video.");
+    expect(mocks.upsertReel).not.toHaveBeenCalled();
+  });
+
+  it("removes the reel and its Stream video when the hand-off fails", async () => {
+    mocks.resolveSocialVideo.mockResolvedValue({
+      platform: "tiktok",
+      videoUrl: "https://v",
+      posterUrl: null,
+      title: "t",
+      durationSeconds: null,
+      downloadHeaders: {},
+    });
+    mocks.downloadSocialVideo.mockResolvedValue(new Response("x"));
+    mocks.uploadBufferToDirectUploadUrl.mockRejectedValue(new Error("Cloudflare 500"));
+
+    const { status, data } = await call({
+      intent: "import",
+      sourceUrl: "https://www.tiktok.com/@a/video/1",
+      rightsConfirmed: true,
+    });
+
+    expect(status).toBe(502);
+    expect(data.error).toMatch(/Couldn't import that video/);
+    expect(mocks.deleteReel).toHaveBeenCalledWith(expect.anything(), REEL.id);
+    expect(mocks.discardStreamAsset).toHaveBeenCalledWith("shop-1", "uid-1");
   });
 
   it("starts a replacement without touching the live video", async () => {
