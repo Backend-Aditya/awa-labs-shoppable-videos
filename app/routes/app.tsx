@@ -53,7 +53,7 @@ function NavigationLoading() {
 }
 
 // Shopify's boundary renders its own auth/redirect responses and rethrows
-// everything else — which used to reach React Router's raw crash screen.
+// everything else, which used to reach React Router's raw crash screen.
 // Our own 404s and any unexpected error get a page with a way back instead.
 export function ErrorBoundary() {
   const error = useRouteError();
@@ -78,7 +78,7 @@ export function ErrorBoundary() {
     return (
       <ErrorPage
         title="Something went wrong"
-        body="We couldn't load this page. This is usually a brief connection problem with Shopify — try again in a moment."
+        body="We couldn't load this page. This is usually a brief connection problem with Shopify. Try again in a moment."
         actions={[
           { label: "Try again", onClick: () => window.location.reload(), primary: true },
           { label: "Go to overview", href: "/app" },

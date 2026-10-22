@@ -1,6 +1,6 @@
 // One-off maintenance script: deletes every reel metaobject, clears every
 // $app-namespaced shop metafield this app writes, and deletes every Widget
-// row — for every shop this app has an offline session for. Does NOT touch
+// row, for every shop this app has an offline session for. Does NOT touch
 // Session, ReelEvent, or OrderAttribution rows (analytics/revenue history
 // and the app's own install token aren't part of "flush reels/widgets").
 //

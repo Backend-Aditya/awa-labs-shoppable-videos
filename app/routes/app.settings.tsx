@@ -245,7 +245,7 @@ function BrandSample({ brand }: { brand: BrandConfig }) {
   return (
     <div className={brandStyles.frame}>
       <p className={brandStyles.caption}>
-        Sample — {brand.fontFamily === "theme" ? "text on your store uses your theme's font" : "text on your store uses the system font"}
+        Sample, {brand.fontFamily === "theme" ? "text on your store uses your theme's font" : "text on your store uses the system font"}
       </p>
       <div className={brandStyles.stage} data-theme={brand.viewerTheme} style={vars}>
         <div className={brandStyles.player}>

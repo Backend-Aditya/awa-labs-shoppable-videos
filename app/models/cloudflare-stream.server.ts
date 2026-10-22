@@ -115,7 +115,7 @@ export async function copyVideoFromUrl(
 }
 
 // Fills a Cloudflare-issued direct-upload URL with a video fetched
-// server-side instead of a browser's file input PUT — same endpoint, same
+// server-side instead of a browser's file input PUT, same endpoint, same
 // multipart "file" field, just sourced from fetch(videoUrl) (the social
 // import flow) rather than a <input type="file">. Buffers the whole
 // response rather than streaming it through, since FormData's "file" entry
@@ -175,7 +175,7 @@ export async function getVideoDetails(
   };
 }
 
-// A valid signature over an old `time` would otherwise verify forever —
+// A valid signature over an old `time` would otherwise verify forever,
 // anyone who captures one signed payload (e.g. from logs, a proxy, or a
 // browser network panel) could replay it indefinitely. 5 minutes comfortably
 // covers normal delivery/retry latency without leaving a long replay window.

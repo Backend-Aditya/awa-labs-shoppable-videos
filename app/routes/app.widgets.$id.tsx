@@ -69,7 +69,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     products = await getProductsByIds(admin, productIds);
   } catch (e) {
     if (e instanceof Response) throw e;
-    // Preview-only data — the editor still works with placeholder products.
+    // Preview-only data, the editor still works with placeholder products.
   }
 
   const liveSibling = (await listWidgetsForShop(shop.id)).find(
@@ -135,7 +135,7 @@ export const action = async ({ request, params }: ActionFunctionArgs): Promise<A
     }
 
     if (intent === "duplicate") {
-      // Unpublished copy — the one-live-widget-per-kind rule means a
+      // Unpublished copy, the one-live-widget-per-kind rule means a
       // published duplicate would silently take the original offline.
       const copy = await createWidget(
         shop.id,
@@ -184,7 +184,7 @@ export const action = async ({ request, params }: ActionFunctionArgs): Promise<A
       ? body.pageTypes.map(String).filter((p) => allowedPages.has(p))
       : [];
 
-    // Only ids that still exist in the library can be persisted — a stale
+    // Only ids that still exist in the library can be persisted, a stale
     // metaobject reference would make every later metafield sync for this
     // kind fail (it's written in the same metafieldsSet call).
     const validReelIds = new Set((await listReels(admin)).map((r) => r.id));
@@ -364,13 +364,13 @@ export default function WidgetEditor() {
             <div className={styles.statusText}>
               <p className={styles.statusTitle}>{state.published
                   ? (meta.reelSelection === "list" ? state.reelIds.length === 0 : !state.featuredReelId)
-                    ? "Live — nothing to show yet"
+                    ? "Live, nothing to show yet"
                     : "Live on your store"
                   : "Draft"}
               </p>
               <p className={styles.hint}>
                 {!widget.published && state.published && liveSiblingName
-                  ? `Saving takes “${liveSiblingName}” off your store — one ${meta.name.toLowerCase()} can be live at a time.`
+                  ? `Saving takes “${liveSiblingName}” off your store. One ${meta.name.toLowerCase()} can be live at a time.`
                   : `${meta.name} · ${meta.placement}`}
               </p>
             </div>
@@ -495,7 +495,7 @@ function reelStatusText(reel: EditorReel) {
   if (status === "failed") return "Upload failed";
   if (status === "processing") return "Processing";
   if (status === "draft") return "No video yet";
-  if (!reel.published) return "Not published — hidden on store";
+  if (!reel.published) return "Not published, hidden on store";
   return formatDuration(reel.config.durationSeconds) || "Ready";
 }
 
@@ -525,7 +525,7 @@ function NotLiveNotice({ reels }: { reels: EditorReel[] }) {
     <div className={styles.notice} role="status">
       <WarningIcon />
       <p>
-        {blocked.length === 1 ? "1 video won't show yet" : `${blocked.length} videos won't show yet`} — {parts.join(", ")}.{" "}
+        {blocked.length === 1 ? "1 video won't show yet" : `${blocked.length} videos won't show yet`}, {parts.join(", ")}.{" "}
         <button type="button" className={styles.noticeLink} onClick={() => navigate("/app/reels")}>
           Open Reels
         </button>
@@ -869,7 +869,7 @@ function DesignTab({
   return (
     <>
       {showLooks && (
-        <Card title="Looks" description="A starting point — fine-tune anything below.">
+        <Card title="Looks" description="A starting point. Fine-tune anything below.">
           <div className={styles.looks}>
             {LOOKS.map((look) => (
               <button key={look.name} type="button" className={styles.look} onClick={() => applyLook(look)}>
@@ -1177,7 +1177,7 @@ function ShoppingTab({
               { value: "click", label: "Click" },
               { value: "hover", label: "Hover" },
             ]}
-            hint="Hover applies on desktop only — touch screens always use tap."
+            hint="Hover applies on desktop only. Touch screens always use tap."
           />
         )}
         {has("storyDuration") && (
@@ -1276,7 +1276,7 @@ function VisibilityTab({
   };
 
   // Widgets usually placed on the home page disappear there when limited to
-  // products — say so instead of silently showing nothing.
+  // products, say so instead of silently showing nothing.
   const homeKind = meta.kind === "CAROUSEL" || meta.kind === "STORIES" || meta.kind === "SINGLE_VIDEO";
   const productOnlyConflict =
     rule.type !== "all_products" && state.pageTypes.length > 0 && !state.pageTypes.includes("product");
@@ -1287,14 +1287,14 @@ function VisibilityTab({
       value: "handles",
       label: "Specific products",
       hint: homeKind
-        ? "Only on these products' pages — it won't appear on your home page."
+        ? "Only on these products' pages. It won't appear on your home page."
         : "Only on these product pages.",
     },
     {
       value: "collections",
       label: "Products in collections",
       hint: homeKind
-        ? "Only on product pages in these collections — it won't appear on your home page."
+        ? "Only on product pages in these collections, it won't appear on your home page."
         : "Product pages for anything in these collections.",
     },
   ];
@@ -1303,7 +1303,7 @@ function VisibilityTab({
     <>
       <Card
         title="Add to your theme"
-        description="Opens your theme editor with everything in place — just press Save there."
+        description="Opens your theme editor with everything in place. Just press Save there."
       >
         <ol className={styles.steps}>
           {meta.kind === "REEL_POPS" && (
@@ -1312,10 +1312,10 @@ function VisibilityTab({
                 <strong>Turn on the app embed</strong>
                 <span className={styles.hint}>
                   {theme === null
-                    ? "The floating player lives in the app embed — one switch in your theme editor."
+                    ? "The floating player lives in the app embed. Turn it on in your theme editor."
                     : theme.embedOn
                       ? "On in your live theme."
-                      : "Off in your live theme — the floating player can't show until it's on."}
+                      : "Off in your live theme. The floating player can't show until it's on."}
                 </span>
               </span>
               {!theme?.embedOn && (
@@ -1390,7 +1390,7 @@ function VisibilityTab({
         <div className={styles.notice} role="status">
           <p>
             This widget only shows on product pages for the products you picked, but Products isn&rsquo;t one of
-            the page types below — so it won&rsquo;t show anywhere. Add Products, or show it everywhere.
+            the page types below, so it won&rsquo;t show anywhere. Add Products, or show it everywhere.
           </p>
         </div>
       )}
@@ -1398,7 +1398,7 @@ function VisibilityTab({
       <Card title="Pages and devices">
         <ChipToggleGroup
           label="Page types"
-          hint={state.pageTypes.length === 0 ? "None selected — shows on every page type." : undefined}
+          hint={state.pageTypes.length === 0 ? "None selected. Shows on every page type." : undefined}
           options={PAGE_TYPE_OPTIONS}
           selected={state.pageTypes}
           onChange={(pageTypes) => update({ pageTypes })}

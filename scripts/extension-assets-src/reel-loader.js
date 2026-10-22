@@ -8,8 +8,8 @@
 //
 // Double-loading is safe either way: every runtime file returns early if
 // its global (window.ReelupHls / ReelupLightbox / ReelupStory /
-// ReelupTrigger / ReelupPop) already exists, so delegated listeners — the
-// add-to-cart one in particular — are only ever attached once.
+// ReelupTrigger / ReelupPop) already exists, so delegated listeners, the
+// add-to-cart one in particular, are only ever attached once.
 (() => {
   if (window.__reelupLoader) return;
   window.__reelupLoader = true;

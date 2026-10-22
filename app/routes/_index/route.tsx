@@ -4,7 +4,7 @@ import { redirect, useLoaderData } from "react-router";
 import styles from "./styles.module.css";
 
 // Public landing page (outside the Shopify admin). Merchants install from
-// the Shopify App Store, never by typing a shop domain here — App Store
+// the Shopify App Store, never by typing a shop domain here, App Store
 // review rejects manual-domain install forms. Requests that already carry
 // a shop (e.g. after install) go straight into the embedded app.
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -19,7 +19,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 const FEATURES = [
   {
     title: "Shoppable video, everywhere",
-    body: "Filmstrips on product pages, a stacked carousel, stories, a featured video, a floating player and an add-to-cart row — each built for its place on the page.",
+    body: "Filmstrips on product pages, a stacked carousel, stories, a featured video, a floating player and an add-to-cart row, each built for its place on the page.",
   },
   {
     title: "Add to cart without leaving the video",

@@ -1,7 +1,7 @@
 // Client-safe widget registry: the types, per-kind metadata, style defaults
 // and the style sanitizer. Lives apart from widget.server.ts (which imports
 // Prisma) so the admin editor and its live preview can import the exact same
-// defaults the server persists — one source of truth instead of the old
+// defaults the server persists, one source of truth instead of the old
 // per-component default literals that drifted from what Liquid assumed.
 
 export type WidgetKind =
@@ -99,7 +99,7 @@ export interface WidgetKindMeta {
   kind: WidgetKind;
   name: string;
   description: string;
-  // Where the merchant places it in the theme editor — shown in the editor
+  // Where the merchant places it in the theme editor, shown in the editor
   // so "published but not visible" has an obvious next step.
   placement: string;
   icon: "layout-rows-2" | "play-circle" | "layout-columns-3" | "images" | "layout-popup" | "cart";
@@ -195,7 +195,7 @@ export const WIDGET_KIND_META: Record<Exclude<WidgetKind, "GRID">, WidgetKindMet
   CAROUSEL: {
     kind: "CAROUSEL",
     name: "Stacked carousel",
-    description: "A fanned deck of videos — the center card plays the lead role.",
+    description: "A fanned deck of videos, the center card plays the lead role.",
     placement: "Any page section",
     icon: "layout-columns-3",
     reelSelection: "list",
@@ -392,7 +392,7 @@ export function getKindMeta(kind: string): WidgetKindMeta | undefined {
   return (WIDGET_KIND_META as Record<string, WidgetKindMeta>)[kind];
 }
 
-// Stored style merged over the kind's defaults — what the editor starts from
+// Stored style merged over the kind's defaults, what the editor starts from
 // and what the preview renders. Unset fields fall back to defaults; fields
 // a merchant explicitly cleared (empty string) stay cleared.
 export function resolveStyle(kind: string, style: WidgetStyleConfig | undefined): WidgetStyleConfig {

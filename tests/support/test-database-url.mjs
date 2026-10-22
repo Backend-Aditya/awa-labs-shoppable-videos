@@ -1,7 +1,7 @@
 // Single source of truth for "which database may the test suite touch?".
 // Shared by vitest.config.ts and scripts/test-integration.mjs.
 //
-// The test database URL comes ONLY from TEST_DATABASE_URL or .env.test —
+// The test database URL comes ONLY from TEST_DATABASE_URL or .env.test,
 // never from .env. Vite's loadEnv merges .env into test mode (and Prisma
 // auto-loads .env), so a missing test URL used to fall back to production,
 // and the suite runs unscoped deleteMany() calls. The URL must also look
@@ -38,7 +38,7 @@ export function findTestDatabaseUrl({ env = process.env, envFile = ".env.test" }
   if (!isSafeTestDatabaseUrl(url)) {
     throw new Error(
       "Refusing to run tests: the test DATABASE_URL is neither a local database nor a `schema=test` schema. " +
-        "Tests delete data — point them at a disposable database.",
+        "Tests delete data, point them at a disposable database.",
     );
   }
   return url;

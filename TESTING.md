@@ -17,10 +17,10 @@ automation cannot reach.
 
 Shared helpers live in `tests/support/`:
 
-- `test-database-url.mjs` — the test-database guard (see below).
-- `liquid-engine.mjs` — liquidjs configured like Shopify (shims listed below).
-- `storefront-fixtures.mjs` — builders for products, reels (metaobjects), widgets and shop metafields.
-- `dom-setup.ts` / `integration-setup.ts` — per-project setup files.
+- `test-database-url.mjs`, the test-database guard (see below).
+- `liquid-engine.mjs`, liquidjs configured like Shopify (shims listed below).
+- `storefront-fixtures.mjs`, builders for products, reels (metaobjects), widgets and shop metafields.
+- `dom-setup.ts` / `integration-setup.ts`, per-project setup files.
 
 ## Running
 
@@ -69,14 +69,14 @@ against the test URL, then the `integration` project.
 ### E2E
 
 `npm run test:e2e` runs `npm run build:extension` (which rewrites
-`extensions/shoppable-video-widgets/assets/*.js` from the sources — don't
+`extensions/shoppable-video-widgets/assets/*.js` from the sources, don't
 commit that output from a test run unless you meant to) and then
 Playwright. `tests/e2e/server.mjs` serves:
 
-- `/` — `tests/e2e/fixtures/storefront.html` with the real blocks (app
+- `/`, `tests/e2e/fixtures/storefront.html` with the real blocks (app
   embed, filmstrip, stories, add-to-cart video) rendered by liquidjs;
-- `/assets/*` — the built extension assets;
-- `/media/sample.webm` — a 3 s clip (regenerate with
+- `/assets/*`, the built extension assets;
+- `/media/sample.webm`, a 3 s clip (regenerate with
   `node tests/e2e/fixtures/make-sample-video.mjs`).
 
 Shopify endpoints (`/cart/add.js`, `/cart.js`, recommendations, analytics)
@@ -117,7 +117,7 @@ the playback-error path. hls.js integration itself is unit-tested in
   hooks with `vi.mock` (see `useEditorGuards.test.tsx`).
 - **Known bugs** are pinned with `it.fails` / `test.fail` and a
   `KNOWN BUG:` comment explaining the behaviour. When the bug is fixed the
-  test starts "unexpectedly passing" — drop the `.fails`.
+  test starts "unexpectedly passing", drop the `.fails`.
 
 ## Adding tests
 
@@ -131,7 +131,7 @@ the playback-error path. hls.js integration itself is unit-tested in
 
 `npm run test:coverage` (v8) reports to `coverage/` (HTML, lcov,
 json-summary) and enforces per-area thresholds, set just under today's
-numbers as a ratchet — raise them, never lower them to merge:
+numbers as a ratchet, raise them, never lower them to merge:
 
 | Area | Statements | Branches | Functions | Lines |
 | --- | --- | --- | --- | --- |
@@ -168,10 +168,10 @@ tests only parse the JSON).
 `.github/workflows/ci.yml` runs on every push and pull request, four
 parallel jobs on Node 22 with the npm cache:
 
-1. **Lint, typecheck, build** — `npm run lint`, `npm run typecheck`, `npm run build`, `npm run build:extension`.
-2. **Fast tests** — `npm run test:coverage` (unit, components, storefront, liquid) with thresholds; `coverage/` uploaded as an artifact.
-3. **Integration** — `postgres:16` service, `TEST_DATABASE_URL=…?schema=test`, `npm run test:integration` (migrate deploy + tests).
-4. **E2E** — Playwright Chromium (browsers cached); report and traces uploaded on failure.
+1. **Lint, typecheck, build**, `npm run lint`, `npm run typecheck`, `npm run build`, `npm run build:extension`.
+2. **Fast tests**, `npm run test:coverage` (unit, components, storefront, liquid) with thresholds; `coverage/` uploaded as an artifact.
+3. **Integration**, `postgres:16` service, `TEST_DATABASE_URL=…?schema=test`, `npm run test:integration` (migrate deploy + tests).
+4. **E2E**, Playwright Chromium (browsers cached); report and traces uploaded on failure.
 
 ## Manual QA checklist
 

@@ -10,7 +10,7 @@ import type { TrackedEvent } from "../models/analytics.server";
 // The signature proves the shop, not the visitor, so this endpoint also:
 // - accepts only known event types and reel-id shapes,
 // - counts into per-day rollups keyed by the canonical numeric reel id,
-// - caps events per shop per minute in this process (best effort — a
+// - caps events per shop per minute in this process (best effort, a
 //   single Render instance today; move to a shared store if scaled out),
 // - caches the shop lookup instead of hitting the DB on every event.
 

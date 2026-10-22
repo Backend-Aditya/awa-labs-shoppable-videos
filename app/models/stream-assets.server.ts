@@ -5,7 +5,7 @@ import type { AdminGraphqlClient } from "./reel.server";
 import { listReels } from "./reel.server";
 
 // Bookkeeping for Cloudflare Stream videos. Stream bills per stored minute,
-// so a video must be deleted once nothing uses it — but duplicated reels
+// so a video must be deleted once nothing uses it, but duplicated reels
 // share one video, so "unused" means no reel in the shop still points at it.
 
 export async function recordStreamAsset(shopId: string, uid: string): Promise<void> {

@@ -1,4 +1,4 @@
-// Shared stat-tile markup — app._index.tsx, app.reels.tsx, and
+// Shared stat-tile markup, app._index.tsx, app.reels.tsx, and
 // app.widgets.tsx each reimplemented this box/stack/heading combination
 // slightly differently (some with an icon, some without), so updating the
 // design's spacing/tone meant hunting across three files. One component,
@@ -28,7 +28,7 @@ export function StatTile({
   icon?: StatIcon;
   tone?: "info" | "success";
   accent?: boolean;
-  // Secondary line under the value, e.g. "8 ready to play" — optional so
+  // Secondary line under the value, e.g. "8 ready to play", optional so
   // tiles that are just a single number (the common case) don't carry
   // empty space for a line they don't use.
   caption?: string;

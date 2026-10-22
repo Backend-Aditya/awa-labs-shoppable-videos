@@ -1,5 +1,5 @@
 // Polaris web components (s-text-field, s-text-area, s-checkbox, ...) don't
-// yet cover a color swatch, a bounded number input, or a native <select> —
+// yet cover a color swatch, a bounded number input, or a native <select>,
 // app.widgets.tsx and app.reels.tsx each hand-rolled these with an identical
 // inline style object. One shared, consistently styled set
 // of fields instead of that duplicated styling and markup.

@@ -1,7 +1,7 @@
 // Live, approximate render of each storefront widget inside a mock page, so
 // merchants see a change the moment they make it instead of saving and
 // reloading their theme. Mirrors the shapes, spacing and style variables of
-// extensions/shoppable-video-widgets/assets/*.css — keep the two in step when
+// extensions/shoppable-video-widgets/assets/*.css, keep the two in step when
 // changing either.
 import type { CSSProperties, KeyboardEvent } from "react";
 import { useState } from "react";

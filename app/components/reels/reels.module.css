@@ -610,29 +610,82 @@
 
 .dropzone {
   appearance: none;
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 28px 16px;
-  border: 1.5px dashed #b5b5b5;
-  border-radius: 12px;
-  background: #fafafa;
+  gap: 4px;
+  padding: 36px 20px 28px;
+  border: 1.5px dashed #c9c9c9;
+  border-radius: 16px;
+  background: radial-gradient(120% 140% at 50% 0%, #ffffff 0%, #f6f6f7 100%);
   font: inherit;
   color: #616161;
   cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
-.dropzone:hover:not(:disabled) {
+.dropzone:hover:not(:disabled),
+.dropzone[data-drag] {
   border-color: #303030;
-  background: #f4f4f4;
+  background: #fff;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.07);
+}
+
+.dropzone[data-drag] {
+  border-style: solid;
+  transform: scale(1.004);
+}
+
+.dropzone:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.dropIcon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 10px;
+  border-radius: 50%;
+  background: #fff;
   color: #303030;
+  box-shadow: 0 0 0 1px #e3e3e3, 0 3px 8px rgb(0 0 0 / 0.07);
+  transition: transform 0.18s ease;
+}
+
+.dropzone:hover:not(:disabled) .dropIcon,
+.dropzone[data-drag] .dropIcon {
+  transform: translateY(-3px);
 }
 
 .dropTitle {
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 650;
   color: #303030;
+}
+
+.dropSub {
+  font-size: 13px;
+  color: #616161;
+}
+
+.dropFormats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.dropFormats span {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #f1f1f1;
+  color: #4a4a4a;
+  font-size: 12px;
+  font-weight: 550;
 }
 
 .queue {
@@ -751,10 +804,36 @@
 
 .optionsRow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 220px);
-  gap: 16px;
-  padding-top: 12px;
-  border-top: 1px solid #ebebeb;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+/* Each option sits on its own surface so the two read as separate choices. */
+.optionsRow > .fieldBlock {
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 0 0 1px #e3e3e3;
+}
+
+.optionsRow .fieldLabel {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.optionsRow .linkButton {
+  padding: 3px 12px;
+  border-radius: 8px;
+  box-shadow: 0 0 0 1px #c9c9c9;
+  font-size: 12px;
+  font-weight: 600;
+  color: #303030;
+}
+
+.optionsRow .linkButton:hover {
+  background: #f4f4f4;
+  text-decoration: none;
 }
 
 @media (max-width: 640px) {

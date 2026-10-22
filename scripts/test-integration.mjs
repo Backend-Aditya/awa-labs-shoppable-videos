@@ -1,7 +1,7 @@
 // `npm run test:integration`: migrate the disposable test database, then run
 // the Vitest `integration` project against it. The URL comes from
 // TEST_DATABASE_URL or .env.test and goes through the same safety guard as
-// vitest.config.ts — this script never reads .env.
+// vitest.config.ts, this script never reads .env.
 //
 // Extra arguments are passed to Vitest, e.g.
 //   npm run test:integration -- app/models/widget.server.integration.test.ts

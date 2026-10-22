@@ -149,7 +149,7 @@ function Usage({ current, usage }: { current: Plan; usage: { reels: number | nul
             <div className={styles.meterHead}>
               <span>{row.label}</span>
               <span>
-                {row.used == null ? "—" : row.used.toLocaleString()} / {row.cap.toLocaleString()}
+                {row.used == null ? "-" : row.used.toLocaleString()} / {row.cap.toLocaleString()}
               </span>
             </div>
             <div

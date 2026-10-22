@@ -2,7 +2,7 @@
 //   /                  tests/e2e/fixtures/storefront.html with real block
 //                      markup rendered from the theme extension's Liquid
 //   /assets/*          extensions/shoppable-video-widgets/assets (the BUILT
-//                      files — run `npm run build:extension` first)
+//                      files, run `npm run build:extension` first)
 //   anything else      404 (cart, recommendations and analytics endpoints
 //                      are mocked per test with page.route)
 //

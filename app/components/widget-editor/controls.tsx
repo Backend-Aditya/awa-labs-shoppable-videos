@@ -202,7 +202,7 @@ export function Slider({
 }
 
 // Swatch + hex text box. `allowEmpty` adds a chip (default "Theme") that
-// stores "", which the storefront reads as "inherit" — from the theme, or
+// stores "", which the storefront reads as "inherit", from the theme, or
 // from the brand kit when `emptyLabel` is "Brand".
 const HEX6 = /^#[0-9a-f]{6}$/i;
 
@@ -215,7 +215,7 @@ export function normalizeHex(input: string): string | null {
 }
 
 // Swatch + hex text box. `allowEmpty` adds a chip (default "Theme") that
-// stores "", which the storefront reads as "inherit" — from the theme, or
+// stores "", which the storefront reads as "inherit", from the theme, or
 // from the brand kit when `emptyLabel` is "Brand". The text box keeps its
 // own draft so partial input ("#1", "#12") can be typed; a valid colour is
 // committed as soon as it's complete, an invalid one reverts on blur.

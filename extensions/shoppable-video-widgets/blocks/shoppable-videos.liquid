@@ -1,7 +1,7 @@
 {% doc %}
 The app's master switch: an app embed (target "body") the merchant turns
 on once under Theme settings › App embeds. Shopify's own embed toggle is the
-on/off mechanism — no custom flag.
+on/off mechanism, no custom flag.
 
 Three jobs:
 1. Loads the storefront scripts and viewer styles once per page.
@@ -14,7 +14,7 @@ Three jobs:
    to a corner of every page it targets.
 
 @example
-Enabled under Theme settings › App embeds — not placed with {% content_for %}.
+Enabled under Theme settings › App embeds, not placed with {% content_for %}.
 {% enddoc %}
 
 <script src="{{ 'reel-hls.js' | asset_url }}" defer></script>

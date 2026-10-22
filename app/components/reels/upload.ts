@@ -19,7 +19,7 @@ async function call(body: Record<string, unknown>): Promise<ApiResult> {
   try {
     data = (await response.json()) as ApiResult;
   } catch {
-    // Non-JSON (e.g. an auth redirect) — handled below.
+    // Non-JSON (e.g. an auth redirect), handled below.
   }
   if (!response.ok || data.error) {
     throw new Error(data.error ?? "Something went wrong. Try again.");

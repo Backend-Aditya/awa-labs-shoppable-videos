@@ -19,8 +19,8 @@
 
   /* ------------------------------------------------- hls.js on intent */
 
-  // hls.js (~400 KB) is fetched the first time a shopper shows intent —
-  // pointer over / focus on / touch of any trigger — never on page load.
+  // hls.js (~400 KB) is fetched the first time a shopper shows intent,
+  // pointer over / focus on / touch of any trigger, never on page load.
   const onIntent = (event) => {
     if (!event.target.closest?.("[data-reelup-trigger], [data-reelup-pop]")) return;
     window.ReelupHls?.prefetch?.();
@@ -147,7 +147,7 @@
           card.style.zIndex = String(20 - distance);
           card.classList.toggle("is-active", offset === 0);
           card.toggleAttribute("data-far", distance > 2);
-          // Only the front card is reachable by keyboard — the others are
+          // Only the front card is reachable by keyboard, the others are
           // decoration until they come forward.
           const button = buttonOf(card);
           if (button) button.tabIndex = offset === 0 ? 0 : -1;
@@ -248,7 +248,7 @@
 
   /* ------------------------------------------------- scroll previews */
 
-  // Muted previews while triggers are on screen — lowest HLS rendition, at
+  // Muted previews while triggers are on screen, lowest HLS rendition, at
   // most MAX_PREVIEWS at once (the ones nearest the viewport centre win),
   // never on data-saver or reduced-motion, never before window load, paused
   // while the tab is hidden, and each stops after PREVIEW_MS on its last

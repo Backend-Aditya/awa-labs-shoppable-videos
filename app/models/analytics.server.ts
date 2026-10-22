@@ -110,7 +110,7 @@ export interface ReelStats {
 }
 
 // One reel's last-N-days performance. Matches events stored under either
-// id form (GID or numeric) — see reelKey.
+// id form (GID or numeric), see reelKey.
 export async function getReelStats(shopId: string, reelGid: string, days = 30, now = new Date()): Promise<ReelStats> {
   // Orders may carry either id form (older rows kept the GID); rollups are
   // always keyed by the numeric tail.

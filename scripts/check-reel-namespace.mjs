@@ -1,5 +1,5 @@
 // The app's numeric client ID (the "app--<id>" metafield namespace every
-// block and snippet needs — see snippets/reel-namespace.liquid for why it's
+// block and snippet needs, see snippets/reel-namespace.liquid for why it's
 // a hardcoded literal in each file rather than rendered from one shared
 // snippet) has no other source of truth anywhere in this repo: it isn't
 // derivable from shopify.app.toml's client_id (a different identifier) or
@@ -42,7 +42,7 @@ for (const file of files) {
 }
 
 if (found.length === 0) {
-  console.error("check-reel-namespace: found no files declaring reel_namespace — did they all move or get renamed?");
+  console.error("check-reel-namespace: found no files declaring reel_namespace, did they all move or get renamed?");
   process.exit(1);
 }
 
@@ -53,7 +53,7 @@ if (distinctValues.size > 1) {
     console.error(`  ${namespace}  ${file}`);
   }
   console.error(
-    "\nEvery copy must be identical (there's no single source of truth to generate them from — " +
+    "\nEvery copy must be identical (there's no single source of truth to generate them from, " +
       "see this script's header comment). Pick the correct value and update every file that disagrees with it.",
   );
   process.exit(1);

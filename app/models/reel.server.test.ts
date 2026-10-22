@@ -391,7 +391,7 @@ describe("reel.server", () => {
       cloudflareStreamUid: "abc123",
       durationSeconds: 12.5,
     });
-    // updateReelConfig must never resend title/published — callers like the
+    // updateReelConfig must never resend title/published, callers like the
     // Cloudflare webhook read a snapshot that can be stale by the time this
     // runs, and resending those fields would silently revert a concurrent
     // publish/unpublish from the merchant.

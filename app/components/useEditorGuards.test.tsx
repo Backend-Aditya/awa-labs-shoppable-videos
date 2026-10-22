@@ -42,7 +42,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("useEditorGuards — Ctrl/Cmd+S", () => {
+describe("useEditorGuards, Ctrl/Cmd+S", () => {
   it("saves when dirty and not saving", () => {
     const onSave = vi.fn();
     renderHook(() => useEditorGuards({ dirty: true, onSave }));
@@ -104,7 +104,7 @@ describe("useEditorGuards — Ctrl/Cmd+S", () => {
   });
 });
 
-describe("useEditorGuards — leaving with unsaved changes", () => {
+describe("useEditorGuards, leaving with unsaved changes", () => {
   const nav = (from: string, to: string) => ({ currentLocation: { pathname: from }, nextLocation: { pathname: to } });
 
   it("blocks navigation to another page only while dirty", () => {

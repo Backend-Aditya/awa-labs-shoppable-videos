@@ -13,7 +13,7 @@ import { findTestDatabaseUrl, UNREACHABLE_DATABASE_URL } from "./tests/support/t
 // End-to-end tests are Playwright (playwright.config.ts), not Vitest.
 //
 // Database guard: the test database URL comes ONLY from TEST_DATABASE_URL
-// or .env.test — never from .env — and must look disposable (`schema=test`
+// or .env.test, never from .env, and must look disposable (`schema=test`
 // or a local host), or loading this config throws. When no URL is set at
 // all, every project except `integration` still runs (CI's fast jobs have
 // no database); the integration project then fails with a clear message.

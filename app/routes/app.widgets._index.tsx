@@ -47,7 +47,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // Created live: updateWidget (not a raw write) keeps the one-live-per-
     // kind invariant and the storefront metafield sync identical to a
     // manual publish.
-    // Go live straight away — unless this type already has a live widget,
+    // Go live straight away, unless this type already has a live widget,
     // which publishing would silently take off the store. Then it starts as
     // a draft and the merchant decides when to switch.
     const liveSibling = (await listWidgetsForShop(shop.id)).some(
@@ -140,7 +140,7 @@ function CreateWidgetModal({ liveKinds }: { liveKinds: Set<string> }) {
                 <span className={styles.kindName}>{m.name}</span>
                 <span className={styles.kindDescription}>{m.description}</span>
                 {liveKinds.has(k) && (
-                  <span className={styles.kindNote}>You have one live — this starts as a draft.</span>
+                  <span className={styles.kindNote}>One is already live, so this starts as a draft.</span>
                 )}
               </button>
             );
@@ -148,6 +148,7 @@ function CreateWidgetModal({ liveKinds }: { liveKinds: Set<string> }) {
         </div>
         <label className={styles.nameField}>
           <span>Name</span>
+          <span className={styles.nameHint}>Only you see this. Shoppers never do.</span>
           <input
             type="text"
             value={name}
@@ -201,7 +202,7 @@ function LiveSwitch({
       return;
     }
     shopify.toast.show(
-      published ? (sibling ? `${widget.name} is live — “${sibling}” is now a draft` : `${widget.name} is live`) : `${widget.name} is now a draft`,
+      published ? (sibling ? `${widget.name} is live, “${sibling}” is now a draft` : `${widget.name} is live`) : `${widget.name} is now a draft`,
     );
   }, [fetcher.state, fetcher.data, shopify, widget.name]);
 
@@ -211,7 +212,7 @@ function LiveSwitch({
       role="switch"
       aria-checked={live}
       aria-label={`Show ${widget.name} on your store`}
-      title={live ? "Live — click to switch to draft" : "Draft — click to put live"}
+      title={live ? "Live, click to switch to draft" : "Draft, click to put live"}
       className={styles.liveSwitch}
       disabled={fetcher.state !== "idle"}
       onClick={() => {
@@ -316,7 +317,7 @@ export default function Widgets() {
           <EmptyState
             icon="apps"
             heading="Put your videos on the storefront"
-            body="Widgets decide where and how your reels appear — a filmstrip on product pages, stories on the home page, a floating player, and more."
+            body="Widgets decide where and how your reels appear, a filmstrip on product pages, stories on the home page, a floating player, and more."
             actionLabel="Create widget"
             actionCommandFor="create-widget-modal"
           />
@@ -345,7 +346,7 @@ export default function Widgets() {
                       <span className={styles.widgetTitleRow}>
                         <span className={styles.widgetName}>{widget.name}</span>
                         <span className={styles.status} data-live={live || undefined}>
-                          {live ? (isEmpty(widget) ? "Live — no videos yet" : "Live") : "Draft"}
+                          {live ? (isEmpty(widget) ? "Live, no videos yet" : "Live") : "Draft"}
                         </span>
                       </span>
                       <span className={styles.widgetKind}>{meta?.name ?? widget.type}</span>

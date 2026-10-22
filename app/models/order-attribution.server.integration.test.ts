@@ -56,7 +56,7 @@ describe("extractAttributionsFromOrderPayload", () => {
   });
 
   it("computes revenue with decimal precision, not float multiplication", () => {
-    // 19.99 * 3 in native floating point is 59.964999999999996, not 59.97 —
+    // 19.99 * 3 in native floating point is 59.964999999999996, not 59.97,
     // this is exactly the rounding error the Decimal arithmetic avoids.
     const payload: OrderPaidWebhookPayload = {
       id: 3,
@@ -116,7 +116,7 @@ describe("recordOrderAttributions / revenue stats", () => {
     });
   });
 
-  it("is idempotent — redelivering the same order/line-item webhook doesn't double-count revenue", async () => {
+  it("is idempotent, redelivering the same order/line-item webhook doesn't double-count revenue", async () => {
     const shop = await getOrCreateShop("order-attribution-idempotent.myshopify.com");
     const reelId = "gid://shopify/Metaobject/1";
     const attribution = [

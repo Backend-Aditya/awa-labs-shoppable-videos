@@ -87,7 +87,7 @@ let listenersPatched = false;
 
 // Scripts register document/window listeners on every load; record them so
 // each test starts from a clean slate. Patched once, delegating to the
-// original (bound) methods — vitest's `window` is not itself an EventTarget.
+// original (bound) methods, vitest's `window` is not itself an EventTarget.
 function patchListeners() {
   if (listenersPatched) return;
   listenersPatched = true;

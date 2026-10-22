@@ -13,7 +13,7 @@ import { PLAN_BY_TIER } from "./models/plans";
 // long after boot. In production, refuse to start instead, naming exactly
 // what's missing so the Render deploy log says what to fix.
 const REQUIRED_ENV = ["SHOPIFY_API_KEY", "SHOPIFY_API_SECRET", "SHOPIFY_APP_URL", "DATABASE_URL"];
-// Needed for video upload/processing only — the rest of the app still works
+// Needed for video upload/processing only, the rest of the app still works
 // without them, so warn rather than refuse to boot.
 const FEATURE_ENV = ["CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_API_TOKEN", "CLOUDFLARE_STREAM_WEBHOOK_SECRET"];
 if (process.env.NODE_ENV === "production") {

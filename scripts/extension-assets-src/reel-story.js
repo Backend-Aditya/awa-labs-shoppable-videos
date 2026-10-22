@@ -92,7 +92,7 @@
     fill.style.transform = "scaleX(1)";
   };
 
-  // Under reduced motion stories never move on by themselves — the shopper
+  // Under reduced motion stories never move on by themselves, the shopper
   // advances with next / arrow keys.
   const autoAdvance = () => !prefersReducedMotion();
 

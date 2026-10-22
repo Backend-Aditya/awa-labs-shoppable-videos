@@ -3,7 +3,7 @@ Renders a schema.org VideoObject JSON-LD script tag for one rendered reel,
 so search engines can index it for video rich results, plus a preconnect
 hint for its Cloudflare Stream origin so the DNS/TLS handshake is already
 warm by the time a shopper clicks the trigger. Call once per rendered reel
-trigger, right alongside its markup — JSON-LD doesn't need to be in <head>
+trigger, right alongside its markup, JSON-LD doesn't need to be in <head>
 for crawlers to read it, and a <link rel="preconnect"> works anywhere in
 the document. Not rendered for the floating player (it repeats on every
 page and isn't the page's content).
@@ -29,7 +29,7 @@ Notes:
   assign seo_description = reel.config.value.seoDescription | default: seo_title
 
   # Every reel in a shop shares the same Cloudflare Stream account, so this
-  # origin is identical across every reel on the page — browsers dedupe
+  # origin is identical across every reel on the page, browsers dedupe
   # repeated identical preconnect hints.
   assign manifest_url_parts = reel.config.value.hlsManifestUrl | split: '/'
   assign stream_origin = ''

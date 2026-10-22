@@ -90,7 +90,7 @@ export const action = async ({ request }: ActionFunctionArgs): Promise<BulkResul
     });
     const done = ids.length - failedIds.length;
     return failedIds.length
-      ? { ok: false, error: `${plural(failedIds.length)} couldn't be updated — they're still selected. Try again.`, message: null, failedIds }
+      ? { ok: false, error: `${plural(failedIds.length)} couldn't be updated. They're still selected. Try again.`, message: null, failedIds }
       : { ok: true, error: null, message: `${plural(done)} ${published ? "published" : "unpublished"}`, failedIds };
   }
 
@@ -101,7 +101,7 @@ export const action = async ({ request }: ActionFunctionArgs): Promise<BulkResul
     });
     const done = ids.length - failedIds.length;
     return failedIds.length
-      ? { ok: false, error: `${plural(failedIds.length)} couldn't be deleted — they're still selected. Try again.`, message: null, failedIds }
+      ? { ok: false, error: `${plural(failedIds.length)} couldn't be deleted. They're still selected. Try again.`, message: null, failedIds }
       : { ok: true, error: null, message: `${plural(done)} deleted`, failedIds };
   }
 
@@ -640,7 +640,7 @@ function ReelTable({
                 <StatusPill reel={reel} />
               </td>
               <td data-warn={reel.productCount === 0 || undefined}>{reel.productCount || "None"}</td>
-              <td>{formatDuration(reel.duration) || "—"}</td>
+              <td>{formatDuration(reel.duration) || "-"}</td>
               <td className={styles.num}>{reel.views.toLocaleString()}</td>
             </tr>
           ))}
@@ -663,7 +663,7 @@ function EmptyLibrary({ onUpload, onImport }: { onUpload: () => void; onImport: 
         <span />
       </div>
       <h2>Upload your first video</h2>
-      <p>Drop video files anywhere on this page, or import one from a link — an Instagram or TikTok post, a video file or a Dropbox share. Tag the products it features and it&rsquo;s ready for any widget.</p>
+      <p>Drop video files anywhere on this page, or import one from a link (an Instagram or TikTok post, a video file or a Dropbox share). Tag the products it features and it&rsquo;s ready for any widget.</p>
       <div className={styles.emptyActions}>
         <s-button variant="primary" onClick={onUpload}>
           Upload videos
@@ -719,7 +719,7 @@ function ProductChips({ products, onPick, onRemove }: { products: PickedProduct[
         </button>
       </div>
       {products.length === 0 ? (
-        <p className={styles.hint}>Optional — you can tag products later in each video.</p>
+        <p className={styles.hint}>Optional. You can tag products later in each video.</p>
       ) : (
         <div className={styles.chips}>
           {products.map((p) => (
@@ -744,6 +744,7 @@ function UploadModal({ initialFiles, onClear }: { initialFiles: File[]; onClear:
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [published, setPublished] = useState(true);
   const [running, setRunning] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const { products, setProducts, pick } = useProductPicker();
 
   const addFiles = (files: File[]) =>
@@ -810,7 +811,7 @@ function UploadModal({ initialFiles, onClear }: { initialFiles: File[]; onClear:
     setRunning(false);
     if (succeeded > 0) {
       revalidate();
-      shopify.toast.show(`${succeeded} video${succeeded === 1 ? "" : "s"} uploaded — processing now`);
+      shopify.toast.show(`${succeeded} video${succeeded === 1 ? "" : "s"} uploaded, processing now`);
     }
   };
 
@@ -831,17 +832,32 @@ function UploadModal({ initialFiles, onClear }: { initialFiles: File[]; onClear:
           type="button"
           className={styles.dropzone}
           onClick={() => inputRef.current?.click()}
+          data-drag={dragging || undefined}
           onDragOver={(e) => e.preventDefault()}
+          onDragEnter={() => setDragging(true)}
+          onDragLeave={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragging(false);
+          }}
           onDrop={(e) => {
             e.preventDefault();
             e.stopPropagation();
+            setDragging(false);
             addFiles(Array.from(e.dataTransfer.files));
           }}
           disabled={running}
         >
-          <UploadIcon />
+          <span className={styles.dropIcon}>
+            <UploadIcon />
+          </span>
           <span className={styles.dropTitle}>Drop videos here or click to browse</span>
-          <span className={styles.hint}>MP4, MOV or WebM · up to 200 MB each · vertical 9:16 looks best</span>
+          <span className={styles.dropSub}>Add one or many. They upload one after another.</span>
+          <span className={styles.dropFormats}>
+            <span>MP4</span>
+            <span>MOV</span>
+            <span>WebM</span>
+            <span>Up to 200 MB each</span>
+            <span>Vertical 9:16 looks best</span>
+          </span>
         </button>
         <input
           ref={inputRef}
@@ -878,7 +894,7 @@ function UploadModal({ initialFiles, onClear }: { initialFiles: File[]; onClear:
                     ) : item.state === "uploading" ? (
                       `Uploading ${Math.round(item.progress * 100)}%`
                     ) : item.state === "done" ? (
-                      "Uploaded — processing"
+                      "Uploaded, processing"
                     ) : (
                       `${item.file.name} · ${(item.file.size / 1024 / 1024).toFixed(1)} MB`
                     )}
@@ -989,7 +1005,7 @@ function ImportModal() {
         productIds: products.map((p) => p.id),
       });
       shopify.modal.hide("import-modal");
-      shopify.toast.show(link.kind === "file" ? "Importing — the video is downloading and will be ready shortly" : "Video imported — processing now");
+      shopify.toast.show(link.kind === "file" ? "Importing. The video is downloading and will be ready shortly" : "Video imported, processing now");
       navigate(`/app/reels/${reelId.split("/").pop()}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Import failed.");

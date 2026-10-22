@@ -1,5 +1,5 @@
 // Regenerates tests/e2e/fixtures/sample.webm (a 3 s, 90×160 colour-cycling
-// clip) with Playwright's Chromium — no ffmpeg needed.
+// clip) with Playwright's Chromium, no ffmpeg needed.
 //   node tests/e2e/fixtures/make-sample-video.mjs
 import { chromium } from "@playwright/test";
 import { writeFileSync } from "node:fs";

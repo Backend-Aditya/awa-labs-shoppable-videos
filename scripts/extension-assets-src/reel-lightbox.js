@@ -4,8 +4,8 @@
 // video viewer itself.
 (() => {
   // This file can be loaded twice on one page (app embed + a block's
-  // loader when both are present). Everything below — including the
-  // document-level delegated cart listeners — must exist exactly once, or
+  // loader when both are present). Everything below, including the
+  // document-level delegated cart listeners, must exist exactly once, or
   // one click would add the product to the cart twice.
   if (window.ReelupLightbox) return;
 
@@ -316,7 +316,7 @@
       });
       if (!response.ok) {
         // Shopify explains stock problems ("You can only add 2 of …") in a
-        // 4xx JSON `description`; only that is shopper-safe — network and
+        // 4xx JSON `description`; only that is shopper-safe, network and
         // server errors fall back to the generic label.
         const problem = await response.json().catch(() => null);
         const shopify =
@@ -359,7 +359,7 @@
 
   // Viewers are shared singletons reused across every trigger on the page,
   // so every per-trigger setting is written unconditionally (set or
-  // cleared) — never just set — or it would leak onto the next trigger.
+  // cleared), never just set, or it would leak onto the next trigger.
   const applyViewerSettings = (dialog, video, titleEl, trigger) => {
     const vars = {
       "--ru-cta": trigger.dataset.ctaColor,
@@ -400,7 +400,7 @@
   };
 
   // Starts playback inside the gesture window (muted is always allowed),
-  // then restores the wanted mute state once the source is attached —
+  // then restores the wanted mute state once the source is attached,
   // attach() may await network fetches that outlast the user activation,
   // after which unmuted play() can be silently rejected.
   //
@@ -424,7 +424,7 @@
       await video.play();
     } catch {
       if (!isCurrent()) return false;
-      // Unmuted autoplay refused after all — keep playing muted rather than
+      // Unmuted autoplay refused after all, keep playing muted rather than
       // leaving a frozen first frame.
       video.muted = true;
       await video.play().catch(() => {});
@@ -446,7 +446,7 @@
   };
 
   // The toast element is permanent (created with each viewer); it's purely
-  // visual — the message is announced through the dialog's live region.
+  // visual, the message is announced through the dialog's live region.
   const toast = (host, message) => {
     const el = host.querySelector(".reelup-toast");
     if (el) {
@@ -777,7 +777,7 @@
 
     // On mobile the "peek" sheet clips everything below the first product,
     // so those rows (and anything after the list) are made inert until the
-    // sheet is expanded — no tabbing into invisible controls.
+    // sheet is expanded, no tabbing into invisible controls.
     const syncPeekInert = () => {
       const collapsed = panel.dataset.state === "peek" && isMobile();
       dialog.querySelectorAll("[data-reelup-list] [data-reelup-product]").forEach((row, i) => {

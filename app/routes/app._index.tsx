@@ -284,7 +284,7 @@ function Performance({ stats }: { stats: NonNullable<Data["stats"]> }) {
         <Kpi label="Add-to-cart rate" value={`${atc.toFixed(1)}%`} delta={pointChange(atc, prevAtc, previous.views > 0)} />
         <Kpi
           label="Sales from videos"
-          value={revenue ? formatMoney(revenue.amount, revenue.currencyCode) : "—"}
+          value={revenue ? formatMoney(revenue.amount, revenue.currencyCode) : "-"}
           sub={`${current.orders} order${current.orders === 1 ? "" : "s"}${otherCurrencies > 0 ? ` · +${otherCurrencies} other currenc${otherCurrencies === 1 ? "y" : "ies"}` : ""}`}
           delta={revenue ? change(revenue.amount, prevRevenue) : null}
         />
@@ -377,13 +377,13 @@ function TopVideos({ data }: { data: Data }) {
                   <td>{r.views.toLocaleString()}</td>
                   <td>{r.clicks.toLocaleString()}</td>
                   <td>{r.addToCarts.toLocaleString()}</td>
-                  <td>{r.views ? `${((r.clicks / r.views) * 100).toFixed(1)}%` : "—"}</td>
+                  <td>{r.views ? `${((r.clicks / r.views) * 100).toFixed(1)}%` : "-"}</td>
                   <td>
                     {r.revenue && currency && !multiCurrency
                       ? formatMoney(r.revenue, currency)
                       : r.unitsSold
                         ? `${r.unitsSold} sold`
-                        : "—"}
+                        : "-"}
                   </td>
                 </tr>
               ))}
@@ -484,7 +484,7 @@ function Checklist({ data, theme }: { data: Data; theme: ThemeStatus | null }) {
       body:
         theme === null
           ? "Place your widget in the theme editor, then press Save there."
-          : "Nothing's placed in your live theme yet — add your widget's block, then press Save.",
+          : "Nothing's placed in your live theme yet. Add your widget's block, then press Save.",
       action: "Open theme editor",
       go: () => {
         window.open(themeEditorUrl(data.apiKey, firstLive), "_top");

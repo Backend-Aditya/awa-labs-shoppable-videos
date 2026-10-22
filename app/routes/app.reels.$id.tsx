@@ -311,7 +311,7 @@ export default function ReelEditor() {
     setReplaceProgress(0);
     try {
       await replaceReelVideo(reel.id, file, setReplaceProgress);
-      shopify.toast.show("New video uploaded — the current one stays live until it's ready");
+      shopify.toast.show("New video uploaded. The current one stays live until it's ready");
       revalidate();
     } catch (e) {
       shopify.toast.show(e instanceof Error ? e.message : "Upload failed.", { isError: true });
@@ -386,7 +386,7 @@ export default function ReelEditor() {
                 {replaceProgress !== null
                   ? `Uploading new video ${Math.round(replaceProgress * 100)}%`
                   : reel.config.replacingStreamUid
-                    ? "New video processing — the current one stays live until it's ready."
+                    ? "New video processing. The current one stays live until it's ready."
                     : status === "processing"
                       ? "Usually takes under a minute. This page updates on its own."
                       : status === "failed"
@@ -439,7 +439,7 @@ export default function ReelEditor() {
             {tab === "products" &&
               (data.productsError ? (
                 <s-banner tone="critical" heading="Couldn't load this video's products">
-                  Shopify didn&rsquo;t respond in time. Reload the page to edit products — your other changes can still be
+                  Shopify didn&rsquo;t respond in time. Reload the page to edit products, your other changes can still be
                   saved and the tags are untouched.
                 </s-banner>
               ) : (
@@ -485,10 +485,10 @@ export default function ReelEditor() {
               <div className={styles.kpis}>
                 <Kpi label="Views" value={stats.views.toLocaleString()} />
                 <Kpi label="Product clicks" value={stats.clicks.toLocaleString()} />
-                <Kpi label="Click rate" value={stats.views ? `${((stats.clicks / stats.views) * 100).toFixed(1)}%` : "—"} />
+                <Kpi label="Click rate" value={stats.views ? `${((stats.clicks / stats.views) * 100).toFixed(1)}%` : "-"} />
                 <Kpi
                   label="Sales"
-                  value={stats.revenue[0] ? formatMoney(stats.revenue[0].amount, stats.revenue[0].currencyCode) : "—"}
+                  value={stats.revenue[0] ? formatMoney(stats.revenue[0].amount, stats.revenue[0].currencyCode) : "-"}
                   sub={stats.unitsSold ? `${stats.unitsSold} sold` : undefined}
                 />
               </div>
@@ -600,7 +600,7 @@ function DetailsTab({
 
       <Card
         title="Link button"
-        description="An extra button in the player — for a collection, a lookbook or anything not tagged as a product."
+        description="An extra button in the player, for a collection, a lookbook or anything not tagged as a product."
       >
         <TextInput
           label="Button text"
@@ -616,7 +616,7 @@ function DetailsTab({
           placeholder="/collections/summer or https://…"
           hint={
             state.linkLabel.trim() && !state.linkUrl.trim()
-              ? "Add a link — the button only shows once it has somewhere to go."
+              ? "Add a link. The button only shows once it has somewhere to go."
               : "Leave empty for no button."
           }
           onChange={(linkUrl) => update({ linkUrl })}
@@ -668,7 +668,7 @@ function ProductsTab({
     const added = picked.filter((p) => !products.some((x) => x.id === p.id));
     const next = [...kept, ...added];
     if (next.length > MAX_PRODUCTS) {
-      shopify.toast.show(`A video can have up to ${MAX_PRODUCTS} products — kept the first ${MAX_PRODUCTS}.`, { isError: true });
+      shopify.toast.show(`A video can have up to ${MAX_PRODUCTS} products. Kept the first ${MAX_PRODUCTS}.`, { isError: true });
     }
     onChange(next.slice(0, MAX_PRODUCTS));
   };
@@ -681,7 +681,7 @@ function ProductsTab({
     >
       {products.length === 0 ? (
         <div className={styles.emptyProducts}>
-          <p>No products tagged. Videos with products convert — tag what&rsquo;s shown.</p>
+          <p>No products tagged. Videos with products convert. Tag what&rsquo;s shown.</p>
           <s-button variant="primary" onClick={pick}>
             Choose products
           </s-button>
@@ -757,7 +757,7 @@ function CoverTab({
   }
   const frames = Array.from({ length: 6 }, (_, i) => Math.round(((i + 0.5) * duration) / 6 * 10) / 10);
   return (
-    <Card title="Cover image" description="The still shown before the video plays — in widgets, search results and link previews.">
+    <Card title="Cover image" description="The still shown before the video plays, in widgets, search results and link previews.">
       <div className={styles.coverLayout}>
         <img className={styles.coverPreview} src={posterAt(posterUrl, value)} alt="Selected cover frame" />
         <div className={styles.coverControls}>
