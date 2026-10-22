@@ -1,0 +1,161 @@
+.plan {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 0 0 1px #e3e3e3;
+}
+
+.planTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.eyebrow {
+  margin: 0 0 2px;
+  font-size: 12px;
+  color: #616161;
+}
+
+.planName {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  font-size: 18px;
+  font-weight: 650;
+}
+
+.planPrice {
+  font-size: 13px;
+  font-weight: 500;
+  color: #616161;
+}
+
+.meterHead {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #616161;
+}
+
+.track {
+  height: 8px;
+  border-radius: 999px;
+  background: #ebebeb;
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: inherit;
+  background: #303030;
+}
+
+.fill[data-level="near"] {
+  background: #b98900;
+}
+
+.fill[data-level="over"] {
+  background: #e22c38;
+}
+
+.presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.preset {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 0 0 1px #c9c9c9;
+  color: #303030;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 550;
+  cursor: pointer;
+}
+
+.preset:hover {
+  background: #f7f7f7;
+}
+
+.preset:focus-visible {
+  outline: 2px solid #005bd3;
+  outline-offset: 2px;
+}
+
+.preset[data-active] {
+  box-shadow: 0 0 0 2px #303030;
+}
+
+.swatches {
+  display: inline-flex;
+}
+
+.swatches span {
+  width: 14px;
+  height: 22px;
+}
+
+.swatches span:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.swatches span:last-child {
+  border-radius: 0 6px 6px 0;
+}
+
+.colorGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 640px) {
+  .colorGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.setupRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 550;
+}
+
+.status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #8a8a8a;
+}
+
+.status[data-state="on"]::before {
+  background: #047b5d;
+}
+
+.status[data-state="off"]::before {
+  background: #e22c38;
+}

@@ -1,11 +1,15 @@
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { useFetcher, useLoaderData } from "react-router";
+import { useFetcher, useLoaderData, useNavigate } from "react-router";
 import { SaveBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { getOrCreateShop } from "../models/shop.server";
+import prisma from "../db.server";
+import { planFor, usageLevel } from "../models/plans";
+import { useThemeStatus } from "../components/useThemeStatus";
+import { themeEditorUrl } from "../components/themeEditor";
 import { getBrand, saveBrand } from "../models/brand.server";
 import type { BrandConfig } from "../models/brand";
 import { BRAND_DEFAULTS } from "../models/brand";
@@ -13,11 +17,38 @@ import { useEditorGuards } from "../components/useEditorGuards";
 import { Card, ColorInput, Segmented } from "../components/widget-editor/controls";
 import styles from "../components/widget-editor/editor.module.css";
 import brandStyles from "../components/widget-editor/brand.module.css";
+import settingsStyles from "../components/settings.module.css";
+
+const PRESET_KEYS = ["accentColor", "buttonColor", "buttonTextColor", "salePriceColor"] as const;
+const PRESETS: { name: string; colors: Pick<BrandConfig, (typeof PRESET_KEYS)[number]> }[] = [
+  { name: "Classic", colors: { accentColor: "#141414", buttonColor: "#141414", buttonTextColor: "#ffffff", salePriceColor: "#b42318" } },
+  { name: "Ocean", colors: { accentColor: "#0b5cff", buttonColor: "#0b5cff", buttonTextColor: "#ffffff", salePriceColor: "#d92d20" } },
+  { name: "Forest", colors: { accentColor: "#1a7f5a", buttonColor: "#1a7f5a", buttonTextColor: "#ffffff", salePriceColor: "#b54708" } },
+  { name: "Berry", colors: { accentColor: "#a21caf", buttonColor: "#a21caf", buttonTextColor: "#ffffff", salePriceColor: "#be123c" } },
+  { name: "Sunset", colors: { accentColor: "#e8590c", buttonColor: "#e8590c", buttonTextColor: "#ffffff", salePriceColor: "#9f1239" } },
+];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const shop = await getOrCreateShop(session.shop);
-  return { brand: await getBrand(shop.id) };
+  const now = new Date();
+  const views = await prisma.reelDailyStat
+    .aggregate({
+      where: { shopId: shop.id, day: { gte: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)) } },
+      _sum: { views: true },
+    })
+    .then((r) => r._sum.views ?? 0)
+    .catch(() => 0);
+  const plan = planFor(shop.plan);
+  return {
+    brand: await getBrand(shop.id),
+    // eslint-disable-next-line no-undef
+    apiKey: process.env.SHOPIFY_API_KEY || "",
+    plan: { name: plan.name, price: plan.price },
+    views,
+    viewCap: shop.viewCapMonthly,
+    viewLevel: usageLevel(views, shop.viewCapMonthly),
+  };
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -33,7 +64,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function Settings() {
-  const { brand: saved } = useLoaderData<typeof loader>();
+  const { brand: saved, apiKey, plan, views, viewCap, viewLevel } = useLoaderData<typeof loader>();
+  const theme = useThemeStatus();
+  const navigate = useNavigate();
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
   const [brand, setBrand] = useState<BrandConfig>(saved);
@@ -71,6 +104,39 @@ export default function Settings() {
 
       <div className={styles.shell}>
         <div className={styles.settingsColumn}>
+          <section className={settingsStyles.plan}>
+            <div className={settingsStyles.planTop}>
+              <div>
+                <p className={settingsStyles.eyebrow}>Your plan</p>
+                <h2 className={settingsStyles.planName}>
+                  {plan.name}
+                  <span className={settingsStyles.planPrice}>{plan.price === 0 ? "Free" : `$${plan.price}/mo`}</span>
+                </h2>
+              </div>
+              <s-button onClick={() => navigate("/app/pricing")}>{plan.price === 0 ? "Upgrade" : "Change plan"}</s-button>
+            </div>
+            <div className={settingsStyles.meterHead}>
+              <span>Views this month</span>
+              <span>
+                {views.toLocaleString()} / {viewCap.toLocaleString()}
+              </span>
+            </div>
+            <div
+              className={settingsStyles.track}
+              role="progressbar"
+              aria-label="Views this month"
+              aria-valuemin={0}
+              aria-valuemax={viewCap}
+              aria-valuenow={views}
+            >
+              <div
+                className={settingsStyles.fill}
+                data-level={viewLevel}
+                style={{ width: `${Math.min(100, (views / Math.max(viewCap, 1)) * 100)}%` }}
+              />
+            </div>
+          </section>
+
           <Card
             title="Brand kit"
             action={
@@ -85,21 +151,45 @@ export default function Settings() {
             }
             description="Every widget uses these unless you give it its own colors in the widget editor."
           >
-            <ColorInput label="Accent" value={brand.accentColor} onChange={(accentColor) => set({ accentColor })} />
-            <ColorInput label="Button" value={brand.buttonColor} onChange={(buttonColor) => set({ buttonColor })} />
-            <ColorInput
-              label="Button text color"
-              value={brand.buttonTextColor}
-              onChange={(buttonTextColor) => set({ buttonTextColor })}
-            />
-            <ColorInput
-              label="Sale price"
-              value={brand.salePriceColor}
-              onChange={(salePriceColor) => set({ salePriceColor })}
-            />
+            <div className={settingsStyles.presets} role="group" aria-label="Color presets">
+              {PRESETS.map((preset) => {
+                const active = PRESET_KEYS.every((k) => brand[k] === preset.colors[k]);
+                return (
+                  <button
+                    key={preset.name}
+                    type="button"
+                    className={settingsStyles.preset}
+                    data-active={active || undefined}
+                    aria-pressed={active}
+                    onClick={() => set(preset.colors)}
+                  >
+                    <span className={settingsStyles.swatches} aria-hidden="true">
+                      <span style={{ background: preset.colors.buttonColor }} />
+                      <span style={{ background: preset.colors.accentColor }} />
+                      <span style={{ background: preset.colors.salePriceColor }} />
+                    </span>
+                    {preset.name}
+                  </button>
+                );
+              })}
+            </div>
+            <div className={settingsStyles.colorGrid}>
+              <ColorInput label="Accent" value={brand.accentColor} onChange={(accentColor) => set({ accentColor })} />
+              <ColorInput label="Button" value={brand.buttonColor} onChange={(buttonColor) => set({ buttonColor })} />
+              <ColorInput
+                label="Button text color"
+                value={brand.buttonTextColor}
+                onChange={(buttonTextColor) => set({ buttonTextColor })}
+              />
+              <ColorInput
+                label="Sale price"
+                value={brand.salePriceColor}
+                onChange={(salePriceColor) => set({ salePriceColor })}
+              />
+            </div>
           </Card>
 
-          <Card title="Video viewer">
+          <Card title="Video viewer" description="How the full-screen player looks on your store.">
             <Segmented
               label="Viewer background"
               value={brand.viewerTheme}
@@ -121,6 +211,16 @@ export default function Settings() {
             />
           </Card>
 
+          <Card title="Storefront setup" description="The app embed powers the floating player.">
+            <div className={settingsStyles.setupRow}>
+              <span className={settingsStyles.status} data-state={theme === null ? "unknown" : theme.embedOn ? "on" : "off"}>
+                {theme === null ? "Checking your theme…" : theme.embedOn ? "App embed is on" : "App embed is off"}
+              </span>
+              <s-link href={themeEditorUrl(apiKey)} target="_top">
+                {theme?.embedOn ? "Open theme editor" : "Turn on app embed"}
+              </s-link>
+            </div>
+          </Card>
         </div>
 
         <div className={styles.previewColumn}>

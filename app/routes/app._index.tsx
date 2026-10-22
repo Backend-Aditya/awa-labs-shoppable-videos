@@ -84,6 +84,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 type Data = ReturnType<typeof useLoaderData<typeof loader>>;
 
 const EMBED_KEY = "reelup-embed-opened";
+const CHECKLIST_DONE_KEY = "reelup-checklist-complete";
 
 function formatMoney(amount: number, currencyCode: string) {
   try {
@@ -429,14 +430,39 @@ function Checklist({ data, theme }: { data: Data; theme: ThemeStatus | null }) {
   const navigate = useNavigate();
   const [embedOpened, setEmbedOpened] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  // The card is hidden until the saved "hidden" flag has been read and the
+  // theme has reported its state (or a short wait has passed), so it never
+  // renders as "Get set up" for a moment and then disappears or recounts.
+  const [storageRead, setStorageRead] = useState(false);
+  const [themeWaited, setThemeWaited] = useState(false);
   useEffect(() => {
     try {
       setEmbedOpened(localStorage.getItem(EMBED_KEY) === "1");
-      setDismissed(localStorage.getItem("reelup-checklist-dismissed") === "1");
+      setDismissed(
+        localStorage.getItem("reelup-checklist-dismissed") === "1" ||
+          localStorage.getItem(CHECKLIST_DONE_KEY) === "1",
+      );
     } catch {
       // Storage blocked: checklist just doesn't remember.
     }
+    setStorageRead(true);
+    const timer = setTimeout(() => setThemeWaited(true), 1500);
+    return () => clearTimeout(timer);
   }, []);
+  const ready = storageRead && (theme !== null || themeWaited);
+  const allDone = data.reelCount > 0 &&
+    data.taggedCount > 0 &&
+    data.widgets.some((w) => w.published) &&
+    data.hasBrand &&
+    (theme ? theme.embedOn || theme.placedBlocks.size > 0 : embedOpened);
+  useEffect(() => {
+    if (!ready || !allDone) return;
+    try {
+      localStorage.setItem(CHECKLIST_DONE_KEY, "1");
+    } catch {
+      // ignore
+    }
+  }, [ready, allDone]);
 
   // Prefer the theme's real state; only fall back to "you opened the theme
   // editor" where the admin can't report it.
@@ -473,7 +499,7 @@ function Checklist({ data, theme }: { data: Data; theme: ThemeStatus | null }) {
     { done: data.hasBrand, title: "Match your brand", body: "Set button and accent colors once for every widget.", action: "Open brand kit", go: () => navigate("/app/settings") },
   ];
   const doneCount = steps.filter((s) => s.done).length;
-  if (dismissed || doneCount === steps.length) return null;
+  if (!ready || dismissed || doneCount === steps.length) return null;
   const next = steps.findIndex((s) => !s.done);
 
   return (
