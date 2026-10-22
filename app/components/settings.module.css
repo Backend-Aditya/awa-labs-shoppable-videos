@@ -1,11 +1,13 @@
+/* ---------- plan card ---------- */
+
 .plan {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
   padding: 16px;
   border-radius: 12px;
   background: #fff;
-  box-shadow: 0 0 0 1px #e3e3e3;
+  box-shadow: 0 0 0 1px #e3e3e3, 0 1px 0 rgb(0 0 0 / 0.04);
 }
 
 .planTop {
@@ -18,28 +20,44 @@
 .eyebrow {
   margin: 0 0 2px;
   font-size: 12px;
+  line-height: 16px;
   color: #616161;
 }
 
 .planName {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
   margin: 0;
   font-size: 18px;
+  line-height: 24px;
   font-weight: 650;
+  color: #303030;
 }
 
-.planPrice {
+.planMeta {
+  margin: 0;
   font-size: 13px;
-  font-weight: 500;
+  line-height: 20px;
   color: #616161;
+}
+
+.usage {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid #ebebeb;
 }
 
 .meterHead {
   display: flex;
   justify-content: space-between;
+  gap: 12px;
   font-size: 13px;
+  line-height: 20px;
+  color: #303030;
+}
+
+.meterHead span:last-child {
+  font-variant-numeric: tabular-nums;
   color: #616161;
 }
 
@@ -54,6 +72,7 @@
   height: 100%;
   border-radius: inherit;
   background: #303030;
+  transition: width 0.3s ease;
 }
 
 .fill[data-level="near"] {
@@ -64,31 +83,44 @@
   background: #e22c38;
 }
 
+.meterNote {
+  margin: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: #616161;
+}
+
+/* ---------- brand kit ---------- */
+
 .presets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+  gap: 10px;
 }
 
 .preset {
-  display: inline-flex;
-  align-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   gap: 8px;
-  padding: 6px 12px 6px 8px;
+  padding: 8px 8px 9px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 10px;
   background: #fff;
-  box-shadow: 0 0 0 1px #c9c9c9;
+  box-shadow: 0 0 0 1px #e3e3e3;
   color: #303030;
   font: inherit;
-  font-size: 13px;
-  font-weight: 550;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
   cursor: pointer;
+  transition: box-shadow 0.15s ease, background-color 0.15s ease;
 }
 
 .preset:hover {
-  background: #f7f7f7;
+  background: #fafafa;
+  box-shadow: 0 0 0 1px #b5b5b5;
 }
 
 .preset:focus-visible {
@@ -101,33 +133,34 @@
 }
 
 .swatches {
-  display: inline-flex;
+  display: flex;
+  height: 28px;
+  border-radius: 6px;
+  overflow: hidden;
 }
 
 .swatches span {
-  width: 14px;
-  height: 22px;
+  flex: 1;
 }
 
-.swatches span:first-child {
-  border-radius: 6px 0 0 6px;
-}
-
-.swatches span:last-child {
-  border-radius: 0 6px 6px 0;
-}
-
+/* One row per color: label on the left, swatch and hex on the right. */
 .colorGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
+  display: flex;
+  flex-direction: column;
+  padding-top: 4px;
+  border-top: 1px solid #ebebeb;
 }
 
-@media (max-width: 640px) {
-  .colorGrid {
-    grid-template-columns: minmax(0, 1fr);
-  }
+.colorGrid > * {
+  padding: 10px 0;
+  border-top: 1px solid #f1f1f1;
 }
+
+.colorGrid > *:first-child {
+  border-top: 0;
+}
+
+/* ---------- storefront setup ---------- */
 
 .setupRow {
   display: flex;
@@ -135,6 +168,7 @@
   justify-content: space-between;
   gap: 12px;
   font-size: 13px;
+  line-height: 20px;
 }
 
 .status {
@@ -153,9 +187,16 @@
 }
 
 .status[data-state="on"]::before {
-  background: #047b5d;
+  background: #29a37a;
 }
 
 .status[data-state="off"]::before {
   background: #e22c38;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fill,
+  .preset {
+    transition: none;
+  }
 }

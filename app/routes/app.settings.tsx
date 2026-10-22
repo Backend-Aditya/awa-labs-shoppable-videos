@@ -104,36 +104,37 @@ export default function Settings() {
 
       <div className={styles.shell}>
         <div className={styles.settingsColumn}>
-          <section className={settingsStyles.plan}>
+          <section className={settingsStyles.plan} aria-label="Your plan">
             <div className={settingsStyles.planTop}>
               <div>
-                <p className={settingsStyles.eyebrow}>Your plan</p>
-                <h2 className={settingsStyles.planName}>
-                  {plan.name}
-                  <span className={settingsStyles.planPrice}>{plan.price === 0 ? "Free" : `$${plan.price}/mo`}</span>
-                </h2>
+                <p className={settingsStyles.eyebrow}>Current plan</p>
+                <h2 className={settingsStyles.planName}>{plan.name}</h2>
+                <p className={settingsStyles.planMeta}>${plan.price} per month</p>
               </div>
               <s-button onClick={() => navigate("/app/pricing")}>{plan.price === 0 ? "Upgrade" : "Change plan"}</s-button>
             </div>
-            <div className={settingsStyles.meterHead}>
-              <span>Views this month</span>
-              <span>
-                {views.toLocaleString()} / {viewCap.toLocaleString()}
-              </span>
-            </div>
-            <div
-              className={settingsStyles.track}
-              role="progressbar"
-              aria-label="Views this month"
-              aria-valuemin={0}
-              aria-valuemax={viewCap}
-              aria-valuenow={views}
-            >
+            <div className={settingsStyles.usage}>
+              <div className={settingsStyles.meterHead}>
+                <span>Views this month</span>
+                <span>
+                  {views.toLocaleString()} of {viewCap.toLocaleString()}
+                </span>
+              </div>
               <div
-                className={settingsStyles.fill}
-                data-level={viewLevel}
-                style={{ width: `${Math.min(100, (views / Math.max(viewCap, 1)) * 100)}%` }}
-              />
+                className={settingsStyles.track}
+                role="progressbar"
+                aria-label="Views this month"
+                aria-valuemin={0}
+                aria-valuemax={viewCap}
+                aria-valuenow={views}
+              >
+                <div
+                  className={settingsStyles.fill}
+                  data-level={viewLevel}
+                  style={{ width: `${Math.min(100, (views / Math.max(viewCap, 1)) * 100)}%` }}
+                />
+              </div>
+              <p className={settingsStyles.meterNote}>Your view count resets on the 1st of each month.</p>
             </div>
           </section>
 
@@ -168,7 +169,7 @@ export default function Settings() {
                       <span style={{ background: preset.colors.accentColor }} />
                       <span style={{ background: preset.colors.salePriceColor }} />
                     </span>
-                    {preset.name}
+                    <span>{preset.name}</span>
                   </button>
                 );
               })}

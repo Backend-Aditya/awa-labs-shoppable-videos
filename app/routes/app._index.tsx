@@ -125,8 +125,8 @@ export default function Dashboard() {
       </s-button>
       <div className={styles.page}>
         {data.partial && (
-          <s-banner tone="warning" heading="Some information couldn't be loaded">
-            Shopify took too long to respond. Reload the page to try again.
+          <s-banner tone="warning" heading="Some data couldn't be loaded">
+            Shopify is taking longer than usual to respond. Reload the page to try again.
           </s-banner>
         )}
         {embedOff && livePops && (
@@ -174,7 +174,7 @@ export default function Dashboard() {
             </header>
             {data.widgets.length === 0 ? (
               <div className={styles.empty}>
-                <p>No widgets yet. A widget decides where and how your videos appear.</p>
+                <p>You haven&rsquo;t created a widget yet. Widgets decide where and how your videos appear on your store.</p>
                 <s-button onClick={() => navigate("/app/widgets?create=1")}>Create widget</s-button>
               </div>
             ) : (
@@ -280,7 +280,7 @@ function Performance({ stats }: { stats: NonNullable<Data["stats"]> }) {
         <Kpi label="Video views" value={current.views.toLocaleString()} delta={change(current.views, previous.views)} />
         <Kpi label="Product clicks" value={current.clicks.toLocaleString()} delta={change(current.clicks, previous.clicks)} />
         <Kpi label="Click rate" value={`${ctr.toFixed(1)}%`} delta={pointChange(ctr, prevCtr, previous.views > 0)} />
-        <Kpi label="Add to carts" value={current.addToCarts.toLocaleString()} delta={change(current.addToCarts, previous.addToCarts)} />
+        <Kpi label="Adds to cart" value={current.addToCarts.toLocaleString()} delta={change(current.addToCarts, previous.addToCarts)} />
         <Kpi label="Add-to-cart rate" value={`${atc.toFixed(1)}%`} delta={pointChange(atc, prevAtc, previous.views > 0)} />
         <Kpi
           label="Sales from videos"
@@ -331,7 +331,7 @@ function TopVideos({ data }: { data: Data }) {
         </button>
       </header>
       {data.topReels.length === 0 ? (
-        <p className={styles.empty}>Views and sales show up here once shoppers start watching.</p>
+        <p className={styles.empty}>Your top videos appear here once shoppers start watching.</p>
       ) : (
         <div className={styles.tableScroll}>
           <table className={styles.table}>
@@ -469,22 +469,22 @@ function Checklist({ data, theme }: { data: Data; theme: ThemeStatus | null }) {
   const embedDone = theme ? theme.embedOn || theme.placedBlocks.size > 0 : embedOpened;
   const firstLive = data.widgets.find((w) => w.published)?.type;
   const steps = [
-    { done: data.reelCount > 0, title: "Upload your first video", body: "MP4 or MOV, or import from Instagram and TikTok.", action: "Upload videos", go: () => navigate("/app/reels?upload=1") },
+    { done: data.reelCount > 0, title: "Upload your first video", body: "Upload an MP4 or MOV file, or import a post from Instagram or TikTok.", action: "Upload videos", go: () => navigate("/app/reels?upload=1") },
     {
       done: data.taggedCount > 0,
       title: "Tag products in a video",
-      body: "Tagged products become shoppable cards in the player.",
+      body: "Tagged products appear as shoppable cards next to the video.",
       action: "Tag products",
       go: () => navigate(data.firstUntaggedKey ? `/app/reels/${data.firstUntaggedKey}?tab=products` : "/app/reels"),
     },
-    { done: data.widgets.some((w) => w.published), title: "Put a widget live", body: "Pick where and how videos appear on your store.", action: "Create widget", go: () => navigate("/app/widgets?create=1") },
+    { done: data.widgets.some((w) => w.published), title: "Put a widget live", body: "Choose where your videos appear on your store.", action: "Create widget", go: () => navigate("/app/widgets?create=1") },
     {
       done: embedDone,
       title: "Add it to your theme",
       body:
         theme === null
-          ? "Place your widget in the theme editor, then press Save there."
-          : "Nothing's placed in your live theme yet. Add your widget's block, then press Save.",
+          ? "Add your widget in the theme editor, then select Save."
+          : "Nothing is added to your live theme yet. Add your widget block in the theme editor, then select Save.",
       action: "Open theme editor",
       go: () => {
         window.open(themeEditorUrl(data.apiKey, firstLive), "_top");
@@ -496,7 +496,7 @@ function Checklist({ data, theme }: { data: Data; theme: ThemeStatus | null }) {
         setEmbedOpened(true);
       },
     },
-    { done: data.hasBrand, title: "Match your brand", body: "Set button and accent colors once for every widget.", action: "Open brand kit", go: () => navigate("/app/settings") },
+    { done: data.hasBrand, title: "Match your brand", body: "Set your button and accent colors once and every widget uses them.", action: "Open brand kit", go: () => navigate("/app/settings") },
   ];
   const doneCount = steps.filter((s) => s.done).length;
   if (!ready || dismissed || doneCount === steps.length) return null;

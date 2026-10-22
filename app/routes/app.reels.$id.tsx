@@ -311,7 +311,7 @@ export default function ReelEditor() {
     setReplaceProgress(0);
     try {
       await replaceReelVideo(reel.id, file, setReplaceProgress);
-      shopify.toast.show("New video uploaded. The current one stays live until it's ready");
+      shopify.toast.show("New video uploaded. Your current video stays live until it's ready");
       revalidate();
     } catch (e) {
       shopify.toast.show(e instanceof Error ? e.message : "Upload failed.", { isError: true });
@@ -386,14 +386,14 @@ export default function ReelEditor() {
                 {replaceProgress !== null
                   ? `Uploading new video ${Math.round(replaceProgress * 100)}%`
                   : reel.config.replacingStreamUid
-                    ? "New video processing. The current one stays live until it's ready."
+                    ? "Processing your new video. The current one stays live until it's ready."
                     : status === "processing"
                       ? "Usually takes under a minute. This page updates on its own."
                       : status === "failed"
                         ? "Use Replace video to try again."
                         : state.published
-                          ? "Shown in every widget that includes it."
-                          : "Hidden from your store until published."}
+                          ? "Visible in every widget that includes it."
+                          : "Not visible on your store until you publish it."}
               </p>
             </div>
             <button
@@ -616,7 +616,7 @@ function DetailsTab({
           placeholder="/collections/summer or https://…"
           hint={
             state.linkLabel.trim() && !state.linkUrl.trim()
-              ? "Add a link. The button only shows once it has somewhere to go."
+              ? "Add a link to show this button. It stays hidden until it has a destination."
               : "Leave empty for no button."
           }
           onChange={(linkUrl) => update({ linkUrl })}
@@ -668,7 +668,7 @@ function ProductsTab({
     const added = picked.filter((p) => !products.some((x) => x.id === p.id));
     const next = [...kept, ...added];
     if (next.length > MAX_PRODUCTS) {
-      shopify.toast.show(`A video can have up to ${MAX_PRODUCTS} products. Kept the first ${MAX_PRODUCTS}.`, { isError: true });
+      shopify.toast.show(`A video can have up to ${MAX_PRODUCTS} products. We kept the first ${MAX_PRODUCTS}.`, { isError: true });
     }
     onChange(next.slice(0, MAX_PRODUCTS));
   };
@@ -681,7 +681,7 @@ function ProductsTab({
     >
       {products.length === 0 ? (
         <div className={styles.emptyProducts}>
-          <p>No products tagged. Videos with products convert. Tag what&rsquo;s shown.</p>
+          <p>No products tagged. Tag the products shown in this video so shoppers can buy them.</p>
           <s-button variant="primary" onClick={pick}>
             Choose products
           </s-button>
@@ -800,7 +800,7 @@ function SeoTab({ state, update }: { state: EditorState; update: (patch: Partial
   return (
     <Card
       title="Search appearance"
-      description="Every video is marked up for Google video results. These override the title when set."
+      description="Every video includes search markup so it can appear in Google video results. Set a custom title or description here to override the defaults."
     >
       <div className={styles.serp} aria-label="Search result preview">
         <span className={styles.serpUrl}>yourstore.com › products</span>

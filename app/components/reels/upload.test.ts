@@ -109,7 +109,7 @@ describe("uploadNewReel", () => {
   it("uses a generic message for a non-JSON failure (e.g. auth redirect)", async () => {
     fetchMock.mockReturnValueOnce(Promise.resolve(new Response("<html>", { status: 302 })));
     await expect(uploadNewReel(file(), { title: "", published: false, productIds: [] }, () => {})).rejects.toThrow(
-      "Something went wrong. Try again.",
+      "Something went wrong. Please try again.",
     );
   });
 
@@ -121,7 +121,7 @@ describe("uploadNewReel", () => {
 
   it.each([
     ["http-error", "Upload failed."],
-    ["network-error", "Upload failed. Check your connection."],
+    ["network-error", "The upload failed. Check your connection and try again."],
   ] as const)("discards the new reel when the Cloudflare upload has a %s", async (behaviour, message) => {
     FakeXhr.behaviour = behaviour;
     fetchMock.mockReturnValueOnce(json({ reelId: "r1", uploadURL: "https://u" })).mockReturnValueOnce(json({ ok: true }));

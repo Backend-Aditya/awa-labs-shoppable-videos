@@ -268,7 +268,7 @@ export default function ReelsLibrary() {
   const allShownSelected = shown.length > 0 && shown.every((r) => selected.has(r.id));
 
   return (
-    <s-page heading="Reels" inlineSize="large">
+    <s-page heading="Videos" inlineSize="large">
       <s-button slot="primary-action" variant="primary" onClick={() => openUpload()}>
         Upload videos
       </s-button>
@@ -811,7 +811,7 @@ function UploadModal({ initialFiles, onClear }: { initialFiles: File[]; onClear:
     setRunning(false);
     if (succeeded > 0) {
       revalidate();
-      shopify.toast.show(`${succeeded} video${succeeded === 1 ? "" : "s"} uploaded, processing now`);
+      shopify.toast.show(`${succeeded} video${succeeded === 1 ? "" : "s"} uploaded and processing`);
     }
   };
 
@@ -850,7 +850,7 @@ function UploadModal({ initialFiles, onClear }: { initialFiles: File[]; onClear:
             <UploadIcon />
           </span>
           <span className={styles.dropTitle}>Drop videos here or click to browse</span>
-          <span className={styles.dropSub}>Add one or many. They upload one after another.</span>
+          <span className={styles.dropSub}>Select as many files as you like. They upload one at a time.</span>
           <span className={styles.dropFormats}>
             <span>MP4</span>
             <span>MOV</span>
@@ -894,7 +894,7 @@ function UploadModal({ initialFiles, onClear }: { initialFiles: File[]; onClear:
                     ) : item.state === "uploading" ? (
                       `Uploading ${Math.round(item.progress * 100)}%`
                     ) : item.state === "done" ? (
-                      "Uploaded, processing"
+                      "Uploaded and processing"
                     ) : (
                       `${item.file.name} · ${(item.file.size / 1024 / 1024).toFixed(1)} MB`
                     )}
@@ -1005,7 +1005,7 @@ function ImportModal() {
         productIds: products.map((p) => p.id),
       });
       shopify.modal.hide("import-modal");
-      shopify.toast.show(link.kind === "file" ? "Importing. The video is downloading and will be ready shortly" : "Video imported, processing now");
+      shopify.toast.show(link.kind === "file" ? "Importing your video. It will be ready shortly." : "Video imported and processing");
       navigate(`/app/reels/${reelId.split("/").pop()}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Import failed.");

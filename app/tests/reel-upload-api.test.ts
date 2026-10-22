@@ -187,7 +187,7 @@ describe("reel upload API", () => {
     });
 
     expect(status).toBe(502);
-    expect(data.error).toMatch(/couldn't accept that link/);
+    expect(data.error).toMatch(/couldn't import that link/);
     expect(mocks.deleteReel).toHaveBeenCalledWith(expect.anything(), REEL.id);
     expect(mocks.recordStreamAsset).not.toHaveBeenCalled();
   });

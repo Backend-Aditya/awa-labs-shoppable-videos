@@ -161,8 +161,20 @@
 
 .kindGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 900px) {
+  .kindGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .kindGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .kindOption {
@@ -277,18 +289,23 @@
   font-weight: 550;
 }
 
+/* "Live" tag over a type's preview: that type already has a published widget. */
 .kindNote {
+  position: absolute;
+  top: 18px;
+  left: 18px;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  align-self: flex-start;
-  margin: auto 4px 0;
-  padding: 3px 10px 3px 8px;
+  gap: 5px;
+  padding: 2px 8px 2px 7px;
   border-radius: 999px;
-  background: #fff5ea;
-  color: #5e4200;
-  font-size: 12px;
-  font-weight: 550;
+  background: #fff;
+  box-shadow: 0 0 0 1px #e3e3e3, 0 1px 3px rgb(0 0 0 / 0.08);
+  color: #047b5d;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 16px;
+  white-space: nowrap;
 }
 
 .kindNote::before {
@@ -296,7 +313,13 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #d68a00;
+  background: #29a37a;
+}
+
+.kindLegend {
+  margin: -8px 0 0;
+  font-size: 12px;
+  color: #616161;
 }
 
 /* ---------- inline live switch ---------- */

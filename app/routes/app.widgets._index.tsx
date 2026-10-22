@@ -140,12 +140,18 @@ function CreateWidgetModal({ liveKinds }: { liveKinds: Set<string> }) {
                 <span className={styles.kindName}>{m.name}</span>
                 <span className={styles.kindDescription}>{m.description}</span>
                 {liveKinds.has(k) && (
-                  <span className={styles.kindNote}>One is already live, so this starts as a draft.</span>
+                  <span className={styles.kindNote}>Live</span>
                 )}
               </button>
             );
           })}
         </div>
+        {liveKinds.size > 0 && (
+          <p className={styles.kindLegend}>
+            Types marked Live already have a published widget. A new one of the same type is saved as a draft until you
+            publish it.
+          </p>
+        )}
         <label className={styles.nameField}>
           <span>Name</span>
           <span className={styles.nameHint}>Only you see this. Shoppers never do.</span>
@@ -316,8 +322,8 @@ export default function Widgets() {
         <s-section>
           <EmptyState
             icon="apps"
-            heading="Put your videos on the storefront"
-            body="Widgets decide where and how your reels appear, a filmstrip on product pages, stories on the home page, a floating player, and more."
+            heading="Show your videos on your store"
+            body="Widgets control where and how your videos appear on your store: a filmstrip on product pages, stories on your home page, a floating player and more."
             actionLabel="Create widget"
             actionCommandFor="create-widget-modal"
           />

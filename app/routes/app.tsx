@@ -29,7 +29,7 @@ export default function App() {
         <s-link href="/app" {...HOME_LINK}>
           Home
         </s-link>
-        <s-link href="/app/reels">Reels</s-link>
+        <s-link href="/app/reels">Videos</s-link>
         <s-link href="/app/widgets">Widgets</s-link>
         <s-link href="/app/settings">Settings</s-link>
         <s-link href="/app/pricing">Pricing</s-link>
@@ -64,7 +64,7 @@ export function ErrorBoundary() {
         title="Not found"
         body={`${typeof error.data === "string" && error.data ? error.data : "This page doesn't exist"}. It may have been deleted.`}
         actions={[
-          { label: "Go to reels", href: "/app/reels" },
+          { label: "Go to videos", href: "/app/reels" },
           { label: "Go to widgets", href: "/app/widgets" },
         ]}
       />

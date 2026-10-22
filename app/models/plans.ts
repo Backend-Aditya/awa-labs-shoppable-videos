@@ -44,7 +44,7 @@ export const PLANS: Plan[] = [
     trialDays: TRIAL_DAYS,
     reelLimit: 100,
     viewCap: 6000,
-    features: ["Up to 100 reels", "6,000 monthly views", "Add-to-cart & click analytics", "Basic support"],
+    features: ["Up to 100 reels", "6,000 monthly views", "Add-to-cart and click analytics", "Basic support"],
   },
   {
     tier: "PREMIUM",

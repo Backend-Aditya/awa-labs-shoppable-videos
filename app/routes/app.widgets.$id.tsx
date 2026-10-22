@@ -364,13 +364,13 @@ export default function WidgetEditor() {
             <div className={styles.statusText}>
               <p className={styles.statusTitle}>{state.published
                   ? (meta.reelSelection === "list" ? state.reelIds.length === 0 : !state.featuredReelId)
-                    ? "Live, nothing to show yet"
+                    ? "Live, but it has no videos yet"
                     : "Live on your store"
                   : "Draft"}
               </p>
               <p className={styles.hint}>
                 {!widget.published && state.published && liveSiblingName
-                  ? `Saving takes “${liveSiblingName}” off your store. One ${meta.name.toLowerCase()} can be live at a time.`
+                  ? `Saving takes “${liveSiblingName}” off your store because only one ${meta.name.toLowerCase()} can be live at a time.`
                   : `${meta.name} · ${meta.placement}`}
               </p>
             </div>
@@ -495,7 +495,7 @@ function reelStatusText(reel: EditorReel) {
   if (status === "failed") return "Upload failed";
   if (status === "processing") return "Processing";
   if (status === "draft") return "No video yet";
-  if (!reel.published) return "Not published, hidden on store";
+  if (!reel.published) return "Not published. Hidden from your store.";
   return formatDuration(reel.config.durationSeconds) || "Ready";
 }
 
@@ -1193,7 +1193,7 @@ function ShoppingTab({
         {has("autoplayOnScroll") && (
           <Toggle
             label="Autoplay previews"
-            description="Plays silently while on screen, lowest quality to save data. Skipped for shoppers on data saver or reduced motion."
+            description="Previews play silently as they scroll into view, at low quality to save data. Skipped for shoppers using Data Saver or reduced motion."
             checked={style.autoplayOnScroll ?? false}
             onChange={(autoplayOnScroll) => setStyle({ autoplayOnScroll })}
           />
@@ -1282,20 +1282,20 @@ function VisibilityTab({
     rule.type !== "all_products" && state.pageTypes.length > 0 && !state.pageTypes.includes("product");
 
   const options: { value: TargetRule["type"]; label: string; hint: string; action?: ReactNode }[] = [
-    { value: "all_products", label: "Everywhere", hint: "Every page the widget is placed on." },
+    { value: "all_products", label: "Everywhere", hint: "Shows everywhere you place it in your theme." },
     {
       value: "handles",
       label: "Specific products",
       hint: homeKind
-        ? "Only on these products' pages. It won't appear on your home page."
-        : "Only on these product pages.",
+        ? "Shows only on the pages of these products."
+        : "Shows only on these product pages.",
     },
     {
       value: "collections",
       label: "Products in collections",
       hint: homeKind
-        ? "Only on product pages in these collections, it won't appear on your home page."
-        : "Product pages for anything in these collections.",
+        ? "Shows only on product pages in these collections."
+        : "Shows on the product pages of everything in these collections.",
     },
   ];
 
@@ -1303,7 +1303,7 @@ function VisibilityTab({
     <>
       <Card
         title="Add to your theme"
-        description="Opens your theme editor with everything in place. Just press Save there."
+        description="Opens your theme editor with the widget ready to place. Select Save when you're done."
       >
         <ol className={styles.steps}>
           {meta.kind === "REEL_POPS" && (
@@ -1315,7 +1315,7 @@ function VisibilityTab({
                     ? "The floating player lives in the app embed. Turn it on in your theme editor."
                     : theme.embedOn
                       ? "On in your live theme."
-                      : "Off in your live theme. The floating player can't show until it's on."}
+                      : "The app embed is off in your live theme, so the floating player can't appear yet."}
                 </span>
               </span>
               {!theme?.embedOn && (

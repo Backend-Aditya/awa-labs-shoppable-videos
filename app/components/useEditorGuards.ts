@@ -52,7 +52,7 @@ export function useEditorGuards({
     if (confirmLeave) {
       // Resolves only when the merchant confirms leaving; cancel = stay.
       confirmLeave().then(leave).catch(() => {});
-    } else if (window.confirm("Leave without saving? Your changes will be lost.")) {
+    } else if (window.confirm("Leave this page? Your unsaved changes will be lost.")) {
       leave();
     }
   }, [blocker, navigate, shopify]);

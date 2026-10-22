@@ -68,8 +68,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       const message = error instanceof Error ? JSON.stringify((error as { errorData?: unknown }).errorData ?? "") : "";
       return {
         error: /public distribution/i.test(message)
-          ? "Shopify only allows paid plans once the app's distribution is set to Public in the Partner Dashboard."
-          : "We couldn't start your subscription. Try again in a moment.",
+          ? "Paid plans aren't available yet because this app isn't publicly distributed. Set distribution to Public in the Partner Dashboard to turn them on."
+          : "We couldn't start your subscription. Please try again in a moment.",
       };
     }
   }
@@ -107,7 +107,7 @@ export default function Pricing() {
         )}
         {data.test && (
           <s-banner tone="info" heading="Test mode">
-            Charges are not real in test mode.
+            Test mode is on. You won&rsquo;t be charged.
           </s-banner>
         )}
         <Usage current={current} usage={data.usage} />
