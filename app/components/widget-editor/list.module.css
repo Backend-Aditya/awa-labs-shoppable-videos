@@ -254,26 +254,40 @@
 }
 
 .nameField {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding-top: 16px;
+  display: grid;
+  grid-template-columns: minmax(150px, 220px) minmax(0, 1fr);
+  column-gap: 24px;
+  row-gap: 2px;
+  align-items: start;
+  padding-top: 20px;
   border-top: 1px solid #ebebeb;
   font-weight: 650;
 }
 
+.nameField > span:first-child {
+  grid-column: 1;
+  grid-row: 1;
+  font-size: 13px;
+  line-height: 20px;
+}
+
 .nameHint {
+  grid-column: 1;
+  grid-row: 2;
   font-weight: 400;
   font-size: 12px;
+  line-height: 18px;
   color: #616161;
 }
 
 .nameField input {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  width: 100%;
   font: inherit;
   font-weight: 400;
   padding: 8px 12px;
   min-height: 36px;
-  max-width: 420px;
   border: 1px solid #8a8a8a;
   border-radius: 10px;
 }
@@ -282,6 +296,17 @@
   outline: 2px solid #005bd3;
   outline-offset: -1px;
   border-color: transparent;
+}
+
+@media (max-width: 640px) {
+  .nameField {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .nameField input {
+    grid-column: 1;
+    grid-row: 3;
+    margin-top: 8px;
+  }
 }
 
 .widgetFacts [data-warn] {
@@ -317,9 +342,31 @@
 }
 
 .kindLegend {
-  margin: -8px 0 0;
-  font-size: 12px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f7f7f7;
   color: #616161;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.kindLegend::before {
+  content: "i";
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: #616161;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
 }
 
 /* ---------- inline live switch ---------- */
