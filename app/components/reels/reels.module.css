@@ -125,16 +125,25 @@
   gap: 8px;
 }
 
+/* Toolbar controls share one look: 32px tall, 8px radius, Shopify's input
+   border, and a focus ring that never changes the control's size. */
 .search {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  box-sizing: border-box;
+  width: 260px;
   height: 32px;
-  padding: 0 10px;
+  padding: 0 8px 0 10px;
   border: 1px solid #8a8a8a;
   border-radius: 8px;
   background: #fff;
   color: #616161;
+  transition: border-color 0.12s ease;
+}
+
+.search:hover {
+  border-color: #616161;
 }
 
 .search:focus-within {
@@ -144,7 +153,10 @@
 }
 
 .search input {
-  width: 180px;
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
   border: 0;
   outline: none;
   font: inherit;
@@ -152,14 +164,31 @@
   background: transparent;
 }
 
+.search input::placeholder {
+  color: #8a8a8a;
+}
+
 .sort select {
+  box-sizing: border-box;
   height: 32px;
   padding: 0 28px 0 10px;
   border: 1px solid #8a8a8a;
   border-radius: 8px;
-  background: #fff;
+  background-color: #fff;
   font: inherit;
   color: #303030;
+  cursor: pointer;
+  transition: border-color 0.12s ease;
+}
+
+.sort select:hover {
+  border-color: #616161;
+}
+
+.sort select:focus-visible {
+  outline: 2px solid #005bd3;
+  outline-offset: -1px;
+  border-color: transparent;
 }
 
 .viewToggle {
@@ -194,9 +223,7 @@
   }
   .search {
     flex: 1;
-  }
-  .search input {
-    width: 100%;
+    width: auto;
   }
 }
 
@@ -983,7 +1010,8 @@
   accent-color: #303030;
 }
 
-/* Hint for the "/" search shortcut; hidden once the box is in use. */
+/* Hint for the "/" search shortcut. It fades out while the box is in use but
+   keeps its space, so focusing the field never resizes it. */
 .searchKey {
   flex: none;
   min-width: 18px;
@@ -993,10 +1021,11 @@
   color: #8a8a8a;
   font: 600 11px/18px ui-monospace, SFMono-Regular, Menlo, monospace;
   text-align: center;
+  transition: opacity 0.12s ease;
 }
 
 .search:focus-within .searchKey {
-  display: none;
+  opacity: 0;
 }
 
 @media (hover: none) {
