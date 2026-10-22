@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { redirect, useLoaderData, useNavigation, useSubmit } from "react-router";
+import { redirect, useActionData, useLoaderData, useNavigation, useSubmit } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate, isBillingTest } from "../shopify.server";
 import prisma from "../db.server";
@@ -58,8 +58,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (intent === "subscribe") {
     const plan = PAID_PLANS.find((p) => p.tier === form.get("plan"));
     if (!plan) return { error: "Choose a plan." };
-    // Redirects the merchant to Shopify's approval page; they come back here.
-    return billing.request({ plan: plan.billingName as BillingPlanName, isTest: isBillingTest() });
+    try {
+      // Redirects the merchant to Shopify's approval page; they come back here.
+      return await billing.request({ plan: plan.billingName as BillingPlanName, isTest: isBillingTest() });
+    } catch (error) {
+      // The redirect to Shopify's approval page is thrown as a Response.
+      if (error instanceof Response) throw error;
+      log.error("pricing.subscribe_failed", { shop: session.shop, plan: plan.tier }, error);
+      const message = error instanceof Error ? JSON.stringify((error as { errorData?: unknown }).errorData ?? "") : "";
+      return {
+        error: /public distribution/i.test(message)
+          ? "Shopify only allows paid plans once the app's distribution is set to Public in the Partner Dashboard."
+          : "We couldn't start your subscription. Try again in a moment.",
+      };
+    }
   }
 
   if (intent === "cancel") {
@@ -79,6 +91,7 @@ const money = (n: number) => (n === 0 ? "$0" : `$${n % 1 === 0 ? n : n.toFixed(2
 
 export default function Pricing() {
   const data = useLoaderData<typeof loader>();
+  const result = useActionData<typeof action>();
   const submit = useSubmit();
   const navigation = useNavigation();
   const busy = navigation.state !== "idle";
@@ -87,6 +100,11 @@ export default function Pricing() {
   return (
     <s-page heading="Plans and pricing" inlineSize="large">
       <div className={styles.page}>
+        {result && "error" in result && result.error && (
+          <s-banner tone="critical" heading="Couldn't change your plan">
+            {result.error}
+          </s-banner>
+        )}
         {data.test && (
           <s-banner tone="info" heading="Test mode">
             Charges are not real in test mode.
