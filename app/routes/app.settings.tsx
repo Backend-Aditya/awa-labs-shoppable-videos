@@ -137,16 +137,15 @@ function BrandSample({ brand }: { brand: BrandConfig }) {
     "--b-button": brand.buttonColor,
     "--b-button-text": brand.buttonTextColor,
     "--b-sale": brand.salePriceColor,
-    fontFamily:
-      brand.fontFamily === "system"
-        ? '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
-        : 'Georgia, "Times New Roman", serif',
+    // Shopify's admin font. The real storefront font comes from the theme (or
+    // the system) and can't be shown here, so the sample never imitates it.
+    fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   } as CSSProperties;
 
   return (
     <div className={brandStyles.frame}>
       <p className={brandStyles.caption}>
-        Sample — {brand.fontFamily === "theme" ? "shown in a serif to stand in for your theme font" : "system font"}
+        Sample — {brand.fontFamily === "theme" ? "text on your store uses your theme's font" : "text on your store uses the system font"}
       </p>
       <div className={brandStyles.stage} data-theme={brand.viewerTheme} style={vars}>
         <div className={brandStyles.player}>

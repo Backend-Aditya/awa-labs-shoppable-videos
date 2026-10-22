@@ -72,7 +72,21 @@ describe("getDashboardStats", () => {
     expect(stats.previous.views).toBe(1);
     expect(stats.daily).toHaveLength(30);
     expect(stats.daily.reduce((n, d) => n + d.views, 0)).toBe(2);
-    expect(stats.reels).toEqual([{ key: "7", views: 2, clicks: 1, unitsSold: 2, revenue: 50 }]);
+    expect(stats.reels).toEqual([{ key: "7", views: 2, clicks: 1, addToCarts: 0, unitsSold: 2, revenue: 50 }]);
+  });
+
+  it("counts add-to-cart events separately from product clicks", async () => {
+    const shop = await getOrCreateShop("atc-test.myshopify.com");
+    const at = new Date();
+    await recordEvent(shop.id, "gid://shopify/Metaobject/3", "view", at);
+    await recordEvent(shop.id, "3", "click_product", at);
+    await recordEvent(shop.id, "3", "add_to_cart", at);
+    await recordEvent(shop.id, "3", "add_to_cart", at);
+
+    const stats = await getDashboardStats(shop.id, 7);
+    expect(stats.current).toMatchObject({ views: 1, clicks: 1, addToCarts: 2 });
+    expect(stats.reels.find((r) => r.key === "3")?.addToCarts).toBe(2);
+    expect((await getReelStats(shop.id, "3", 7)).addToCarts).toBe(2);
   });
 
   it("accumulates concurrent events into one row per reel and day", async () => {
@@ -103,7 +117,7 @@ describe("getDashboardStats", () => {
     expect(stats).toMatchObject({ days: 7, views: 1, clicks: 1, orders: 0 });
     expect(stats.daily).toHaveLength(7);
     expect(stats.daily.at(-1)?.date).toBe("2026-10-10");
-    expect(stats.daily.find((d) => d.date === "2026-10-09")).toEqual({ date: "2026-10-09", views: 1, clicks: 1 });
+    expect(stats.daily.find((d) => d.date === "2026-10-09")).toEqual({ date: "2026-10-09", views: 1, clicks: 1, addToCarts: 0 });
   });
 });
 

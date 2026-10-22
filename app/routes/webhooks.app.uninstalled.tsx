@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import db from "../db.server";
+import { PLAN_VIEW_CAPS } from "../models/shop.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { shop, session, topic } = await authenticate.webhook(request);
@@ -12,6 +13,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (session) {
     await db.session.deleteMany({ where: { shop } });
   }
+
+  // Shopify cancels the subscription on uninstall; a reinstall starts on Free
+  // until the shop subscribes again.
+  await db.shop.updateMany({ where: { shopDomain: shop }, data: { plan: "FREE", viewCapMonthly: PLAN_VIEW_CAPS.FREE } });
 
   return new Response();
 };

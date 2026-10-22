@@ -328,6 +328,9 @@
       const added = await response.json().catch(() => null);
 
       button.dataset.state = "added";
+      // Counted only once Shopify accepted the line; click_product above fires
+      // on the click itself, so it also includes adds that failed.
+      trackAnalytics(reelId, "add_to_cart");
       button.textContent = button.dataset.addedLabel ?? addLabel;
       showStatus(status, labels.addedToCart, false);
       announce(button, labels.addedToCart);

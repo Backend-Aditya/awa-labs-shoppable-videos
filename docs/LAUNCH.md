@@ -1,0 +1,66 @@
+# Launch checklist
+
+Status as of 2026-10-22. `[x]` is done and verified in this repo or on the live
+deployment, `[ ]` still needs doing, `[?]` needs a check in the Partner
+Dashboard or against the current Shopify docs before submitting.
+
+## Hosting and operations
+
+- [x] Hosted on Fly.io (`awa-shoppable-videos`, region `iad`), one always-on machine.
+- [x] Migrations run as a Fly release command; the server starts without migrating.
+- [x] `/healthz` checks the database and is used as the Fly health check.
+- [x] Secrets set on Fly: `DATABASE_URL`, `DIRECT_URL`, `SHOPIFY_API_KEY`,
+      `SHOPIFY_API_SECRET`, `SHOPIFY_APP_URL`, `SCOPES`, `CLOUDFLARE_*`, `CRON_SECRET`.
+- [ ] Rotate the Neon password (it was pasted into a chat) and update
+      `DATABASE_URL` / `DIRECT_URL` on Fly.
+- [ ] Recreate any Render cron that calls the app (uses `CRON_SECRET`), then suspend the Render service.
+- [ ] Add a second Fly machine in another zone if uptime matters (`fly scale count 2`).
+- [ ] Optional CI deploy: add `FLY_API_TOKEN` to GitHub secrets and a deploy workflow.
+
+## Billing (Shopify Billing API)
+
+- [x] Free, Basic $23.99, Premium $79.99, Elite $159.20 per 30 days (20% under the reference prices).
+- [x] 7-day free trial on every paid plan.
+- [x] Pricing page at `/app/pricing` with usage meters, upgrade, downgrade and cancel.
+- [x] `app_subscriptions/update` webhook keeps the plan in sync; uninstall resets to Free.
+- [x] Reel limit enforced on upload and import; views cap shown as a banner at 80% and 100%.
+- [ ] Test the full flow on a development store with `BILLING_TEST_MODE=true`
+      (`fly secrets set BILLING_TEST_MODE=true`), then remove it for production.
+- [ ] Decide whether to hard-limit views. Today the views cap is a warning only.
+- [?] Confirm the plan names and prices in the listing match the in-app plans exactly.
+
+## Analytics
+
+- [x] Views, product clicks and add-to-cart events, counted per reel per day.
+- [x] Add-to-cart is recorded only after Shopify accepts the line item.
+- [x] Dashboard and reel pages show add-to-carts and add-to-cart rate.
+- [ ] Revenue attribution needs the `orders/paid` webhook, which needs Protected
+      customer data approval (Partner Dashboard > App setup). Re-enable the
+      subscription in `shopify.app.toml` once approved.
+
+## Built for Shopify
+
+- [x] Embedded app using App Bridge and session tokens.
+- [x] Admin UI uses Shopify's web components and default font.
+- [x] Mandatory privacy webhooks (`customers/data_request`, `customers/redact`, `shop/redact`).
+- [x] Uninstall webhook; offline tokens expire and refresh.
+- [ ] Measure storefront impact with Lighthouse on a dev store with the widgets on;
+      Built for Shopify requires a small impact on the Lighthouse performance score.
+- [ ] Measure admin performance (Web Vitals: LCP, CLS, INP) on the live app.
+- [?] Review the current Built for Shopify requirements page and tick off each item.
+
+## App Store listing
+
+- [ ] App name, tagline, description and feature list.
+- [ ] Icon (1200x1200) and at least 3 screenshots, ideally a short demo video.
+- [ ] Privacy policy URL and support email / URL.
+- [ ] Pricing section in the listing that matches the in-app plans.
+- [ ] Emergency developer contact and review instructions, with a dev store login if needed.
+- [ ] Translate or confirm supported languages (theme extension locales exist for 8 languages).
+
+## Before submitting
+
+- [ ] Run `npm run test:all` (fast, integration, e2e) and `npm run lint`.
+- [ ] Install on a fresh dev store: onboarding, upload, widget placement, add-to-cart, analytics, plan change, uninstall, reinstall.
+- [ ] `shopify app deploy` and confirm the released version shows the right URLs and webhooks.
+- [ ] Submit for review in the Partner Dashboard.

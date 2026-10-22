@@ -14,7 +14,7 @@ import type { TrackedEvent } from "../models/analytics.server";
 //   single Render instance today; move to a shared store if scaled out),
 // - caches the shop lookup instead of hitting the DB on every event.
 
-const ALLOWED_EVENT_TYPES = new Set(["view", "click_product"]);
+const ALLOWED_EVENT_TYPES = new Set(["view", "click_product", "add_to_cart"]);
 const REEL_ID = /^(?:gid:\/\/shopify\/Metaobject\/)?(\d{1,20})$/;
 const SHOP_CACHE_TTL_MS = 5 * 60 * 1000;
 const RATE_WINDOW_MS = 60 * 1000;

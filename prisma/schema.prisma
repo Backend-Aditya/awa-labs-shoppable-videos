@@ -97,8 +97,9 @@ model ReelDailyStat {
   // Numeric metaobject id (see reelKey).
   reelId String
   day    DateTime @db.Date
-  views  Int      @default(0)
-  clicks Int      @default(0)
+  views      Int      @default(0)
+  clicks     Int      @default(0)
+  addToCarts Int      @default(0)
 
   @@id([shopId, reelId, day])
   @@index([shopId, day])

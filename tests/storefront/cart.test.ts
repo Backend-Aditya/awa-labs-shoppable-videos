@@ -138,6 +138,7 @@ describe("add to cart", () => {
       expect(publish).toHaveBeenCalledWith("cart-update", expect.objectContaining({ source: "reelup" }));
       const analytics = fetchCalls("/apps/reels/analytics").map(fetchBody);
       expect(analytics).toContainEqual(expect.objectContaining({ reelId: REEL_ID, eventType: "click_product" }));
+      expect(analytics).toContainEqual(expect.objectContaining({ reelId: REEL_ID, eventType: "add_to_cart" }));
 
       await vi.advanceTimersByTimeAsync(2200);
       expect(addButton(2).dataset.state).toBe("");
@@ -158,6 +159,9 @@ describe("add to cart", () => {
     await flush();
     expect(status().hidden).toBe(false);
     expect(status().hasAttribute("data-failed")).toBe(true);
+    expect(fetchCalls("/apps/reels/analytics").map(fetchBody)).not.toContainEqual(
+      expect.objectContaining({ eventType: "add_to_cart" }),
+    );
     expect(status().textContent).toContain("You can only add 2 of Linen Shirt");
     expect(addButton(2).dataset.state).toBe("");
     expect(addButton(2).textContent).toBe("Add to cart");

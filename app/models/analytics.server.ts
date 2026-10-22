@@ -9,6 +9,7 @@ export const reelKey = (reelId: string) => String(reelId).split("/").pop() ?? St
 export interface PeriodTotals {
   views: number;
   clicks: number;
+  addToCarts: number;
   orders: number;
   revenue: { currencyCode: string; amount: number }[];
 }
@@ -17,6 +18,7 @@ export interface ReelPerformance {
   key: string;
   views: number;
   clicks: number;
+  addToCarts: number;
   unitsSold: number;
   revenue: number;
 }
@@ -25,13 +27,13 @@ export interface DashboardStats {
   days: number;
   current: PeriodTotals;
   previous: PeriodTotals;
-  daily: { date: string; views: number; clicks: number }[];
+  daily: { date: string; views: number; clicks: number; addToCarts: number }[];
   reels: ReelPerformance[];
 }
 
 const DAY_MS = 86_400_000;
 
-export type TrackedEvent = "view" | "click_product";
+export type TrackedEvent = "view" | "click_product" | "add_to_cart";
 
 // Storefront events are counted straight into one row per shop, reel and
 // UTC day (ReelDailyStat) instead of one row per event. Every read below is
@@ -42,12 +44,14 @@ export async function recordEvent(shopId: string, reelId: string, eventType: Tra
   const day = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()));
   const views = eventType === "view" ? 1 : 0;
   const clicks = eventType === "click_product" ? 1 : 0;
+  const addToCarts = eventType === "add_to_cart" ? 1 : 0;
   await prisma.$executeRaw`
-    INSERT INTO "ReelDailyStat" ("shopId", "reelId", "day", "views", "clicks")
-    VALUES (${shopId}, ${reelKey(reelId)}, ${day}::date, ${views}, ${clicks})
+    INSERT INTO "ReelDailyStat" ("shopId", "reelId", "day", "views", "clicks", "addToCarts")
+    VALUES (${shopId}, ${reelKey(reelId)}, ${day}::date, ${views}, ${clicks}, ${addToCarts})
     ON CONFLICT ("shopId", "reelId", "day")
     DO UPDATE SET "views" = "ReelDailyStat"."views" + EXCLUDED."views",
-                  "clicks" = "ReelDailyStat"."clicks" + EXCLUDED."clicks"`;
+                  "clicks" = "ReelDailyStat"."clicks" + EXCLUDED."clicks",
+                  "addToCarts" = "ReelDailyStat"."addToCarts" + EXCLUDED."addToCarts"`;
 }
 
 // [start, end) covering the last `days` whole UTC days, today included.
@@ -61,6 +65,7 @@ function emptyDaily(start: Date, days: number) {
     date: new Date(start.getTime() + i * DAY_MS).toISOString().slice(0, 10),
     views: 0,
     clicks: 0,
+    addToCarts: 0,
   }));
 }
 
@@ -68,7 +73,7 @@ async function totalsBetween(shopId: string, from: Date, to: Date): Promise<Peri
   const [events, revenue, orders] = await Promise.all([
     prisma.reelDailyStat.aggregate({
       where: { shopId, day: { gte: from, lt: to } },
-      _sum: { views: true, clicks: true },
+      _sum: { views: true, clicks: true, addToCarts: true },
     }),
     prisma.orderAttribution.groupBy({
       by: ["currencyCode"],
@@ -84,6 +89,7 @@ async function totalsBetween(shopId: string, from: Date, to: Date): Promise<Peri
   return {
     views: events._sum.views ?? 0,
     clicks: events._sum.clicks ?? 0,
+    addToCarts: events._sum.addToCarts ?? 0,
     orders: orders.length,
     revenue: revenue.map((r) => ({
       currencyCode: r.currencyCode,
@@ -96,10 +102,11 @@ export interface ReelStats {
   days: number;
   views: number;
   clicks: number;
+  addToCarts: number;
   unitsSold: number;
   orders: number;
   revenue: { currencyCode: string; amount: number }[];
-  daily: { date: string; views: number; clicks: number }[];
+  daily: { date: string; views: number; clicks: number; addToCarts: number }[];
 }
 
 // One reel's last-N-days performance. Matches events stored under either
@@ -113,7 +120,7 @@ export async function getReelStats(shopId: string, reelGid: string, days = 30, n
   const [rows, revenue, units, orders] = await Promise.all([
     prisma.reelDailyStat.findMany({
       where: { shopId, reelId: reelKey(reelGid), day: { gte: start, lt: end } },
-      select: { day: true, views: true, clicks: true },
+      select: { day: true, views: true, clicks: true, addToCarts: true },
     }),
     prisma.orderAttribution.groupBy({
       by: ["currencyCode"],
@@ -135,13 +142,16 @@ export async function getReelStats(shopId: string, reelGid: string, days = 30, n
   const byDate = new Map(daily.map((d) => [d.date, d]));
   let views = 0;
   let clicks = 0;
+  let addToCarts = 0;
   for (const row of rows) {
     views += row.views;
     clicks += row.clicks;
+    addToCarts += row.addToCarts;
     const bucket = byDate.get(row.day.toISOString().slice(0, 10));
     if (bucket) {
       bucket.views += row.views;
       bucket.clicks += row.clicks;
+      bucket.addToCarts += row.addToCarts;
     }
   }
 
@@ -149,6 +159,7 @@ export async function getReelStats(shopId: string, reelGid: string, days = 30, n
     days,
     views,
     clicks,
+    addToCarts,
     unitsSold: units._sum.quantity ?? 0,
     orders: orders.length,
     revenue: revenue.map((r) => ({
@@ -187,7 +198,7 @@ export async function getDashboardStats(shopId: string, days = 30, now = new Dat
     totalsBetween(shopId, prevStart, start),
     prisma.reelDailyStat.findMany({
       where: { shopId, day: { gte: start, lt: end } },
-      select: { reelId: true, day: true, views: true, clicks: true },
+      select: { reelId: true, day: true, views: true, clicks: true, addToCarts: true },
     }),
     prisma.orderAttribution.groupBy({
       by: ["reelId"],
@@ -203,7 +214,7 @@ export async function getDashboardStats(shopId: string, days = 30, now = new Dat
     const key = reelKey(id);
     let entry = reels.get(key);
     if (!entry) {
-      entry = { key, views: 0, clicks: 0, unitsSold: 0, revenue: 0 };
+      entry = { key, views: 0, clicks: 0, addToCarts: 0, unitsSold: 0, revenue: 0 };
       reels.set(key, entry);
     }
     return entry;
@@ -213,10 +224,12 @@ export async function getDashboardStats(shopId: string, days = 30, now = new Dat
     if (bucket) {
       bucket.views += row.views;
       bucket.clicks += row.clicks;
+      bucket.addToCarts += row.addToCarts;
     }
     const entry = reelFor(row.reelId);
     entry.views += row.views;
     entry.clicks += row.clicks;
+    entry.addToCarts += row.addToCarts;
   }
   for (const row of perReelRevenue) {
     const entry = reelFor(row.reelId);

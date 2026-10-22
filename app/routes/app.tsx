@@ -32,6 +32,7 @@ export default function App() {
         <s-link href="/app/reels">Reels</s-link>
         <s-link href="/app/widgets">Widgets</s-link>
         <s-link href="/app/settings">Settings</s-link>
+        <s-link href="/app/pricing">Pricing</s-link>
       </s-app-nav>
       <NavigationLoading />
       <Outlet />

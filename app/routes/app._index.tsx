@@ -9,6 +9,8 @@ import { deriveReelStatus } from "../models/reel-status";
 import { listWidgetsForShop } from "../models/widget.server";
 import { getKindMeta } from "../models/widget-kinds";
 import { getDashboardStats, parseRange, reelKey } from "../models/analytics.server";
+import prisma from "../db.server";
+import { planFor, usageLevel } from "../models/plans";
 import { KindSchematic } from "../components/widget-editor/KindSchematic";
 import { ViewsChart } from "../components/ViewsChart";
 import type { WidgetKind } from "../models/widget-kinds";
@@ -25,6 +27,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const days = parseRange(new URL(request.url).searchParams.get("days"));
   // Each source degrades on its own: a slow Shopify API or analytics query
   // hides that card instead of taking the whole page down.
+  const now = new Date();
+  const monthViews = await prisma.reelDailyStat
+    .aggregate({
+      where: { shopId: shop.id, day: { gte: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)) } },
+      _sum: { views: true },
+    })
+    .then((r) => r._sum.views ?? 0)
+    .catch(() => 0);
   const [reelsResult, widgetsResult, statsResult] = await Promise.allSettled([
     listReels(admin),
     listWidgetsForShop(shop.id),
@@ -54,6 +64,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     // eslint-disable-next-line no-undef
     apiKey: process.env.SHOPIFY_API_KEY || "",
     hasBrand: shop.brand != null,
+    planName: planFor(shop.plan).name,
+    viewUsage: usageLevel(monthViews, shop.viewCapMonthly),
+    reelUsage: usageLevel(reels.length, planFor(shop.plan).reelLimit),
+    monthViews,
+    viewCap: shop.viewCapMonthly,
+    reelLimit: planFor(shop.plan).reelLimit,
     partial: [reelsResult, widgetsResult, statsResult].some((r) => r.status === "rejected"),
     firstUntaggedKey: reels.find((r) => (r.config.productIds ?? []).length === 0) ? reelKey(reels.find((r) => (r.config.productIds ?? []).length === 0)!.id) : null,
     reelCount: reels.length,
@@ -118,6 +134,27 @@ export default function Dashboard() {
             <s-link href={themeEditorUrl(data.apiKey)} target="_top">
               Turn on the app embed
             </s-link>
+          </s-banner>
+        )}
+
+        {(data.viewUsage !== "ok" || data.reelUsage !== "ok") && (
+          <s-banner
+            tone={data.viewUsage === "over" || data.reelUsage === "over" ? "critical" : "warning"}
+            heading={
+              data.reelUsage === "over"
+                ? `You've used all ${data.reelLimit.toLocaleString()} videos on ${data.planName}`
+                : data.viewUsage === "over"
+                  ? `You've passed ${data.viewCap.toLocaleString()} views this month on ${data.planName}`
+                  : `You're close to your ${data.planName} plan limit`
+            }
+          >
+            {data.reelUsage !== "ok"
+              ? `${data.reelCount.toLocaleString()} of ${data.reelLimit.toLocaleString()} videos used. `
+              : ""}
+            {data.viewUsage !== "ok"
+              ? `${data.monthViews.toLocaleString()} of ${data.viewCap.toLocaleString()} views this month. `
+              : ""}
+            <s-link href="/app/pricing">See plans</s-link>
           </s-banner>
         )}
 
@@ -221,6 +258,8 @@ function Performance({ stats }: { stats: NonNullable<Data["stats"]> }) {
   const { current, previous } = stats;
   const ctr = current.views ? (current.clicks / current.views) * 100 : 0;
   const prevCtr = previous.views ? (previous.clicks / previous.views) * 100 : 0;
+  const atc = current.views ? (current.addToCarts / current.views) * 100 : 0;
+  const prevAtc = previous.views ? (previous.addToCarts / previous.views) * 100 : 0;
   // Revenue is never summed across currencies; show the main one and note
   // when there are others.
   const revenue = current.revenue[0];
@@ -240,6 +279,8 @@ function Performance({ stats }: { stats: NonNullable<Data["stats"]> }) {
         <Kpi label="Video views" value={current.views.toLocaleString()} delta={change(current.views, previous.views)} />
         <Kpi label="Product clicks" value={current.clicks.toLocaleString()} delta={change(current.clicks, previous.clicks)} />
         <Kpi label="Click rate" value={`${ctr.toFixed(1)}%`} delta={pointChange(ctr, prevCtr, previous.views > 0)} />
+        <Kpi label="Add to carts" value={current.addToCarts.toLocaleString()} delta={change(current.addToCarts, previous.addToCarts)} />
+        <Kpi label="Add-to-cart rate" value={`${atc.toFixed(1)}%`} delta={pointChange(atc, prevAtc, previous.views > 0)} />
         <Kpi
           label="Sales from videos"
           value={revenue ? formatMoney(revenue.amount, revenue.currencyCode) : "—"}
@@ -252,10 +293,11 @@ function Performance({ stats }: { stats: NonNullable<Data["stats"]> }) {
   );
 }
 
-type SortKey = "views" | "clicks" | "rate" | "sales";
+type SortKey = "views" | "clicks" | "carts" | "rate" | "sales";
 const SORT_COLUMNS: { key: SortKey; label: string }[] = [
   { key: "views", label: "Views" },
   { key: "clicks", label: "Clicks" },
+  { key: "carts", label: "Add to cart" },
   { key: "rate", label: "Click rate" },
   { key: "sales", label: "Sales" },
 ];
@@ -271,11 +313,13 @@ function TopVideos({ data }: { data: Data }) {
       ? r.views
       : sort.key === "clicks"
         ? r.clicks
-        : sort.key === "rate"
-          ? r.views
-            ? r.clicks / r.views
-            : -1
-          : r.revenue * 1e6 + r.unitsSold * 1e3 + r.views / 1e3;
+        : sort.key === "carts"
+          ? r.addToCarts
+          : sort.key === "rate"
+            ? r.views
+              ? r.clicks / r.views
+              : -1
+            : r.revenue * 1e6 + r.unitsSold * 1e3 + r.views / 1e3;
   const rows = [...data.topReels].sort((a, b) => (sort.desc ? metric(b) - metric(a) : metric(a) - metric(b)));
   return (
     <section className={styles.card}>
@@ -331,6 +375,7 @@ function TopVideos({ data }: { data: Data }) {
                   </th>
                   <td>{r.views.toLocaleString()}</td>
                   <td>{r.clicks.toLocaleString()}</td>
+                  <td>{r.addToCarts.toLocaleString()}</td>
                   <td>{r.views ? `${((r.clicks / r.views) * 100).toFixed(1)}%` : "—"}</td>
                   <td>
                     {r.revenue && currency && !multiCurrency
