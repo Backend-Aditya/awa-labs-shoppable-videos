@@ -125,70 +125,14 @@
   gap: 8px;
 }
 
-/* Toolbar controls share one look: 32px tall, 8px radius, Shopify's input
-   border, and a focus ring that never changes the control's size. */
-.search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  box-sizing: border-box;
+/* Search and sort are Shopify's own s-search-field and s-select, so they match
+   every other input in the admin. These wrappers only set the width. */
+.searchField {
   width: 260px;
-  height: 32px;
-  padding: 0 8px 0 10px;
-  border: 1px solid #8a8a8a;
-  border-radius: 8px;
-  background: #fff;
-  color: #616161;
-  transition: border-color 0.12s ease;
 }
 
-.search:hover {
-  border-color: #616161;
-}
-
-.search:focus-within {
-  outline: 2px solid #005bd3;
-  outline-offset: -1px;
-  border-color: transparent;
-}
-
-.search input {
-  flex: 1;
-  min-width: 0;
-  height: 100%;
-  padding: 0;
-  border: 0;
-  outline: none;
-  font: inherit;
-  color: #303030;
-  background: transparent;
-}
-
-.search input::placeholder {
-  color: #8a8a8a;
-}
-
-.sort select {
-  box-sizing: border-box;
-  height: 32px;
-  padding: 0 28px 0 10px;
-  border: 1px solid #8a8a8a;
-  border-radius: 8px;
-  background-color: #fff;
-  font: inherit;
-  color: #303030;
-  cursor: pointer;
-  transition: border-color 0.12s ease;
-}
-
-.sort select:hover {
-  border-color: #616161;
-}
-
-.sort select:focus-visible {
-  outline: 2px solid #005bd3;
-  outline-offset: -1px;
-  border-color: transparent;
+.sortField {
+  width: 150px;
 }
 
 .viewToggle {
@@ -219,9 +163,14 @@
 
 @media (max-width: 720px) {
   .toolbarRight {
+    flex-wrap: wrap;
     width: 100%;
   }
-  .search {
+  .searchField {
+    flex: 1 1 100%;
+    width: auto;
+  }
+  .sortField {
     flex: 1;
     width: auto;
   }
@@ -1008,30 +957,6 @@
 .rightsRow input {
   margin: 3px 0 0;
   accent-color: #303030;
-}
-
-/* Hint for the "/" search shortcut. It fades out while the box is in use but
-   keeps its space, so focusing the field never resizes it. */
-.searchKey {
-  flex: none;
-  min-width: 18px;
-  padding: 0 5px;
-  border-radius: 4px;
-  box-shadow: inset 0 0 0 1px #d4d4d4;
-  color: #8a8a8a;
-  font: 600 11px/18px ui-monospace, SFMono-Regular, Menlo, monospace;
-  text-align: center;
-  transition: opacity 0.12s ease;
-}
-
-.search:focus-within .searchKey {
-  opacity: 0;
-}
-
-@media (hover: none) {
-  .searchKey {
-    display: none;
-  }
 }
 
 .hint[data-error] {

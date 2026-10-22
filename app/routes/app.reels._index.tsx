@@ -130,14 +130,14 @@ export default function ReelsLibrary() {
   const shopify = useAppBridge();
   const bulkFetcher = useFetcher<typeof action>();
   const [query, setQuery] = useState("");
-  const searchRef = useRef<HTMLInputElement>(null);
+  const searchRef = useRef<HTMLElementTagNameMap["s-search-field"]>(null);
   // "/" jumps to search from anywhere on the page (unless typing already);
   // Escape in the box clears it.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
       const target = event.target as HTMLElement | null;
-      if (target?.closest("input, textarea, select, [contenteditable='true']")) return;
+      if (target?.closest("input, textarea, select, s-search-field, s-text-field, s-select, [contenteditable='true']")) return;
       event.preventDefault();
       searchRef.current?.focus();
     };
@@ -320,36 +320,39 @@ export default function ReelsLibrary() {
                 ))}
               </div>
               <div className={styles.toolbarRight}>
-                <label className={styles.search}>
-                  <SearchIcon />
-                  <span className={styles.srOnly}>Search videos</span>
-                  <input
+                {/* Escape clears the search. The key event bubbles up from the web component. */}
+                {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
+                <div
+                  className={styles.searchField}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape" && query) {
+                      e.preventDefault();
+                      setQuery("");
+                    }
+                  }}
+                >
+                  <s-search-field
                     ref={searchRef}
-                    type="search"
+                    label="Search videos"
+                    labelAccessibilityVisibility="exclusive"
                     placeholder="Search by title"
-                    aria-keyshortcuts="/"
                     value={query}
-                    onChange={(e) => setQuery(e.currentTarget.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Escape" && query) {
-                        e.preventDefault();
-                        setQuery("");
-                      }
-                    }}
+                    onInput={(e: Event) => setQuery((e.currentTarget as HTMLInputElement).value)}
                   />
-                  <kbd className={styles.searchKey} aria-hidden="true">
-                    /
-                  </kbd>
-                </label>
-                <label className={styles.sort}>
-                  <span className={styles.srOnly}>Sort</span>
-                  <select value={sort} onChange={(e) => setSort(e.currentTarget.value as Sort)}>
-                    <option value="newest">Newest</option>
-                    <option value="oldest">Oldest</option>
-                    <option value="views">Most viewed</option>
-                    <option value="title">Title A–Z</option>
-                  </select>
-                </label>
+                </div>
+                <div className={styles.sortField}>
+                  <s-select
+                    label="Sort"
+                    labelAccessibilityVisibility="exclusive"
+                    value={sort}
+                    onChange={(e: Event) => setSort((e.currentTarget as HTMLSelectElement).value as Sort)}
+                  >
+                    <s-option value="newest">Newest</s-option>
+                    <s-option value="oldest">Oldest</s-option>
+                    <s-option value="views">Most viewed</s-option>
+                    <s-option value="title">Title A to Z</s-option>
+                  </s-select>
+                </div>
                 <div /* eslint-disable-line jsx-a11y/interactive-supports-focus -- roving tabindex: the chosen child is the tab stop */
                   className={styles.viewToggle}
                   role="radiogroup"
@@ -1114,13 +1117,6 @@ function CloseIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
       <path d="M5.72 5.72a.75.75 0 0 1 1.06 0L10 8.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L11.06 10l3.22 3.22a.75.75 0 1 1-1.06 1.06L10 11.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L8.94 10 5.72 6.78a.75.75 0 0 1 0-1.06Z" />
-    </svg>
-  );
-}
-function SearchIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-      <path fillRule="evenodd" d="M12.32 13.38a6 6 0 1 1 1.06-1.06l3.4 3.4a.75.75 0 1 1-1.06 1.06l-3.4-3.4ZM13.5 8.5a5 5 0 1 1-10 0 5 5 0 0 1 10 0Z" />
     </svg>
   );
 }
