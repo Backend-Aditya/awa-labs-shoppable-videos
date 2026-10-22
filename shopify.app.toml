@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "9ea31b9c552028b42fe272081db2b3e3"
-application_url = "https://awa-shoppable-videos.onrender.com"
+application_url = "https://awa-shoppable-videos.fly.dev"
 embedded = true
 name = "AWAlabs Shoppable Videos"
 
@@ -167,10 +167,10 @@ description = "Shop-wide widget colours and video viewer theme, set on the app's
   storefront = "public_read"
 
 [auth]
-redirect_urls = [ "https://awa-shoppable-videos.onrender.com/api/auth" ]
+redirect_urls = [ "https://awa-shoppable-videos.fly.dev/api/auth" ]
 
 [app_proxy]
-url = "https://awa-shoppable-videos.onrender.com/api"
+url = "https://awa-shoppable-videos.fly.dev/api"
 subpath = "reels"
 prefix = "apps"
 
@@ -198,9 +198,9 @@ api_version = "2026-07"
   # topics = [ "orders/paid" ]
 
   [webhooks.privacy_compliance]
-  customer_data_request_url = "https://awa-shoppable-videos.onrender.com/webhooks/customers/data_request"
-  customer_deletion_url = "https://awa-shoppable-videos.onrender.com/webhooks/customers/redact"
-  shop_deletion_url = "https://awa-shoppable-videos.onrender.com/webhooks/shop/redact"
+  customer_data_request_url = "https://awa-shoppable-videos.fly.dev/webhooks/customers/data_request"
+  customer_deletion_url = "https://awa-shoppable-videos.fly.dev/webhooks/customers/redact"
+  shop_deletion_url = "https://awa-shoppable-videos.fly.dev/webhooks/shop/redact"
 
 [build]
 automatically_update_urls_on_dev = true
