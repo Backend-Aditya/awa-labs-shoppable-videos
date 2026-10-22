@@ -40,14 +40,33 @@ Dashboard or against the current Shopify docs before submitting.
 
 ## Built for Shopify
 
-- [x] Embedded app using App Bridge and session tokens.
-- [x] Admin UI uses Shopify's web components and default font.
-- [x] Mandatory privacy webhooks (`customers/data_request`, `customers/redact`, `shop/redact`).
-- [x] Uninstall webhook; offline tokens expire and refresh.
-- [ ] Measure storefront impact with Lighthouse on a dev store with the widgets on;
-      Built for Shopify requires a small impact on the Lighthouse performance score.
-- [ ] Measure admin performance (Web Vitals: LCP, CLS, INP) on the live app.
-- [?] Review the current Built for Shopify requirements page and tick off each item.
+Criteria from the Partner Dashboard checklist. Automated ones use the last 28 days of data.
+
+Design and functionality (checked in the code)
+
+- [x] Embedded in the Shopify admin (`embedded = true`).
+- [x] Session token authentication (`authenticate.admin` on every admin route).
+- [x] Latest App Bridge on every page: loaded from Shopify's CDN by `AppProvider` in the `/app` layout.
+- [x] Theme app extension for all storefront functionality; nothing is left behind on uninstall.
+- [x] Does not use the Asset API (no `read_themes`/`write_themes` scopes, no theme file calls).
+- [x] Shopify's web components and default font in the admin.
+- [ ] Walk every page against Shopify's design guidelines (spacing, headings, empty states).
+
+Performance (needs real traffic, cannot be verified from code)
+
+- [ ] Admin Core Web Vitals: LCP under 2.5s, CLS under 0.1, INP under 200ms, with 100+ admin calls in 28 days.
+      Check the Partner Dashboard > Monitoring after real merchants use the app.
+- [ ] Storefront impact: Lighthouse on a dev store with and without the widgets; keep the score drop small.
+- [ ] Fly machine is always on (no cold starts), so admin loads are not slowed by boot time.
+
+Category: Analytics
+
+- [ ] Read the Analytics category criteria in the Partner Dashboard before submitting.
+
+Merchant utility (only comes with launch)
+
+- [ ] 50 net installs from active shops on paid plans.
+- [ ] 5 reviews since launch, rating of 4 stars or more.
 
 ## App Store listing
 
