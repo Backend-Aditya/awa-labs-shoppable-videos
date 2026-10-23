@@ -164,6 +164,17 @@ describe("reel-video-schema", () => {
   });
 });
 
+describe("after-add action", () => {
+  it("defaults to staying in the viewer and passes the widget's choice", async () => {
+    expect((await trigger(makeReel())).dataset.afterAdd).toBe("stay");
+    expect((await trigger(makeReel(), { afterAdd: "checkout" })).dataset.afterAdd).toBe("checkout");
+  });
+
+  it("carries the widget it belongs to, for connected analytics", async () => {
+    expect((await trigger(makeReel(), {}, { source: "stories" })).dataset.source).toBe("stories");
+  });
+});
+
 describe("reel-icon", () => {
   it.each(["play", "chevron-left", "chevron-right", "close"])("%s renders a decorative, sized svg", async (name) => {
     const { $ } = await renderDom("reel-icon", { name, size: 16, class: "reelup-x" });

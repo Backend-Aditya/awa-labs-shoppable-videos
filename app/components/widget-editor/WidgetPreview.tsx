@@ -17,6 +17,9 @@ export interface PreviewProduct {
   title: string;
   imageUrl: string | null;
   price: string;
+  // Sample data only: real products reach the editor without one.
+  compareAtPrice?: string;
+  discountPercent?: number;
 }
 
 export interface PreviewReel {
@@ -42,7 +45,13 @@ const SAMPLE_REELS: PreviewReel[] = ["Morning routine", "Styling tips", "Unboxin
     title,
     durationSeconds: [24, 41, 18, 33, 27][i],
     products: [
-      { id: `p-${i}`, title: ["Linen shirt", "Canvas tote", "Ceramic mug", "Wool scarf", "Leather belt"][i], imageUrl: null, price: ["$48.00", "$32.00", "$18.00", "$56.00", "$40.00"][i] },
+      {
+        id: `p-${i}`,
+        title: ["Linen shirt", "Canvas tote", "Ceramic mug", "Wool scarf", "Leather belt"][i],
+        imageUrl: null,
+        price: ["$48.00", "$32.00", "$18.00", "$56.00", "$40.00"][i],
+        ...(i % 2 === 0 ? { compareAtPrice: ["$60.00", "", "$24.00", "", "$50.00"][i], discountPercent: [20, 0, 25, 0, 20][i] } : {}),
+      },
       { id: `q-${i}`, title: "Everyday cap", imageUrl: null, price: "$24.00" },
     ],
   }),
@@ -744,7 +753,15 @@ function ViewerPreview({
               {style.showProductImage && <ProductThumb product={product} size={44} />}
               <span className={styles.filmProductText}>
                 <span className={styles.oneLine}>{product.title}</span>
-                {style.showPrice && <span className={styles.subdued}>{product.price}</span>}
+                {style.showPrice && (
+                  <span className={styles.priceRow}>
+                    <span className={product.compareAtPrice ? styles.salePrice : styles.subdued}>{product.price}</span>
+                    {product.compareAtPrice && <s className={styles.subdued}>{product.compareAtPrice}</s>}
+                    {style.showSaleBadge && product.discountPercent ? (
+                      <span className={styles.saleBadge}>−{product.discountPercent}%</span>
+                    ) : null}
+                  </span>
+                )}
               </span>
               {style.showQuantity && <span className={styles.qty}>− 1 +</span>}
               <CtaButton style={style} small />

@@ -4,7 +4,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent } from "@testing-library/react";
 import { makeProduct, makeReel, makeWidget, multiVariantProduct } from "../support/storefront-fixtures.mjs";
-import { click, defaultRoutes as defaultRoutesFor, fetchBody, fetchCalls, fetchMock, flush, json, mount, renderBlock, resetPage } from "./harness";
+import { click, defaultRoutes as defaultRoutesFor, fetchBody, fetchCalls, fetchMock, flush, json, mount, renderBlock, resetPage, viewer } from "./harness";
 
 const REEL_ID = "gid://shopify/Metaobject/55";
 
@@ -253,5 +253,87 @@ describe("add to cart", () => {
     expect(fetchCalls("/apps/reels/analytics").map(fetchBody)).toEqual([
       { reelId: REEL_ID, eventType: "click_product" },
     ]);
+  });
+});
+
+describe("sale badge and after-add actions", () => {
+  async function mountStrip(style: object) {
+    const reel = makeReel({ id: 11, title: "First", products: [multiVariantProduct(7)] });
+    await mount(await renderBlock("product-page-reels", { reels: [reel], widget: makeWidget({ style }) }));
+    click(document.querySelector("[data-reelup-trigger] .reelup-trigger__button"));
+    return viewer()!;
+  }
+  const navigate = () => {
+    const spy = vi.fn();
+    (window as unknown as { ReelupViewer: { navigate: (url: string) => void } }).ReelupViewer.navigate = spy;
+    return spy;
+  };
+
+  it("the sale badge follows the chosen variant", async () => {
+    const dialog = await mountStrip({ showSaleBadge: true });
+    const badge = dialog.querySelector<HTMLElement>("[data-reelup-badge]")!;
+    expect(badge.textContent).toBe("−20%");
+    const select = dialog.querySelector<HTMLSelectElement>("[data-reelup-variant]")!;
+    select.value = "702";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(badge.hidden).toBe(true);
+    select.value = "701";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(badge.hidden).toBe(false);
+    expect(badge.textContent).toBe("−20%");
+  });
+
+  it("no badge unless the merchant turned it on", async () => {
+    const dialog = await mountStrip({});
+    expect(dialog.querySelector("[data-reelup-badge]")).toBeNull();
+  });
+
+  it("'Keep watching' (default) stays in the viewer", async () => {
+    const dialog = await mountStrip({});
+    const go = navigate();
+    click(dialog.querySelector("[data-reelup-add-to-cart]"));
+    await flush();
+    expect(go).not.toHaveBeenCalled();
+    expect(dialog.open).toBe(true);
+  });
+
+  it("'Checkout' goes to checkout once the add succeeds, not when it fails", async () => {
+    const dialog = await mountStrip({ afterAdd: "checkout" });
+    const go = navigate();
+    fetchMock.mockImplementation(async (url) =>
+      String(url).startsWith("/cart/add.js") ? json({ description: "Sold out" }, 422) : defaultRoutesFor(String(url)),
+    );
+    click(dialog.querySelector("[data-reelup-add-to-cart]"));
+    await flush();
+    expect(go).not.toHaveBeenCalled();
+    fetchMock.mockImplementation(async (url) => defaultRoutesFor(String(url)));
+    click(dialog.querySelector("[data-reelup-add-to-cart]"));
+    await flush();
+    expect(go).toHaveBeenCalledWith("/checkout");
+  });
+
+  it("'Show cart' reveals a Dawn-style cart drawer by closing the viewer", async () => {
+    const dialog = await mountStrip({ afterAdd: "cart" });
+    const renderContents = vi.fn();
+    const drawer = document.createElement("cart-drawer") as HTMLElement & { renderContents: typeof renderContents };
+    drawer.renderContents = renderContents;
+    document.body.appendChild(drawer);
+    fetchMock.mockImplementation(async (url) =>
+      String(url).startsWith("/cart/add.js") ? json({ items: [{ id: 701 }], sections: { "cart-drawer": "<div></div>" } }) : defaultRoutesFor(String(url)),
+    );
+    const go = navigate();
+    click(dialog.querySelector("[data-reelup-add-to-cart]"));
+    await flush();
+    expect(renderContents).toHaveBeenCalled();
+    expect(dialog.open).toBe(false);
+    expect(go).not.toHaveBeenCalled();
+  });
+
+  it("'Show cart' goes to the cart page on themes without a drawer", async () => {
+    const dialog = await mountStrip({ afterAdd: "cart" });
+    const go = navigate();
+    click(dialog.querySelector("[data-reelup-add-to-cart]"));
+    await flush();
+    expect(go).toHaveBeenCalledWith("/cart");
   });
 });

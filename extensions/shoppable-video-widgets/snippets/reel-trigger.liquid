@@ -77,6 +77,7 @@ its look; this snippet owns the contract with the JS.
   data-link-label="{{ reel.config.value.interactions.ctaLabel | default: '' | escape }}"
   data-show-share="{% if style.showShare == false %}false{% else %}true{% endif %}"
   data-show-recommendations="{% if style.showRecommendations == false %}false{% else %}true{% endif %}"
+  data-after-add="{{ style.afterAdd | default: 'stay' | escape }}"
 >
   {{- inner -}}
   {%- if reel.tagged_products.value.size > 0 -%}

@@ -233,8 +233,8 @@
 
   /* ----------------------------------------------- product card + cart */
 
-  // Variant picker: keeps the card's price, compare-at price, image and
-  // add button in step with the chosen option.
+  // Variant picker: keeps the card's price, compare-at price, sale badge,
+  // image and add button in step with the chosen option.
   document.addEventListener("change", (event) => {
     const select = event.target.closest?.("[data-reelup-variant]");
     if (!select) return;
@@ -248,6 +248,11 @@
     if (compare) {
       compare.textContent = option.dataset.compare ?? "";
       compare.hidden = !option.dataset.compare;
+    }
+    const badge = card.querySelector("[data-reelup-badge]");
+    if (badge) {
+      badge.textContent = option.dataset.discount ? `−${option.dataset.discount}%` : "";
+      badge.hidden = !option.dataset.discount;
     }
     const image = card.querySelector(".reelup-product__media img");
     if (image && option.dataset.image) {
@@ -324,6 +329,21 @@
     } catch {
       // The add itself succeeded; a theme that can't be told just refreshes
       // its cart count on the next page view.
+    }
+  };
+
+  // What a successful add leads to — the widget's "After adding to cart".
+  // "cart": Dawn-family themes' drawer or notification was just opened by
+  // notifyTheme, so a viewer steps aside to reveal it; other themes go to
+  // the cart page. "checkout" goes straight there. "stay" (the default)
+  // keeps the shopper watching.
+  const afterAdd = (button, trigger) => {
+    const action = trigger?.dataset.afterAdd;
+    if (action === "checkout") {
+      window.ReelupViewer.navigate("/checkout");
+    } else if (action === "cart") {
+      if (typeof themeCartElement()?.renderContents === "function") button.closest("dialog")?.close();
+      else window.ReelupViewer.navigate(cartUrl);
     }
   };
 
@@ -413,6 +433,7 @@
       showStatus(status, labels.addedToCart, false);
       announce(button, labels.addedToCart);
       notifyTheme(added);
+      afterAdd(button, trigger);
     } catch (error) {
       const message = error?.shopperMessage || labels.addFailed;
       button.dataset.state = "";
@@ -1191,5 +1212,7 @@
     cloneProducts,
     startPlayback,
     trackAnalytics,
+    // Leaving for the cart or checkout; a property so tests can watch it.
+    navigate: (url) => window.location.assign(url),
   };
 })();

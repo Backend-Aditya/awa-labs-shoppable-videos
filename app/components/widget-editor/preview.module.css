@@ -918,3 +918,31 @@
     transition: none;
   }
 }
+
+/* Price line in the viewer preview: sale price, compare-at, sale badge. */
+.priceRow {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 4px;
+  font-size: 10px;
+}
+
+.priceRow > * {
+  font-size: inherit;
+}
+
+.salePrice {
+  color: var(--pv-sale, #b42318);
+  font-weight: 600;
+}
+
+.saleBadge {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--pv-sale, #b42318);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 14px;
+}

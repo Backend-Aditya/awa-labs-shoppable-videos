@@ -60,6 +60,11 @@ export interface WidgetStyleConfig {
   ctaStyle?: "pill" | "square" | "text-link";
   showProductImage?: boolean;
   tagRevealMode?: "always" | "tap";
+  // A "−20%" badge on products with a compare-at price.
+  showSaleBadge?: boolean;
+  // What a successful add to cart leads to: keep watching, the cart (the
+  // theme's drawer when it has one, else the cart page), or checkout.
+  afterAdd?: "stay" | "cart" | "checkout";
 }
 
 export type StyleFieldKey = keyof WidgetStyleConfig;
@@ -126,6 +131,9 @@ const PRODUCT_TAG_DEFAULTS: WidgetStyleConfig = {
   showQuantity: false,
   showShare: true,
   showRecommendations: true,
+  // Off until the merchant chooses it, so existing storefronts don't change.
+  showSaleBadge: false,
+  afterAdd: "stay",
 };
 
 const PRODUCT_TAG_FIELDS: StyleFieldKey[] = [
@@ -142,6 +150,8 @@ const PRODUCT_TAG_FIELDS: StyleFieldKey[] = [
   "showQuantity",
   "showShare",
   "showRecommendations",
+  "showSaleBadge",
+  "afterAdd",
 ];
 
 export const WIDGET_KIND_META: Record<Exclude<WidgetKind, "GRID">, WidgetKindMeta> = {
@@ -417,6 +427,7 @@ const ENUMS: Partial<Record<StyleFieldKey, readonly string[]>> = {
   singleLayout: ["split", "poster"],
   ctaStyle: ["pill", "square", "text-link"],
   tagRevealMode: ["always", "tap"],
+  afterAdd: ["stay", "cart", "checkout"],
 };
 
 const COLORS: StyleFieldKey[] = [
@@ -444,6 +455,7 @@ const BOOLS: StyleFieldKey[] = [
   "showQuantity",
   "showShare",
   "showRecommendations",
+  "showSaleBadge",
 ];
 
 const NUMBER_RANGES: Partial<Record<StyleFieldKey, [number, number]>> = {

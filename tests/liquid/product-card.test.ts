@@ -104,4 +104,34 @@ describe("reel-product-card", () => {
     const { html } = await card({ ...makeProduct({ id: 2 }), selected_or_first_available_variant: null });
     expect(html.trim()).toBe("");
   });
+
+  describe("sale badge", () => {
+    const onSale = (price: number, compare: number) =>
+      makeProduct({ id: 9, variants: [{ id: 91, title: "Default Title", price, compare_at_price: compare }] });
+
+    it.each([
+      [4800, 6000, "−20%"],
+      [4001, 5000, "−20%"], // 19.98% rounds up
+      [4026, 5000, "−19%"], // 19.48% rounds down
+      [100, 300, "−67%"],
+    ])("%i on %i shows %s", async (price, compare, text) => {
+      const { $ } = await card(onSale(price, compare), { showSaleBadge: true });
+      expect($("[data-reelup-badge]")!.textContent).toBe(text);
+      expect($("[data-reelup-badge]")!.getAttribute("aria-hidden")).toBe("true");
+    });
+
+    it("is off unless the merchant turns it on, and never without prices", async () => {
+      expect((await card(onSale(4800, 6000))).$("[data-reelup-badge]")).toBeNull();
+      expect((await card(onSale(4800, 6000), { showSaleBadge: true, showPrice: false })).$("[data-reelup-badge]")).toBeNull();
+    });
+
+    it("stays in the markup, hidden, for a full-price variant the picker may switch away from", async () => {
+      const { $, $$ } = await card(multiVariantProduct(), { showSaleBadge: true });
+      expect($("[data-reelup-badge]")!.hidden).toBe(false);
+      expect($$<HTMLOptionElement>("option").map((o) => o.dataset.discount ?? null)).toEqual(["20", null, null]);
+
+      const fullPrice = await card(makeProduct({ id: 4 }), { showSaleBadge: true });
+      expect(fullPrice.$("[data-reelup-badge]")!.hidden).toBe(true);
+    });
+  });
 });

@@ -320,3 +320,20 @@ describe("WidgetPreview — viewer mode", () => {
     expect(container.querySelector(".viewer")).toBeNull();
   });
 });
+
+describe("sale badge", () => {
+  it("shows on sample products with a compare-at price, only when switched on", async () => {
+    const { rerender } = render(<WidgetPreview kind="PRODUCT_PAGE_REELS" style={{ ...defaults("PRODUCT_PAGE_REELS"), showSaleBadge: true }} reels={[]} />);
+    await userEvent.click(screen.getByRole("radio", { name: "Video viewer" }));
+    expect(screen.getByText("−20%")).toBeTruthy();
+    expect(screen.getByText("$60.00")).toBeTruthy();
+    rerender(<WidgetPreview kind="PRODUCT_PAGE_REELS" style={{ ...defaults("PRODUCT_PAGE_REELS"), showSaleBadge: false }} reels={[]} />);
+    expect(screen.queryByText("−20%")).toBeNull();
+  });
+
+  it("never invents a discount for real products (no compare-at price reaches the editor)", async () => {
+    renderPreview("PRODUCT_PAGE_REELS", { ...defaults("PRODUCT_PAGE_REELS"), showSaleBadge: true });
+    await userEvent.click(screen.getByRole("radio", { name: "Video viewer" }));
+    expect(screen.queryByText(/^−\d+%$/)).toBeNull();
+  });
+});

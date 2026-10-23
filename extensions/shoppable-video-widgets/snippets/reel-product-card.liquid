@@ -12,7 +12,7 @@ product page instead of a picker: the <select> would bloat every template
 anyway — adding a variant the shopper never chose would be wrong.
 
 @param product {product} - the tagged product
-@param style {object} - the widget's style object (showPrice, showProductImage, ctaLabel)
+@param style {object} - the widget's style object (showPrice, showProductImage, showSaleBadge, ctaLabel)
 
 @example
 {% render 'reel-product-card' for reel.tagged_products.value as product, style: widget_style %}
@@ -27,6 +27,12 @@ anyway — adding a variant the shopper never chose would be wrong.
   if style.showProductImage == false
     assign show_image = false
   endif
+  # The saving as a whole percent, rounded half up with integer maths
+  # (Shopify's divided_by on integers floors): (saving × 100 + compare/2) / compare.
+  assign show_badge = false
+  if style.showSaleBadge == true and show_price
+    assign show_badge = true
+  endif
   assign add_label = 'reels.add_to_cart' | t
   if style.ctaLabel != blank
     assign add_label = style.ctaLabel | escape
@@ -35,6 +41,11 @@ anyway — adding a variant the shopper never chose would be wrong.
   assign choose_on_page = false
   if variant_count > 30
     assign choose_on_page = true
+  endif
+  assign discount = 0
+  if show_badge and choose_on_page == false and variant.compare_at_price > variant.price
+    assign half = variant.compare_at_price | divided_by: 2
+    assign discount = variant.compare_at_price | minus: variant.price | times: 100 | plus: half | divided_by: variant.compare_at_price
   endif
 -%}
 {%- if variant -%}
@@ -65,6 +76,10 @@ anyway — adding a variant the shopper never chose would be wrong.
         <s class="reelup-product__compare" data-reelup-compare{% unless variant.compare_at_price > variant.price and choose_on_page == false %} hidden{% endunless %}>
           {{- variant.compare_at_price | money -}}
         </s>
+        {%- if show_badge -%}
+          {%- comment -%} Both prices are already read out; the badge is visual. {%- endcomment -%}
+          <span class="reelup-product__badge" data-reelup-badge aria-hidden="true"{% if discount == 0 %} hidden{% endif %}>−{{ discount }}%</span>
+        {%- endif -%}
       </span>
     {%- endif -%}
     {%- unless product.has_only_default_variant or choose_on_page -%}
@@ -75,6 +90,10 @@ anyway — adding a variant the shopper never chose would be wrong.
             data-price="{{ option_variant.price | money | escape }}"
             data-compare="{% if option_variant.compare_at_price > option_variant.price %}{{ option_variant.compare_at_price | money | escape }}{% endif %}"
             data-available="{{ option_variant.available }}"
+            {%- if show_badge and option_variant.compare_at_price > option_variant.price %}
+              {%- assign option_half = option_variant.compare_at_price | divided_by: 2 -%}
+              {%- assign option_discount = option_variant.compare_at_price | minus: option_variant.price | times: 100 | plus: option_half | divided_by: option_variant.compare_at_price %} data-discount="{{ option_discount }}"
+            {%- endif %}
             {%- if option_variant.featured_image %} data-image="{{ option_variant.featured_image | image_url: width: 192 }}"{% endif %}
             {% if option_variant.id == variant.id %}selected{% endif %}
           >

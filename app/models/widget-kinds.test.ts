@@ -2,6 +2,13 @@ import { describe, expect, it } from "vitest";
 import { resolveStyle, sanitizeStyle, WIDGET_KIND_META } from "./widget-kinds";
 
 describe("sanitizeStyle", () => {
+  it("product-tag options: sale badge is a boolean, after-add one of three", () => {
+    expect(sanitizeStyle("CAROUSEL", { showSaleBadge: true, afterAdd: "checkout" })).toEqual({ showSaleBadge: true, afterAdd: "checkout" });
+    expect(sanitizeStyle("CAROUSEL", { showSaleBadge: "yes", afterAdd: "/evil" })).toEqual({});
+    // Existing widgets keep today's behaviour until the merchant chooses.
+    expect(resolveStyle("CAROUSEL", {})).toMatchObject({ showSaleBadge: false, afterAdd: "stay" });
+  });
+
   it("keeps only fields the kind uses", () => {
     const style = sanitizeStyle("REEL_POPS", { popShape: "circle", layoutMode: "grid", heading: "Hi" });
     expect(style).toEqual({ popShape: "circle" });

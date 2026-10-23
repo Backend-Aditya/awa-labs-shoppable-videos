@@ -1073,6 +1073,12 @@ function DesignTab({
 
 /* ------------------------------------------------------------ shopping */
 
+const AFTER_ADD_HINTS: Record<NonNullable<WidgetStyleConfig["afterAdd"]>, string> = {
+  stay: "Shoppers see a confirmation and can keep browsing videos.",
+  cart: "Opens your theme's cart drawer, or the cart page if your theme has none.",
+  checkout: "Goes straight to checkout — fastest for single-product videos.",
+};
+
 function ShoppingTab({
   meta,
   style,
@@ -1093,6 +1099,14 @@ function ShoppingTab({
         )}
         {has("showPrice") && (
           <Toggle label="Prices" checked={style.showPrice ?? true} onChange={(showPrice) => setStyle({ showPrice })} />
+        )}
+        {has("showSaleBadge") && style.showPrice !== false && (
+          <Toggle
+            label="Sale badge"
+            description="Shows the saving, like −20%, on products with a compare-at price. Follows the chosen variant."
+            checked={style.showSaleBadge ?? false}
+            onChange={(showSaleBadge) => setStyle({ showSaleBadge })}
+          />
         )}
         {has("showTitleOverlay") && (
           <Toggle label="Video title on the player" checked={style.showTitleOverlay ?? true} onChange={(showTitleOverlay) => setStyle({ showTitleOverlay })} />
@@ -1165,6 +1179,19 @@ function ShoppingTab({
           hint="Leave empty to use your store's language setting."
           onChange={(ctaLabel) => setStyle({ ctaLabel })}
         />
+        {has("afterAdd") && (
+          <Segmented
+            label="After adding to cart"
+            value={style.afterAdd ?? "stay"}
+            onChange={(afterAdd) => setStyle({ afterAdd })}
+            options={[
+              { value: "stay", label: "Keep watching" },
+              { value: "cart", label: "Show cart" },
+              { value: "checkout", label: "Checkout" },
+            ]}
+            hint={AFTER_ADD_HINTS[style.afterAdd ?? "stay"]}
+          />
+        )}
       </Card>
 
       <Card title="Playback">
