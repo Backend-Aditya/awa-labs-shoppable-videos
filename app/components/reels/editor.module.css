@@ -191,6 +191,10 @@
   box-shadow: 0 0 0 1px #ebebeb;
 }
 
+.kpisThree {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .kpi {
   display: flex;
   flex-direction: column;

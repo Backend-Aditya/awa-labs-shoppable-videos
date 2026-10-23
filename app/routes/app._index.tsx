@@ -1,6 +1,6 @@
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
 import { useEffect, useState } from "react";
-import { useLoaderData, useNavigate, useNavigation, useSearchParams } from "react-router";
+import { useLoaderData, useNavigate, useNavigation } from "react-router";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { getOrCreateShop } from "../models/shop.server";
@@ -17,7 +17,8 @@ import { log } from "../lib/logger.server";
 import { useThemeStatus } from "../components/useThemeStatus";
 import type { ThemeStatus } from "../components/useThemeStatus";
 import { themeEditorUrl } from "../components/themeEditor";
-import { handleRovingKeys } from "../components/widget-editor/controls";
+import { Kpi, RangePicker, change, formatMoney, pointChange } from "../components/analytics-ui";
+import { deriveKpis, formatPercent } from "../models/kpis";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -68,29 +69,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 type Data = ReturnType<typeof useLoaderData<typeof loader>>;
 
 const EMBED_KEY = "reelup-embed-opened";
-
-function formatMoney(amount: number, currencyCode: string) {
-  try {
-    return new Intl.NumberFormat(undefined, { style: "currency", currency: currencyCode, maximumFractionDigits: 0 }).format(amount);
-  } catch {
-    return `${amount.toFixed(0)} ${currencyCode}`;
-  }
-}
-
-function change(current: number, previous: number) {
-  if (previous === 0) return current === 0 ? null : { label: "New", up: true };
-  const pct = ((current - previous) / previous) * 100;
-  return { label: `${pct >= 0 ? "+" : ""}${pct.toFixed(0)}%`, up: pct >= 0 };
-}
-
-// Rates change in percentage points, not percent of a percent (2% → 3% is
-// "+1.0 pt", not "+50%").
-function pointChange(current: number, previous: number, hadData: boolean) {
-  if (!hadData) return current === 0 ? null : { label: "New", up: true };
-  const diff = current - previous;
-  if (Math.abs(diff) < 0.05) return null;
-  return { label: `${diff >= 0 ? "+" : ""}${diff.toFixed(1)} pt`, up: diff >= 0 };
-}
 
 export default function Dashboard() {
   const data = useLoaderData<typeof loader>();
@@ -177,50 +155,13 @@ export default function Dashboard() {
   );
 }
 
-const RANGES = [
-  { days: 7, label: "7 days" },
-  { days: 30, label: "30 days" },
-  { days: 90, label: "90 days" },
-] as const;
-
-// Switches the reporting window without leaving Home; the card dims while
-// the new numbers load instead of the page jumping.
-function RangePicker({ days }: { days: number }) {
-  const [, setSearchParams] = useSearchParams();
-  const choose = (next: number) => {
-    if (next === days) return;
-    setSearchParams(next === 30 ? {} : { days: String(next) }, { preventScrollReset: true });
-  };
-  return (
-    <div /* eslint-disable-line jsx-a11y/interactive-supports-focus -- roving tabindex: the chosen child is the tab stop */
-      className={styles.range}
-      role="radiogroup"
-      aria-label="Reporting period"
-      onKeyDown={(e) => handleRovingKeys(e, RANGES.map((r) => r.days), days, choose)}
-    >
-      {RANGES.map((r) => (
-        <button
-          key={r.days}
-          type="button"
-          role="radio"
-          aria-checked={r.days === days}
-          tabIndex={r.days === days ? 0 : -1}
-          className={styles.rangeOption}
-          onClick={() => choose(r.days)}
-        >
-          {r.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 function Performance({ stats }: { stats: NonNullable<Data["stats"]> }) {
+  const navigate = useNavigate();
   const navigation = useNavigation();
   const loading = navigation.state === "loading" && navigation.location?.pathname === "/app";
   const { current, previous } = stats;
-  const ctr = current.views ? (current.clicks / current.views) * 100 : 0;
-  const prevCtr = previous.views ? (previous.clicks / previous.views) * 100 : 0;
+  const now = deriveKpis({ ...current, revenue: 0 });
+  const before = deriveKpis({ ...previous, revenue: 0 });
   // Revenue is never summed across currencies; show the main one and note
   // when there are others.
   const revenue = current.revenue[0];
@@ -238,8 +179,13 @@ function Performance({ stats }: { stats: NonNullable<Data["stats"]> }) {
       </header>
       <div className={styles.kpis}>
         <Kpi label="Video views" value={current.views.toLocaleString()} delta={change(current.views, previous.views)} />
-        <Kpi label="Product clicks" value={current.clicks.toLocaleString()} delta={change(current.clicks, previous.clicks)} />
-        <Kpi label="Click rate" value={`${ctr.toFixed(1)}%`} delta={pointChange(ctr, prevCtr, previous.views > 0)} />
+        <Kpi label="Click rate" value={formatPercent(now.clickRate)} sub={`${current.clicks.toLocaleString()} product taps`} delta={pointChange(now.clickRate, before.clickRate)} />
+        <Kpi
+          label="Adds to cart"
+          value={current.addToCarts.toLocaleString()}
+          sub={now.addToCartRate === null ? undefined : `${formatPercent(now.addToCartRate)} of views`}
+          delta={change(current.addToCarts, previous.addToCarts)}
+        />
         <Kpi
           label="Sales from videos"
           value={revenue ? formatMoney(revenue.amount, revenue.currencyCode) : "—"}
@@ -248,6 +194,11 @@ function Performance({ stats }: { stats: NonNullable<Data["stats"]> }) {
         />
       </div>
       <ViewsChart daily={stats.daily} />
+      <div className={styles.cardFooter}>
+        <button type="button" className={styles.link} onClick={() => navigate(`/app/analytics${stats.days === 30 ? "" : `?days=${stats.days}`}`)}>
+          See all analytics
+        </button>
+      </div>
     </section>
   );
 }
@@ -346,37 +297,6 @@ function TopVideos({ data }: { data: Data }) {
         </div>
       )}
     </section>
-  );
-}
-
-function Kpi({
-  label,
-  value,
-  sub,
-  delta,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  delta: { label: string; up: boolean } | null;
-}) {
-  return (
-    <div className={styles.kpi}>
-      <span className={styles.kpiLabel}>{label}</span>
-      <span className={styles.kpiValue}>{value}</span>
-      <span className={styles.kpiFoot}>
-        {delta && (
-          <span className={styles.delta} data-up={delta.up || undefined}>
-            <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
-              <path d={delta.up ? "M5 2 9 7H1z" : "M5 8 1 3h8z"} fill="currentColor" />
-            </svg>
-            <span className={styles.srOnly}>{delta.up ? "Up" : "Down"} </span>
-            {delta.label}
-          </span>
-        )}
-        {sub && <span className={styles.muted}>{sub}</span>}
-      </span>
-    </div>
   );
 }
 

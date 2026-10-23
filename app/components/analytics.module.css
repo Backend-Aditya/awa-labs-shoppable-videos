@@ -1,0 +1,77 @@
+/* Analytics page pieces on top of dashboard.module.css: KPI group titles
+   and the view-to-order funnel. */
+
+.groupTitle {
+  margin: 16px 0 8px;
+  color: #616161;
+  font-size: 12px;
+  font-weight: 550;
+}
+
+.groupTitle:first-of-type {
+  margin-top: 0;
+}
+
+.funnel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+
+.funnelStep {
+  display: grid;
+  grid-template-columns: minmax(110px, 160px) minmax(0, 1fr) 64px 52px;
+  align-items: center;
+  gap: 12px;
+}
+
+.funnelLabel {
+  font-weight: 550;
+}
+
+.funnelTrack {
+  height: 10px;
+  border-radius: 999px;
+  background: #f1f1f1;
+  overflow: hidden;
+}
+
+.funnelBar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #303030;
+  transition: width 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.funnelCount {
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.funnelRate {
+  color: #616161;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+@media (max-width: 560px) {
+  .funnelStep {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    row-gap: 4px;
+  }
+  .funnelTrack {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .funnelBar {
+    transition: none;
+  }
+}

@@ -23,6 +23,7 @@ import { listWidgetsForShop } from "../models/widget.server";
 import { getKindMeta } from "../models/widget-kinds";
 import type { WidgetConfig } from "../models/widget-kinds";
 import { getReelStats } from "../models/analytics.server";
+import { deriveKpis, formatPercent, formatWatchTime } from "../models/kpis";
 import { Card, Field, TextInput, handleRovingKeys } from "../components/widget-editor/controls";
 import { SortableList } from "../components/SortableList";
 import { useEditorGuards } from "../components/useEditorGuards";
@@ -221,6 +222,7 @@ type TabId = (typeof TABS)[number]["id"];
 export default function ReelEditor() {
   const data = useLoaderData<typeof loader>();
   const { reel, status, stats, usedIn } = data;
+  const kpis = deriveKpis({ ...stats, revenue: 0 });
   const navigate = useNavigate();
   const shopify = useAppBridge();
   const { revalidate } = useRevalidator();
@@ -482,10 +484,16 @@ export default function ReelEditor() {
               <header className={styles.cardHead}>
                 <h2>Last {stats.days} days</h2>
               </header>
-              <div className={styles.kpis}>
+              <div className={`${styles.kpis} ${styles.kpisThree}`}>
                 <Kpi label="Views" value={stats.views.toLocaleString()} />
-                <Kpi label="Product clicks" value={stats.clicks.toLocaleString()} />
-                <Kpi label="Click rate" value={stats.views ? `${((stats.clicks / stats.views) * 100).toFixed(1)}%` : "—"} />
+                <Kpi label="Avg. watch time" value={formatWatchTime(kpis.avgWatchSeconds)} />
+                <Kpi label="Completion rate" value={formatPercent(kpis.completionRate, 0)} />
+                <Kpi label="Click rate" value={formatPercent(kpis.clickRate)} sub={`${stats.clicks.toLocaleString()} taps`} />
+                <Kpi
+                  label="Adds to cart"
+                  value={stats.addToCarts.toLocaleString()}
+                  sub={kpis.addToCartRate === null ? undefined : `${formatPercent(kpis.addToCartRate)} of views`}
+                />
                 <Kpi
                   label="Sales"
                   value={stats.revenue[0] ? formatMoney(stats.revenue[0].amount, stats.revenue[0].currencyCode) : "—"}

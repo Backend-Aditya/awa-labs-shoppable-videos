@@ -26,10 +26,17 @@
 
 .cardHeader {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 12px;
+}
+
+.cardFooter {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
 }
 
 .cardTitle {
@@ -196,6 +203,7 @@
   font-size: 12px;
   font-weight: 550;
   color: #8e1f0b;
+  white-space: nowrap;
 }
 
 .delta[data-up] {
