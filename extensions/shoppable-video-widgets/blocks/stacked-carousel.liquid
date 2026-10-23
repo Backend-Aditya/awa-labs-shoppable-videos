@@ -152,7 +152,7 @@ pulls in the viewer runtime when the app embed is off.
               </button>
             {%- endcapture -%}
             <li class="reelup-deck__card" data-reelup-deck-card>
-              {%- render 'reel-trigger', reel: reel, style: widget_style, inner: card, muted_default: true, autoplay_default: true -%}
+              {%- render 'reel-trigger', reel: reel, style: widget_style, source: 'carousel', inner: card, muted_default: true, autoplay_default: true -%}
             </li>
           {%- endif -%}
         {%- endfor -%}

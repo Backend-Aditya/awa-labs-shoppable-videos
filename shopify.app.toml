@@ -166,6 +166,15 @@ description = "Shop-wide widget colours and video viewer theme, set on the app's
   admin = "merchant_read"
   storefront = "public_read"
 
+[shop.metafields.app.tracking]
+type = "json"
+name = "Tracking integrations"
+description = "Where shoppable video events go besides the app's analytics (Shopify customer events, Microsoft Clarity, page tags), set on the app's Integrations page"
+
+  [shop.metafields.app.tracking.access]
+  admin = "merchant_read"
+  storefront = "public_read"
+
 [auth]
 redirect_urls = [ "https://awa-shoppable-videos.onrender.com/api/auth" ]
 

@@ -163,7 +163,7 @@
     const videoMs = Number.isFinite(video.duration) && video.duration > 0 ? video.duration * 1000 : Infinity;
     durationMs = Math.max(Math.min(videoMs, storyDurationMs), 1000);
     const trigger = reels[currentIndex];
-    viewer()?.trackAnalytics(trigger?.dataset.reelId ?? "", "view");
+    viewer()?.trackAnalytics(trigger?.dataset.reelId ?? "", "view", { trigger });
     clearTimeout(seenTimer);
     seenTimer = setTimeout(() => {
       if (token === storySeq && dialog.open) markSeen(trigger?.dataset.reelId);
@@ -228,7 +228,9 @@
     storyDurationMs = parseInt(trigger.dataset.storyDuration, 10) || 15000;
     durationMs = storyDurationMs;
     const reelId = trigger.dataset.reelId ?? "";
+    dialog.progress.flush();
     dialog.setAttribute("data-reelup-reel-id", reelId);
+    dialog.reelupTrigger = trigger;
 
     const video = dialog.querySelector("video");
     const title = dialog.querySelector(".reelup-story__title");
@@ -342,6 +344,11 @@
     const frame = dialog.querySelector(".reelup-story__frame");
     const mute = dialog.querySelector("[data-reelup-story-mute]");
     dialog.buffering = viewer().watchBuffering(video, frame);
+    dialog.progress = viewer().watchProgress(
+      video,
+      () => dialog.getAttribute("data-reelup-reel-id"),
+      () => dialog.reelupTrigger,
+    );
     video.addEventListener("volumechange", () => {
       mute.innerHTML = video.muted ? icons.muted : icons.unmuted;
       mute.setAttribute("aria-label", video.muted ? labels.unmute : labels.mute);
@@ -380,7 +387,7 @@
     dialog.querySelector("[data-reelup-story-shop]").addEventListener("click", (event) => {
       const link = event.currentTarget.dataset.link;
       if (link) {
-        viewer().trackAnalytics(reels[currentIndex]?.dataset.reelId, "click_product");
+        viewer().trackAnalytics(reels[currentIndex]?.dataset.reelId, "click_product", { trigger: reels[currentIndex] });
         window.location.href = link;
         return;
       }
@@ -413,6 +420,7 @@
     });
     dialog.addEventListener("close", () => {
       storySeq += 1;
+      dialog.progress.flush();
       clearTimer();
       clearTimeout(seenTimer);
       pauseReasons.clear();

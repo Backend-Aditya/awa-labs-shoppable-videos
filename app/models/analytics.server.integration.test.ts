@@ -72,7 +72,9 @@ describe("getDashboardStats", () => {
     expect(stats.previous.views).toBe(1);
     expect(stats.daily).toHaveLength(30);
     expect(stats.daily.reduce((n, d) => n + d.views, 0)).toBe(2);
-    expect(stats.reels).toEqual([{ key: "7", views: 2, clicks: 1, unitsSold: 2, revenue: 50 }]);
+    expect(stats.reels).toEqual([
+      { key: "7", views: 2, clicks: 1, addToCarts: 0, completions: 0, watchSeconds: 0, unitsSold: 2, revenue: 50 },
+    ]);
   });
 
   it("accumulates concurrent events into one row per reel and day", async () => {
@@ -89,6 +91,26 @@ describe("getDashboardStats", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ reelId: "5", views: 13, clicks: 3 });
     expect(await getViewCountsByReel(shop.id)).toEqual({ "5": 13 });
+  });
+
+  it("counts adds to cart, completions and watch time into the same rollup row", async () => {
+    const shop = await getOrCreateShop("dashboard.myshopify.com");
+    const at = new Date("2026-10-10T08:00:00Z");
+    const now = new Date("2026-10-10T12:00:00Z");
+    await recordEvent(shop.id, "5", "view", at);
+    await recordEvent(shop.id, "5", "view", at);
+    await recordEvent(shop.id, "5", "add_to_cart", at);
+    await recordEvent(shop.id, "5", "complete", at);
+    await Promise.all([recordEvent(shop.id, "5", "watch", at, 31), recordEvent(shop.id, "5", "watch", at, 12)]);
+
+    const rows = await prisma.reelDailyStat.findMany({ where: { shopId: shop.id } });
+    expect(rows).toEqual([
+      expect.objectContaining({ reelId: "5", views: 2, clicks: 0, addToCarts: 1, completions: 1, watchSeconds: 43 }),
+    ]);
+    const dashboard = await getDashboardStats(shop.id, 7, now);
+    expect(dashboard.current).toMatchObject({ views: 2, addToCarts: 1, completions: 1, watchSeconds: 43 });
+    expect(dashboard.reels[0]).toMatchObject({ key: "5", addToCarts: 1, completions: 1, watchSeconds: 43 });
+    expect(await getReelStats(shop.id, "5", 7, now)).toMatchObject({ addToCarts: 1, completions: 1, watchSeconds: 43 });
   });
 
   it("reports one reel's window with a zero-filled daily series", async () => {

@@ -118,7 +118,7 @@ pulls in the viewer runtime when the app embed is off.
       <h2 class="reelup-heading reelup-heading--center">{{ widget_style.heading | escape }}</h2>
     {%- endif -%}
     <div class="reelup-feature__video">
-      {%- render 'reel-trigger', reel: reel, style: widget_style, inner: poster, muted_default: false, autoplay_default: true -%}
+      {%- render 'reel-trigger', reel: reel, style: widget_style, source: 'featured_video', inner: poster, muted_default: false, autoplay_default: true -%}
     </div>
     {%- if layout == 'split' -%}
       <div class="reelup-feature__body" data-reelup-reel-id="{{ reel.system.id }}">

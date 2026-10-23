@@ -49,6 +49,9 @@ model Shop {
   plan              String             @default("FREE")
   viewCapMonthly    Int                @default(200)
   brand             Json?
+  // Tracking integrations (app/models/tracking.ts), mirrored to the
+  // `$app.tracking` shop metafield for the storefront.
+  tracking          Json?
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   widgets           Widget[]
@@ -92,13 +95,20 @@ model Widget {
 // arrive (analytics.server.ts recordEvent). All analytics reads come from
 // here, so their cost grows with days × reels rather than with traffic.
 model ReelDailyStat {
-  shop   Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  shopId String
+  shop         Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  shopId       String
   // Numeric metaobject id (see reelKey).
-  reelId String
-  day    DateTime @db.Date
-  views  Int      @default(0)
-  clicks Int      @default(0)
+  reelId       String
+  day          DateTime @db.Date
+  views        Int      @default(0)
+  // Product taps and add-to-cart attempts.
+  clicks       Int      @default(0)
+  // Successful adds to cart from a video.
+  addToCarts   Int      @default(0)
+  // Watched to 95% (once per reel per 30 minutes per tab, like views).
+  completions  Int      @default(0)
+  // Seconds actually played (seeks and loops back excluded).
+  watchSeconds Int      @default(0)
 
   @@id([shopId, reelId, day])
   @@index([shopId, day])

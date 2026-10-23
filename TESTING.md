@@ -210,6 +210,12 @@ one non-Dawn theme.
 - [ ] RTL locale and a translated locale render labels correctly.
 - [ ] Keyboard and screen reader: focus trap in viewers, Escape closes and focus returns, live announcements.
 
+**Tracking integrations**
+- [ ] Integrations › Custom pixel: paste the GA4 code as a custom pixel (permission Analytics); opening a video and adding to cart shows `reelup_video_view` / `reelup_add_to_cart` in GA4 DebugView.
+- [ ] A Microsoft Clarity project ID with the embed on: Clarity loads on a page without videos once analytics consent is given (not before, with the cookie banner on); video events appear as Clarity custom events.
+- [ ] Storefront tag forwarding (e.g. Meta Pixel in theme.liquid): `ReelupVideoView` reaches Meta's Pixel Helper only with marketing consent.
+- [ ] Home/Analytics show adds to cart, completions and watch time after a few test views.
+
 **Performance**
 - [ ] Lighthouse (mobile) on a product page with the filmstrip: no regression vs. the theme baseline beyond the agreed budget (LCP, TBT, CLS); posters lazy-load; hls.js not loaded before interaction/visibility.
 - [ ] With the embed on, a page without any widget (cart, blog) loads `reel-loader.js` and nothing else from the app.

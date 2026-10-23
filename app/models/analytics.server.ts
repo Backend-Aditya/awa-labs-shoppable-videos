@@ -6,17 +6,28 @@ import prisma from "../db.server";
 // keyed by the numeric tail so both forms land on the same reel.
 export const reelKey = (reelId: string) => String(reelId).split("/").pop() ?? String(reelId);
 
-export interface PeriodTotals {
+// The per-day rollup counters (ReelDailyStat), as every read returns them.
+export interface Engagement {
   views: number;
   clicks: number;
+  addToCarts: number;
+  completions: number;
+  watchSeconds: number;
+}
+
+const ENGAGEMENT_FIELDS = ["views", "clicks", "addToCarts", "completions", "watchSeconds"] as const;
+const zeroEngagement = (): Engagement => ({ views: 0, clicks: 0, addToCarts: 0, completions: 0, watchSeconds: 0 });
+const addEngagement = (into: Engagement, row: Engagement) => {
+  for (const field of ENGAGEMENT_FIELDS) into[field] += row[field];
+};
+
+export interface PeriodTotals extends Engagement {
   orders: number;
   revenue: { currencyCode: string; amount: number }[];
 }
 
-export interface ReelPerformance {
+export interface ReelPerformance extends Engagement {
   key: string;
-  views: number;
-  clicks: number;
   unitsSold: number;
   revenue: number;
 }
@@ -31,23 +42,36 @@ export interface DashboardStats {
 
 const DAY_MS = 86_400_000;
 
-export type TrackedEvent = "view" | "click_product";
+export type TrackedEvent = "view" | "click_product" | "add_to_cart" | "complete" | "watch";
+
+// The rollup column each storefront event adds to.
+const COLUMN_FOR: Record<TrackedEvent, keyof Engagement> = {
+  view: "views",
+  click_product: "clicks",
+  add_to_cart: "addToCarts",
+  complete: "completions",
+  watch: "watchSeconds",
+};
 
 // Storefront events are counted straight into one row per shop, reel and
 // UTC day (ReelDailyStat) instead of one row per event. Every read below is
 // then a scan of at most days × reels small rows, so dashboards stay fast no
 // matter how much traffic a shop gets. One statement, atomic under
-// concurrent requests thanks to ON CONFLICT.
-export async function recordEvent(shopId: string, reelId: string, eventType: TrackedEvent, at = new Date()) {
+// concurrent requests thanks to ON CONFLICT. `amount` is 1 for every event
+// but "watch", which carries the seconds played.
+export async function recordEvent(shopId: string, reelId: string, eventType: TrackedEvent, at = new Date(), amount = 1) {
   const day = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()));
-  const views = eventType === "view" ? 1 : 0;
-  const clicks = eventType === "click_product" ? 1 : 0;
+  const add = zeroEngagement();
+  add[COLUMN_FOR[eventType]] = Math.max(0, Math.round(amount));
   await prisma.$executeRaw`
-    INSERT INTO "ReelDailyStat" ("shopId", "reelId", "day", "views", "clicks")
-    VALUES (${shopId}, ${reelKey(reelId)}, ${day}::date, ${views}, ${clicks})
+    INSERT INTO "ReelDailyStat" ("shopId", "reelId", "day", "views", "clicks", "addToCarts", "completions", "watchSeconds")
+    VALUES (${shopId}, ${reelKey(reelId)}, ${day}::date, ${add.views}, ${add.clicks}, ${add.addToCarts}, ${add.completions}, ${add.watchSeconds})
     ON CONFLICT ("shopId", "reelId", "day")
     DO UPDATE SET "views" = "ReelDailyStat"."views" + EXCLUDED."views",
-                  "clicks" = "ReelDailyStat"."clicks" + EXCLUDED."clicks"`;
+                  "clicks" = "ReelDailyStat"."clicks" + EXCLUDED."clicks",
+                  "addToCarts" = "ReelDailyStat"."addToCarts" + EXCLUDED."addToCarts",
+                  "completions" = "ReelDailyStat"."completions" + EXCLUDED."completions",
+                  "watchSeconds" = "ReelDailyStat"."watchSeconds" + EXCLUDED."watchSeconds"`;
 }
 
 // [start, end) covering the last `days` whole UTC days, today included.
@@ -68,7 +92,7 @@ async function totalsBetween(shopId: string, from: Date, to: Date): Promise<Peri
   const [events, revenue, orders] = await Promise.all([
     prisma.reelDailyStat.aggregate({
       where: { shopId, day: { gte: from, lt: to } },
-      _sum: { views: true, clicks: true },
+      _sum: { views: true, clicks: true, addToCarts: true, completions: true, watchSeconds: true },
     }),
     prisma.orderAttribution.groupBy({
       by: ["currencyCode"],
@@ -84,6 +108,9 @@ async function totalsBetween(shopId: string, from: Date, to: Date): Promise<Peri
   return {
     views: events._sum.views ?? 0,
     clicks: events._sum.clicks ?? 0,
+    addToCarts: events._sum.addToCarts ?? 0,
+    completions: events._sum.completions ?? 0,
+    watchSeconds: events._sum.watchSeconds ?? 0,
     orders: orders.length,
     revenue: revenue.map((r) => ({
       currencyCode: r.currencyCode,
@@ -92,10 +119,8 @@ async function totalsBetween(shopId: string, from: Date, to: Date): Promise<Peri
   };
 }
 
-export interface ReelStats {
+export interface ReelStats extends Engagement {
   days: number;
-  views: number;
-  clicks: number;
   unitsSold: number;
   orders: number;
   revenue: { currencyCode: string; amount: number }[];
@@ -113,7 +138,7 @@ export async function getReelStats(shopId: string, reelGid: string, days = 30, n
   const [rows, revenue, units, orders] = await Promise.all([
     prisma.reelDailyStat.findMany({
       where: { shopId, reelId: reelKey(reelGid), day: { gte: start, lt: end } },
-      select: { day: true, views: true, clicks: true },
+      select: { day: true, views: true, clicks: true, addToCarts: true, completions: true, watchSeconds: true },
     }),
     prisma.orderAttribution.groupBy({
       by: ["currencyCode"],
@@ -133,11 +158,9 @@ export async function getReelStats(shopId: string, reelGid: string, days = 30, n
 
   const daily = emptyDaily(start, days);
   const byDate = new Map(daily.map((d) => [d.date, d]));
-  let views = 0;
-  let clicks = 0;
+  const totals = zeroEngagement();
   for (const row of rows) {
-    views += row.views;
-    clicks += row.clicks;
+    addEngagement(totals, row);
     const bucket = byDate.get(row.day.toISOString().slice(0, 10));
     if (bucket) {
       bucket.views += row.views;
@@ -147,8 +170,7 @@ export async function getReelStats(shopId: string, reelGid: string, days = 30, n
 
   return {
     days,
-    views,
-    clicks,
+    ...totals,
     unitsSold: units._sum.quantity ?? 0,
     orders: orders.length,
     revenue: revenue.map((r) => ({
@@ -187,7 +209,7 @@ export async function getDashboardStats(shopId: string, days = 30, now = new Dat
     totalsBetween(shopId, prevStart, start),
     prisma.reelDailyStat.findMany({
       where: { shopId, day: { gte: start, lt: end } },
-      select: { reelId: true, day: true, views: true, clicks: true },
+      select: { reelId: true, day: true, views: true, clicks: true, addToCarts: true, completions: true, watchSeconds: true },
     }),
     prisma.orderAttribution.groupBy({
       by: ["reelId"],
@@ -203,7 +225,7 @@ export async function getDashboardStats(shopId: string, days = 30, now = new Dat
     const key = reelKey(id);
     let entry = reels.get(key);
     if (!entry) {
-      entry = { key, views: 0, clicks: 0, unitsSold: 0, revenue: 0 };
+      entry = { key, ...zeroEngagement(), unitsSold: 0, revenue: 0 };
       reels.set(key, entry);
     }
     return entry;
@@ -214,9 +236,7 @@ export async function getDashboardStats(shopId: string, days = 30, now = new Dat
       bucket.views += row.views;
       bucket.clicks += row.clicks;
     }
-    const entry = reelFor(row.reelId);
-    entry.views += row.views;
-    entry.clicks += row.clicks;
+    addEngagement(reelFor(row.reelId), row);
   }
   for (const row of perReelRevenue) {
     const entry = reelFor(row.reelId);

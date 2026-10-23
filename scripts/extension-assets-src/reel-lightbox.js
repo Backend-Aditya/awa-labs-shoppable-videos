@@ -1,5 +1,6 @@
-// Shared storefront runtime: config/labels, analytics, the delegated
-// product-card behaviour (variant picker + add to cart, used by the video
+// Shared storefront runtime: config/labels, analytics (the app's own, plus
+// Shopify customer events and connected tools via reel-tracking.js), the
+// delegated product-card behaviour (variant picker + add to cart, used by the video
 // viewer, the story drawer and the featured-video block alike), and the
 // video viewer itself.
 (() => {
@@ -77,14 +78,16 @@
     }
   };
 
-  // Views count once per reel per 30 minutes in a tab, so replaying, swiping
-  // back and forth or reopening doesn't inflate numbers (or plan usage).
-  const VIEW_WINDOW_MS = 30 * 60 * 1000;
-  const recentlyViewed = (reelId) => {
+  // Views and completions count once per reel per 30 minutes in a tab, so
+  // replaying, swiping back and forth or reopening doesn't inflate numbers
+  // (or plan usage), and completion rates stay comparable to view counts.
+  const COUNT_WINDOW_MS = 30 * 60 * 1000;
+  const COUNTED_ONCE = { view: "viewed", complete: "completed" };
+  const recentlyCounted = (eventType, reelId) => {
     try {
-      const key = `reelup-viewed-${reelId}`;
+      const key = `reelup-${COUNTED_ONCE[eventType]}-${reelId}`;
       const last = Number(sessionStorage.getItem(key) || 0);
-      if (Date.now() - last < VIEW_WINDOW_MS) return true;
+      if (Date.now() - last < COUNT_WINDOW_MS) return true;
       sessionStorage.setItem(key, String(Date.now()));
     } catch {
       // Storage unavailable: count it.
@@ -92,15 +95,72 @@
     return false;
   };
 
-  const trackAnalytics = (reelId, eventType) => {
+  // The app's own event types, and what reel-tracking.js calls them for
+  // everyone else. "watch" (seconds played) is the app's metric alone.
+  const PUBLIC_EVENTS = { view: "video_view", complete: "video_complete", click_product: "product_click", add_to_cart: "add_to_cart" };
+
+  // Every shopper action the widgets report. `detail.trigger` is the reel's
+  // trigger (title and widget for connected tools), `detail.seconds` the
+  // watch time; anything else goes to connected tools as is.
+  const trackAnalytics = (reelId, eventType, detail = {}) => {
     if (!reelId) return;
-    if (eventType === "view" && recentlyViewed(reelId)) return;
+    if (COUNTED_ONCE[eventType] && recentlyCounted(eventType, reelId)) return;
+    const { trigger, seconds, ...extra } = detail;
+    const body = { shopDomain: window.Shopify?.shop, reelId, eventType };
+    if (eventType === "watch") body.seconds = seconds;
     fetch("/apps/reels/analytics", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ shopDomain: window.Shopify?.shop, reelId, eventType }),
+      body: JSON.stringify(body),
       keepalive: true,
     }).catch(() => {});
+    if (PUBLIC_EVENTS[eventType]) {
+      window.ReelupTracking?.track(PUBLIC_EVENTS[eventType], {
+        reel_id: String(reelId).split("/").pop(),
+        reel_title: trigger?.dataset.title,
+        widget: trigger?.dataset.source,
+        ...extra,
+      });
+    }
+  };
+
+  // Watch time and completion of whatever reel `video` shows (the id from
+  // `currentReelId`, its trigger from `currentTrigger`). Completion counts
+  // at 95% or the end; watch time counts real playback only — seeks and
+  // loops back to the start add nothing — and is reported by flush() when
+  // the shopper moves on, closes, or leaves the page.
+  const COMPLETE_AT = 0.95;
+  const watchProgress = (video, currentReelId, currentTrigger) => {
+    let seconds = 0;
+    let last = null;
+    let completed = false;
+    const complete = () => {
+      if (completed) return;
+      completed = true;
+      trackAnalytics(currentReelId(), "complete", { trigger: currentTrigger() });
+    };
+    video.addEventListener("seeking", () => {
+      last = null;
+    });
+    video.addEventListener("timeupdate", () => {
+      const now = video.currentTime;
+      if (last !== null && !video.paused) {
+        const delta = now - last;
+        if (delta > 0 && delta < 1.5) seconds += delta;
+      }
+      last = now;
+      if (video.duration > 0 && Number.isFinite(video.duration) && now / video.duration >= COMPLETE_AT) complete();
+    });
+    video.addEventListener("ended", complete);
+    const flush = () => {
+      const reelId = currentReelId();
+      if (reelId && seconds >= 1) trackAnalytics(reelId, "watch", { seconds: Math.round(seconds) });
+      seconds = 0;
+      last = null;
+      completed = false;
+    };
+    window.addEventListener("pagehide", flush);
+    return { flush };
   };
 
   const safeLink = (value) => {
@@ -110,6 +170,12 @@
   };
 
   const reelIdFor = (el) => el.closest("[data-reelup-reel-id]")?.getAttribute("data-reelup-reel-id") ?? "";
+  // The trigger behind an element's events: the reel on screen in a
+  // viewer, or the featured-video block's own video.
+  const triggerFor = (el) => {
+    const host = el.closest("[data-reelup-reel-id]");
+    return host?.reelupTrigger ?? host?.closest(".reelup")?.querySelector("[data-reelup-trigger]") ?? null;
+  };
 
   /* ------------------------------------------- shopper mute preference */
 
@@ -281,7 +347,10 @@
   document.addEventListener("click", async (event) => {
     const link = event.target.closest?.("[data-reelup-product-link]");
     if (link) {
-      trackAnalytics(reelIdFor(link), "click_product");
+      trackAnalytics(reelIdFor(link), "click_product", {
+        trigger: triggerFor(link),
+        product_id: link.closest("[data-reelup-product]")?.dataset.productId,
+      });
       return;
     }
 
@@ -289,7 +358,9 @@
     if (!button || button.disabled || button.dataset.state === "loading") return;
 
     const reelId = reelIdFor(button);
-    trackAnalytics(reelId, "click_product");
+    const trigger = triggerFor(button);
+    const productId = button.closest("[data-reelup-product]")?.dataset.productId;
+    trackAnalytics(reelId, "click_product", { trigger, product_id: productId });
 
     const addLabel = button.dataset.addLabel ?? button.textContent;
     const scope = button.closest("[data-reelup-reel-id]");
@@ -326,6 +397,16 @@
         throw Object.assign(new Error("add failed"), { shopperMessage: shopify });
       }
       const added = await response.json().catch(() => null);
+      const line = added?.items?.[0];
+      const cents = Number(line?.final_line_price ?? (line?.price ?? 0) * quantity) || 0;
+      trackAnalytics(reelId, "add_to_cart", {
+        trigger,
+        product_id: productId ?? line?.product_id,
+        variant_id: button.dataset.variantId,
+        quantity,
+        value: cents ? cents / 100 : undefined,
+        currency: config.currency,
+      });
 
       button.dataset.state = "added";
       button.textContent = button.dataset.addedLabel ?? addLabel;
@@ -715,6 +796,11 @@
     const cartStatus = dialog.querySelector("[data-reelup-cart-status]");
     const errorBox = dialog.querySelector("[data-reelup-error]");
     dialog.buffering = watchBuffering(video, player);
+    dialog.progress = watchProgress(
+      video,
+      () => dialog.getAttribute("data-reelup-reel-id"),
+      () => dialog.reelupTrigger,
+    );
 
     const syncPlayState = () => {
       toggle.innerHTML = video.paused ? ICONS.play : ICONS.pause;
@@ -938,6 +1024,7 @@
 
     dialog.addEventListener("close", () => {
       loadSeq += 1;
+      dialog.progress.flush();
       window.ReelupHls?.teardown(video);
       // Emptied once the closing fade is over, not mid-fade.
       setTimeout(() => {
@@ -969,11 +1056,13 @@
     const count = dialog.querySelector("[data-reelup-count]");
     const cartStatus = dialog.querySelector("[data-reelup-cart-status]");
 
+    dialog.progress.flush();
     window.ReelupHls?.teardown(video);
     dialog.buffering.reset();
     dialog.querySelector("[data-reelup-error]").hidden = true;
     const reelId = trigger.dataset.reelId ?? "";
     dialog.setAttribute("data-reelup-reel-id", reelId);
+    dialog.reelupTrigger = trigger;
     title.textContent = trigger.dataset.title ?? "";
     nameDialog(dialog, "reelup-viewer-title", trigger.dataset.title);
     if (trigger.dataset.posterUrl) video.setAttribute("poster", trigger.dataset.posterUrl);
@@ -1016,7 +1105,7 @@
     dialog.querySelector("[data-reelup-prev]").disabled = index === 0;
     dialog.querySelector("[data-reelup-next]").disabled = index === group.length - 1;
 
-    trackAnalytics(reelId, "view");
+    trackAnalytics(reelId, "view", { trigger });
     preloadPoster(group[index + 1]);
     try {
       await startPlayback(video, trigger.dataset.hlsSrc, isCurrent);
@@ -1090,6 +1179,7 @@
     isRtl,
     announce,
     watchBuffering,
+    watchProgress,
     makeLiveRegion,
     nameDialog,
     getUserMuted,

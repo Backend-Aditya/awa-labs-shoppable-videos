@@ -1,6 +1,7 @@
 // Per-block rendering details beyond visibility.
 import { describe, expect, it } from "vitest";
 import { blockContext, makeProduct, makeReel, makeWidget } from "../support/storefront-fixtures.mjs";
+import { REEL_NAMESPACE } from "../support/liquid-engine.mjs";
 import { renderDom, visibleMarkup } from "./helpers";
 
 const reels = (n: number, products: object[] = []) => Array.from({ length: n }, (_, i) => makeReel({ id: i + 1, products }));
@@ -134,6 +135,17 @@ describe("shoppable-videos app embed", () => {
     });
     expect(config.labels).toMatchObject({ shop: "Shop this video", of: "__CURRENT__ of __TOTAL__", addFailed: "Couldn't add to cart. Try again." });
     expect(Object.values(config.labels).join()).not.toContain("translation missing");
+  });
+
+  it("publishes the merchant's tracking integrations (null until connected)", async () => {
+    const off = await renderDom("shoppable-videos", blockContext("shoppable-videos", { widget: makeWidget({ published: false }) }));
+    expect(JSON.parse(off.$("[data-reelup-config]")!.textContent!).tracking).toBeNull();
+
+    const ctx = blockContext("shoppable-videos", { widget: makeWidget({ published: false }) });
+    const tracking = { shopifyEvents: true, ga4: true, clarityId: "abc123xyz" };
+    (ctx.shop.metafields[REEL_NAMESPACE] as Record<string, unknown>).tracking = { value: tracking };
+    const on = await renderDom("shoppable-videos", ctx);
+    expect(JSON.parse(on.$("[data-reelup-config]")!.textContent!).tracking).toEqual(tracking);
   });
 
   it("brand kit becomes CSS variables and viewer theme", async () => {

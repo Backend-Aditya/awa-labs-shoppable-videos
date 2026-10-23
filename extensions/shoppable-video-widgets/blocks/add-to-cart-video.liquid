@@ -109,7 +109,7 @@ pulls in the viewer runtime when the app embed is off.
     style="{{ wrapper_style | strip_newlines }}"
     {{ block.shopify_attributes }}
   >
-    {%- render 'reel-trigger', reel: reel, style: widget_style, inner: row, muted_default: false -%}
+    {%- render 'reel-trigger', reel: reel, style: widget_style, source: 'add_to_cart_video', inner: row, muted_default: false -%}
   </div>
 {%- elsif request.design_mode -%}
   <div class="reelup reelup-placeholder" {{ block.shopify_attributes }}>{{ 'reels.editor_placeholder' | t }}</div>

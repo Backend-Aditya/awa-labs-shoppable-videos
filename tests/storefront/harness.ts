@@ -18,6 +18,7 @@ const SCRIPTS = {
   pop: source("reel-pop.js"),
   hls: source("reel-hls.js"),
   loader: source("reel-loader.js"),
+  tracking: source("reel-tracking.js"),
 } as const;
 export type ScriptName = keyof typeof SCRIPTS;
 
@@ -38,7 +39,7 @@ export async function configScript(overrides: Record<string, unknown> = {}) {
 }
 
 // Each runtime file returns early when its global already exists.
-const RUNTIME_GLOBALS = ["ReelupLightbox", "ReelupViewer", "ReelupStory", "ReelupTrigger", "ReelupPop", "ReelupHls", "__reelupLoader"];
+const RUNTIME_GLOBALS = ["ReelupLightbox", "ReelupViewer", "ReelupStory", "ReelupTrigger", "ReelupPop", "ReelupHls", "ReelupTracking", "__reelupLoader"];
 
 /* ------------------------------------------------------------ stubs */
 

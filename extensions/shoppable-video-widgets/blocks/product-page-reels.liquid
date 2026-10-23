@@ -145,7 +145,7 @@ pulls in the viewer runtime when the app embed is off.
               </button>
             {%- endcapture -%}
             <li class="reelup-strip__item">
-              {%- render 'reel-trigger', reel: reel, style: widget_style, inner: card, muted_default: true, autoplay_default: true -%}
+              {%- render 'reel-trigger', reel: reel, style: widget_style, source: 'product_page_reels', inner: card, muted_default: true, autoplay_default: true -%}
               {%- if show_caption and reel.title.value != blank -%}
                 <p class="reelup-strip__caption">{{ reel.title.value | escape }}</p>
               {%- endif -%}

@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import prisma from "../db.server";
 import type { AdminGraphqlClient } from "./reel.server";
-import { assertNoGraphqlErrors, throwOnUserErrors } from "./reel.server";
+import { setShopAppMetafield } from "./shop-metafield.server";
 import { resolveBrand } from "./brand";
 import type { BrandConfig } from "./brand";
 
@@ -22,39 +22,6 @@ export async function saveBrand(
     where: { id: shopId },
     data: { brand: brand as unknown as Prisma.InputJsonValue },
   });
-
-  const shopResponse = await admin.graphql(
-    `#graphql
-    query GetShopIdForBrand {
-      shop { id }
-    }`,
-  );
-  const shopJson = await shopResponse.json();
-  assertNoGraphqlErrors(shopJson);
-
-  const response = await admin.graphql(
-    `#graphql
-    mutation SetBrandMetafield($metafields: [MetafieldsSetInput!]!) {
-      metafieldsSet(metafields: $metafields) {
-        userErrors { field message }
-      }
-    }`,
-    {
-      variables: {
-        metafields: [
-          {
-            ownerId: shopJson.data.shop.id,
-            namespace: "$app",
-            key: "brand",
-            type: "json",
-            value: JSON.stringify(brand),
-          },
-        ],
-      },
-    },
-  );
-  const json = await response.json();
-  assertNoGraphqlErrors(json);
-  throwOnUserErrors(json.data.metafieldsSet.userErrors);
+  await setShopAppMetafield(admin, "brand", brand);
   return brand;
 }

@@ -6,7 +6,7 @@ import { mount, renderBlock, resetPage } from "./harness";
 
 const LOADER_SRC = "https://cdn.shopify.test/extensions/abc/assets/reel-loader.js";
 const asset = (file: string) => LOADER_SRC.replace("reel-loader.js", file);
-const RUNTIME = ["reel-hls.js", "reel-lightbox.js", "reel-story.js", "reel-trigger.js"];
+const RUNTIME = ["reel-tracking.js", "reel-hls.js", "reel-lightbox.js", "reel-story.js", "reel-trigger.js"];
 
 beforeEach(() => {
   resetPage();
@@ -44,8 +44,20 @@ describe("reel-loader", () => {
 
   it("stands down when the runtime is already on the page", async () => {
     (window as unknown as Record<string, unknown>).ReelupLightbox = {};
+    (window as unknown as Record<string, unknown>).ReelupTracking = {};
     await mount(await strip(), ["loader"]);
     expect(injected()).toEqual([]);
+  });
+
+  it("with Microsoft Clarity connected, loads the tracking script on every page, the runtime only where needed", async () => {
+    const embed = await renderBlock("shoppable-videos", { widget: makeWidget({ published: false }) });
+    await mount(embed, ["loader"], { tracking: { clarityId: "abc123def" } });
+    expect(injected()).toEqual([[asset("reel-tracking.js"), false]]);
+
+    // A block added in the theme editor later brings the runtime, not a second tracking script.
+    document.body.insertAdjacentHTML("beforeend", await strip());
+    document.dispatchEvent(new CustomEvent("shopify:section:load"));
+    expect(injected().map(([src]) => src)).toEqual(["reel-tracking.js", ...RUNTIME.slice(1)].map(asset));
   });
 
   it("runs once per page, and wakes up when the theme editor adds a block", async () => {

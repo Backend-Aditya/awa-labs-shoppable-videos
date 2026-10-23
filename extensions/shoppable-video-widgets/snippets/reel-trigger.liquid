@@ -12,6 +12,7 @@ its look; this snippet owns the contract with the JS.
 @param muted_default {boolean} - whether video starts muted when the merchant hasn't chosen
 @param autoplay_default {boolean} [optional] - preview on when the merchant hasn't chosen
 @param autoplay_preview {boolean} [optional] - force the inline muted preview on
+@param source {string} [optional] - which widget this is, reported with its events (e.g. 'stories')
 
 @example
 {% render 'reel-trigger', reel: reel, style: widget_style, inner: card, muted_default: true %}
@@ -56,6 +57,7 @@ its look; this snippet owns the contract with the JS.
   class="reelup-trigger {{ class }}"
   data-reelup-trigger
   data-reel-id="{{ reel.system.id }}"
+  data-source="{{ source | escape }}"
   data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
   data-poster-url="{{ reel.config.value.posterUrl | escape }}"
   data-title="{{ reel.title.value | escape }}"

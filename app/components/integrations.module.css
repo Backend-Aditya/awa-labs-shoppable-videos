@@ -1,0 +1,154 @@
+/* Integrations page pieces that the editor shell doesn't already have:
+   status pills, the events reference and the custom pixel code block. */
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f1f1f1;
+  color: #616161;
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.status::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.status[data-on] {
+  background: #cdfee1;
+  color: #0c5132;
+}
+
+.consent {
+  display: inline-block;
+  margin-inline-start: 6px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: #f1f1f1;
+  color: #616161;
+  font-size: 11px;
+  font-weight: 550;
+  line-height: 18px;
+  vertical-align: 1px;
+}
+
+.events {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.events th,
+.events td {
+  padding: 8px 0;
+  border-top: 1px solid #ebebeb;
+  text-align: start;
+  vertical-align: top;
+}
+
+.events th {
+  padding-inline-end: 12px;
+  font-weight: 550;
+}
+
+.events code,
+.code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.events code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: #f1f1f1;
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+/* Narrow screens: the event name goes under its description. */
+@media (max-width: 600px) {
+  .events th,
+  .events td {
+    display: block;
+  }
+  .events td {
+    padding-top: 0;
+    border-top: 0;
+  }
+}
+
+.codeWrap {
+  overflow: hidden;
+  border-radius: 10px;
+  background: #1a1a1a;
+}
+
+.codeBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px 6px 14px;
+  border-bottom: 1px solid rgb(255 255 255 / 0.08);
+  color: #a8a8a8;
+  font-size: 12px;
+}
+
+.code {
+  display: block;
+  max-height: 320px;
+  margin: 0;
+  padding: 12px 14px;
+  overflow: auto;
+  color: #e3e3e3;
+  font-size: 11.5px;
+  line-height: 18px;
+  white-space: pre;
+  tab-size: 2;
+}
+
+.copy {
+  appearance: none;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: rgb(255 255 255 / 0.14);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 550;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.copy:hover {
+  background: rgb(255 255 255 / 0.24);
+}
+
+.copy:focus-visible {
+  outline: 2px solid #8ab4ff;
+  outline-offset: 2px;
+}
+
+.steps {
+  margin: 0;
+  padding-inline-start: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.error {
+  margin: 0;
+  color: #8e1f0b;
+  font-size: 12px;
+}
