@@ -123,6 +123,73 @@ describe("story viewer", () => {
   });
 });
 
+describe("buffering", () => {
+  it("a stall mid-story stops the clock without pausing the video; frames moving again restart it", async () => {
+    await mountStories();
+    click(avatar(0));
+    await vi.advanceTimersByTimeAsync(0);
+    const video = q<HTMLVideoElement>("video");
+    video.dispatchEvent(new Event("waiting"));
+    await vi.advanceTimersByTimeAsync(20000);
+    expect(title()).toBe("One");
+    expect(video.paused).toBe(false);
+    video.dispatchEvent(new Event("playing"));
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(title()).toBe("Two");
+  });
+
+  it("pausing and resuming during a stall leaves the video free to un-stall", async () => {
+    await mountStories();
+    click(avatar(0));
+    await vi.advanceTimersByTimeAsync(0);
+    const video = q<HTMLVideoElement>("video");
+    video.dispatchEvent(new Event("waiting"));
+    click(q("[data-reelup-story-toggle]"));
+    expect(video.paused).toBe(true);
+    click(q("[data-reelup-story-toggle]"));
+    expect(video.paused).toBe(false);
+    // Still buffering: the clock waits for frames.
+    await vi.advanceTimersByTimeAsync(20000);
+    expect(title()).toBe("One");
+  });
+});
+
+describe("swipes", () => {
+  const swipe = (dx: number, dy: number) => {
+    const frame = q(".reelup-story__frame");
+    fireEvent.touchStart(frame, { touches: [{ clientX: 200, clientY: 300 }] });
+    fireEvent.touchEnd(frame, { changedTouches: [{ clientX: 200 + dx, clientY: 300 + dy }] });
+  };
+
+  it("swiping down closes the viewer", async () => {
+    await mountStories();
+    click(avatar(0));
+    swipe(10, 140);
+    expect(storyViewer()!.open).toBe(false);
+  });
+
+  it("swiping sideways moves between stories; short or diagonal drags do nothing", async () => {
+    await mountStories();
+    click(avatar(0));
+    swipe(-120, 10);
+    expect(title()).toBe("Two");
+    swipe(120, -5);
+    expect(title()).toBe("One");
+    swipe(-30, 0);
+    swipe(-90, 80);
+    expect(title()).toBe("One");
+    expect(storyViewer()!.open).toBe(true);
+  });
+
+  it("does not swipe inside the product drawer", async () => {
+    await mountStories();
+    click(avatar(0));
+    click(q("[data-reelup-story-shop]"));
+    swipe(0, 200);
+    expect(storyViewer()!.open).toBe(true);
+  });
+});
+
 describe("seen state", () => {
   it("marks watched stories in localStorage and greys their rings on the next page view", async () => {
     await mountStories();

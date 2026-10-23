@@ -32,7 +32,20 @@ html.reelup-locked {
   background: transparent;
   color: #fff;
   overflow: hidden;
+  overscroll-behavior: contain;
   box-sizing: border-box;
+  /* The dialog fades in and out where display/overlay can transition
+     (Chrome 117+, Safari 17.4+, Firefox 129+). Elsewhere this declaration
+     is dropped: it appears with its content's rise animation and closes
+     at once. A keyframe animation on the dialog itself would block the
+     closing transition, so the open fade is @starting-style, not one. */
+  transition: opacity 0.2s ease, display 0.2s allow-discrete, overlay 0.2s allow-discrete;
+}
+
+.reelup-viewer:not([open]),
+.reelup-story:not([open]) {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .reelup-viewer *,
@@ -92,12 +105,31 @@ html[dir="rtl"] .reelup-story {
   background: #050505;
 }
 
-.reelup-viewer[open] {
-  animation: reelup-fade 0.25s ease both;
+.reelup-viewer::backdrop,
+.reelup-story::backdrop {
+  transition: opacity 0.2s ease, display 0.2s allow-discrete, overlay 0.2s allow-discrete;
+}
+
+.reelup-viewer:not([open])::backdrop,
+.reelup-story:not([open])::backdrop {
+  opacity: 0;
+}
+
+@starting-style {
+  .reelup-viewer[open],
+  .reelup-story[open],
+  .reelup-viewer[open]::backdrop,
+  .reelup-story[open]::backdrop {
+    opacity: 0;
+  }
 }
 
 .reelup-viewer[open] .reelup-viewer__stage {
   animation: reelup-rise 0.4s var(--rv-ease) both;
+}
+
+.reelup-story[open] .reelup-story__frame {
+  animation: reelup-zoom 0.38s var(--rv-ease) both;
 }
 
 @keyframes reelup-fade {
@@ -106,6 +138,65 @@ html[dir="rtl"] .reelup-story {
 
 @keyframes reelup-rise {
   from { opacity: 0; transform: translateY(18px) scale(0.98); }
+}
+
+@keyframes reelup-zoom {
+  from { opacity: 0; transform: scale(0.94); }
+}
+
+/* Moving to the next/previous reel: the new one slides in from where it
+   came from, its products fade in. */
+.reelup-viewer[data-enter="next"] :is(.reelup-viewer__video, .reelup-viewer__title) {
+  animation: reelup-enter-next 0.42s var(--rv-ease) both;
+}
+
+.reelup-viewer[data-enter="prev"] :is(.reelup-viewer__video, .reelup-viewer__title) {
+  animation: reelup-enter-prev 0.42s var(--rv-ease) both;
+}
+
+.reelup-viewer[data-enter] :is(.reelup-viewer__list, .reelup-viewer__count) {
+  animation: reelup-fade 0.3s ease both;
+}
+
+@keyframes reelup-enter-next {
+  from { opacity: 0.3; transform: translateY(7%); }
+}
+
+@keyframes reelup-enter-prev {
+  from { opacity: 0.3; transform: translateY(-7%); }
+}
+
+/* ---------- buffering spinner (both viewers) ---------- */
+
+.reelup-viewer .reelup-spinner,
+.reelup-story .reelup-spinner {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  width: 46px;
+  height: 46px;
+  margin: -23px 0 0 -23px;
+  border: 3px solid rgb(255 255 255 / 0.22);
+  border-top-color: #fff;
+  border-radius: 50%;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s ease, visibility 0s linear 0.2s;
+}
+
+/* Spins only while shown, so a hidden spinner costs nothing. */
+.reelup-viewer .is-buffering > .reelup-spinner,
+.reelup-story .is-buffering > .reelup-spinner {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.2s ease;
+  animation: reelup-spin 0.8s linear infinite;
+}
+
+@keyframes reelup-spin {
+  to { transform: rotate(360deg); }
 }
 
 /* ---------- shared icon buttons ---------- */
@@ -125,11 +216,23 @@ html[dir="rtl"] .reelup-story {
   backdrop-filter: blur(10px);
   color: #fff;
   cursor: pointer;
-  transition: background-color 0.15s ease;
+  transition: background-color 0.15s ease, transform 0.15s ease;
 }
 
 .reelup-viewer__icon:hover {
   background: rgb(0 0 0 / 0.6);
+}
+
+.reelup-viewer__icon:active {
+  transform: scale(0.92);
+}
+
+/* Fingers need a bigger target than a mouse. */
+@media (pointer: coarse) {
+  .reelup-viewer__icon {
+    width: 40px;
+    height: 40px;
+  }
 }
 
 .reelup-viewer__icon--light {
@@ -347,11 +450,20 @@ html[dir="rtl"] .reelup-story {
 }
 
 .reelup-viewer__error p {
+  max-width: 24ch;
   margin: 0;
+  line-height: 1.4;
+}
+
+.reelup-viewer__error > svg {
+  opacity: 0.85;
 }
 
 .reelup-viewer .reelup-viewer__error button {
   appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   min-height: 40px;
   padding: 0 18px;
   border: 0;
@@ -361,6 +473,11 @@ html[dir="rtl"] .reelup-story {
   font-size: 14px;
   font-weight: 650;
   cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.reelup-viewer .reelup-viewer__error button:active {
+  transform: scale(0.96);
 }
 
 .reelup-viewer__toggle {
@@ -741,7 +858,7 @@ html[dir="rtl"] .reelup-story {
   background: rgb(255 255 255 / 0.12);
   color: #fff;
   cursor: pointer;
-  transition: background-color 0.15s ease, opacity 0.15s ease;
+  transition: background-color 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
 }
 
 .reelup-viewer__navbtn:hover:not(:disabled) {
@@ -751,6 +868,10 @@ html[dir="rtl"] .reelup-story {
 .reelup-viewer__navbtn:disabled {
   opacity: 0.3;
   cursor: default;
+}
+
+.reelup-viewer__navbtn:active:not(:disabled) {
+  transform: scale(0.92);
 }
 
 /* ---------- CTA variants inside viewers ---------- */
@@ -1117,8 +1238,15 @@ html[dir="rtl"] .reelup-story {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .reelup-viewer[open],
+  .reelup-viewer,
+  .reelup-story,
+  .reelup-viewer::backdrop,
+  .reelup-story::backdrop {
+    transition: none;
+  }
   .reelup-viewer[open] .reelup-viewer__stage,
+  .reelup-story[open] .reelup-story__frame,
+  .reelup-viewer[data-enter] *,
   .reelup-story__sticker,
   .reelup-story__drawer {
     animation: none;
@@ -1127,4 +1255,13 @@ html[dir="rtl"] .reelup-story {
   .reelup-story * {
     transition: none !important;
   }
+  /* Buffering still has to read as "loading": a slow pulse, not a spin. */
+  .reelup-viewer .is-buffering > .reelup-spinner,
+  .reelup-story .is-buffering > .reelup-spinner {
+    animation: reelup-pulse 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes reelup-pulse {
+  50% { opacity: 0.4; }
 }

@@ -86,7 +86,7 @@ Enabled under Theme settings › App embeds — not placed with {% content_for %
       {%- endif -%}
       {%- if shape == 'circle' -%}
         <span class="reelup-pop__play" aria-hidden="true">
-          <svg width="12" height="12" viewBox="0 0 10 10" focusable="false"><path fill="currentColor" d="M2 1.2v7.6a.5.5 0 0 0 .76.43l6.1-3.8a.5.5 0 0 0 0-.86L2.76.77A.5.5 0 0 0 2 1.2Z"/></svg>
+          {%- render 'reel-icon', name: 'play', size: 12 -%}
         </span>
       {%- endif -%}
     </button>
@@ -103,7 +103,7 @@ Enabled under Theme settings › App embeds — not placed with {% content_for %
     <div class="reelup-pop__frame">
       {%- render 'reel-trigger', reel: reel, style: widget_style, inner: player, muted_default: false, autoplay_preview: preview -%}
       <button type="button" class="reelup-pop__dismiss" data-reelup-pop-dismiss aria-label="{{ 'reels.dismiss_label' | t }}">
-        <svg width="10" height="10" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M4.3 4.3a1 1 0 0 1 1.4 0L10 8.6l4.3-4.3a1 1 0 1 1 1.4 1.4L11.4 10l4.3 4.3a1 1 0 0 1-1.4 1.4L10 11.4l-4.3 4.3a1 1 0 0 1-1.4-1.4L8.6 10 4.3 5.7a1 1 0 0 1 0-1.4Z"/></svg>
+        {%- render 'reel-icon', name: 'close', size: 12, stroke: 3 -%}
       </button>
     </div>
     {%- if widget_style.bubbleLabel != blank -%}

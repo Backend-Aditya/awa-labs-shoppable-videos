@@ -73,15 +73,18 @@ describe("opening the viewer", () => {
     expect(q("[data-reelup-count]").hidden).toBe(true);
   });
 
-  it("closing tears down playback, unlocks the page and returns focus to the trigger", async () => {
+  it("closing tears down playback, unlocks the page, returns focus to the trigger, then empties the list", async () => {
     await mountStrip();
     click(triggerButton(1));
     click(q("[data-reelup-close]"));
     expect(viewer()!.open).toBe(false);
     expect(hls.teardown).toHaveBeenCalled();
     expect(document.documentElement.classList.contains("reelup-locked")).toBe(false);
-    expect(q("[data-reelup-list]").children).toHaveLength(0);
     expect(document.activeElement).toBe(triggerButton(1));
+    // The product list stays through the closing fade, then is emptied.
+    expect(q("[data-reelup-list]").children.length).toBeGreaterThan(0);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(q("[data-reelup-list]").children).toHaveLength(0);
   });
 
   it("backdrop click closes", async () => {
@@ -235,6 +238,64 @@ describe("opening the viewer", () => {
     click(triggerButton(0));
     q("video").dispatchEvent(new Event("ended"));
     expect(q("#reelup-viewer-title").textContent).toBe("Second");
+  });
+});
+
+describe("buffering and transitions", () => {
+  const setReadyState = (video: HTMLVideoElement, value: number) =>
+    Object.defineProperty(video, "readyState", { configurable: true, get: () => value });
+
+  it("shows a spinner only when a playing video stalls past a grace period, and hides it when frames move", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      await mountStrip();
+      click(triggerButton(0));
+      await vi.advanceTimersByTimeAsync(0);
+      const player = q("[data-reelup-player]");
+      const video = q<HTMLVideoElement>("video");
+      setReadyState(video, 0);
+      video.dispatchEvent(new Event("waiting"));
+      await vi.advanceTimersByTimeAsync(300);
+      expect(player.classList.contains("is-buffering")).toBe(false);
+      await vi.advanceTimersByTimeAsync(200);
+      expect(player.classList.contains("is-buffering")).toBe(true);
+
+      setReadyState(video, 4);
+      video.dispatchEvent(new Event("playing"));
+      expect(player.classList.contains("is-buffering")).toBe(false);
+
+      // Paused by the shopper: never a spinner, whatever the buffer.
+      setReadyState(video, 0);
+      click(q("[data-reelup-play-pause]"));
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(player.classList.contains("is-buffering")).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("no spinner over a reel that failed to play", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      hls.attach.mockRejectedValueOnce(new Error("HLS not supported"));
+      await mountStrip();
+      click(triggerButton(0));
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(q("[data-reelup-error]").hidden).toBe(false);
+      expect(q("[data-reelup-player]").classList.contains("is-buffering")).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("marks which way the reel changed so it can slide in from that side", async () => {
+    await mountStrip();
+    click(triggerButton(0));
+    expect(viewer()!.hasAttribute("data-enter")).toBe(false);
+    click(q("[data-reelup-next]"));
+    expect(viewer()!.dataset.enter).toBe("next");
+    click(q("[data-reelup-prev]"));
+    expect(viewer()!.dataset.enter).toBe("prev");
   });
 });
 

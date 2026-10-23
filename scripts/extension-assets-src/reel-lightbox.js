@@ -429,6 +429,52 @@
     return isCurrent();
   };
 
+  // Spinner over a stalled video (`is-buffering` on `host`): shown while the
+  // video should be playing but has nothing to show, after a grace period
+  // so a brief wait never flashes it; never over a paused or failed video.
+  // State is re-derived on every media event rather than toggled per event,
+  // so events arriving late from a torn-down source can't leave it stuck.
+  const HAVE_FUTURE_DATA = 3;
+  const BUFFER_GRACE_MS = 400;
+  const watchBuffering = (video, host) => {
+    let failed = false;
+    let timer = null;
+    const stalled = () => !failed && !video.paused && !video.ended && video.readyState < HAVE_FUTURE_DATA;
+    const sync = () => {
+      if (!stalled()) {
+        clearTimeout(timer);
+        timer = null;
+        host.classList.remove("is-buffering");
+        return;
+      }
+      if (timer !== null || host.classList.contains("is-buffering")) return;
+      timer = setTimeout(() => {
+        timer = null;
+        host.classList.toggle("is-buffering", stalled());
+      }, BUFFER_GRACE_MS);
+    };
+    const fail = () => {
+      failed = true;
+      sync();
+    };
+    ["play", "playing", "waiting", "canplay", "pause", "seeking", "seeked", "ended", "emptied"].forEach((type) =>
+      video.addEventListener(type, sync),
+    );
+    video.addEventListener("reelup:playback-error", fail);
+    video.addEventListener("error", () => {
+      // An empty-src error comes from teardown, not from the reel.
+      if (video.getAttribute("src")) fail();
+    });
+    return {
+      // A new source is on its way.
+      reset: () => {
+        failed = false;
+        sync();
+      },
+      fail,
+    };
+  };
+
   /* ----------------------------------------------- share + deep links */
 
   // ?reelup=<numeric id> on any page opens that reel once the page loads
@@ -557,20 +603,31 @@
 
   /* ------------------------------------------------------------ icons */
 
-  const icon = (path, size = 20) =>
-    `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="currentColor" aria-hidden="true" focusable="false">${path}</svg>`;
+  // One icon family for all viewer chrome (and the blocks' reel-icon
+  // snippet): 24px grid, 2px round strokes, after Lucide (lucide.dev, ISC).
+  // Play and pause stay solid — the shapes shoppers read at a glance.
+  const icon = (body, size = 20, solid = false) =>
+    `<svg viewBox="0 0 24 24" width="${size}" height="${size}" ${
+      solid ? 'fill="currentColor"' : 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"'
+    } aria-hidden="true" focusable="false">${body}</svg>`;
+  const PLAY = '<path d="M8 5.14v13.72a1 1 0 0 0 1.52.85l10.6-6.86a1 1 0 0 0 0-1.7L9.52 4.29A1 1 0 0 0 8 5.14Z"/>';
+  const PAUSE = '<rect x="6" y="4.5" width="4" height="15" rx="1.2"/><rect x="14" y="4.5" width="4" height="15" rx="1.2"/>';
+  const SPEAKER =
+    '<path d="M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6a1.4 1.4 0 0 1-1 .4H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5Z"/>';
   const ICONS = {
-    play: icon('<path d="M8 5.14v13.72a1 1 0 0 0 1.52.85l10.6-6.86a1 1 0 0 0 0-1.7L9.52 4.29A1 1 0 0 0 8 5.14Z"/>', 28),
-    pause: icon('<path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/>', 28),
-    playSmall: icon('<path d="M8 5.14v13.72a1 1 0 0 0 1.52.85l10.6-6.86a1 1 0 0 0 0-1.7L9.52 4.29A1 1 0 0 0 8 5.14Z"/>', 18),
-    pauseSmall: icon('<path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z"/>', 18),
-    muted: icon('<path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="m16 9 6 6m0-6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/>'),
-    unmuted: icon('<path d="M11 5 6 9H3v6h3l5 4V5Zm4.5 3.5a5 5 0 0 1 0 7l-1.4-1.4a3 3 0 0 0 0-4.2l1.4-1.4Zm2.8-2.8a9 9 0 0 1 0 12.6l-1.4-1.4a7 7 0 0 0 0-9.8l1.4-1.4Z"/>'),
-    close: icon('<path d="M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4 6.4 5Z"/>'),
-    up: icon('<path d="m12 7.6 6.7 6.7-1.4 1.4-5.3-5.3-5.3 5.3-1.4-1.4L12 7.6Z"/>'),
-    down: icon('<path d="m12 16.4-6.7-6.7 1.4-1.4 5.3 5.3 5.3-5.3 1.4 1.4-6.7 6.7Z"/>'),
-    share: icon('<path d="M12 3 7.5 7.5l1.4 1.4L11 6.8V15h2V6.8l2.1 2.1 1.4-1.4L12 3ZM5 13v6.5A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V13h-2v6H7v-6H5Z"/>'),
-    bag: icon('<path d="M7 7a5 5 0 0 1 10 0h3l-1 14H5L4 7h3Zm2 0h6a3 3 0 0 0-6 0Z"/>', 16),
+    play: icon(PLAY, 28, true),
+    pause: icon(PAUSE, 28, true),
+    playSmall: icon(PLAY, 18, true),
+    pauseSmall: icon(PAUSE, 18, true),
+    muted: icon(`${SPEAKER}<path d="m22 9-6 6m0-6 6 6"/>`),
+    unmuted: icon(`${SPEAKER}<path d="M16 9a5 5 0 0 1 0 6m3.4 3.4a9 9 0 0 0 0-12.8"/>`),
+    close: icon('<path d="M18 6 6 18M6 6l12 12"/>'),
+    up: icon('<path d="m18 15-6-6-6 6"/>'),
+    down: icon('<path d="m6 9 6 6 6-6"/>'),
+    share: icon('<path d="M12 3v12m-4-8 4-4 4 4M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/>'),
+    bag: icon('<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18m-5 4a4 4 0 0 1-8 0"/>', 18),
+    retry: icon('<path d="M3 12a9 9 0 1 0 2.64-6.36L3 8.27"/><path d="M3 3v5.27h5.27"/>', 16),
+    alert: icon('<circle cx="12" cy="12" r="10"/><path d="M12 7.5v5m0 4h.01"/>', 32),
   };
 
   /* ------------------------------------------------------------ viewer */
@@ -581,6 +638,9 @@
   // Bumped by every load() and by close: async work started for an older
   // value must not touch the (shared) video element any more.
   let loadSeq = 0;
+
+  // Matches the dialogs' closing transition in reel-lightbox.css.
+  const CLOSE_FADE_MS = 250;
 
   const mobileQuery = window.matchMedia("(max-width: 749px)");
   const isMobile = () => mobileQuery.matches;
@@ -607,9 +667,11 @@
             <button type="button" class="reelup-viewer__icon" data-reelup-close aria-label="${L.close}">${ICONS.close}</button>
           </div>
           <button type="button" class="reelup-viewer__toggle" data-reelup-play-pause aria-label="${L.play}">${ICONS.play}</button>
+          <span class="reelup-spinner" aria-hidden="true"></span>
           <div class="reelup-viewer__error" data-reelup-error hidden>
+            ${ICONS.alert}
             <p>${L.playbackError}</p>
-            <button type="button" data-reelup-retry>${L.retry}</button>
+            <button type="button" data-reelup-retry>${ICONS.retry}<span>${L.retry}</span></button>
           </div>
           <h2 class="reelup-viewer__title" id="reelup-viewer-title"></h2>
           <div class="reelup-toast" aria-hidden="true"></div>
@@ -652,6 +714,7 @@
     const panelToggle = dialog.querySelector("[data-reelup-panel-toggle]");
     const cartStatus = dialog.querySelector("[data-reelup-cart-status]");
     const errorBox = dialog.querySelector("[data-reelup-error]");
+    dialog.buffering = watchBuffering(video, player);
 
     const syncPlayState = () => {
       toggle.innerHTML = video.paused ? ICONS.play : ICONS.pause;
@@ -876,7 +939,10 @@
     dialog.addEventListener("close", () => {
       loadSeq += 1;
       window.ReelupHls?.teardown(video);
-      dialog.querySelector("[data-reelup-list]").replaceChildren();
+      // Emptied once the closing fade is over, not mid-fade.
+      setTimeout(() => {
+        if (!dialog.open) dialog.querySelector("[data-reelup-list]").replaceChildren();
+      }, CLOSE_FADE_MS);
       cartStatus.hidden = true;
       errorBox.hidden = true;
       document.documentElement.classList.remove("reelup-locked");
@@ -904,6 +970,7 @@
     const cartStatus = dialog.querySelector("[data-reelup-cart-status]");
 
     window.ReelupHls?.teardown(video);
+    dialog.buffering.reset();
     dialog.querySelector("[data-reelup-error]").hidden = true;
     const reelId = trigger.dataset.reelId ?? "";
     dialog.setAttribute("data-reelup-reel-id", reelId);
@@ -957,6 +1024,7 @@
       // Playback failed to start; the poster and product list stay usable,
       // and the shopper gets a retry button.
       if (isCurrent()) {
+        dialog.buffering.fail();
         dialog.querySelector("[data-reelup-error]").hidden = false;
         announce(dialog, labels.playbackError);
       }
@@ -985,6 +1053,11 @@
     const next = index + delta;
     if (!dialog?.open || next < 0 || next >= group.length) return;
     index = next;
+    // The new reel slides in from the direction it came from (CSS keys off
+    // data-enter; re-set after a reflow so back-to-back moves replay it).
+    dialog.removeAttribute("data-enter");
+    void dialog.offsetWidth;
+    dialog.dataset.enter = delta > 0 ? "next" : "prev";
     load(dialog, group[index]);
   };
 
@@ -993,6 +1066,7 @@
   const open = (trigger, triggers) => {
     if (!trigger?.dataset.hlsSrc) return;
     const dialog = buildViewer();
+    dialog.removeAttribute("data-enter");
     group = triggers && triggers.length ? triggers : [trigger];
     index = Math.max(group.indexOf(trigger), 0);
     if (!dialog.open) {
@@ -1015,6 +1089,7 @@
     escapeHtml,
     isRtl,
     announce,
+    watchBuffering,
     makeLiveRegion,
     nameDialog,
     getUserMuted,

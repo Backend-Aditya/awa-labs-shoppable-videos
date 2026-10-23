@@ -146,6 +146,27 @@ test.describe("mobile", () => {
     await head.click();
     await expect(panel).toHaveAttribute("data-state", "peek");
   });
+
+  test("stories: swipe sideways to move, swipe down to close", async ({ page }) => {
+    await mockShop(page);
+    await page.getByRole("button", { name: "Play video: Story one" }).click();
+    const story = page.locator("dialog#reelup-story-viewer");
+    await expect(story.locator("#reelup-story-title")).toHaveText("Story one");
+    // Real touch input (Playwright's touchscreen only taps).
+    const cdp = await page.context().newCDPSession(page);
+    const swipe = async (from: [number, number], to: [number, number]) => {
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: from[0], y: from[1] }] });
+      for (let i = 1; i <= 6; i++) {
+        const point = { x: from[0] + ((to[0] - from[0]) * i) / 6, y: from[1] + ((to[1] - from[1]) * i) / 6 };
+        await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [point] });
+      }
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    };
+    await swipe([300, 420], [110, 430]);
+    await expect(story.locator("#reelup-story-title")).toHaveText("Story two");
+    await swipe([200, 300], [205, 560]);
+    await expect(story).toBeHidden();
+  });
 });
 
 test("the story viewer advances on its own and closes after the last story", async ({ page }) => {

@@ -1,8 +1,8 @@
 // Full-screen story viewer for the Stories widget: segmented progress,
-// auto-advance, tap left/right to move, press-and-hold or the play/pause
-// button (Space / K) to pause, and a product sticker that slides up a
-// drawer. Product cards inside the drawer are handled by the delegated
-// cart code in reel-lightbox.js.
+// auto-advance, tap left/right or swipe sideways to move, swipe down to
+// close, press-and-hold or the play/pause button (Space / K) to pause, and
+// a product sticker that slides up a drawer. Product cards inside the
+// drawer are handled by the delegated cart code in reel-lightbox.js.
 (() => {
   // Loaded by the embed and possibly again by a block loader.
   if (window.ReelupStory) return;
@@ -52,8 +52,11 @@
   // Bumped by every goTo() and by close; async work holding an older token
   // must stop (no playing, advancing, marking seen or tracking).
   let storySeq = 0;
-  // Why the story is paused right now. Playback/timer only run while empty.
+  // Why the story is paused right now. The clock only runs while empty.
+  // "buffering" stops the clock but not the video, which carries on by
+  // itself once data arrives; every other reason pauses the video too.
   const pauseReasons = new Set();
+  const holdsVideo = () => [...pauseReasons].some((reason) => reason !== "buffering");
 
   const clearTimer = () => {
     clearTimeout(timer);
@@ -126,8 +129,8 @@
     const wasRunning = pauseReasons.size === 0;
     pauseReasons.add(reason);
     if (reason === "user") syncToggle(dialog);
+    if (holdsVideo()) dialog.querySelector("video").pause();
     if (!wasRunning) return;
-    dialog.querySelector("video").pause();
     clearTimer();
     if (segmentStarted) pausedRemainingMs = freezeSegment(dialog);
   };
@@ -135,8 +138,10 @@
   const resume = (dialog, reason) => {
     if (!pauseReasons.delete(reason)) return;
     if (reason === "user") syncToggle(dialog);
-    if (pauseReasons.size > 0 || !dialog.open) return;
-    dialog.querySelector("video").play().catch(() => {});
+    if (!dialog.open) return;
+    // A video held only by buffering must keep playing to ever un-buffer.
+    if (!holdsVideo()) dialog.querySelector("video").play().catch(() => {});
+    if (pauseReasons.size > 0) return;
     if (!segmentStarted) return; // the `playing` handler starts the segment
     const remaining = pausedRemainingMs ?? durationMs;
     pausedRemainingMs = null;
@@ -210,6 +215,7 @@
     pauseReasons.delete("drawer");
     pauseReasons.delete("hold");
     pauseReasons.delete("share");
+    pauseReasons.delete("buffering");
     syncToggle(dialog);
     pausedRemainingMs = null;
     segmentStarted = false;
@@ -228,6 +234,7 @@
     const title = dialog.querySelector(".reelup-story__title");
     const avatar = dialog.querySelector(".reelup-story__avatar");
     window.ReelupHls?.teardown(video);
+    dialog.buffering.reset();
 
     title.textContent = trigger.dataset.title ?? "";
     viewer()?.nameDialog(dialog, "reelup-story-title", trigger.dataset.title);
@@ -270,6 +277,7 @@
     } catch {
       failed = true;
     }
+    if (failed && isCurrent()) dialog.buffering.fail();
     if (!dialog.open) {
       window.ReelupHls?.teardown(video);
       return;
@@ -296,6 +304,7 @@
       <div class="reelup-story__frame">
         <video class="reelup-story__video" playsinline muted></video>
         <div class="reelup-story__shade" aria-hidden="true"></div>
+        <span class="reelup-spinner" aria-hidden="true"></span>
         <div class="reelup-story__progress" data-reelup-story-progress aria-hidden="true"></div>
         <header class="reelup-story__header">
           <span class="reelup-story__avatar" aria-hidden="true"></span>
@@ -332,6 +341,7 @@
     const video = dialog.querySelector("video");
     const frame = dialog.querySelector(".reelup-story__frame");
     const mute = dialog.querySelector("[data-reelup-story-mute]");
+    dialog.buffering = viewer().watchBuffering(video, frame);
     video.addEventListener("volumechange", () => {
       mute.innerHTML = video.muted ? icons.muted : icons.unmuted;
       mute.setAttribute("aria-label", video.muted ? labels.unmute : labels.mute);
@@ -340,7 +350,15 @@
       video.muted = !video.muted;
       viewer().setUserMuted(video.muted);
     });
-    video.addEventListener("playing", () => startSegment(dialog, storySeq));
+    video.addEventListener("playing", () => {
+      startSegment(dialog, storySeq);
+      resume(dialog, "buffering");
+    });
+    // A stall mid-story stops the clock, so a slow connection never moves
+    // on from a story the shopper hasn't actually seen.
+    video.addEventListener("waiting", () => {
+      if (segmentStarted && dialog.open) pause(dialog, "buffering");
+    });
     video.addEventListener("ended", () => requestAdvance(dialog));
 
     const step = (delta) => {
@@ -418,6 +436,8 @@
     // shoppers already know. Buttons keep their own taps.
     let held = false;
     let holdTimer = null;
+    let swipeStart = null;
+    let swiped = false;
     frame.addEventListener("pointerdown", (event) => {
       if (drawerOpen || event.target.closest("button:not(.reelup-story__tap), a, select, [data-reelup-story-drawer]")) return;
       holdTimer = setTimeout(() => {
@@ -426,10 +446,11 @@
       }, 180);
     });
     frame.addEventListener("click", (event) => {
-      // A hold that ended over a tap zone shouldn't also count as a tap.
-      if (held && event.target.closest("[data-reelup-story-prev], [data-reelup-story-next]")) {
+      // A hold or swipe that ended over a tap zone isn't also a tap.
+      if ((held || swiped) && event.target.closest("[data-reelup-story-prev], [data-reelup-story-next]")) {
         event.stopImmediatePropagation();
       }
+      swiped = false;
     }, true);
     const release = () => {
       clearTimeout(holdTimer);
@@ -440,6 +461,30 @@
     frame.addEventListener("pointerup", () => setTimeout(release, 0));
     frame.addEventListener("pointercancel", release);
     frame.addEventListener("pointerleave", release);
+
+    // Swipes, as on the social apps shoppers know: down closes, sideways
+    // moves between stories (in reading direction). Touch events, because
+    // the browser may claim the gesture and cancel its pointer events.
+    frame.addEventListener("touchstart", (event) => {
+      swiped = false;
+      swipeStart =
+        event.touches.length === 1 && !drawerOpen && !event.target.closest("[data-reelup-story-drawer]")
+          ? { x: event.touches[0].clientX, y: event.touches[0].clientY }
+          : null;
+    }, { passive: true });
+    frame.addEventListener("touchend", (event) => {
+      if (!swipeStart) return;
+      const dx = event.changedTouches[0].clientX - swipeStart.x;
+      const dy = event.changedTouches[0].clientY - swipeStart.y;
+      swipeStart = null;
+      if (dy > 80 && dy > Math.abs(dx) * 1.5) {
+        swiped = true;
+        dialog.close();
+      } else if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        swiped = true;
+        step((dx < 0) !== viewer().isRtl(dialog) ? 1 : -1);
+      }
+    });
 
     return dialog;
   };

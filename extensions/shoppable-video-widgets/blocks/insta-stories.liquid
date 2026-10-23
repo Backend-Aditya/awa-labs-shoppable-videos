@@ -118,10 +118,10 @@ pulls in the viewer runtime when the app embed is off.
       </ul>
       {%- if visible_count > 1 -%}
         <button type="button" class="reelup-arrow reelup-arrow--prev" data-reelup-strip-prev aria-label="{{ 'reels.scroll_back_label' | t }}" hidden>
-          <svg width="14" height="14" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12.7 4.3a1 1 0 0 1 0 1.4L8.42 10l4.3 4.3a1 1 0 0 1-1.42 1.4l-5-5a1 1 0 0 1 0-1.4l5-5a1 1 0 0 1 1.42 0Z"/></svg>
+          {%- render 'reel-icon', name: 'chevron-left', size: 14 -%}
         </button>
         <button type="button" class="reelup-arrow reelup-arrow--next" data-reelup-strip-next aria-label="{{ 'reels.scroll_forward_label' | t }}" hidden>
-          <svg width="14" height="14" viewBox="0 0 20 20" aria-hidden="true" focusable="false"><path fill="currentColor" d="M7.3 15.7a1 1 0 0 1 0-1.4l4.28-4.3-4.3-4.3a1 1 0 1 1 1.42-1.4l5 5a1 1 0 0 1 0 1.4l-5 5a1 1 0 0 1-1.42 0Z"/></svg>
+          {%- render 'reel-icon', name: 'chevron-right', size: 14 -%}
         </button>
       {%- endif -%}
     </div>

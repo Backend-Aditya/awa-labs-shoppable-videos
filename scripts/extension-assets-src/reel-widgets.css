@@ -164,7 +164,28 @@
 .reelup .reelup-trigger__preview {
   z-index: 1;
   opacity: 0;
-  transition: opacity 0.4s ease;
+  transition: opacity 0.4s ease, transform 0.6s var(--ru-ease);
+}
+
+.reelup .reelup-trigger__poster {
+  transition: transform 0.6s var(--ru-ease);
+}
+
+/* Video cards lean in under the pointer and give a little when pressed,
+   so every one reads as something to tap. */
+@media (hover: hover) and (pointer: fine) {
+  .reelup :is(.reelup-strip__poster, .reelup-deck__poster, .reelup-feature__poster):hover :is(.reelup-trigger__poster, .reelup-trigger__preview) {
+    transform: scale(1.045);
+  }
+}
+
+.reelup :is(.reelup-strip__poster, .reelup-deck__poster, .reelup-feature__poster, .reelup-atc__thumb) {
+  transition: transform 0.2s var(--ru-ease), box-shadow 0.2s ease;
+}
+
+.reelup .reelup-trigger__button:active :is(.reelup-strip__poster, .reelup-atc__thumb),
+.reelup :is(.reelup-strip__poster, .reelup-deck__poster, .reelup-feature__poster):active {
+  transform: scale(0.98);
 }
 
 .reelup .reelup-trigger__preview.is-playing {
@@ -730,8 +751,12 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
   }
 }
 
+.reelup-stories__photo {
+  transition: transform 0.2s var(--ru-ease);
+}
+
 .reelup-stories__avatar:active .reelup-stories__photo {
-  transform: scale(0.96);
+  transform: scale(0.94);
 }
 
 .reelup-stories__label {
@@ -1027,6 +1052,10 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
   transform: translateY(-2px) scale(1.03);
 }
 
+.reelup .reelup-trigger__button.reelup-pop__player:active {
+  transform: scale(0.97);
+}
+
 .reelup-pop__play {
   position: absolute;
   right: 4px;
@@ -1072,6 +1101,18 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
   background: #1f1f1f;
   color: #fff;
   cursor: pointer;
+}
+
+/* The visible dot stays small; the tap target is a comfortable 44px. */
+.reelup-pop__dismiss::before {
+  content: "";
+  position: absolute;
+  inset: -10px;
+  border-radius: 50%;
+}
+
+.reelup-pop__dismiss:hover {
+  background: #000;
 }
 
 .reelup-pop--bottom-left .reelup-pop__dismiss,
@@ -1271,14 +1312,57 @@ html[dir="rtl"] :is(.reelup, .reelup-viewer, .reelup-story) .reelup-product__var
   cursor: not-allowed;
 }
 
-.reelup-product__add[data-state="loading"] {
-  opacity: 0.6;
+/* Adding: the label stays (so the button keeps its width) but turns
+   invisible under a spinner. Added: a check mark pops in beside "Added". */
+:is(.reelup, .reelup-viewer, .reelup-story) .reelup-product__add {
+  position: relative;
+  --ru-spinner: var(--ru-cta-text, #fff);
+}
+
+:is(.reelup, .reelup-viewer, .reelup-story) .reelup-product__add[data-state="loading"] {
+  /* Beats every hover/variant colour rule for the moment it's adding. */
+  color: transparent !important;
   cursor: progress;
 }
 
-.reelup-product__add[data-state="added"] {
+.reelup-product__add[data-state="loading"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 16px;
+  height: 16px;
+  margin: auto;
+  border: 2px solid var(--ru-spinner);
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: reelup-spin 0.7s linear infinite;
+}
+
+/* Scoped like the hover rule and after it, so the success colour shows
+   while the pointer is still on the button that was just clicked. */
+:is(.reelup, .reelup-viewer, .reelup-story) .reelup-product__add[data-state="added"] {
   background: #1f7a4d;
   color: #fff;
+}
+
+.reelup-product__add[data-state="added"]::before {
+  content: "";
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  margin-inline-end: 6px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat;
+  animation: reelup-check 0.35s var(--ru-ease, ease) both;
+}
+
+@keyframes reelup-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes reelup-check {
+  from { opacity: 0; transform: scale(0.4); }
 }
 
 .reelup-cta--square .reelup-product__add {
@@ -1286,6 +1370,7 @@ html[dir="rtl"] :is(.reelup, .reelup-viewer, .reelup-story) .reelup-product__var
 }
 
 .reelup-cta--text-link .reelup-product__add {
+  --ru-spinner: var(--ru-cta, #141414);
   box-shadow: none;
   background: transparent;
   color: var(--ru-cta, #141414);
@@ -1380,5 +1465,9 @@ html[dir="rtl"] .reelup-atc__button:hover .reelup-atc__chevron { transform: scal
   .reelup-pop {
     animation: none !important;
     transition: none !important;
+  }
+  :is(.reelup-viewer, .reelup-story) .reelup-product__add::before,
+  :is(.reelup-viewer, .reelup-story) .reelup-product__add::after {
+    animation: none;
   }
 }

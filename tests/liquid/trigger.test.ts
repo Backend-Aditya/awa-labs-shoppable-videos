@@ -1,5 +1,5 @@
 // snippets/reel-trigger.liquid (the data-attribute contract with the
-// storefront JS), reel-duration and reel-video-schema.
+// storefront JS), reel-duration, reel-video-schema and reel-icon.
 import { describe, expect, it } from "vitest";
 import { makeProduct, makeReel } from "../support/storefront-fixtures.mjs";
 import { colorBrightness, shiftLightness } from "../support/liquid-engine.mjs";
@@ -161,5 +161,27 @@ describe("reel-video-schema", () => {
     const { $ } = await renderDom("reel-video-schema", { reel: makeReel({ poster: null }) });
     expect($("script[type='application/ld+json']")).toBeNull();
     expect($("link[rel=preconnect]")).not.toBeNull();
+  });
+});
+
+describe("reel-icon", () => {
+  it.each(["play", "chevron-left", "chevron-right", "close"])("%s renders a decorative, sized svg", async (name) => {
+    const { $ } = await renderDom("reel-icon", { name, size: 16, class: "reelup-x" });
+    const svg = $("svg")!;
+    expect(svg.getAttribute("aria-hidden")).toBe("true");
+    expect(svg.getAttribute("focusable")).toBe("false");
+    expect(svg.getAttribute("width")).toBe("16");
+    expect(svg.getAttribute("class")).toBe("reelup-x");
+  });
+
+  it("strokes chevrons and close (default 2, overridable); play stays solid", async () => {
+    expect((await renderDom("reel-icon", { name: "chevron-right", size: 16 })).$("svg")!.getAttribute("stroke-width")).toBe("2");
+    expect((await renderDom("reel-icon", { name: "close", size: 12, stroke: 3 })).$("svg")!.getAttribute("stroke-width")).toBe("3");
+    expect((await renderDom("reel-icon", { name: "play", size: 12 })).$("svg path")!.getAttribute("fill")).toBe("currentColor");
+  });
+
+  it("renders nothing for an unknown name", async () => {
+    const { html } = await renderDom("reel-icon", { name: "nope", size: 16 });
+    expect(html.trim()).toBe("");
   });
 });
