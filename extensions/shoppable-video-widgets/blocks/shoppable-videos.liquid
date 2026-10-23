@@ -4,27 +4,21 @@ on once under Theme settings › App embeds. Shopify's own embed toggle is the
 on/off mechanism — no custom flag.
 
 Three jobs:
-1. Loads the storefront scripts and viewer styles once per page.
+1. Renders reel-loader.js, which pulls in the viewer runtime and styles
+   only on pages that have a widget — every other page pays for that one
+   small script. Section blocks declare the same loader as their schema
+   JavaScript, so they work with this embed off; it runs once per page.
 2. Publishes shared viewer labels, locale-aware cart routes and the money
    format as JSON (snippets/reel-config). Section blocks render the same
-   snippet and declare reel-loader.js as their schema JavaScript, so they
-   still work when this embed is off; with the embed on, the loader stands
-   down and every runtime file guards against a second load.
+   snippet.
 3. Renders the REEL_POPS widget ("Floating video"): a small player pinned
-   to a corner of every page it targets.
+   to a corner of every page it targets, with its stylesheet.
 
 @example
 Enabled under Theme settings › App embeds — not placed with {% content_for %}.
 {% enddoc %}
 
-<script src="{{ 'reel-hls.js' | asset_url }}" defer></script>
-<script src="{{ 'reel-lightbox.js' | asset_url }}" defer></script>
-<script src="{{ 'reel-story.js' | asset_url }}" defer></script>
-<script src="{{ 'reel-trigger.js' | asset_url }}" defer></script>
-<script src="{{ 'reel-pop.js' | asset_url }}" defer></script>
-
-{{ 'reel-lightbox.css' | asset_url | stylesheet_tag }}
-{{ 'reel-widgets.css' | asset_url | stylesheet_tag }}
+<script src="{{ 'reel-loader.js' | asset_url }}" defer></script>
 
 {% assign reel_namespace = 'app--404281098241' %}
 {%- render 'reel-config' -%}
@@ -83,6 +77,7 @@ Enabled under Theme settings › App embeds — not placed with {% content_for %
 -%}
 
 {%- if show_widget -%}
+  {{ 'reel-widgets.css' | asset_url | stylesheet_tag }}
   {%- comment -%} No VideoObject JSON-LD here: the floating player repeats on every page and isn't the page's content. {%- endcomment -%}
   {%- capture player -%}
     <button type="button" class="reelup-trigger__button reelup-pop__player" aria-label="{{ play_label }}">

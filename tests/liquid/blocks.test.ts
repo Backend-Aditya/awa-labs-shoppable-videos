@@ -118,15 +118,10 @@ describe("add-to-cart-video", () => {
 });
 
 describe("shoppable-videos app embed", () => {
-  it("loads every storefront script and publishes a parseable [data-reelup-config]", async () => {
+  it("adds only the loader (no runtime, no stylesheets) and publishes a parseable [data-reelup-config]", async () => {
     const { $, $$ } = await renderDom("shoppable-videos", blockContext("shoppable-videos", { widget: makeWidget({ published: false }) }));
-    expect($$("script[src]").map((s) => s.getAttribute("src"))).toEqual([
-      "/assets/reel-hls.js",
-      "/assets/reel-lightbox.js",
-      "/assets/reel-story.js",
-      "/assets/reel-trigger.js",
-      "/assets/reel-pop.js",
-    ]);
+    expect($$("script[src]").map((s) => s.getAttribute("src"))).toEqual(["/assets/reel-loader.js"]);
+    expect($$("link[rel=stylesheet]")).toHaveLength(0);
     const config = JSON.parse($("[data-reelup-config]")!.textContent!);
     expect(config).toMatchObject({
       cartUrl: "/cart",
@@ -151,8 +146,8 @@ describe("shoppable-videos app embed", () => {
     expect(JSON.parse($("[data-reelup-config]")!.textContent!).viewerTheme).toBe("light");
   });
 
-  it("floating video: hidden until JS reveals it, carries delay, block id and position", async () => {
-    const { $ } = await renderDom(
+  it("floating video: hidden until JS reveals it, carries delay, block id and position, brings its stylesheet", async () => {
+    const { $, $$ } = await renderDom(
       "shoppable-videos",
       blockContext("shoppable-videos", {
         reel: makeReel({ id: 4 }),
@@ -167,5 +162,6 @@ describe("shoppable-videos app embed", () => {
     expect(pop.className).toContain("reelup-pop--circle");
     expect($("[data-reelup-pop-dismiss]")).not.toBeNull();
     expect($("[data-reelup-pop-open]")!.textContent).toBe("Watch <me>");
+    expect($$("link[rel=stylesheet]").map((l) => l.getAttribute("href"))).toEqual(["/assets/reel-widgets.css"]);
   });
 });

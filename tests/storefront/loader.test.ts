@@ -1,9 +1,12 @@
-// reel-loader.js: blocks are self-sufficient when the app embed is off.
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { makeReel } from "../support/storefront-fixtures.mjs";
+// reel-loader.js: the one script the app embed and every block put on the
+// page; it loads the runtime only where there is a widget to drive.
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { makeReel, makeWidget } from "../support/storefront-fixtures.mjs";
 import { mount, renderBlock, resetPage } from "./harness";
 
 const LOADER_SRC = "https://cdn.shopify.test/extensions/abc/assets/reel-loader.js";
+const asset = (file: string) => LOADER_SRC.replace("reel-loader.js", file);
+const RUNTIME = ["reel-hls.js", "reel-lightbox.js", "reel-story.js", "reel-trigger.js"];
 
 beforeEach(() => {
   resetPage();
@@ -13,29 +16,73 @@ afterEach(() => {
   delete (document as unknown as Record<string, unknown>).currentScript;
 });
 
-const injected = () =>
-  Array.from(document.head.querySelectorAll<HTMLScriptElement>("script[data-reelup-loader]")).map((s) => [s.src, s.async]);
+const injectedScripts = () => Array.from(document.head.querySelectorAll<HTMLScriptElement>("script[data-reelup-loader]"));
+const injected = () => injectedScripts().map((s) => [s.src, s.async]);
+const strip = () => renderBlock("product-page-reels", { reels: [makeReel()] });
 
 describe("reel-loader", () => {
-  it("embed OFF: injects the runtime in order (non-async) plus the viewer stylesheet", async () => {
-    await mount(await renderBlock("product-page-reels", { reels: [makeReel()] }), ["loader"]);
-    expect(injected()).toEqual(
-      ["reel-hls.js", "reel-lightbox.js", "reel-story.js", "reel-trigger.js"].map((f) => [LOADER_SRC.replace("reel-loader.js", f), false]),
-    );
+  it("on a page with a widget, injects the runtime in order (non-async) plus the viewer stylesheet", async () => {
+    await mount(await strip(), ["loader"]);
+    expect(injected()).toEqual(RUNTIME.map((f) => [asset(f), false]));
     expect(document.head.querySelector<HTMLLinkElement>('link[href$="reel-lightbox.css"]')!.rel).toBe("stylesheet");
   });
 
-  it("embed ON: does nothing when the embed's scripts are on the page", async () => {
-    const html = await renderBlock("product-page-reels", { reels: [makeReel()] });
-    await mount(`<script src="/assets/reel-lightbox.js" defer></script>${html}`, ["loader"]);
+  it("adds the floating-video script, last, when the embed renders one", async () => {
+    const pop = await renderBlock("shoppable-videos", { reel: makeReel({ id: 4 }), widget: makeWidget() });
+    await mount(pop, ["loader"]);
+    expect(injected()).toEqual([...RUNTIME, "reel-pop.js"].map((f) => [asset(f), false]));
+  });
+
+  it("the embed alone on a page without widgets loads nothing else", async () => {
+    const embed = await renderBlock("shoppable-videos", { widget: makeWidget({ published: false }) });
+    expect(embed).toContain('<script src="/assets/reel-loader.js" defer></script>');
+    expect(embed).not.toMatch(/reel-(hls|lightbox|story|trigger|pop)\.js|stylesheet/);
+    await mount(embed, ["loader"]);
+    expect(injected()).toEqual([]);
+    expect(document.head.querySelector("link")).toBeNull();
+  });
+
+  it("stands down when the runtime is already on the page", async () => {
+    (window as unknown as Record<string, unknown>).ReelupLightbox = {};
+    await mount(await strip(), ["loader"]);
     expect(injected()).toEqual([]);
   });
 
-  it("does nothing on a page with no triggers, and only once per page", async () => {
+  it("runs once per page, and wakes up when the theme editor adds a block", async () => {
     await mount("<p>no reels</p>", ["loader"]);
     expect(injected()).toEqual([]);
-    document.body.insertAdjacentHTML("beforeend", await renderBlock("product-page-reels", { reels: [makeReel()] }));
+    document.body.insertAdjacentHTML("beforeend", await strip());
     await mount(document.body.innerHTML, ["loader"]);
     expect(injected()).toEqual([]);
+
+    document.dispatchEvent(new CustomEvent("shopify:section:load"));
+    expect(injected()).toHaveLength(RUNTIME.length);
+    document.dispatchEvent(new CustomEvent("shopify:section:load"));
+    expect(injected()).toHaveLength(RUNTIME.length);
+  });
+
+  it("holds a tap made while the runtime downloads and replays it once it has run", async () => {
+    await mount(await strip(), ["loader"]);
+    const button = document.querySelector<HTMLButtonElement>(".reelup-trigger__button")!;
+    const opened = vi.fn();
+    button.addEventListener("click", opened);
+    button.click();
+    button.click();
+    expect(opened).not.toHaveBeenCalled();
+
+    injectedScripts().at(-1)!.dispatchEvent(new Event("load"));
+    expect(opened).toHaveBeenCalledTimes(1);
+    button.click();
+    expect(opened).toHaveBeenCalledTimes(2);
+  });
+
+  it("releases taps even if the runtime fails to download", async () => {
+    await mount(await strip(), ["loader"]);
+    const button = document.querySelector<HTMLButtonElement>(".reelup-trigger__button")!;
+    const opened = vi.fn();
+    button.addEventListener("click", opened);
+    injectedScripts().at(-1)!.dispatchEvent(new Event("error"));
+    button.click();
+    expect(opened).toHaveBeenCalledTimes(1);
   });
 });

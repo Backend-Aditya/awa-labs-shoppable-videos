@@ -1,6 +1,8 @@
 // Static storefront harness for Playwright. Serves:
 //   /                  tests/e2e/fixtures/storefront.html with real block
-//                      markup rendered from the theme extension's Liquid
+//                      markup rendered from the theme extension's Liquid,
+//                      and each block's schema stylesheet/javascript in
+//                      <head> the way Shopify injects them
 //   /assets/*          extensions/shoppable-video-widgets/assets (the BUILT
 //                      files — run `npm run build:extension` first)
 //   anything else      404 (cart, recommendations and analytics endpoints
@@ -37,6 +39,19 @@ const storyReels = [
   makeReel({ id: 12, title: "Story two", hls: hls(12), poster: poster(12) }),
 ];
 
+// Shopify adds every app block's schema "stylesheet" and "javascript" to the
+// page once, however many of those blocks it has; liquidjs skips {% schema %}.
+async function schemaAssets(blocks) {
+  const tags = new Set();
+  for (const block of blocks) {
+    const source = await readFile(path.join(EXTENSION_DIR, "blocks", `${block}.liquid`), "utf8");
+    const schema = JSON.parse(source.match(/{% schema %}([\s\S]*?){% endschema %}/)[1]);
+    if (schema.stylesheet) tags.add(`<link rel="stylesheet" href="/assets/${schema.stylesheet}">`);
+    if (schema.javascript) tags.add(`<script src="/assets/${schema.javascript}" defer></script>`);
+  }
+  return [...tags].join("\n");
+}
+
 async function renderPage() {
   const render = (block, input) => engine.renderFile(block, blockContext(block, { product: shirt, ...input }));
   const [embed, strip, stories, atc] = await Promise.all([
@@ -47,6 +62,7 @@ async function renderPage() {
   ]);
   const layout = await readFile(path.join(here, "fixtures/storefront.html"), "utf8");
   return layout
+    .replace("<!--REELUP_HEAD-->", await schemaAssets(["product-page-reels", "insta-stories", "add-to-cart-video"]))
     .replace("<!--REELUP_EMBED-->", embed)
     .replace("<!--REELUP_STRIP-->", strip)
     .replace("<!--REELUP_STORIES-->", stories)

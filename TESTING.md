@@ -74,7 +74,9 @@ commit that output from a test run unless you meant to) and then
 Playwright. `tests/e2e/server.mjs` serves:
 
 - `/` — `tests/e2e/fixtures/storefront.html` with the real blocks (app
-  embed, filmstrip, stories, add-to-cart video) rendered by liquidjs;
+  embed, filmstrip, stories, add-to-cart video) rendered by liquidjs, and
+  their schema `stylesheet`/`javascript` added to `<head>` once, the way
+  Shopify injects them;
 - `/assets/*` — the built extension assets;
 - `/media/sample.webm` — a 3 s clip (regenerate with
   `node tests/e2e/fixtures/make-sample-video.mjs`).
@@ -180,7 +182,8 @@ one non-Dawn theme.
 
 **Theme editor**
 - [ ] Each block can be added from *Add block → Apps* on its intended template; the app embed toggles under *App embeds*.
-- [ ] Blocks render with the embed **off** (reel-loader path) and **on**, with no duplicate viewers or double add-to-cart.
+- [ ] Blocks render with the embed **off** and **on**, with no duplicate viewers or double add-to-cart.
+- [ ] Adding a block in the editor to a page that had none makes it playable without a reload.
 - [ ] Selecting/reloading a section in the editor re-binds widgets (deck, filmstrip arrows, stories).
 - [ ] The editor's "Add block" deep links from the admin open the right template/target.
 
@@ -209,3 +212,4 @@ one non-Dawn theme.
 
 **Performance**
 - [ ] Lighthouse (mobile) on a product page with the filmstrip: no regression vs. the theme baseline beyond the agreed budget (LCP, TBT, CLS); posters lazy-load; hls.js not loaded before interaction/visibility.
+- [ ] With the embed on, a page without any widget (cart, blog) loads `reel-loader.js` and nothing else from the app.
