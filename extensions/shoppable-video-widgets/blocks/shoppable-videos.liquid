@@ -85,7 +85,7 @@ Enabled under Theme settings › App embeds, not placed with {% content_for %}.
         {%- render 'reel-poster', url: reel.config.value.posterUrl, height: 400, width_attr: 240, height_attr: 426, eager: true -%}
       {%- endif -%}
       {%- if shape == 'circle' -%}
-        <span class="reelup-pop__play" aria-hidden="true">
+        <span class="reelup-pop__play reelup-play" aria-hidden="true">
           {%- render 'reel-icon', name: 'play', size: 12 -%}
         </span>
       {%- endif -%}

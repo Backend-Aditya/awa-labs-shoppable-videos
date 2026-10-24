@@ -1,5 +1,6 @@
 // snippets/reel-trigger.liquid (the data-attribute contract with the
 // storefront JS), reel-duration, reel-video-schema and reel-icon.
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { makeProduct, makeReel } from "../support/storefront-fixtures.mjs";
 import { colorBrightness, shiftLightness } from "../support/liquid-engine.mjs";
@@ -197,6 +198,16 @@ describe("reel-icon", () => {
     expect((await renderDom("reel-icon", { name: "chevron-right", size: 16 })).$("svg")!.getAttribute("stroke-width")).toBe("2");
     expect((await renderDom("reel-icon", { name: "close", size: 12, stroke: 3 })).$("svg")!.getAttribute("stroke-width")).toBe("3");
     expect((await renderDom("reel-icon", { name: "play", size: 12 })).$("svg path")!.getAttribute("fill")).toBe("currentColor");
+  });
+
+  it("draws the same play glyph as the viewer, on the same 24px grid", async () => {
+    // Widgets and viewers must show one play shape; the path lives in both files.
+    const viewerSource = readFileSync("scripts/extension-assets-src/reel-lightbox.js", "utf8");
+    const viewerPlay = viewerSource.match(/const PLAY = '<path d="([^"]+)"\/>';/)?.[1];
+    const svg = (await renderDom("reel-icon", { name: "play", size: 12 })).$("svg")!;
+    expect(viewerPlay).toBeTruthy();
+    expect(svg.querySelector("path")!.getAttribute("d")).toBe(viewerPlay);
+    expect(svg.getAttribute("viewBox")).toBe("0 0 24 24");
   });
 
   it("renders nothing for an unknown name", async () => {

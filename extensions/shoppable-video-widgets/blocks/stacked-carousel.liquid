@@ -136,7 +136,7 @@ pulls in the viewer runtime when the app embed is off.
                 {%- if reel.config.value.posterUrl != blank -%}
                   {%- render 'reel-poster', url: reel.config.value.posterUrl, height: 800, width_attr: 480, height_attr: 854, srcset_heights: '480,800,1200', sizes: 'min(280px, 58vw)', eager: first, priority: first -%}
                 {%- endif -%}
-                <span class="reelup-deck__play" aria-hidden="true">
+                <span class="reelup-deck__play reelup-play" aria-hidden="true">
                   {%- render 'reel-icon', name: 'play', size: 18 -%}
                 </span>
                 {%- if show_caption -%}

@@ -14,7 +14,7 @@ the reel has no duration yet (still processing on Cloudflare Stream).
   {%- assign seconds = total | modulo: 60 -%}
   <span class="reelup-chip">
     {%- if icon -%}
-      {%- render 'reel-icon', name: 'play', size: 8 -%}
+      {%- render 'reel-icon', name: 'play', size: 12 -%}
     {%- endif -%}
     <span class="reelup-visually-hidden">{{ 'reels.duration_label' | t }}</span>
     {{- minutes }}:{% if seconds < 10 %}0{% endif %}{{ seconds -}}

@@ -140,7 +140,7 @@ pulls in the viewer runtime when the app embed is off.
                   {%- capture poster_sizes %}min({{ card_width }}px, 70vw){% endcapture -%}
                   {%- render 'reel-poster', url: reel.config.value.posterUrl, height: 800, width_attr: 360, height_attr: 640, srcset_heights: '480,800,1200', sizes: poster_sizes, eager: first, priority: first -%}
                 {%- endif -%}
-                <span class="reelup-strip__play" aria-hidden="true"></span>
+                <span class="reelup-strip__play reelup-play" aria-hidden="true">{%- render 'reel-icon', name: 'play', size: 18 -%}</span>
                 {%- if show_duration -%}{%- render 'reel-duration', reel: reel, icon: true -%}{%- endif -%}
               </button>
             {%- endcapture -%}

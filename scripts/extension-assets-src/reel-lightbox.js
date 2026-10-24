@@ -734,13 +734,17 @@
 
   // One icon family for all viewer chrome (and the blocks' reel-icon
   // snippet): 24px grid, 2px round strokes, after Lucide (lucide.dev, ISC).
-  // Play and pause stay solid, the shapes shoppers read at a glance.
+  // Play and pause stay solid, the shapes shoppers read at a glance. Both
+  // centre on (12, 12): the play triangle by its centre of mass, so it looks
+  // centred in a round button with no offset, and the pause bars are sized
+  // to carry the same visual weight, so toggling doesn't jump.
+  // PLAY is also in snippets/reel-icon.liquid; keep the two identical.
   const icon = (body, size = 20, solid = false) =>
     `<svg viewBox="0 0 24 24" width="${size}" height="${size}" ${
       solid ? 'fill="currentColor"' : 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"'
     } aria-hidden="true" focusable="false">${body}</svg>`;
-  const PLAY = '<path d="M8 5.14v13.72a1 1 0 0 0 1.52.85l10.6-6.86a1 1 0 0 0 0-1.7L9.52 4.29A1 1 0 0 0 8 5.14Z"/>';
-  const PAUSE = '<rect x="6" y="4.5" width="4" height="15" rx="1.2"/><rect x="14" y="4.5" width="4" height="15" rx="1.2"/>';
+  const PLAY = '<path d="M8.25 6.85Q8.25 5.25 9.62 6.07L18.21 11.23Q19.5 12 18.21 12.77L9.62 17.93Q8.25 18.75 8.25 17.15Z"/>';
+  const PAUSE = '<rect x="7.25" y="5.75" width="3.25" height="12.5" rx="1.2"/><rect x="13.5" y="5.75" width="3.25" height="12.5" rx="1.2"/>';
   const SPEAKER =
     '<path d="M11 4.7a.7.7 0 0 0-1.2-.5L6.4 7.6a1.4 1.4 0 0 1-1 .4H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.4a1.4 1.4 0 0 1 1 .4l3.4 3.4a.7.7 0 0 0 1.2-.5Z"/>';
   const ICONS = {

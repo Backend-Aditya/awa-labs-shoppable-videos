@@ -186,6 +186,9 @@ export function WidgetPreview({
     "--pv-radius": RADIUS[style.cornerStyle ?? "rounded"],
     "--pv-shadow": SHADOW[style.shadowPreset ?? "none"],
     "--pv-accent": style.accentColor || brand.accentColor,
+    // Play buttons, as on the storefront: the widget's or brand's own accent
+    // when one is set, otherwise the shared dark glass (the CSS fallback).
+    "--pv-play": style.accentColor || (brand.accentColor !== BRAND_DEFAULTS.accentColor ? brand.accentColor : undefined),
     "--pv-accent-2": style.accentSecondaryColor || style.accentColor || brand.accentColor,
     "--pv-bg": style.backgroundColor || "transparent",
     "--pv-text": style.textColor || "#1a1a1a",
@@ -367,7 +370,7 @@ function Filmstrip({ style, reels, interact }: { style: WidgetStyleConfig; reels
               <Poster reel={reel} index={i} playing={interact.hovered === i} />
               {style.showDuration && formatDuration(reel.durationSeconds) && (
                 <span className={styles.chip}>
-                  <PlayGlyph size={8} />
+                  <PlayGlyph size={12} />
                   {formatDuration(reel.durationSeconds)}
                 </span>
               )}
@@ -617,7 +620,7 @@ function Pop({ style, reel, interact }: { style: WidgetStyleConfig; reel: Previe
         </span>
         {style.bubbleLabel && (
           <span className={styles.popLabel}>
-            <PlayGlyph size={8} />
+            <PlayGlyph size={12} />
             {style.bubbleLabel}
           </span>
         )}
@@ -657,7 +660,7 @@ function AtcMock({
           <span className={styles.atcThumb} style={{ width: size, height: size }}>
             <Poster reel={reel} index={0} playing={interact.hovered === 0} />
             <span className={styles.atcPlay}>
-              <PlayGlyph size={8} />
+              <PlayGlyph size={12} />
             </span>
           </span>
           <span className={styles.atcText}>
@@ -782,10 +785,12 @@ function ViewerPreview({
   );
 }
 
+// The storefront's play glyph (snippets/reel-icon.liquid, reel-lightbox.js):
+// a rounded triangle centred by its centre of mass on a 24px grid.
 function PlayGlyph({ size }: { size: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 10 10" fill="currentColor" aria-hidden="true">
-      <path d="M2 1.2v7.6a.5.5 0 0 0 .76.43l6.1-3.8a.5.5 0 0 0 0-.86L2.76.77A.5.5 0 0 0 2 1.2Z" />
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M8.25 6.85Q8.25 5.25 9.62 6.07L18.21 11.23Q19.5 12 18.21 12.77L9.62 17.93Q8.25 18.75 8.25 17.15Z" />
     </svg>
   );
 }

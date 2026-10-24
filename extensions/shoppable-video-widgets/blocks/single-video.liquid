@@ -102,7 +102,7 @@ pulls in the viewer runtime when the app embed is off.
         {%- capture poster_sizes %}min({{ video_width }}px, 78vw){% endcapture -%}
         {%- render 'reel-poster', url: reel.config.value.posterUrl, height: 1000, width_attr: 540, height_attr: 960, srcset_heights: '640,1000,1440', sizes: poster_sizes, eager: true, priority: true -%}
       {%- endif -%}
-      <span class="reelup-feature__play" aria-hidden="true">
+      <span class="reelup-feature__play reelup-play" aria-hidden="true">
         {%- render 'reel-icon', name: 'play', size: 22 -%}
       </span>
       {%- if show_duration -%}{%- render 'reel-duration', reel: reel -%}{%- endif -%}

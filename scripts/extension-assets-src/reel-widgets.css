@@ -9,10 +9,11 @@
   /* Accent for things drawn on the page background (arrows, dots, focus
      rings): follows the theme's text colour, so it stays visible on dark
      themes. Play buttons sit on posters instead and use --ru-play: a
-     translucent dark disc with a white glyph reads on any image. Both are
+     translucent dark glass disc with a white glyph (the viewer's own play
+     button, so widget and viewer match) reads on any image. Both are
      overridden by the brand kit or the widget's accent colour. */
   --ru-accent: var(--ru-brand-accent, currentColor);
-  --ru-play: var(--ru-brand-accent, rgb(17 17 17 / 0.72));
+  --ru-play: var(--ru-brand-accent, rgb(0 0 0 / 0.5));
   --ru-radius: 10px;
   --ru-bg: transparent;
   --ru-cta: var(--ru-brand-cta, #141414);
@@ -213,6 +214,13 @@
   pointer-events: none;
 }
 
+/* The play glyph's 24px grid leaves room around the triangle; pull the box
+   in so the triangle, not its box, lines up with the chip's padding. */
+.reelup-chip > svg {
+  flex-shrink: 0;
+  margin-inline: -3px -1px;
+}
+
 /* =================================================================
    Product page reels, filmstrip
    ================================================================= */
@@ -282,6 +290,33 @@
   pointer-events: none;
 }
 
+/* ---------------------------------------------------------- play badge
+   One play button for every widget: a disc in --ru-play (a translucent
+   dark glass by default, the brand accent when set) with a thin light ring
+   and a soft shadow, so it reads on light and dark posters alike. The glyph
+   is the shared rounded triangle, optically centred on its 24px grid (its
+   centre of mass is the disc's centre), so no widget nudges it sideways.
+   Widgets only place and size the disc; the glyph is always 42% of it. */
+.reelup-play {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--ru-play);
+  color: #fff;
+  box-shadow:
+    inset 0 0 0 1px rgb(255 255 255 / 0.16),
+    0 4px 16px rgb(0 0 0 / 0.2);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+}
+
+.reelup-play > svg {
+  display: block;
+  width: 42%;
+  height: 42%;
+}
+
 .reelup-strip__play {
   position: absolute;
   top: 50%;
@@ -290,22 +325,9 @@
   width: 44px;
   height: 44px;
   margin: -22px 0 0 -22px;
-  border-radius: 50%;
-  background: var(--ru-play);
   opacity: 0;
   transform: scale(0.85);
   transition: opacity 0.2s ease, transform 0.25s var(--ru-ease);
-}
-
-.reelup-strip__play::before {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  margin: -7px 0 0 -4px;
-  border-style: solid;
-  border-width: 7px 0 7px 11px;
-  border-color: transparent transparent transparent #fff;
 }
 
 @media (hover: hover) {
@@ -485,13 +507,6 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
   width: 56px;
   height: 56px;
   margin: -28px 0 0 -28px;
-  display: grid;
-  place-items: center;
-  padding-left: 3px;
-  border-radius: 50%;
-  background: var(--ru-play);
-  color: #fff;
-  box-shadow: 0 6px 18px rgb(0 0 0 / 0.25);
   transition: transform 0.25s var(--ru-ease), opacity 0.25s ease;
 }
 
@@ -818,13 +833,6 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
   width: 68px;
   height: 68px;
   margin: -34px 0 0 -34px;
-  display: grid;
-  place-items: center;
-  padding-left: 4px;
-  border-radius: 50%;
-  background: var(--ru-play);
-  color: #fff;
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.28);
   transition: transform 0.3s var(--ru-ease);
 }
 
@@ -914,16 +922,9 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
   top: 50%;
   left: 50%;
   z-index: 2;
-  width: 24px;
-  height: 24px;
-  margin: -12px 0 0 -12px;
-  display: grid;
-  place-items: center;
-  padding-left: 2px;
-  border-radius: 50%;
-  background: var(--ru-play);
-  color: #fff;
-  box-shadow: 0 0 0 3px rgb(255 255 255 / 0.25);
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
 }
 
 .reelup-atc__text {
@@ -1058,17 +1059,11 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
 
 .reelup-pop__play {
   position: absolute;
-  right: 4px;
-  bottom: 4px;
+  right: 5px;
+  bottom: 5px;
   z-index: 2;
-  width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
-  padding-left: 2px;
-  border-radius: 50%;
-  background: #fff;
-  color: #141414;
+  width: 24px;
+  height: 24px;
 }
 
 .reelup-pop--pulse .reelup-pop__frame::before {

@@ -86,7 +86,7 @@ pulls in the viewer runtime when the app embed is off.
         {%- if reel.config.value.posterUrl != blank -%}
           {%- render 'reel-poster', url: reel.config.value.posterUrl, height: 200, width_attr: 192, height_attr: 192 -%}
         {%- endif -%}
-        <span class="reelup-atc__play" aria-hidden="true">
+        <span class="reelup-atc__play reelup-play" aria-hidden="true">
           {%- render 'reel-icon', name: 'play', size: 9 -%}
         </span>
       </span>
