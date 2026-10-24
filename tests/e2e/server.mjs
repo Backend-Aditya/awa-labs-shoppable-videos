@@ -5,6 +5,8 @@
 //                      <head> the way Shopify injects them
 //   /pages/plain       the same layout with the app embed only, a store
 //                      page without any widget
+//   /pages/all-widgets all six widgets on one page (carousel, featured
+//                      video and the floating video too), for visual checks
 //   /assets/*          extensions/shoppable-video-widgets/assets (the BUILT
 //                      files, run `npm run build:extension` first)
 //   anything else      404 (cart, recommendations and analytics endpoints
@@ -79,11 +81,44 @@ async function renderPage() {
     .replace("<!--REELUP_ATC-->", atc);
 }
 
+async function renderAllWidgets() {
+  const render = (block, input) => engine.renderFile(block, blockContext(block, { product: shirt, ...input }));
+  const [embed, strip, stories, atc, deck, feature] = await Promise.all([
+    render("shoppable-videos", {
+      reel: stripReels[0],
+      blockId: "embed-1",
+      widget: makeWidget({ style: { popDelay: 0, bubbleLabel: "Shop the look" } }),
+    }),
+    render("product-page-reels", { reels: stripReels, widget: makeWidget({ style: { heading: "See it in action" } }) }),
+    render("insta-stories", { reels: storyReels, widget: makeWidget({ style: { heading: "Stories" } }) }),
+    render("add-to-cart-video", { reel: stripReels[1], widget: makeWidget() }),
+    render("stacked-carousel", { reels: [...stripReels, ...storyReels], widget: makeWidget({ style: { heading: "Shop our videos" } }) }),
+    render("single-video", { reel: stripReels[0], widget: makeWidget({ style: { heading: "Featured" } }) }),
+  ]);
+  const layout = await readFile(path.join(here, "fixtures/all-widgets.html"), "utf8");
+  return layout
+    .replace(
+      "<!--REELUP_HEAD-->",
+      await schemaAssets(["product-page-reels", "insta-stories", "add-to-cart-video", "stacked-carousel", "single-video"]),
+    )
+    .replace("<!--REELUP_EMBED-->", embed)
+    .replace("<!--REELUP_STRIP-->", strip)
+    .replace("<!--REELUP_STORIES-->", stories)
+    .replace("<!--REELUP_ATC-->", atc)
+    .replace("<!--REELUP_DECK-->", deck)
+    .replace("<!--REELUP_FEATURE-->", feature);
+}
+
 const TYPES = { ".js": "text/javascript", ".css": "text/css" };
 
 createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", `http://localhost:${port}`);
   try {
+    if (url.pathname === "/pages/all-widgets") {
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(await renderAllWidgets());
+      return;
+    }
     if (url.pathname === "/pages/plain") {
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
       res.end(await renderPlainPage());

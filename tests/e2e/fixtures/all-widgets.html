@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Reelup all-widgets harness</title>
+    <style>
+      body { margin: 0; font-family: system-ui, sans-serif; }
+      .page-width { max-width: 1100px; margin: 0 auto; padding: 16px; }
+      .product { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; min-height: 240px; }
+      .product__media { background: #eee; aspect-ratio: 1; }
+      @media (max-width: 749px) { .product { grid-template-columns: 1fr; } }
+    </style>
+    <script>
+      window.Shopify = { shop: "harness.myshopify.com", currency: { active: "USD" } };
+    </script>
+    <!--REELUP_HEAD-->
+  </head>
+  <body>
+    <!-- Every widget on one page, for visual checks of the whole set: the
+         product page blocks, then home page blocks, then the floating video
+         from the app embed. Filled in by tests/e2e/server.mjs. -->
+    <main class="page-width">
+      <section class="product">
+        <div class="product__media"></div>
+        <div>
+          <h1>Linen Shirt</h1>
+          <p>$48.00</p>
+          <!--REELUP_ATC-->
+        </div>
+      </section>
+      <!--REELUP_STRIP-->
+      <!--REELUP_STORIES-->
+      <!--REELUP_DECK-->
+      <!--REELUP_FEATURE-->
+    </main>
+    <!--REELUP_EMBED-->
+  </body>
+</html>
