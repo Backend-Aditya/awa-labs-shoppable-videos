@@ -1,0 +1,86 @@
+/* Public privacy policy: a plain, readable document page (no admin chrome). */
+
+.page {
+  --text: #1a1a1a;
+  --muted: #616161;
+  --rule: #e3e3e3;
+  --link: #005bd3;
+  --bg: #fff;
+  min-height: 100vh;
+  padding: 48px 16px 64px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+/* The page paints edge to edge; the browser's default body margin would
+   leave a light frame around it in dark mode. */
+:global(body):has(.page) {
+  margin: 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .page {
+    --text: #ececec;
+    --muted: #a3a3a3;
+    --rule: #303030;
+    --link: #7cb4ff;
+    --bg: #141414;
+  }
+}
+
+.policy {
+  max-width: 42rem;
+  margin: 0 auto;
+  font-size: 1rem;
+  line-height: 1.65;
+}
+
+.policy h1 {
+  margin: 0;
+  font-size: 2rem;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.policy h2 {
+  margin: 2.25rem 0 0.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+  font-size: 1.15rem;
+  line-height: 1.3;
+}
+
+.policy p,
+.policy ul {
+  margin: 0 0 1rem;
+}
+
+.policy ul {
+  padding-inline-start: 1.25rem;
+}
+
+.policy li + li {
+  margin-top: 0.6rem;
+}
+
+.policy a {
+  color: var(--link);
+}
+
+.eyebrow {
+  margin: 0 0 0.25rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.date {
+  margin: 0.5rem 0 2rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.contact {
+  font-style: normal;
+}

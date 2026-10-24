@@ -21,6 +21,11 @@ export interface Plan {
 
 export const TRIAL_DAYS = 7;
 
+// What every plan gets: plans differ only in their limits and support, so
+// no plan advertises a feature the others lack. The listing's plan text
+// must match these lines.
+const EVERY_PLAN = ["All six widgets and product moments", "Analytics and tracking integrations"];
+
 // Priced 20% below ReelUp's equivalent tiers ($29.99 / $99.99 / $199).
 // Monthly view caps are 2x ReelUp's, matching Shop.viewCapMonthly.
 export const PLANS: Plan[] = [
@@ -33,7 +38,7 @@ export const PLANS: Plan[] = [
     trialDays: 0,
     reelLimit: 10,
     viewCap: 200,
-    features: ["Up to 10 reels", "200 monthly views", "Basic analytics"],
+    features: ["Up to 10 videos", "200 monthly views", ...EVERY_PLAN],
   },
   {
     tier: "BASIC",
@@ -44,7 +49,7 @@ export const PLANS: Plan[] = [
     trialDays: TRIAL_DAYS,
     reelLimit: 100,
     viewCap: 6000,
-    features: ["Up to 100 reels", "6,000 monthly views", "Add-to-cart and click analytics", "Basic support"],
+    features: ["Up to 100 videos", "6,000 monthly views", ...EVERY_PLAN, "Email support"],
   },
   {
     tier: "PREMIUM",
@@ -55,13 +60,7 @@ export const PLANS: Plan[] = [
     trialDays: TRIAL_DAYS,
     reelLimit: 250,
     viewCap: 40000,
-    features: [
-      "Up to 250 reels",
-      "40,000 monthly views",
-      "Advanced analytics",
-      "Sales attributed to videos",
-      "Priority support",
-    ],
+    features: ["Up to 250 videos", "40,000 monthly views", "Everything in Basic", "Priority support"],
     popular: true,
   },
   {
@@ -73,13 +72,7 @@ export const PLANS: Plan[] = [
     trialDays: TRIAL_DAYS,
     reelLimit: 1000,
     viewCap: 100000,
-    features: [
-      "Up to 1,000 reels",
-      "100,000 monthly views",
-      "Full analytics suite",
-      "Dedicated manager",
-      "Custom integration",
-    ],
+    features: ["Up to 1,000 videos", "100,000 monthly views", "Everything in Premium", "Priority support"],
   },
 ];
 

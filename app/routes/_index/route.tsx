@@ -27,7 +27,7 @@ const FEATURES = [
   },
   {
     title: "Know what sells",
-    body: "Views, product clicks and sales per video, so you can put your best content where it earns the most.",
+    body: "Views, watch time, product clicks and adds to cart per video, so you can put your best content where it earns the most.",
   },
 ];
 
@@ -48,6 +48,9 @@ export default function Landing() {
             </li>
           ))}
         </ul>
+        <footer className={styles.footer}>
+          <a href="/privacy">Privacy policy</a>
+        </footer>
       </div>
     </main>
   );

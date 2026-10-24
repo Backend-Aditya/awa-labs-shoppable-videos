@@ -20,6 +20,20 @@ describe("plans", () => {
     }
   });
 
+  it("lists each plan's real limits first, so the copy can't drift from them", () => {
+    for (const plan of PLANS) {
+      expect(plan.features[0]).toBe(`Up to ${plan.reelLimit.toLocaleString("en-US")} videos`);
+      expect(plan.features[1]).toBe(`${plan.viewCap.toLocaleString("en-US")} monthly views`);
+    }
+  });
+
+  it("promises no plan perk the app doesn't have (analytics and attribution are on every plan)", () => {
+    for (const plan of PLANS) {
+      expect(plan.features.join(" ")).not.toMatch(/sales attributed|advanced analytics|analytics suite|dedicated|custom integration/i);
+    }
+    expect(PLANS[0].features).toContain("Analytics and tracking integrations");
+  });
+
   it("gives every paid plan a 7-day trial", () => {
     expect(PAID_PLANS.every((p) => p.trialDays === 7)).toBe(true);
   });
