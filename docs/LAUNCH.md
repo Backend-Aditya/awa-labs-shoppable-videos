@@ -13,7 +13,7 @@ Dashboard or against the current Shopify docs before submitting.
       `SHOPIFY_API_SECRET`, `SHOPIFY_APP_URL`, `SCOPES`, `CLOUDFLARE_*`, `CRON_SECRET`.
 - [ ] Rotate the Neon password (it was pasted into a chat) and update
       `DATABASE_URL` / `DIRECT_URL` on Fly.
-- [ ] Delete the old Render service. Recreate any scheduled job that calls the app (uses `CRON_SECRET`) on Fly or an external scheduler.
+- [x] Old Render service and Supabase project deleted. Recreate any scheduled job that calls the app (uses `CRON_SECRET`) on Fly or an external scheduler.
 - [ ] Add a second Fly machine in another zone if uptime matters (`fly scale count 2`).
 - [ ] Optional CI deploy: add `FLY_API_TOKEN` to GitHub secrets and a deploy workflow.
 
