@@ -28,7 +28,7 @@ const igReel = {
     { type: 102, url: "https://instagram.fcdn.test/v/alt.mp4" },
   ],
   image_versions2: { candidates: [{ url: "https://instagram.fcdn.test/p/cover.jpg" }] },
-  caption: { text: "#ad\nSummer linen, three ways ☀️ — which is your pick?\n#style #linen" },
+  caption: { text: "#ad\nSummer linen, three ways ☀️, which is your pick?\n#style #linen" },
   video_duration: 27.4,
 };
 
@@ -83,7 +83,7 @@ describe("extractInstagramVideo", () => {
     expect(extractInstagramVideo(igPage(igReel, [{ data: other }]), "DRcloKUDRAd")).toEqual({
       videoUrl: "https://instagram.fcdn.test/v/main.mp4?oh=1",
       posterUrl: "https://instagram.fcdn.test/p/cover.jpg",
-      title: "Summer linen, three ways ☀️ — which is your pick?",
+      title: "Summer linen, three ways ☀️, which is your pick?",
       durationSeconds: 27.4,
     });
   });

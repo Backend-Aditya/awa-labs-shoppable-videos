@@ -1,6 +1,6 @@
 // Client-safe reel helpers. Cloudflare Stream image URLs: Stream serves
 // thumbnails at .../<uid>/thumbnails/thumbnail.jpg and accepts ?time=Ns to
-// pick the frame, plus an animated .gif variant — so a cover frame and a
+// pick the frame, plus an animated .gif variant, so a cover frame and a
 // hover preview are just URL tweaks, no extra API calls. And product
 // moments (sanitizeProductTimes).
 

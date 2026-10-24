@@ -85,7 +85,7 @@ export const GA4_ID_PATTERN = /^G-[A-Z0-9]{4,20}$/;
 export const META_PIXEL_ID_PATTERN = /^\d{8,20}$/;
 
 // Code for a Shopify custom pixel (Settings › Customer events) that sends
-// the widgets' events to a tool running sandboxed — the official Google &
+// the widgets' events to a tool running sandboxed: the official Google &
 // YouTube and Meta channels don't put gtag/fbq on the page, so the page-tag
 // forwarding above can't reach them. Shopify applies the visitor's consent
 // to the pixel according to the permission the merchant picks for it.
@@ -94,7 +94,7 @@ export function customPixelCode(
   id = "",
 ): string {
   const events = `const events = [\n${TRACKED_EVENTS.map((e) => `  "${e.name}",`).join("\n")}\n];`;
-  const header = "// AWAlabs Shoppable Videos — shoppable video events";
+  const header = "// AWAlabs Shoppable Videos: shoppable video events";
   if (tool === "ga4") {
     const measurementId = GA4_ID_PATTERN.test(id) ? id : "G-XXXXXXXXXX";
     return `${header} → Google Analytics 4

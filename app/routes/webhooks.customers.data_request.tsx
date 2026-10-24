@@ -6,7 +6,7 @@ import { log } from "../lib/logger.server";
 // Mandatory GDPR webhook. The app stores no customer profile data; the only
 // customer-linked records are OrderAttribution rows for the customer's
 // orders. They're logged here so the store owner can be sent them (reel,
-// order name, quantity, amount) — Shopify relays the request to the merchant.
+// order name, quantity, amount), Shopify relays the request to the merchant.
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { shop, topic, payload } = await authenticate.webhook(request);
   const orderIds = ((payload as { orders_requested?: (number | string)[] }).orders_requested ?? []).map(String);

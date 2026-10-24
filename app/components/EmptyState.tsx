@@ -1,7 +1,7 @@
 // A plain "No X yet." sentence (the old pattern in app.widgets.tsx and
 // app.reels.tsx) buries the next step merchants need to take. One shared
-// zero-state — icon, heading, body copy, and a call-to-action button that
-// opens the same create modal as the page's primary action — for any list
+// zero-state, icon, heading, body copy, and a call-to-action button that
+// opens the same create modal as the page's primary action, for any list
 // that can be empty.
 import type { StatIcon } from "./StatTile";
 

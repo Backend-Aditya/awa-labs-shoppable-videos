@@ -4,12 +4,14 @@ import {
   deleteReel,
   generateReelHandle,
   getReel,
+  listReels,
   syncProductReelMetafields,
   updateReelConfig,
   upsertReel,
 } from "../models/reel.server";
 import type { AdminGraphqlClient, ReelConfig } from "../models/reel.server";
 import { getOrCreateShop } from "../models/shop.server";
+import { planFor } from "../models/plans";
 import { discardStreamAsset, recordStreamAsset, releaseStreamAssets } from "../models/stream-assets.server";
 import { log } from "../lib/logger.server";
 import {
@@ -89,6 +91,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   try {
+    // Plan limit: new videos stop at the plan's reel count. Replacing a
+    // video on an existing reel is always allowed.
+    if (body.intent === "create" || body.intent === "import") {
+      const plan = planFor(shop.plan);
+      const existing = (await listReels(admin)).length;
+      if (existing >= plan.reelLimit) {
+        return json(
+          {
+            error: `Your ${plan.name} plan includes up to ${plan.reelLimit.toLocaleString()} videos. Upgrade your plan to add more.`,
+            code: "plan_limit",
+          },
+          403,
+        );
+      }
+    }
+
     if (body.intent === "create") {
       const { reel, productIds } = await createReel(admin, body, { type: "upload" });
       try {
@@ -133,7 +151,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           log.warn("upload.link_import_failed", { shop: session.shop, reelId: reel.id, source: link.source }, e);
           await discardReel(admin, reel.id, productIds);
           return json(
-            { error: "Cloudflare couldn't accept that link. Check it opens or downloads the video file, then try again." },
+            { error: "We couldn't import that link. Check that it opens or downloads the video file directly, then try again." },
             502,
           );
         }
@@ -232,6 +250,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   } catch (e) {
     if (e instanceof Response) throw e;
     log.error("upload.unexpected_error", { shop: session.shop, intent: body.intent }, e);
-    return json({ error: "Something went wrong. Try again." }, 500);
+    return json({ error: "Something went wrong. Please try again." }, 500);
   }
 };

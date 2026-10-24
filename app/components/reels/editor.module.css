@@ -1,4 +1,4 @@
-/* Reel editor — right-hand column (player, performance, usage) and the
+/* Reel editor, right-hand column (player, performance, usage) and the
    tab-specific pieces. Shell, cards and controls come from the widget
    editor's module so both editors read as one product. */
 
@@ -183,7 +183,7 @@
 
 .kpis {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1px;
   border-radius: 10px;
   overflow: hidden;

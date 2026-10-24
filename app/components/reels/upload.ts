@@ -19,10 +19,10 @@ async function call(body: Record<string, unknown>): Promise<ApiResult> {
   try {
     data = (await response.json()) as ApiResult;
   } catch {
-    // Non-JSON (e.g. an auth redirect) — handled below.
+    // Non-JSON (e.g. an auth redirect), handled below.
   }
   if (!response.ok || data.error) {
-    throw new Error(data.error ?? "Something went wrong. Try again.");
+    throw new Error(data.error ?? "Something went wrong. Please try again.");
   }
   return data;
 }
@@ -35,7 +35,7 @@ function sendToCloudflare(uploadURL: string, file: File, onProgress: (ratio: num
       if (event.lengthComputable) onProgress(event.loaded / event.total);
     };
     xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error("Upload failed.")));
-    xhr.onerror = () => reject(new Error("Upload failed. Check your connection."));
+    xhr.onerror = () => reject(new Error("The upload failed. Check your connection and try again."));
     const body = new FormData();
     body.append("file", file);
     xhr.send(body);

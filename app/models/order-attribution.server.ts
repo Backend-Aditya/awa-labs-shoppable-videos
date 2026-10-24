@@ -8,7 +8,7 @@ export interface AttributedLineItem {
   variantId: string | null;
   quantity: number;
   // Shop-currency amount for this line item (price * quantity), as a
-  // decimal string straight from the webhook payload — never computed by
+  // decimal string straight from the webhook payload, never computed by
   // multiplying floats ourselves.
   revenueAmount: string;
   currencyCode: string;
@@ -42,7 +42,7 @@ export async function recordOrderAttributions(
           revenueAmount: new Prisma.Decimal(item.revenueAmount),
           currencyCode: item.currencyCode,
         },
-        update: {}, // already recorded — webhook redelivery, nothing to change
+        update: {}, // already recorded, webhook redelivery, nothing to change
       }),
     ),
   );
@@ -54,7 +54,7 @@ export interface ReelRevenueStats {
   currencyCode: string | null;
 }
 
-// Revenue per distinct order, not per line item — a shopper buying 3 units
+// Revenue per distinct order, not per line item, a shopper buying 3 units
 // in one order is 1 order, not 3. Groups by currencyCode too since a shop
 // with multiple presentment currencies shouldn't have its totals silently
 // summed across currencies; callers needing a single number should pick
@@ -70,7 +70,7 @@ export async function getReelRevenueStats(
     _count: { _all: true },
   });
 
-  // _count._all counts line items, not distinct orders — a reel attributed
+  // _count._all counts line items, not distinct orders, a reel attributed
   // to 2 line items in the same order would otherwise double-count that
   // order. Re-derive the distinct order count per currency separately.
   const results: ReelRevenueStats[] = [];
@@ -90,7 +90,7 @@ export async function getReelRevenueStats(
 }
 
 // Shopify's orders/paid REST webhook payload shape, narrowed to just the
-// fields this extracts — deliberately NOT the full payload type (which
+// fields this extracts, deliberately NOT the full payload type (which
 // carries customer name/email/address/etc.) so nothing beyond what's
 // listed here can accidentally get threaded through to storage or logs.
 export interface OrderPaidWebhookPayload {
@@ -109,7 +109,7 @@ export interface OrderPaidWebhookPayload {
 
 const ATTRIBUTION_PROPERTY_NAME = "_reelup_reel_id";
 
-// Pure, no I/O — takes the webhook payload and returns only the line items
+// Pure, no I/O, takes the webhook payload and returns only the line items
 // that were actually added via a reel (i.e. carry the hidden property
 // reel-lightbox.js/reel-story.js attach on /cart/add.js). Most orders will
 // return an empty array; that's the expected common case, not an error.
@@ -131,7 +131,7 @@ export function extractAttributionsFromOrderPayload(
       productId: item.product_id != null ? String(item.product_id) : null,
       variantId: item.variant_id != null ? String(item.variant_id) : null,
       quantity: item.quantity,
-      // Decimal multiplication, not float — price * quantity as native
+      // Decimal multiplication, not float, price * quantity as native
       // numbers can introduce cent-level rounding error (e.g. 19.99 * 3
       // isn't guaranteed to be exactly 59.97 in floating point), which
       // compounds across an order history that's meant to be exact money.

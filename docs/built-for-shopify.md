@@ -4,7 +4,10 @@ Status as of October 2026. Shopify awards the badge after reviewing the app,
 and part of its criteria is measured from real merchant traffic (admin Web
 Vitals, installs, reviews). The code can make the app eligible; it can't earn
 the badge on its own. Current thresholds are listed in the Partner Dashboard
-under the app's Built for Shopify status — check there before applying.
+under the app's Built for Shopify status; check there before applying.
+
+This page maps the criteria to the code. The working launch checklist
+(hosting, billing, listing, submission) is [LAUNCH.md](LAUNCH.md).
 
 ## Met in the code
 
@@ -25,14 +28,15 @@ under the app's Built for Shopify status — check there before applying.
 
 1. **Protected customer data access** for the `orders/paid` webhook
    (Partner Dashboard › App setup). Until it's approved, "Sales from videos"
-   shows "—" and add-to-cart is the conversion signal. Once approved,
+   shows "-" and add-to-cart is the conversion signal. Once approved,
    uncomment the subscription in `shopify.app.toml` and deploy.
 2. **Usage thresholds**: net installs, reviews and rating, as set by Shopify.
 3. **Admin Web Vitals** from real traffic (LCP, CLS, INP at the 75th
    percentile): watch them in the Partner Dashboard once merchants use the app.
 4. **Storefront impact**: run the Lighthouse check in TESTING.md › Manual QA
    on a store with and without the app.
-5. **Billing**: if the app will charge (`Shop.plan` and `viewCapMonthly`
-   exist, but nothing bills yet), it must use Shopify's Billing API.
+5. **Billing** runs on Shopify's Billing API (`/app/pricing`, the
+   `app_subscriptions/update` webhook); test the full flow with
+   `BILLING_TEST_MODE` first, as LAUNCH.md describes.
 6. **App listing**: screenshots, demo store, support contact and privacy
    policy that match the app.

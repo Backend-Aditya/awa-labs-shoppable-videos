@@ -7,7 +7,7 @@ watch, pick a variant and add to cart without leaving the video.
 
 ## What's in it
 
-**Storefront** — a theme app extension (`extensions/shoppable-video-widgets`):
+**Storefront**: a theme app extension (`extensions/shoppable-video-widgets`):
 
 | Widget | Block / embed | Looks like |
 | --- | --- | --- |
@@ -23,7 +23,7 @@ playback, product panel with variant picker, quantity and add to cart
 (Section Rendering for the theme's cart), recommendations, share links,
 keyboard and screen-reader support, RTL.
 
-**Admin** — an embedded React Router app (`app/`) on Polaris web components
+**Admin**: an embedded React Router app (`app/`) on Polaris web components
 and App Bridge: Home (setup checklist, KPIs), Reels (upload, import, tag,
 product moments, cover, SEO), Widgets (live-preview editor), Analytics,
 Integrations, Settings (brand kit).
@@ -44,7 +44,7 @@ app/                         React Router admin + server
                              tracking, KPIs)
 extensions/shoppable-video-widgets/
   blocks/ snippets/ locales/ Liquid, read from app-owned shop metafields
-  assets/                    BUILT storefront JS/CSS — do not edit
+  assets/                    BUILT storefront JS/CSS, do not edit
 scripts/extension-assets-src/  source of truth for that JS/CSS
 prisma/                      schema and migrations (Postgres)
 ```
@@ -62,7 +62,7 @@ prisma/                      schema and migrations (Postgres)
   counted into daily per-reel rollups (`ReelDailyStat`). Orders are
   attributed from a hidden `_reelup_reel_id` line-item property by the
   `orders/paid` webhook (disabled until protected customer data access is
-  approved — see `shopify.app.toml`).
+  approved, see `shopify.app.toml`).
 - **Integrations**: `reel-tracking.js` publishes the same events to Shopify
   customer events and, with the visitor's consent, to tags the merchant
   connected (GA4, GTM, Meta, TikTok, Pinterest, Klaviyo, Microsoft
@@ -106,8 +106,12 @@ npm run deploy      # builds extension assets, then shopify app deploy
 ```
 
 A bare `shopify app deploy` does **not** rebuild the storefront assets.
-The web app runs with `npm run setup && npm run start` (`docker-start`);
-`npm run setup` applies migrations.
 
-Built for Shopify status and the steps outside the code:
+The web app is hosted on Fly.io (`fly.toml`): `fly deploy` builds the
+Dockerfile, runs `prisma migrate deploy` as the release command, then starts
+one always-on machine with `/healthz` as its health check. Secrets are set
+with `fly secrets set`.
+
+Launch checklist (hosting, billing, listing): [docs/LAUNCH.md](docs/LAUNCH.md).
+Built for Shopify criteria mapped to the code:
 [docs/built-for-shopify.md](docs/built-for-shopify.md).

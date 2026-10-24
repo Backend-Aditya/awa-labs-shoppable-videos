@@ -7,7 +7,7 @@
  *   Body: { "notificationUrl": "<SHOPIFY_APP_URL>/webhooks/cloudflare-stream" }
  *
  * The response's result.secret is the value that goes into
- * CLOUDFLARE_STREAM_WEBHOOK_SECRET — Cloudflare generates it, you don't choose it.
+ * CLOUDFLARE_STREAM_WEBHOOK_SECRET, Cloudflare generates it, you don't choose it.
  * This is a one-time account-level setup step, not something this app does at runtime.
  */
 import type { ActionFunctionArgs } from "react-router";

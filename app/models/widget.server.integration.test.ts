@@ -430,7 +430,7 @@ describe("widget.server", () => {
       await updateWidget(admin, shop.id, carousel.id, { name: "Renamed carousel", published: true });
 
       // Sync is scoped per-kind now, so publishing the carousel writes only
-      // the carousel's own metafield — it never touches (and so can't
+      // the carousel's own metafield, it never touches (and so can't
       // clobber) the unrelated live PRODUCT_PAGE_REELS widget's metafield.
       expect(recorder.variables).toEqual({
         metafields: [
@@ -971,10 +971,10 @@ describe("updateWidgetReels", () => {
     await updateWidgetReels(admin, shop.id, widget.id, ["gid://shopify/Metaobject/5"]);
 
     // Widget was never published, so syncShopWidgetState finds no "live"
-    // widget for this kind — it writes published:false and, since `live`
+    // widget for this kind, it writes published:false and, since `live`
     // is null, an empty reel list (the reference field is only ever built
     // from the DB's live/published widget's config, never from whichever
-    // widget was just touched, and is always written — even empty — so a
+    // widget was just touched, and is always written, even empty, so a
     // stale reel list from a previously-live widget of this kind gets
     // cleared too).
     expect(recorder.variables).toEqual({

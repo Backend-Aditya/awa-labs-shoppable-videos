@@ -6,11 +6,11 @@
 // Note on the hls.js build: hls.light.min.js would be ~40% smaller, but the
 // light build drops the audio-track controller, and Cloudflare Stream
 // manifests carry audio as a separate EXT-X-MEDIA TYPE=AUDIO rendition
-// group — with the light build those reels play silently. So the full
+// group, with the light build those reels play silently. So the full
 // hls.min.js stays vendored; it is only fetched on intent, never on load.
 (() => {
   // Loaded by the app embed and, when the embed is off, by the blocks'
-  // loader — a second copy must not replace the first one's instances.
+  // loader, a second copy must not replace the first one's instances.
   if (window.ReelupHls) return;
 
   const currentScriptSrc = document.currentScript?.src ?? "";
@@ -31,7 +31,7 @@
   };
 
   // Pick the highest rendition the measured link can sustain BEFORE any
-  // segment is requested — the first segment is otherwise fetched at a
+  // segment is requested, the first segment is otherwise fetched at a
   // guess. Network Information API is Chromium-only; elsewhere hls.js's
   // own estimate (-1 = auto) is used. ABR stays on afterwards.
   const pickStartLevel = (levels) => {

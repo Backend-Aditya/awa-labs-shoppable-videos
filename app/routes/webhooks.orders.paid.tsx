@@ -8,7 +8,7 @@ import {
 import type { OrderPaidWebhookPayload } from "../models/order-attribution.server";
 
 // Revenue attribution's data source. The payload carries the customer's
-// name/email/address/etc. — deliberately read through
+// name/email/address/etc., deliberately read through
 // extractAttributionsFromOrderPayload (which only looks at id/name/
 // currency/line_items) rather than passed through wholesale, and nothing
 // beyond its narrow return value ever reaches storage or a log line.

@@ -15,7 +15,7 @@ export interface ReelConfig {
   // collection" → /collections/summer.
   interactions: { ctaLabel?: string; ctaUrl?: string };
   source: { type: "upload" | "instagram" | "tiktok" | "link"; originalUrl?: string };
-  // Feeds the storefront's VideoObject JSON-LD (schema.org) for this reel —
+  // Feeds the storefront's VideoObject JSON-LD (schema.org) for this reel,
   // falls back to the reel's title/an empty description when unset. Kept in
   // config rather than as separate metaobject fields since nothing else
   // needs to query by them.
@@ -64,11 +64,11 @@ export function throwOnUserErrors(
 }
 
 // The Admin API's `jsonValue` for this metaobject's boolean-typed "published"
-// field comes back as the STRING "true"/"false", not a JS boolean — despite
+// field comes back as the STRING "true"/"false", not a JS boolean, despite
 // the field being declared `type = "boolean"` in shopify.app.toml. Every
 // caller that read `node.published.jsonValue` straight into a `boolean`-typed
 // field ended up with a non-empty string, which is truthy regardless of its
-// content — so "false" behaved exactly like "true" everywhere (badges, the
+// content, so "false" behaved exactly like "true" everywhere (badges, the
 // publish checkbox, everything). Confirmed live via debug logging: the raw
 // GraphQL response held `"published":{"jsonValue":"false"}` after writing
 // published=false.
@@ -116,7 +116,7 @@ export async function upsertReel(
             { key: "title", value: title },
             { key: "published", value: String(published) },
             { key: "config", value: JSON.stringify(config) },
-            // Mirrors config.productIds as native product references — this
+            // Mirrors config.productIds as native product references, this
             // is what the storefront block resolves into full product data
             // (title/price/image); the JSON config field alone is just raw
             // GID strings Liquid can't dereference.
@@ -226,7 +226,7 @@ export async function getReel(
   };
 }
 
-// Writes ONLY the config (and mirrored tagged_products) fields — never title
+// Writes ONLY the config (and mirrored tagged_products) fields, never title
 // or published. This is called from places that can race with a merchant's
 // own edit (the Cloudflare webhook, the upload-failure marker): reading
 // title/published here and writing them straight back, as a plain upsertReel
@@ -341,7 +341,7 @@ export async function deleteReel(
 }
 
 // deriveReelStatus is a pure function with no server-only dependencies, so it
-// lives in reel-status.ts (no `.server` suffix) — React Router strips
+// lives in reel-status.ts (no `.server` suffix), React Router strips
 // `.server.ts` modules entirely from the client bundle, and this function is
 // called directly from route components' JSX, not just loaders/actions.
 export type { ReelStatus } from "./reel-status";
@@ -434,7 +434,7 @@ export async function syncProductReelMetafields(
   assertNoGraphqlErrors(json);
 
   const metafieldsToSet = json.data.nodes
-    // A product deleted from the store comes back as null — skip it rather
+    // A product deleted from the store comes back as null, skip it rather
     // than crash, which used to block saving any reel tagged with it.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- GraphQL response shape varies per query; this is the external Admin API boundary
     .filter((node: any) => node?.id)

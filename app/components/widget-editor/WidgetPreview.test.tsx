@@ -47,7 +47,7 @@ describe("formatDuration", () => {
   });
 });
 
-describe("WidgetPreview — page mode per kind", () => {
+describe("WidgetPreview, page mode per kind", () => {
   it("PRODUCT_PAGE_REELS: filmstrip with heading, captions, duration chips and first product", () => {
     const { container } = renderPreview("PRODUCT_PAGE_REELS", { heading: "Watch it" });
     expect(screen.getByRole("heading", { name: "Watch it" })).toBeInTheDocument();
@@ -217,7 +217,7 @@ describe("WidgetPreview — page mode per kind", () => {
   });
 });
 
-describe("WidgetPreview — style variables and brand fallbacks", () => {
+describe("WidgetPreview, style variables and brand fallbacks", () => {
   const brand: BrandConfig = {
     ...BRAND_DEFAULTS,
     accentColor: "#aa0000",
@@ -267,7 +267,7 @@ describe("WidgetPreview — style variables and brand fallbacks", () => {
   });
 });
 
-describe("WidgetPreview — viewer mode", () => {
+describe("WidgetPreview, viewer mode", () => {
   const openViewer = () => userEvent.click(screen.getByRole("radio", { name: "Video viewer" }));
 
   it("shows the first reel's products with CTA, quantity and recommendations", async () => {

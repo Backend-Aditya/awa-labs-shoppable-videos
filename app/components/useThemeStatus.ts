@@ -1,7 +1,7 @@
 // Real activation state of the app's theme extension, from App Bridge
 // (`shopify.app.extensions()`): whether the app embed is on and which blocks
 // are placed in the live theme. `null` while loading or when the host
-// doesn't support the API — callers fall back to softer wording then.
+// doesn't support the API, callers fall back to softer wording then.
 import { useEffect, useState } from "react";
 import { useAppBridge } from "@shopify/app-bridge-react";
 

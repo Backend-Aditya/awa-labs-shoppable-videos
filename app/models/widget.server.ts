@@ -74,7 +74,7 @@ export async function updateWidget(
 
   // Sibling-unpublish + this widget's own update run in one transaction so a
   // concurrent publish of two widgets of the same kind can't both land as
-  // `published: true` — without this, two overlapping requests could each
+  // `published: true`, without this, two overlapping requests could each
   // read the old sibling list before either write lands, violating the
   // one-published-widget-per-kind invariant that syncShopWidgetState relies on.
   const widget = await prisma.$transaction(async (tx) => {
@@ -91,7 +91,7 @@ export async function updateWidget(
     }
     return tx.widget.update({ where: { id }, data: updates });
   });
-  // Single sync after all DB writes — it re-derives from the DB, so the
+  // Single sync after all DB writes, it re-derives from the DB, so the
   // sibling unpublishes above don't need their own sync calls.
   await syncShopWidgetState(admin, widget.shopId, widget.type as WidgetKind);
   return widget;
@@ -207,18 +207,18 @@ async function getShopGid(admin: AdminGraphqlClient): Promise<string> {
 // Mirrors the shop's *current* state for one widget kind into that kind's
 // shop-level metafield, so the storefront Liquid block for that kind (which
 // has no access to this app's DB) can read it. Kinds absent from
-// WIDGET_KIND_SYNC_CONFIG (GRID) are a no-op — no theme implementation
+// WIDGET_KIND_SYNC_CONFIG (GRID) are a no-op, no theme implementation
 // reads a metafield for them yet, so writing one would just be dead data.
 //
 // The value is always DERIVED from the DB (the shop's one published widget
 // of this kind, if any) rather than from whichever widget was just written
-// — syncing "the widget that was just touched" would let an edit to an
+//, syncing "the widget that was just touched" would let an edit to an
 // unrelated draft widget of the same kind clobber the live widget's state
 // (this exact bug was fixed for PRODUCT_PAGE_REELS in the previous plan;
 // every kind added here is subject to the same risk).
 //
 // `force` writes the metafield even when the shop has no widgets of this
-// kind at all — needed by `deleteWidget`, which may have just removed the
+// kind at all, needed by `deleteWidget`, which may have just removed the
 // last one and still has to clear what it wrote.
 export async function syncShopWidgetState(
   admin: AdminGraphqlClient,
@@ -269,7 +269,7 @@ export async function syncShopWidgetState(
   ];
 
   // No featured reel (none picked, or the live widget changed): remove the
-  // old reference, or the storefront keeps playing the previous video —
+  // old reference, or the storefront keeps playing the previous video,
   // possibly one that has since been deleted.
   if (syncConfig.featuredReelMetafieldKey && !liveConfig?.featuredReelId) {
     const deleteResponse = await admin.graphql(

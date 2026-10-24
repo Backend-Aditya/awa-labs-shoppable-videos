@@ -29,11 +29,12 @@ export default function App() {
         <s-link href="/app" {...HOME_LINK}>
           Home
         </s-link>
-        <s-link href="/app/reels">Reels</s-link>
+        <s-link href="/app/reels">Videos</s-link>
         <s-link href="/app/widgets">Widgets</s-link>
         <s-link href="/app/analytics">Analytics</s-link>
         <s-link href="/app/integrations">Integrations</s-link>
         <s-link href="/app/settings">Settings</s-link>
+        <s-link href="/app/pricing">Pricing</s-link>
       </s-app-nav>
       <NavigationLoading />
       <Outlet />
@@ -54,7 +55,7 @@ function NavigationLoading() {
 }
 
 // Shopify's boundary renders its own auth/redirect responses and rethrows
-// everything else — which used to reach React Router's raw crash screen.
+// everything else, which used to reach React Router's raw crash screen.
 // Our own 404s and any unexpected error get a page with a way back instead.
 export function ErrorBoundary() {
   const error = useRouteError();
@@ -65,7 +66,7 @@ export function ErrorBoundary() {
         title="Not found"
         body={`${typeof error.data === "string" && error.data ? error.data : "This page doesn't exist"}. It may have been deleted.`}
         actions={[
-          { label: "Go to reels", href: "/app/reels" },
+          { label: "Go to videos", href: "/app/reels" },
           { label: "Go to widgets", href: "/app/widgets" },
         ]}
       />
@@ -79,7 +80,7 @@ export function ErrorBoundary() {
     return (
       <ErrorPage
         title="Something went wrong"
-        body="We couldn't load this page. This is usually a brief connection problem with Shopify — try again in a moment."
+        body="We couldn't load this page. This is usually a brief connection problem with Shopify. Try again in a moment."
         actions={[
           { label: "Try again", onClick: () => window.location.reload(), primary: true },
           { label: "Go to overview", href: "/app" },

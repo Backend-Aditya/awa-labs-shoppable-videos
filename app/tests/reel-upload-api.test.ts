@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   getReel: vi.fn(),
   updateReelConfig: vi.fn(),
   deleteReel: vi.fn(),
+  listReels: vi.fn(async (): Promise<unknown[]> => []),
   syncProductReelMetafields: vi.fn(),
   createDirectUploadUrl: vi.fn(),
   copyVideoFromUrl: vi.fn(),
@@ -27,12 +28,13 @@ vi.mock("../models/reel.server", () => ({
   getReel: mocks.getReel,
   updateReelConfig: mocks.updateReelConfig,
   deleteReel: mocks.deleteReel,
+  listReels: mocks.listReels,
   syncProductReelMetafields: mocks.syncProductReelMetafields,
   generateReelHandle: (title: string) => `${title}-handle`,
 }));
 
 vi.mock("../models/shop.server", () => ({
-  getOrCreateShop: vi.fn(async () => ({ id: "shop-1", shopDomain: "test.myshopify.com" })),
+  getOrCreateShop: vi.fn(async () => ({ id: "shop-1", shopDomain: "test.myshopify.com", plan: "FREE" })),
 }));
 
 vi.mock("../models/stream-assets.server", () => ({
@@ -71,6 +73,7 @@ const REEL = { id: "gid://shopify/Metaobject/7", handle: "h", title: "T", publis
 describe("reel upload API", () => {
   beforeEach(() => {
     Object.values(mocks).forEach((m) => m.mockReset());
+    mocks.listReels.mockResolvedValue([]);
     mocks.upsertReel.mockResolvedValue(REEL);
     mocks.updateReelConfig.mockResolvedValue(REEL);
     mocks.getReel.mockResolvedValue(REEL);
@@ -93,6 +96,16 @@ describe("reel upload API", () => {
     expect(mocks.updateReelConfig).toHaveBeenCalledWith(expect.anything(), REEL.id, { cloudflareStreamUid: "uid-1" });
     // Recorded so it can be deleted from Cloudflare later.
     expect(mocks.recordStreamAsset).toHaveBeenCalledWith("shop-1", "uid-1");
+  });
+
+  it("refuses a new video once the plan's reel limit is reached", async () => {
+    mocks.listReels.mockResolvedValue(Array.from({ length: 10 }, () => REEL));
+
+    const { status, data } = await call({ intent: "create", title: "One too many" });
+
+    expect(status).toBe(403);
+    expect(data.code).toBe("plan_limit");
+    expect(mocks.upsertReel).not.toHaveBeenCalled();
   });
 
   it("deletes the Stream video of a first upload that failed", async () => {
@@ -174,7 +187,7 @@ describe("reel upload API", () => {
     });
 
     expect(status).toBe(502);
-    expect(data.error).toMatch(/couldn't accept that link/);
+    expect(data.error).toMatch(/couldn't import that link/);
     expect(mocks.deleteReel).toHaveBeenCalledWith(expect.anything(), REEL.id);
     expect(mocks.recordStreamAsset).not.toHaveBeenCalled();
   });

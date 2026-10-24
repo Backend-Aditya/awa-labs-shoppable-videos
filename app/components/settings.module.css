@@ -1,0 +1,202 @@
+/* ---------- plan card ---------- */
+
+.plan {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 0 0 1px #e3e3e3, 0 1px 0 rgb(0 0 0 / 0.04);
+}
+
+.planTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.eyebrow {
+  margin: 0 0 2px;
+  font-size: 12px;
+  line-height: 16px;
+  color: #616161;
+}
+
+.planName {
+  margin: 0;
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 650;
+  color: #303030;
+}
+
+.planMeta {
+  margin: 0;
+  font-size: 13px;
+  line-height: 20px;
+  color: #616161;
+}
+
+.usage {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 14px;
+  border-top: 1px solid #ebebeb;
+}
+
+.meterHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  line-height: 20px;
+  color: #303030;
+}
+
+.meterHead span:last-child {
+  font-variant-numeric: tabular-nums;
+  color: #616161;
+}
+
+.track {
+  height: 8px;
+  border-radius: 999px;
+  background: #ebebeb;
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: inherit;
+  background: #303030;
+  transition: width 0.3s ease;
+}
+
+.fill[data-level="near"] {
+  background: #b98900;
+}
+
+.fill[data-level="over"] {
+  background: #e22c38;
+}
+
+.meterNote {
+  margin: 0;
+  font-size: 12px;
+  line-height: 16px;
+  color: #616161;
+}
+
+/* ---------- brand kit ---------- */
+
+.presets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+  gap: 10px;
+}
+
+.preset {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 8px 8px 9px;
+  border: 0;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 0 0 1px #e3e3e3;
+  color: #303030;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.preset:hover {
+  background: #fafafa;
+  box-shadow: 0 0 0 1px #b5b5b5;
+}
+
+.preset:focus-visible {
+  outline: 2px solid #005bd3;
+  outline-offset: 2px;
+}
+
+.preset[data-active] {
+  box-shadow: 0 0 0 2px #303030;
+}
+
+.swatches {
+  display: flex;
+  height: 28px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.swatches span {
+  flex: 1;
+}
+
+/* One row per color: label on the left, swatch and hex on the right. */
+.colorGrid {
+  display: flex;
+  flex-direction: column;
+  padding-top: 4px;
+  border-top: 1px solid #ebebeb;
+}
+
+.colorGrid > * {
+  padding: 10px 0;
+  border-top: 1px solid #f1f1f1;
+}
+
+.colorGrid > *:first-child {
+  border-top: 0;
+}
+
+/* ---------- storefront setup ---------- */
+
+.setupRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 550;
+}
+
+.status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #8a8a8a;
+}
+
+.status[data-state="on"]::before {
+  background: #29a37a;
+}
+
+.status[data-state="off"]::before {
+  background: #e22c38;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fill,
+  .preset {
+    transition: none;
+  }
+}

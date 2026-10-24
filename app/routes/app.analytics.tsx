@@ -29,7 +29,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const reels = reelsResult.status === "fulfilled" ? reelsResult.value : [];
   const stats = statsResult.status === "fulfilled" ? statsResult.value : null;
 
-  // Every video in the library, with whatever it did in the period — a
+  // Every video in the library, with whatever it did in the period, a
   // video nobody watched is worth knowing about too.
   const perReel = new Map((stats?.reels ?? []).map((r) => [r.key, r]));
   const rows = reels.map((reel) => {
@@ -118,13 +118,13 @@ function Overview({ days, stats, loading }: { days: number; stats: NonNullable<D
           <Kpi label="Add-to-cart rate" value={formatPercent(now.addToCartRate)} sub="of views" delta={pointChange(now.addToCartRate, before.addToCartRate)} />
           <Kpi
             label="Sales from videos"
-            value={sales ? formatMoney(sales.amount, sales.currencyCode) : "—"}
+            value={sales ? formatMoney(sales.amount, sales.currencyCode) : "-"}
             sub={`${current.orders} order${current.orders === 1 ? "" : "s"}${others > 0 ? ` · +${others} other currenc${others === 1 ? "y" : "ies"}` : ""}`}
             delta={sales ? change(sales.amount, prevSales) : null}
           />
           <Kpi
             label="Avg. order value"
-            value={sales && now.averageOrderValue !== null && others === 0 ? formatMoney(now.averageOrderValue, sales.currencyCode, 2) : "—"}
+            value={sales && now.averageOrderValue !== null && others === 0 ? formatMoney(now.averageOrderValue, sales.currencyCode, 2) : "-"}
             sub={now.conversionRate === null ? undefined : `${formatPercent(now.conversionRate, 2)} conversion`}
             delta={null}
           />
@@ -177,7 +177,7 @@ function VideoTable({ rows, days, currency, multiCurrency }: { rows: Row[]; days
   const column = COLUMNS.find((c) => c.key === sort.key)!;
   const sorted = [...rows].sort((a, b) => (sort.desc ? column.value(b) - column.value(a) : column.value(a) - column.value(b)));
   const sales = (r: Row) =>
-    r.revenue && currency && !multiCurrency ? formatMoney(r.revenue, currency) : r.unitsSold ? `${r.unitsSold} sold` : "—";
+    r.revenue && currency && !multiCurrency ? formatMoney(r.revenue, currency) : r.unitsSold ? `${r.unitsSold} sold` : "-";
 
   const exportCsv = () => {
     const csv = toCsv([

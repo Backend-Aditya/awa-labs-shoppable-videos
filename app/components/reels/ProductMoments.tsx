@@ -29,7 +29,7 @@ export function ProductMoments({
   times: Record<string, number>;
   onChange: (times: Record<string, number>) => void;
 }) {
-  const description = "Pop a product up over the video the moment it's on screen — shoppers tap it to shop. Products without a time stay in the list as usual.";
+  const description = "Pop a product up over the video the moment it's on screen, so shoppers can tap it to shop. Products without a time stay in the list as usual.";
   if (products.length === 0) return null;
   if (duration <= 0) {
     return (

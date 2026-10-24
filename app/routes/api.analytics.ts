@@ -11,8 +11,8 @@ import type { TrackedEvent } from "../models/analytics.server";
 // - accepts only known event types and reel-id shapes, and watch time
 //   only as a whole number of seconds within one long session's worth,
 // - counts into per-day rollups keyed by the canonical numeric reel id,
-// - caps events per shop per minute in this process (best effort — a
-//   single Render instance today; move to a shared store if scaled out),
+// - caps events per shop per minute in this process (best effort, a
+//   single Fly machine today; move to a shared store if scaled out),
 // - caches the shop lookup instead of hitting the DB on every event.
 
 const ALLOWED_EVENT_TYPES = new Set<TrackedEvent>(["view", "click_product", "add_to_cart", "complete", "watch"]);

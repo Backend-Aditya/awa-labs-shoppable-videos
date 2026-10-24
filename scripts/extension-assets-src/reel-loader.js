@@ -4,14 +4,14 @@
 // viewer runtime (tracking → hls → lightbox → story → trigger, plus pop for
 // the floating video) and the viewer stylesheet ONLY on pages that have a
 // widget, so the embed costs a storefront's other pages (cart, blog,
-// collections without videos…) this file and nothing else — unless the
+// collections without videos…) this file and nothing else, unless the
 // merchant connected Microsoft Clarity, which records every page and so
 // brings reel-tracking.js everywhere.
 //
 // Double-loading is safe: this file runs once per page, and every runtime
 // file returns early if its global (window.ReelupTracking / ReelupHls /
 // ReelupLightbox / ReelupStory / ReelupTrigger / ReelupPop) already exists,
-// so delegated listeners — the add-to-cart one in particular — are only
+// so delegated listeners, the add-to-cart one in particular, are only
 // attached once.
 (() => {
   if (window.__reelupLoader) return;

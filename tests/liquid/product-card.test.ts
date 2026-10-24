@@ -1,4 +1,4 @@
-// snippets/reel-product-card.liquid — the product row cloned into every
+// snippets/reel-product-card.liquid, the product row cloned into every
 // viewer and rendered inline by the featured-video block.
 import { describe, expect, it } from "vitest";
 import { makeProduct, multiVariantProduct } from "../support/storefront-fixtures.mjs";

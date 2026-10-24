@@ -154,78 +154,142 @@
 .createBody {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
   font-size: 13px;
   color: #303030;
 }
 
 .kindGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 900px) {
+  .kindGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .kindGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .kindOption {
   appearance: none;
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 8px 8px 12px;
-  border-radius: 12px;
+  padding: 10px 10px 14px;
+  border-radius: 14px;
   border: 1px solid #e3e3e3;
   background: #fff;
   font: inherit;
   color: inherit;
   text-align: left;
   cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
 .kindOption svg {
   aspect-ratio: 16 / 10;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+  border-radius: 10px;
 }
 
 .kindOption:hover {
   border-color: #b5b5b5;
+  box-shadow: 0 6px 18px rgb(0 0 0 / 0.06);
+  transform: translateY(-1px);
 }
 
 .kindOption[aria-checked="true"] {
   border-color: #303030;
-  box-shadow: inset 0 0 0 1px #303030;
+  box-shadow: 0 0 0 1px #303030, 0 8px 22px rgb(0 0 0 / 0.08);
+}
+
+/* Check badge on the chosen type. */
+.kindOption[aria-checked="true"]::after {
+  content: "";
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #303030
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6.2 5 8.5l4.5-5' stroke='white' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / 12px no-repeat;
+  box-shadow: 0 0 0 2px #fff;
 }
 
 .kindOption:focus-visible {
   outline: 2px solid #005bd3;
-  outline-offset: 1px;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kindOption {
+    transition: none;
+  }
+  .kindOption:hover {
+    transform: none;
+  }
 }
 
 .kindName {
   font-weight: 650;
+  font-size: 14px;
   padding-inline: 4px;
 }
 
 .kindDescription {
   color: #616161;
   font-size: 12px;
-  line-height: 16px;
+  line-height: 17px;
   padding-inline: 4px;
 }
 
 .nameField {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-weight: 550;
-  max-width: 360px;
+  display: grid;
+  grid-template-columns: minmax(150px, 220px) minmax(0, 1fr);
+  column-gap: 24px;
+  row-gap: 2px;
+  align-items: start;
+  padding-top: 20px;
+  border-top: 1px solid #ebebeb;
+  font-weight: 650;
+}
+
+.nameField > span:first-child {
+  grid-column: 1;
+  grid-row: 1;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.nameHint {
+  grid-column: 1;
+  grid-row: 2;
+  font-weight: 400;
+  font-size: 12px;
+  line-height: 18px;
+  color: #616161;
 }
 
 .nameField input {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  width: 100%;
   font: inherit;
   font-weight: 400;
-  padding: 6px 10px;
-  min-height: 32px;
+  padding: 8px 12px;
+  min-height: 36px;
   border: 1px solid #8a8a8a;
-  border-radius: 8px;
+  border-radius: 10px;
 }
 
 .nameField input:focus {
@@ -234,19 +298,75 @@
   border-color: transparent;
 }
 
+@media (max-width: 640px) {
+  .nameField {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .nameField input {
+    grid-column: 1;
+    grid-row: 3;
+    margin-top: 8px;
+  }
+}
+
 .widgetFacts [data-warn] {
   color: #8a6116;
   font-weight: 550;
 }
 
+/* "Live" tag over a type's preview: that type already has a published widget. */
 .kindNote {
-  margin: 4px 4px 0;
-  padding: 2px 8px;
-  align-self: flex-start;
-  border-radius: 6px;
-  background: #fff5ea;
-  color: #5e4200;
+  position: absolute;
+  top: 18px;
+  left: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px 2px 7px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 0 0 1px #e3e3e3, 0 1px 3px rgb(0 0 0 / 0.08);
+  color: #047b5d;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.kindNote::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #29a37a;
+}
+
+.kindLegend {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f7f7f7;
+  color: #616161;
   font-size: 12px;
+  line-height: 18px;
+}
+
+.kindLegend::before {
+  content: "i";
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+  border-radius: 50%;
+  background: #616161;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
 }
 
 /* ---------- inline live switch ---------- */

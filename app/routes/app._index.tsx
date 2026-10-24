@@ -9,6 +9,8 @@ import { deriveReelStatus } from "../models/reel-status";
 import { listWidgetsForShop } from "../models/widget.server";
 import { getKindMeta } from "../models/widget-kinds";
 import { getDashboardStats, parseRange, reelKey } from "../models/analytics.server";
+import prisma from "../db.server";
+import { planFor, usageLevel } from "../models/plans";
 import { KindSchematic } from "../components/widget-editor/KindSchematic";
 import { ViewsChart } from "../components/ViewsChart";
 import type { WidgetKind } from "../models/widget-kinds";
@@ -18,7 +20,6 @@ import { useThemeStatus } from "../components/useThemeStatus";
 import type { ThemeStatus } from "../components/useThemeStatus";
 import { themeEditorUrl } from "../components/themeEditor";
 import { Kpi, RangePicker, change, formatMoney, pointChange } from "../components/analytics-ui";
-import { deriveKpis, formatPercent } from "../models/kpis";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
@@ -26,6 +27,14 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const days = parseRange(new URL(request.url).searchParams.get("days"));
   // Each source degrades on its own: a slow Shopify API or analytics query
   // hides that card instead of taking the whole page down.
+  const now = new Date();
+  const monthViews = await prisma.reelDailyStat
+    .aggregate({
+      where: { shopId: shop.id, day: { gte: new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)) } },
+      _sum: { views: true },
+    })
+    .then((r) => r._sum.views ?? 0)
+    .catch(() => 0);
   const [reelsResult, widgetsResult, statsResult] = await Promise.allSettled([
     listReels(admin),
     listWidgetsForShop(shop.id),
@@ -55,6 +64,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     // eslint-disable-next-line no-undef
     apiKey: process.env.SHOPIFY_API_KEY || "",
     hasBrand: shop.brand != null,
+    planName: planFor(shop.plan).name,
+    viewUsage: usageLevel(monthViews, shop.viewCapMonthly),
+    reelUsage: usageLevel(reels.length, planFor(shop.plan).reelLimit),
+    monthViews,
+    viewCap: shop.viewCapMonthly,
+    reelLimit: planFor(shop.plan).reelLimit,
     partial: [reelsResult, widgetsResult, statsResult].some((r) => r.status === "rejected"),
     firstUntaggedKey: reels.find((r) => (r.config.productIds ?? []).length === 0) ? reelKey(reels.find((r) => (r.config.productIds ?? []).length === 0)!.id) : null,
     reelCount: reels.length,
@@ -69,6 +84,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 type Data = ReturnType<typeof useLoaderData<typeof loader>>;
 
 const EMBED_KEY = "reelup-embed-opened";
+const CHECKLIST_DONE_KEY = "reelup-checklist-complete";
 
 export default function Dashboard() {
   const data = useLoaderData<typeof loader>();
@@ -86,8 +102,8 @@ export default function Dashboard() {
       </s-button>
       <div className={styles.page}>
         {data.partial && (
-          <s-banner tone="warning" heading="Some information couldn't be loaded">
-            Shopify took too long to respond. Reload the page to try again.
+          <s-banner tone="warning" heading="Some data couldn't be loaded">
+            Shopify is taking longer than usual to respond. Reload the page to try again.
           </s-banner>
         )}
         {embedOff && livePops && (
@@ -96,6 +112,27 @@ export default function Dashboard() {
             <s-link href={themeEditorUrl(data.apiKey)} target="_top">
               Turn on the app embed
             </s-link>
+          </s-banner>
+        )}
+
+        {(data.viewUsage !== "ok" || data.reelUsage !== "ok") && (
+          <s-banner
+            tone={data.viewUsage === "over" || data.reelUsage === "over" ? "critical" : "warning"}
+            heading={
+              data.reelUsage === "over"
+                ? `You've used all ${data.reelLimit.toLocaleString()} videos on ${data.planName}`
+                : data.viewUsage === "over"
+                  ? `You've passed ${data.viewCap.toLocaleString()} views this month on ${data.planName}`
+                  : `You're close to your ${data.planName} plan limit`
+            }
+          >
+            {data.reelUsage !== "ok"
+              ? `${data.reelCount.toLocaleString()} of ${data.reelLimit.toLocaleString()} videos used. `
+              : ""}
+            {data.viewUsage !== "ok"
+              ? `${data.monthViews.toLocaleString()} of ${data.viewCap.toLocaleString()} views this month. `
+              : ""}
+            <s-link href="/app/pricing">See plans</s-link>
           </s-banner>
         )}
 
@@ -114,7 +151,7 @@ export default function Dashboard() {
             </header>
             {data.widgets.length === 0 ? (
               <div className={styles.empty}>
-                <p>No widgets yet. A widget decides where and how your videos appear.</p>
+                <p>You haven&rsquo;t created a widget yet. Widgets decide where and how your videos appear on your store.</p>
                 <s-button onClick={() => navigate("/app/widgets?create=1")}>Create widget</s-button>
               </div>
             ) : (
@@ -160,8 +197,10 @@ function Performance({ stats }: { stats: NonNullable<Data["stats"]> }) {
   const navigation = useNavigation();
   const loading = navigation.state === "loading" && navigation.location?.pathname === "/app";
   const { current, previous } = stats;
-  const now = deriveKpis({ ...current, revenue: 0 });
-  const before = deriveKpis({ ...previous, revenue: 0 });
+  const ctr = current.views ? (current.clicks / current.views) * 100 : 0;
+  const prevCtr = previous.views ? (previous.clicks / previous.views) * 100 : 0;
+  const atc = current.views ? (current.addToCarts / current.views) * 100 : 0;
+  const prevAtc = previous.views ? (previous.addToCarts / previous.views) * 100 : 0;
   // Revenue is never summed across currencies; show the main one and note
   // when there are others.
   const revenue = current.revenue[0];
@@ -179,16 +218,13 @@ function Performance({ stats }: { stats: NonNullable<Data["stats"]> }) {
       </header>
       <div className={styles.kpis}>
         <Kpi label="Video views" value={current.views.toLocaleString()} delta={change(current.views, previous.views)} />
-        <Kpi label="Click rate" value={formatPercent(now.clickRate)} sub={`${current.clicks.toLocaleString()} product taps`} delta={pointChange(now.clickRate, before.clickRate)} />
-        <Kpi
-          label="Adds to cart"
-          value={current.addToCarts.toLocaleString()}
-          sub={now.addToCartRate === null ? undefined : `${formatPercent(now.addToCartRate)} of views`}
-          delta={change(current.addToCarts, previous.addToCarts)}
-        />
+        <Kpi label="Product clicks" value={current.clicks.toLocaleString()} delta={change(current.clicks, previous.clicks)} />
+        <Kpi label="Click rate" value={`${ctr.toFixed(1)}%`} delta={pointChange(ctr, previous.views > 0 ? prevCtr : null)} />
+        <Kpi label="Adds to cart" value={current.addToCarts.toLocaleString()} delta={change(current.addToCarts, previous.addToCarts)} />
+        <Kpi label="Add-to-cart rate" value={`${atc.toFixed(1)}%`} delta={pointChange(atc, previous.views > 0 ? prevAtc : null)} />
         <Kpi
           label="Sales from videos"
-          value={revenue ? formatMoney(revenue.amount, revenue.currencyCode) : "—"}
+          value={revenue ? formatMoney(revenue.amount, revenue.currencyCode) : "-"}
           sub={`${current.orders} order${current.orders === 1 ? "" : "s"}${otherCurrencies > 0 ? ` · +${otherCurrencies} other currenc${otherCurrencies === 1 ? "y" : "ies"}` : ""}`}
           delta={revenue ? change(revenue.amount, prevRevenue) : null}
         />
@@ -203,10 +239,11 @@ function Performance({ stats }: { stats: NonNullable<Data["stats"]> }) {
   );
 }
 
-type SortKey = "views" | "clicks" | "rate" | "sales";
+type SortKey = "views" | "clicks" | "carts" | "rate" | "sales";
 const SORT_COLUMNS: { key: SortKey; label: string }[] = [
   { key: "views", label: "Views" },
   { key: "clicks", label: "Clicks" },
+  { key: "carts", label: "Add to cart" },
   { key: "rate", label: "Click rate" },
   { key: "sales", label: "Sales" },
 ];
@@ -222,11 +259,13 @@ function TopVideos({ data }: { data: Data }) {
       ? r.views
       : sort.key === "clicks"
         ? r.clicks
-        : sort.key === "rate"
-          ? r.views
-            ? r.clicks / r.views
-            : -1
-          : r.revenue * 1e6 + r.unitsSold * 1e3 + r.views / 1e3;
+        : sort.key === "carts"
+          ? r.addToCarts
+          : sort.key === "rate"
+            ? r.views
+              ? r.clicks / r.views
+              : -1
+            : r.revenue * 1e6 + r.unitsSold * 1e3 + r.views / 1e3;
   const rows = [...data.topReels].sort((a, b) => (sort.desc ? metric(b) - metric(a) : metric(a) - metric(b)));
   return (
     <section className={styles.card}>
@@ -237,7 +276,7 @@ function TopVideos({ data }: { data: Data }) {
         </button>
       </header>
       {data.topReels.length === 0 ? (
-        <p className={styles.empty}>Views and sales show up here once shoppers start watching.</p>
+        <p className={styles.empty}>Your top videos appear here once shoppers start watching.</p>
       ) : (
         <div className={styles.tableScroll}>
           <table className={styles.table}>
@@ -282,13 +321,14 @@ function TopVideos({ data }: { data: Data }) {
                   </th>
                   <td>{r.views.toLocaleString()}</td>
                   <td>{r.clicks.toLocaleString()}</td>
-                  <td>{r.views ? `${((r.clicks / r.views) * 100).toFixed(1)}%` : "—"}</td>
+                  <td>{r.addToCarts.toLocaleString()}</td>
+                  <td>{r.views ? `${((r.clicks / r.views) * 100).toFixed(1)}%` : "-"}</td>
                   <td>
                     {r.revenue && currency && !multiCurrency
                       ? formatMoney(r.revenue, currency)
                       : r.unitsSold
                         ? `${r.unitsSold} sold`
-                        : "—"}
+                        : "-"}
                   </td>
                 </tr>
               ))}
@@ -304,36 +344,61 @@ function Checklist({ data, theme }: { data: Data; theme: ThemeStatus | null }) {
   const navigate = useNavigate();
   const [embedOpened, setEmbedOpened] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  // The card is hidden until the saved "hidden" flag has been read and the
+  // theme has reported its state (or a short wait has passed), so it never
+  // renders as "Get set up" for a moment and then disappears or recounts.
+  const [storageRead, setStorageRead] = useState(false);
+  const [themeWaited, setThemeWaited] = useState(false);
   useEffect(() => {
     try {
       setEmbedOpened(localStorage.getItem(EMBED_KEY) === "1");
-      setDismissed(localStorage.getItem("reelup-checklist-dismissed") === "1");
+      setDismissed(
+        localStorage.getItem("reelup-checklist-dismissed") === "1" ||
+          localStorage.getItem(CHECKLIST_DONE_KEY) === "1",
+      );
     } catch {
       // Storage blocked: checklist just doesn't remember.
     }
+    setStorageRead(true);
+    const timer = setTimeout(() => setThemeWaited(true), 1500);
+    return () => clearTimeout(timer);
   }, []);
+  const ready = storageRead && (theme !== null || themeWaited);
+  const allDone = data.reelCount > 0 &&
+    data.taggedCount > 0 &&
+    data.widgets.some((w) => w.published) &&
+    data.hasBrand &&
+    (theme ? theme.embedOn || theme.placedBlocks.size > 0 : embedOpened);
+  useEffect(() => {
+    if (!ready || !allDone) return;
+    try {
+      localStorage.setItem(CHECKLIST_DONE_KEY, "1");
+    } catch {
+      // ignore
+    }
+  }, [ready, allDone]);
 
   // Prefer the theme's real state; only fall back to "you opened the theme
   // editor" where the admin can't report it.
   const embedDone = theme ? theme.embedOn || theme.placedBlocks.size > 0 : embedOpened;
   const firstLive = data.widgets.find((w) => w.published)?.type;
   const steps = [
-    { done: data.reelCount > 0, title: "Upload your first video", body: "MP4 or MOV, or import from Instagram and TikTok.", action: "Upload videos", go: () => navigate("/app/reels?upload=1") },
+    { done: data.reelCount > 0, title: "Upload your first video", body: "Upload an MP4 or MOV file, or import a post from Instagram or TikTok.", action: "Upload videos", go: () => navigate("/app/reels?upload=1") },
     {
       done: data.taggedCount > 0,
       title: "Tag products in a video",
-      body: "Tagged products become shoppable cards in the player.",
+      body: "Tagged products appear as shoppable cards next to the video.",
       action: "Tag products",
       go: () => navigate(data.firstUntaggedKey ? `/app/reels/${data.firstUntaggedKey}?tab=products` : "/app/reels"),
     },
-    { done: data.widgets.some((w) => w.published), title: "Put a widget live", body: "Pick where and how videos appear on your store.", action: "Create widget", go: () => navigate("/app/widgets?create=1") },
+    { done: data.widgets.some((w) => w.published), title: "Put a widget live", body: "Choose where your videos appear on your store.", action: "Create widget", go: () => navigate("/app/widgets?create=1") },
     {
       done: embedDone,
       title: "Add it to your theme",
       body:
         theme === null
-          ? "Place your widget in the theme editor, then press Save there."
-          : "Nothing's placed in your live theme yet — add your widget's block, then press Save.",
+          ? "Add your widget in the theme editor, then select Save."
+          : "Nothing is added to your live theme yet. Add your widget block in the theme editor, then select Save.",
       action: "Open theme editor",
       go: () => {
         window.open(themeEditorUrl(data.apiKey, firstLive), "_top");
@@ -345,10 +410,10 @@ function Checklist({ data, theme }: { data: Data; theme: ThemeStatus | null }) {
         setEmbedOpened(true);
       },
     },
-    { done: data.hasBrand, title: "Match your brand", body: "Set button and accent colors once for every widget.", action: "Open brand kit", go: () => navigate("/app/settings") },
+    { done: data.hasBrand, title: "Match your brand", body: "Set your button and accent colors once and every widget uses them.", action: "Open brand kit", go: () => navigate("/app/settings") },
   ];
   const doneCount = steps.filter((s) => s.done).length;
-  if (dismissed || doneCount === steps.length) return null;
+  if (!ready || dismissed || doneCount === steps.length) return null;
   const next = steps.findIndex((s) => !s.done);
 
   return (

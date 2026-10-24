@@ -93,7 +93,7 @@ export default function Integrations() {
           >
             <Toggle
               label="Publish video events to Shopify"
-              description="Any pixel under Settings › Customer events can use them — the custom pixel on this page, or your own. Shopify applies each visitor's cookie consent."
+              description="Any pixel under Settings › Customer events can use them: the custom pixel on this page, or your own. Shopify applies each visitor's cookie consent."
               checked={tracking.shopifyEvents}
               onChange={(shopifyEvents) => set({ shopifyEvents })}
             />
@@ -117,7 +117,7 @@ export default function Integrations() {
 
           <Card
             title="Tags on your storefront"
-            description="If your theme already runs these tags, video events are sent to them too — only when the visitor has allowed that kind of tracking."
+            description="If your theme already runs these tags, video events are sent to them too, but only when the visitor has allowed that kind of tracking."
           >
             {PAGE_TAGS.map((tag) => (
               <Toggle
@@ -179,7 +179,7 @@ function ClarityField({ value, invalid, onChange }: { value: string; invalid: bo
             Clarity
           </a>
           , open your project’s Settings › Overview. Leave empty to disconnect. Skip this if Microsoft’s own Clarity app
-          is installed — video events reach it either way.
+          is installed. Video events reach it either way.
         </>
       }
     >
@@ -224,7 +224,7 @@ function CustomPixel({ enabled }: { enabled: boolean }) {
       range.selectNodeContents(codeRef.current!);
       window.getSelection()?.removeAllRanges();
       window.getSelection()?.addRange(range);
-      shopify.toast.show("Code selected — press ⌘C or Ctrl+C to copy");
+      shopify.toast.show("Code selected. Press ⌘C or Ctrl+C to copy");
       return;
     }
     shopify.toast.show("Code copied");

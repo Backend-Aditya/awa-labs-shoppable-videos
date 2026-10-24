@@ -2,7 +2,7 @@ import type { AdminGraphqlClient } from "./reel.server";
 import { assertNoGraphqlErrors, throwOnUserErrors } from "./reel.server";
 
 // Writes one of the app's own JSON shop metafields (`$app` namespace,
-// declared in shopify.app.toml) — how shop-wide settings reach the theme
+// declared in shopify.app.toml), how shop-wide settings reach the theme
 // extension, which reads them in Liquid.
 export async function setShopAppMetafield(admin: AdminGraphqlClient, key: string, value: unknown): Promise<void> {
   const shopResponse = await admin.graphql(

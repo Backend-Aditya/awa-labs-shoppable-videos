@@ -36,7 +36,7 @@ export interface DashboardStats {
   days: number;
   current: PeriodTotals;
   previous: PeriodTotals;
-  daily: { date: string; views: number; clicks: number }[];
+  daily: { date: string; views: number; clicks: number; addToCarts: number }[];
   reels: ReelPerformance[];
 }
 
@@ -85,6 +85,7 @@ function emptyDaily(start: Date, days: number) {
     date: new Date(start.getTime() + i * DAY_MS).toISOString().slice(0, 10),
     views: 0,
     clicks: 0,
+    addToCarts: 0,
   }));
 }
 
@@ -124,11 +125,11 @@ export interface ReelStats extends Engagement {
   unitsSold: number;
   orders: number;
   revenue: { currencyCode: string; amount: number }[];
-  daily: { date: string; views: number; clicks: number }[];
+  daily: { date: string; views: number; clicks: number; addToCarts: number }[];
 }
 
 // One reel's last-N-days performance. Matches events stored under either
-// id form (GID or numeric) — see reelKey.
+// id form (GID or numeric), see reelKey.
 export async function getReelStats(shopId: string, reelGid: string, days = 30, now = new Date()): Promise<ReelStats> {
   // Orders may carry either id form (older rows kept the GID); rollups are
   // always keyed by the numeric tail.
@@ -165,6 +166,7 @@ export async function getReelStats(shopId: string, reelGid: string, days = 30, n
     if (bucket) {
       bucket.views += row.views;
       bucket.clicks += row.clicks;
+      bucket.addToCarts += row.addToCarts;
     }
   }
 
@@ -235,6 +237,7 @@ export async function getDashboardStats(shopId: string, days = 30, now = new Dat
     if (bucket) {
       bucket.views += row.views;
       bucket.clicks += row.clicks;
+      bucket.addToCarts += row.addToCarts;
     }
     addEngagement(reelFor(row.reelId), row);
   }

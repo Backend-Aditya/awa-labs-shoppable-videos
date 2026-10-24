@@ -1,11 +1,11 @@
 // Minifies the storefront extension's own JS and CSS into the files its Liquid
 // blocks actually reference via `| asset_url`. Theme app extensions have
 // no build/bundler hook in shopify.extension.toml (unlike UI extensions),
-// so there's no way to wire this into `shopify app deploy` automatically —
+// so there's no way to wire this into `shopify app deploy` automatically,
 // `npm run deploy` runs this first, but a bare `shopify app deploy` won't.
 //
 // scripts/extension-assets-src/*.{js,css} is the source of truth
-// (commented, readable) — edit there, never edit
+// (commented, readable), edit there, never edit
 // extensions/shoppable-video-widgets/assets/*.{js,css} directly, since this
 // script overwrites them on every run. It lives outside the extension's own
 // directory because Shopify's theme-extension validator rejects any

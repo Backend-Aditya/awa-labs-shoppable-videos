@@ -1,7 +1,7 @@
 // What each KPI on Home and Analytics means, computed from the rollup
 // counters (analytics.server.ts). Client-safe and pure, so pages and tests
 // share one definition. Every rate is per video view; a rate over zero
-// views is null ("—"), never 0%, so an idle period doesn't read as a
+// views is null ("-"), never 0%, so an idle period doesn't read as a
 // failing one.
 
 export interface KpiInput {
@@ -32,7 +32,7 @@ export interface Kpis {
   revenue: number;
   // Revenue per attributed order.
   averageOrderValue: number | null;
-  // Revenue per 1,000 views — comparable across videos of any reach.
+  // Revenue per 1,000 views, comparable across videos of any reach.
   revenuePerThousandViews: number | null;
 }
 
@@ -58,12 +58,12 @@ export function deriveKpis(input: KpiInput): Kpis {
 }
 
 export function formatPercent(value: number | null, digits = 1): string {
-  return value === null ? "—" : `${value.toFixed(digits)}%`;
+  return value === null ? "-" : `${value.toFixed(digits)}%`;
 }
 
 // 0:42, 3:05, 1:02:10.
 export function formatWatchTime(seconds: number | null): string {
-  if (seconds === null) return "—";
+  if (seconds === null) return "-";
   const total = Math.round(seconds);
   const h = Math.floor(total / 3600);
   const m = Math.floor((total % 3600) / 60);
@@ -88,7 +88,7 @@ export function funnel(input: Pick<KpiInput, "views" | "clicks" | "addToCarts" |
 }
 
 // RFC 4180 CSV. Cells that a spreadsheet would run as a formula (= + - @,
-// tab, CR) are prefixed with a quote — titles are merchant-written text.
+// tab, CR) are prefixed with a quote: titles are merchant-written text.
 export function toCsv(rows: (string | number | null)[][]): string {
   const cell = (value: string | number | null) => {
     if (value === null) return "";

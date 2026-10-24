@@ -1,11 +1,11 @@
 {% doc %}
 The app's master switch: an app embed (target "body") the merchant turns
 on once under Theme settings › App embeds. Shopify's own embed toggle is the
-on/off mechanism — no custom flag.
+on/off mechanism, no custom flag.
 
 Three jobs:
 1. Renders reel-loader.js, which pulls in the viewer runtime and styles
-   only on pages that have a widget — every other page pays for that one
+   only on pages that have a widget; every other page pays for that one
    small script. Section blocks declare the same loader as their schema
    JavaScript, so they work with this embed off; it runs once per page.
 2. Publishes shared viewer labels, locale-aware cart routes and the money
@@ -15,7 +15,7 @@ Three jobs:
    to a corner of every page it targets, with its stylesheet.
 
 @example
-Enabled under Theme settings › App embeds — not placed with {% content_for %}.
+Enabled under Theme settings › App embeds, not placed with {% content_for %}.
 {% enddoc %}
 
 <script src="{{ 'reel-loader.js' | asset_url }}" defer></script>

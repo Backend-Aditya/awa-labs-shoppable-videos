@@ -1,8 +1,8 @@
 // Full-screen story viewer for the Stories widget: segmented progress,
 // auto-advance, tap left/right or swipe sideways to move, swipe down to
 // close, press-and-hold or the play/pause button (Space / K) to pause, and
-// a product sticker — showing the product on screen when the reel has
-// product moments — that slides up a drawer. Product cards inside the
+// a product sticker (showing the product on screen when the reel has
+// product moments) that slides up a drawer. Product cards inside the
 // drawer are handled by the delegated cart code in reel-lightbox.js.
 (() => {
   // Loaded by the embed and possibly again by a block loader.
@@ -100,7 +100,7 @@
     fill.style.transform = "scaleX(1)";
   };
 
-  // Under reduced motion stories never move on by themselves — the shopper
+  // Under reduced motion stories never move on by themselves, the shopper
   // advances with next / arrow keys.
   const autoAdvance = () => !prefersReducedMotion();
 

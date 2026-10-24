@@ -1,4 +1,4 @@
-/* Shoppable video widgets — every inline/floating widget in one sheet.
+/* Shoppable video widgets, every inline/floating widget in one sheet.
    They inherit the theme's font and text colour; the merchant's widget
    settings arrive as --ru-* custom properties on each widget root. Each
    widget owns a distinct silhouette (strip, deck, rings, feature, row,
@@ -214,7 +214,7 @@
 }
 
 /* =================================================================
-   Product page reels — filmstrip
+   Product page reels, filmstrip
    ================================================================= */
 
 .reelup-strip {
@@ -451,7 +451,7 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
 }
 
 /* =================================================================
-   Stacked carousel — deck
+   Stacked carousel, deck
    ================================================================= */
 
 .reelup-deck {
@@ -683,7 +683,7 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
 }
 
 /* =================================================================
-   Stories — ringed avatars
+   Stories, ringed avatars
    ================================================================= */
 
 .reelup-stories {
@@ -770,7 +770,7 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
 }
 
 /* =================================================================
-   Featured video — split
+   Featured video, split
    ================================================================= */
 
 .reelup-feature {
@@ -872,7 +872,7 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
 }
 
 /* =================================================================
-   Add-to-cart video — compact row
+   Add-to-cart video, compact row
    ================================================================= */
 
 .reelup-atc {
@@ -982,7 +982,7 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
 }
 
 /* =================================================================
-   Floating video — pop
+   Floating video, pop
    ================================================================= */
 
 .reelup-pop {
@@ -1020,7 +1020,7 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
   .reelup-pop--top-left { left: calc(12px + env(safe-area-inset-left)); top: calc(12px + env(safe-area-inset-top)); }
   /* The size arrives as an inline custom property, so cap the width on the
      player itself (a var can't be capped by redefining it in terms of
-     itself — that's a cycle and the inline value wins anyway). */
+     itself, that's a cycle and the inline value wins anyway). */
   .reelup .reelup-trigger__button.reelup-pop__player {
     width: min(var(--ru-pop-size), 84px);
   }
@@ -1164,7 +1164,7 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
 }
 
 /* =================================================================
-   Product card — shared by the featured video list and the viewers
+   Product card, shared by the featured video list and the viewers
    ================================================================= */
 
 .reelup-product {

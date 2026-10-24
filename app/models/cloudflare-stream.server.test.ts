@@ -170,7 +170,7 @@ describe("cloudflare-stream.server", () => {
       .update(`${time}.${rawBody}`)
       .digest("hex");
 
-    // No explicit `now` passed — falls back to Date.now(), which is nowhere
+    // No explicit `now` passed, falls back to Date.now(), which is nowhere
     // near 1700000000, so a captured-and-replayed payload must be rejected.
     const valid = verifyWebhookSignature(
       rawBody,

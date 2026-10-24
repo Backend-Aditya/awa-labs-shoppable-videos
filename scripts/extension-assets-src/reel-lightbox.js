@@ -5,8 +5,8 @@
 // video viewer itself.
 (() => {
   // This file can be loaded twice on one page (app embed + a block's
-  // loader when both are present). Everything below — including the
-  // document-level delegated cart listeners — must exist exactly once, or
+  // loader when both are present). Everything below, including the
+  // document-level delegated cart listeners, must exist exactly once, or
   // one click would add the product to the cart twice.
   if (window.ReelupLightbox) return;
 
@@ -127,8 +127,8 @@
 
   // Watch time and completion of whatever reel `video` shows (the id from
   // `currentReelId`, its trigger from `currentTrigger`). Completion counts
-  // at 95% or the end; watch time counts real playback only — seeks and
-  // loops back to the start add nothing — and is reported by flush() when
+  // at 95% or the end; watch time counts real playback only (seeks and
+  // loops back to the start add nothing) and is reported by flush() when
   // the shopper moves on, closes, or leaves the page.
   const COMPLETE_AT = 0.95;
   const watchProgress = (video, currentReelId, currentTrigger) => {
@@ -333,7 +333,7 @@
     }
   };
 
-  // What a successful add leads to — the widget's "After adding to cart".
+  // What a successful add leads to: the widget's "After adding to cart".
   // "cart": Dawn-family themes' drawer or notification was just opened by
   // notifyTheme, so a viewer steps aside to reveal it; other themes go to
   // the cart page. "checkout" goes straight there. "stay" (the default)
@@ -408,7 +408,7 @@
       });
       if (!response.ok) {
         // Shopify explains stock problems ("You can only add 2 of …") in a
-        // 4xx JSON `description`; only that is shopper-safe — network and
+        // 4xx JSON `description`; only that is shopper-safe, network and
         // server errors fall back to the generic label.
         const problem = await response.json().catch(() => null);
         const shopify =
@@ -420,6 +420,10 @@
       const added = await response.json().catch(() => null);
       const line = added?.items?.[0];
       const cents = Number(line?.final_line_price ?? (line?.price ?? 0) * quantity) || 0;
+
+      button.dataset.state = "added";
+      // Counted only once Shopify accepted the line; click_product above fires
+      // on the click itself, so it also includes adds that failed.
       trackAnalytics(reelId, "add_to_cart", {
         trigger,
         product_id: productId ?? line?.product_id,
@@ -428,8 +432,6 @@
         value: cents ? cents / 100 : undefined,
         currency: config.currency,
       });
-
-      button.dataset.state = "added";
       button.textContent = button.dataset.addedLabel ?? addLabel;
       showStatus(status, labels.addedToCart, false);
       announce(button, labels.addedToCart);
@@ -459,7 +461,7 @@
 
   // Viewers are shared singletons reused across every trigger on the page,
   // so every per-trigger setting is written unconditionally (set or
-  // cleared) — never just set — or it would leak onto the next trigger.
+  // cleared), never just set, or it would leak onto the next trigger.
   const applyViewerSettings = (dialog, video, titleEl, trigger) => {
     const vars = {
       "--ru-cta": trigger.dataset.ctaColor,
@@ -500,7 +502,7 @@
   };
 
   // Starts playback inside the gesture window (muted is always allowed),
-  // then restores the wanted mute state once the source is attached —
+  // then restores the wanted mute state once the source is attached,
   // attach() may await network fetches that outlast the user activation,
   // after which unmuted play() can be silently rejected.
   //
@@ -524,7 +526,7 @@
       await video.play();
     } catch {
       if (!isCurrent()) return false;
-      // Unmuted autoplay refused after all — keep playing muted rather than
+      // Unmuted autoplay refused after all, keep playing muted rather than
       // leaving a frozen first frame.
       video.muted = true;
       await video.play().catch(() => {});
@@ -616,7 +618,7 @@
   };
 
   // The toast element is permanent (created with each viewer); it's purely
-  // visual — the message is announced through the dialog's live region.
+  // visual, the message is announced through the dialog's live region.
   const toast = (host, message) => {
     const el = host.querySelector(".reelup-toast");
     if (el) {
@@ -732,7 +734,7 @@
 
   // One icon family for all viewer chrome (and the blocks' reel-icon
   // snippet): 24px grid, 2px round strokes, after Lucide (lucide.dev, ISC).
-  // Play and pause stay solid — the shapes shoppers read at a glance.
+  // Play and pause stay solid, the shapes shoppers read at a glance.
   const icon = (body, size = 20, solid = false) =>
     `<svg viewBox="0 0 24 24" width="${size}" height="${size}" ${
       solid ? 'fill="currentColor"' : 'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"'
@@ -977,7 +979,7 @@
 
     // On mobile the "peek" sheet clips everything below the first product,
     // so those rows (and anything after the list) are made inert until the
-    // sheet is expanded — no tabbing into invisible controls.
+    // sheet is expanded, no tabbing into invisible controls.
     const syncPeekInert = () => {
       const collapsed = panel.dataset.state === "peek" && isMobile();
       dialog.querySelectorAll("[data-reelup-list] [data-reelup-product]").forEach((row, i) => {

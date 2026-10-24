@@ -90,7 +90,7 @@ export const action = async ({ request }: ActionFunctionArgs): Promise<BulkResul
     });
     const done = ids.length - failedIds.length;
     return failedIds.length
-      ? { ok: false, error: `${plural(failedIds.length)} couldn't be updated — they're still selected. Try again.`, message: null, failedIds }
+      ? { ok: false, error: `${plural(failedIds.length)} couldn't be updated. They're still selected. Try again.`, message: null, failedIds }
       : { ok: true, error: null, message: `${plural(done)} ${published ? "published" : "unpublished"}`, failedIds };
   }
 
@@ -101,7 +101,7 @@ export const action = async ({ request }: ActionFunctionArgs): Promise<BulkResul
     });
     const done = ids.length - failedIds.length;
     return failedIds.length
-      ? { ok: false, error: `${plural(failedIds.length)} couldn't be deleted — they're still selected. Try again.`, message: null, failedIds }
+      ? { ok: false, error: `${plural(failedIds.length)} couldn't be deleted. They're still selected. Try again.`, message: null, failedIds }
       : { ok: true, error: null, message: `${plural(done)} deleted`, failedIds };
   }
 
@@ -130,14 +130,14 @@ export default function ReelsLibrary() {
   const shopify = useAppBridge();
   const bulkFetcher = useFetcher<typeof action>();
   const [query, setQuery] = useState("");
-  const searchRef = useRef<HTMLInputElement>(null);
+  const searchRef = useRef<HTMLElementTagNameMap["s-search-field"]>(null);
   // "/" jumps to search from anywhere on the page (unless typing already);
   // Escape in the box clears it.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
       const target = event.target as HTMLElement | null;
-      if (target?.closest("input, textarea, select, [contenteditable='true']")) return;
+      if (target?.closest("input, textarea, select, s-search-field, s-text-field, s-select, [contenteditable='true']")) return;
       event.preventDefault();
       searchRef.current?.focus();
     };
@@ -268,7 +268,7 @@ export default function ReelsLibrary() {
   const allShownSelected = shown.length > 0 && shown.every((r) => selected.has(r.id));
 
   return (
-    <s-page heading="Reels" inlineSize="large">
+    <s-page heading="Videos" inlineSize="large">
       <s-button slot="primary-action" variant="primary" onClick={() => openUpload()}>
         Upload videos
       </s-button>
@@ -320,36 +320,39 @@ export default function ReelsLibrary() {
                 ))}
               </div>
               <div className={styles.toolbarRight}>
-                <label className={styles.search}>
-                  <SearchIcon />
-                  <span className={styles.srOnly}>Search videos</span>
-                  <input
+                {/* Escape clears the search. The key event bubbles up from the web component. */}
+                {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
+                <div
+                  className={styles.searchField}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape" && query) {
+                      e.preventDefault();
+                      setQuery("");
+                    }
+                  }}
+                >
+                  <s-search-field
                     ref={searchRef}
-                    type="search"
+                    label="Search videos"
+                    labelAccessibilityVisibility="exclusive"
                     placeholder="Search by title"
-                    aria-keyshortcuts="/"
                     value={query}
-                    onChange={(e) => setQuery(e.currentTarget.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Escape" && query) {
-                        e.preventDefault();
-                        setQuery("");
-                      }
-                    }}
+                    onInput={(e: Event) => setQuery((e.currentTarget as HTMLInputElement).value)}
                   />
-                  <kbd className={styles.searchKey} aria-hidden="true">
-                    /
-                  </kbd>
-                </label>
-                <label className={styles.sort}>
-                  <span className={styles.srOnly}>Sort</span>
-                  <select value={sort} onChange={(e) => setSort(e.currentTarget.value as Sort)}>
-                    <option value="newest">Newest</option>
-                    <option value="oldest">Oldest</option>
-                    <option value="views">Most viewed</option>
-                    <option value="title">Title A–Z</option>
-                  </select>
-                </label>
+                </div>
+                <div className={styles.sortField}>
+                  <s-select
+                    label="Sort"
+                    labelAccessibilityVisibility="exclusive"
+                    value={sort}
+                    onChange={(e: Event) => setSort((e.currentTarget as HTMLSelectElement).value as Sort)}
+                  >
+                    <s-option value="newest">Newest</s-option>
+                    <s-option value="oldest">Oldest</s-option>
+                    <s-option value="views">Most viewed</s-option>
+                    <s-option value="title">Title A to Z</s-option>
+                  </s-select>
+                </div>
                 <div /* eslint-disable-line jsx-a11y/interactive-supports-focus -- roving tabindex: the chosen child is the tab stop */
                   className={styles.viewToggle}
                   role="radiogroup"
@@ -640,7 +643,7 @@ function ReelTable({
                 <StatusPill reel={reel} />
               </td>
               <td data-warn={reel.productCount === 0 || undefined}>{reel.productCount || "None"}</td>
-              <td>{formatDuration(reel.duration) || "—"}</td>
+              <td>{formatDuration(reel.duration) || "-"}</td>
               <td className={styles.num}>{reel.views.toLocaleString()}</td>
             </tr>
           ))}
@@ -663,7 +666,7 @@ function EmptyLibrary({ onUpload, onImport }: { onUpload: () => void; onImport: 
         <span />
       </div>
       <h2>Upload your first video</h2>
-      <p>Drop video files anywhere on this page, or import one from a link — an Instagram or TikTok post, a video file or a Dropbox share. Tag the products it features and it&rsquo;s ready for any widget.</p>
+      <p>Drop video files anywhere on this page, or import one from a link (an Instagram or TikTok post, a video file or a Dropbox share). Tag the products it features and it&rsquo;s ready for any widget.</p>
       <div className={styles.emptyActions}>
         <s-button variant="primary" onClick={onUpload}>
           Upload videos
@@ -719,7 +722,7 @@ function ProductChips({ products, onPick, onRemove }: { products: PickedProduct[
         </button>
       </div>
       {products.length === 0 ? (
-        <p className={styles.hint}>Optional — you can tag products later in each video.</p>
+        <p className={styles.hint}>Optional. You can tag products later in each video.</p>
       ) : (
         <div className={styles.chips}>
           {products.map((p) => (
@@ -744,6 +747,7 @@ function UploadModal({ initialFiles, onClear }: { initialFiles: File[]; onClear:
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [published, setPublished] = useState(true);
   const [running, setRunning] = useState(false);
+  const [dragging, setDragging] = useState(false);
   const { products, setProducts, pick } = useProductPicker();
 
   const addFiles = (files: File[]) =>
@@ -810,7 +814,7 @@ function UploadModal({ initialFiles, onClear }: { initialFiles: File[]; onClear:
     setRunning(false);
     if (succeeded > 0) {
       revalidate();
-      shopify.toast.show(`${succeeded} video${succeeded === 1 ? "" : "s"} uploaded — processing now`);
+      shopify.toast.show(`${succeeded} video${succeeded === 1 ? "" : "s"} uploaded and processing`);
     }
   };
 
@@ -831,17 +835,32 @@ function UploadModal({ initialFiles, onClear }: { initialFiles: File[]; onClear:
           type="button"
           className={styles.dropzone}
           onClick={() => inputRef.current?.click()}
+          data-drag={dragging || undefined}
           onDragOver={(e) => e.preventDefault()}
+          onDragEnter={() => setDragging(true)}
+          onDragLeave={(e) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragging(false);
+          }}
           onDrop={(e) => {
             e.preventDefault();
             e.stopPropagation();
+            setDragging(false);
             addFiles(Array.from(e.dataTransfer.files));
           }}
           disabled={running}
         >
-          <UploadIcon />
+          <span className={styles.dropIcon}>
+            <UploadIcon />
+          </span>
           <span className={styles.dropTitle}>Drop videos here or click to browse</span>
-          <span className={styles.hint}>MP4, MOV or WebM · up to 200 MB each · vertical 9:16 looks best</span>
+          <span className={styles.dropSub}>Select as many files as you like. They upload one at a time.</span>
+          <span className={styles.dropFormats}>
+            <span>MP4</span>
+            <span>MOV</span>
+            <span>WebM</span>
+            <span>Up to 200 MB each</span>
+            <span>Vertical 9:16 looks best</span>
+          </span>
         </button>
         <input
           ref={inputRef}
@@ -878,7 +897,7 @@ function UploadModal({ initialFiles, onClear }: { initialFiles: File[]; onClear:
                     ) : item.state === "uploading" ? (
                       `Uploading ${Math.round(item.progress * 100)}%`
                     ) : item.state === "done" ? (
-                      "Uploaded — processing"
+                      "Uploaded and processing"
                     ) : (
                       `${item.file.name} · ${(item.file.size / 1024 / 1024).toFixed(1)} MB`
                     )}
@@ -989,7 +1008,7 @@ function ImportModal() {
         productIds: products.map((p) => p.id),
       });
       shopify.modal.hide("import-modal");
-      shopify.toast.show(link.kind === "file" ? "Importing — the video is downloading and will be ready shortly" : "Video imported — processing now");
+      shopify.toast.show(link.kind === "file" ? "Importing your video. It will be ready shortly." : "Video imported and processing");
       navigate(`/app/reels/${reelId.split("/").pop()}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Import failed.");
@@ -1098,13 +1117,6 @@ function CloseIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
       <path d="M5.72 5.72a.75.75 0 0 1 1.06 0L10 8.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L11.06 10l3.22 3.22a.75.75 0 1 1-1.06 1.06L10 11.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L8.94 10 5.72 6.78a.75.75 0 0 1 0-1.06Z" />
-    </svg>
-  );
-}
-function SearchIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-      <path fillRule="evenodd" d="M12.32 13.38a6 6 0 1 1 1.06-1.06l3.4 3.4a.75.75 0 1 1-1.06 1.06l-3.4-3.4ZM13.5 8.5a5 5 0 1 1-10 0 5 5 0 0 1 10 0Z" />
     </svg>
   );
 }

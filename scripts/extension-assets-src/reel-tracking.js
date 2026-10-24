@@ -1,6 +1,6 @@
 // Shopper events beyond the app's own analytics. Each event the widgets
 // report (window.ReelupTracking.track) goes:
-// - to Shopify customer events (Shopify.analytics.publish) — on by default.
+// - to Shopify customer events (Shopify.analytics.publish), on by default.
 //   Shopify applies the visitor's consent to every pixel subscribed there,
 //   including the custom pixel the app's Integrations page hands out for
 //   tools that run sandboxed (Google & YouTube, Meta, TikTok channels);

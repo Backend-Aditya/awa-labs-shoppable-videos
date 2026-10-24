@@ -37,7 +37,7 @@ describe("deriveKpis", () => {
 
 describe("formatting", () => {
   it.each([
-    [null, "—"],
+    [null, "-"],
     [0, "0:00"],
     [42.4, "0:42"],
     [185, "3:05"],
@@ -47,7 +47,7 @@ describe("formatting", () => {
   });
 
   it("percent", () => {
-    expect(formatPercent(null)).toBe("—");
+    expect(formatPercent(null)).toBe("-");
     expect(formatPercent(12.345)).toBe("12.3%");
   });
 });

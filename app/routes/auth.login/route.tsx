@@ -33,7 +33,7 @@ export default function Auth() {
         <s-section heading="Log in">
           <s-text-field
             name="shop"
-            label="Shop domain"
+            label="Store domain"
             details="example.myshopify.com"
             value={shop}
             onChange={(e) => setShop(e.currentTarget.value)}

@@ -87,7 +87,7 @@ describe("Segmented", () => {
   });
 });
 
-describe("Segmented — roving tabindex keyboard navigation", () => {
+describe("Segmented, roving tabindex keyboard navigation", () => {
   const options = [
     { value: "a", label: "A" },
     { value: "b", label: "B" },

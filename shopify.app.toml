@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "9ea31b9c552028b42fe272081db2b3e3"
-application_url = "https://awa-shoppable-videos.onrender.com"
+application_url = "https://awa-shoppable-videos.fly.dev"
 embedded = true
 name = "AWAlabs Shoppable Videos"
 
@@ -176,10 +176,10 @@ description = "Where shoppable video events go besides the app's analytics (Shop
   storefront = "public_read"
 
 [auth]
-redirect_urls = [ "https://awa-shoppable-videos.onrender.com/api/auth" ]
+redirect_urls = [ "https://awa-shoppable-videos.fly.dev/api/auth" ]
 
 [app_proxy]
-url = "https://awa-shoppable-videos.onrender.com/api"
+url = "https://awa-shoppable-videos.fly.dev/api"
 subpath = "reels"
 prefix = "apps"
 
@@ -191,15 +191,19 @@ api_version = "2026-07"
   topics = [ "app/uninstalled" ]
 
   [[webhooks.subscriptions]]
+  uri = "/webhooks/app/subscriptions_update"
+  topics = [ "app_subscriptions/update" ]
+
+  [[webhooks.subscriptions]]
   uri = "/webhooks/app/scopes_update"
   topics = [ "app/scopes_update" ]
 
-  # orders/paid is a "protected customer data" webhook topic — Shopify
+  # orders/paid is a "protected customer data" webhook topic, Shopify
   # rejects the whole app version if it's declared without prior approval
   # (Partner Dashboard > App setup > Protected customer data access).
   # The handler (webhooks.orders.paid.tsx) and its model code are already
   # shipped; re-add this subscription once that approval comes through,
-  # then redeploy — no other changes needed. Until then, add-to-cart
+  # then redeploy, no other changes needed. Until then, add-to-cart
   # tagging is live but nothing captures it yet, so there's nothing to
   # backfill once this re-enables, only orders placed after it does.
   # [[webhooks.subscriptions]]
@@ -207,9 +211,9 @@ api_version = "2026-07"
   # topics = [ "orders/paid" ]
 
   [webhooks.privacy_compliance]
-  customer_data_request_url = "https://awa-shoppable-videos.onrender.com/webhooks/customers/data_request"
-  customer_deletion_url = "https://awa-shoppable-videos.onrender.com/webhooks/customers/redact"
-  shop_deletion_url = "https://awa-shoppable-videos.onrender.com/webhooks/shop/redact"
+  customer_data_request_url = "https://awa-shoppable-videos.fly.dev/webhooks/customers/data_request"
+  customer_deletion_url = "https://awa-shoppable-videos.fly.dev/webhooks/customers/redact"
+  shop_deletion_url = "https://awa-shoppable-videos.fly.dev/webhooks/shop/redact"
 
 [build]
 automatically_update_urls_on_dev = true
