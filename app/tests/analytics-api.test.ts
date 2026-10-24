@@ -38,12 +38,30 @@ describe("storefront analytics endpoint", () => {
   it.each(["view", "click_product", "add_to_cart", "complete"])("counts %s once, under the numeric reel id", async (eventType) => {
     const response = await send({ reelId: "gid://shopify/Metaobject/42", eventType });
     expect(response.status).toBe(200);
-    expect(mocks.recordEvent).toHaveBeenCalledWith(`id-${shop}`, "42", eventType, expect.any(Date), 1);
+    expect(mocks.recordEvent).toHaveBeenCalledWith(`id-${shop}`, "42", eventType, expect.any(Date), 1, {});
+  });
+
+  it("passes the widget and product along for the per-widget and per-product numbers", async () => {
+    await send({ reelId: "42", eventType: "add_to_cart", source: "carousel", productId: "gid://shopify/Product/7" });
+    expect(mocks.recordEvent).toHaveBeenCalledWith(`id-${shop}`, "42", "add_to_cart", expect.any(Date), 1, {
+      source: "carousel",
+      productId: "7",
+    });
+  });
+
+  it.each([
+    [{ source: "homepage_banner" }],
+    [{ source: 5 }],
+    [{ productId: "gid://shopify/Order/7" }],
+    [{ productId: "7; drop table" }],
+  ])("drops an unknown widget or product (%j) but still counts the event", async (extra) => {
+    expect((await send({ reelId: "42", eventType: "click_product", ...extra })).status).toBe(200);
+    expect(mocks.recordEvent).toHaveBeenCalledWith(`id-${shop}`, "42", "click_product", expect.any(Date), 1, {});
   });
 
   it("adds watch time in seconds", async () => {
     expect((await send({ reelId: "42", eventType: "watch", seconds: 37 })).status).toBe(200);
-    expect(mocks.recordEvent).toHaveBeenCalledWith(`id-${shop}`, "42", "watch", expect.any(Date), 37);
+    expect(mocks.recordEvent).toHaveBeenCalledWith(`id-${shop}`, "42", "watch", expect.any(Date), 37, {});
   });
 
   it.each([undefined, 0, -5, 2.5, "30", 901])("rejects watch time of %j seconds", async (seconds) => {

@@ -1,5 +1,7 @@
 import { Prisma } from "@prisma/client";
 import prisma from "../db.server";
+import { isWidgetSource } from "./widget-kinds";
+import type { WidgetSource } from "./widget-kinds";
 
 // Storefront events carry the reel id exactly as Liquid printed it, which
 // may be a full metaobject GID or just its numeric tail. Everything here is
@@ -59,11 +61,54 @@ const COLUMN_FOR: Record<TrackedEvent, keyof Engagement> = {
 // matter how much traffic a shop gets. One statement, atomic under
 // concurrent requests thanks to ON CONFLICT. `amount` is 1 for every event
 // but "watch", which carries the seconds played.
-export async function recordEvent(shopId: string, reelId: string, eventType: TrackedEvent, at = new Date(), amount = 1) {
+//
+// `context` adds the same event to the per-widget rollup (which widget it
+// happened in) and, for product taps and adds to cart, the per-product one.
+// Both are optional: older storefront scripts don't send them.
+export interface EventContext {
+  source?: WidgetSource;
+  // Numeric product id.
+  productId?: string;
+}
+
+export async function recordEvent(
+  shopId: string,
+  reelId: string,
+  eventType: TrackedEvent,
+  at = new Date(),
+  amount = 1,
+  context: EventContext = {},
+) {
   const day = new Date(Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate()));
   const add = zeroEngagement();
   add[COLUMN_FOR[eventType]] = Math.max(0, Math.round(amount));
-  await prisma.$executeRaw`
+  const statements = [reelStatement(shopId, reelId, day, add)];
+  // Watch time stays per reel: its report isn't tied to a widget.
+  if (context.source && eventType !== "watch") {
+    statements.push(prisma.$executeRaw`
+      INSERT INTO "WidgetDailyStat" ("shopId", "source", "day", "views", "clicks", "addToCarts", "completions")
+      VALUES (${shopId}, ${context.source}, ${day}::date, ${add.views}, ${add.clicks}, ${add.addToCarts}, ${add.completions})
+      ON CONFLICT ("shopId", "source", "day")
+      DO UPDATE SET "views" = "WidgetDailyStat"."views" + EXCLUDED."views",
+                    "clicks" = "WidgetDailyStat"."clicks" + EXCLUDED."clicks",
+                    "addToCarts" = "WidgetDailyStat"."addToCarts" + EXCLUDED."addToCarts",
+                    "completions" = "WidgetDailyStat"."completions" + EXCLUDED."completions"`);
+  }
+  if (context.productId && (eventType === "click_product" || eventType === "add_to_cart")) {
+    statements.push(prisma.$executeRaw`
+      INSERT INTO "ProductDailyStat" ("shopId", "productId", "day", "clicks", "addToCarts")
+      VALUES (${shopId}, ${context.productId}, ${day}::date, ${add.clicks}, ${add.addToCarts})
+      ON CONFLICT ("shopId", "productId", "day")
+      DO UPDATE SET "clicks" = "ProductDailyStat"."clicks" + EXCLUDED."clicks",
+                    "addToCarts" = "ProductDailyStat"."addToCarts" + EXCLUDED."addToCarts"`);
+  }
+  // One transaction on one connection, so the rollups never disagree.
+  if (statements.length === 1) await statements[0];
+  else await prisma.$transaction(statements);
+}
+
+function reelStatement(shopId: string, reelId: string, day: Date, add: Engagement) {
+  return prisma.$executeRaw`
     INSERT INTO "ReelDailyStat" ("shopId", "reelId", "day", "views", "clicks", "addToCarts", "completions", "watchSeconds")
     VALUES (${shopId}, ${reelKey(reelId)}, ${day}::date, ${add.views}, ${add.clicks}, ${add.addToCarts}, ${add.completions}, ${add.watchSeconds})
     ON CONFLICT ("shopId", "reelId", "day")
@@ -254,4 +299,52 @@ export async function getDashboardStats(shopId: string, days = 30, now = new Dat
     daily,
     reels: [...reels.values()].sort((a, b) => b.revenue - a.revenue || b.views - a.views),
   };
+}
+
+export interface WidgetPerformance {
+  source: WidgetSource;
+  views: number;
+  clicks: number;
+  addToCarts: number;
+  completions: number;
+}
+
+// Each widget's engagement over the last `days` days, busiest first.
+export async function getWidgetStats(shopId: string, days = 30, now = new Date()): Promise<WidgetPerformance[]> {
+  const { start, end } = windowFor(days, now);
+  const rows = await prisma.widgetDailyStat.groupBy({
+    by: ["source"],
+    where: { shopId, day: { gte: start, lt: end } },
+    _sum: { views: true, clicks: true, addToCarts: true, completions: true },
+  });
+  return rows
+    .filter((row) => isWidgetSource(row.source))
+    .map((row) => ({
+      source: row.source as WidgetSource,
+      views: row._sum.views ?? 0,
+      clicks: row._sum.clicks ?? 0,
+      addToCarts: row._sum.addToCarts ?? 0,
+      completions: row._sum.completions ?? 0,
+    }))
+    .sort((a, b) => b.views - a.views || b.addToCarts - a.addToCarts);
+}
+
+export interface ProductPerformance {
+  productId: string;
+  clicks: number;
+  addToCarts: number;
+}
+
+// The products shoppers acted on most from videos over the last `days`
+// days: most adds to cart first, then most taps.
+export async function getTopProducts(shopId: string, days = 30, now = new Date(), limit = 10): Promise<ProductPerformance[]> {
+  const { start, end } = windowFor(days, now);
+  const rows = await prisma.productDailyStat.groupBy({
+    by: ["productId"],
+    where: { shopId, day: { gte: start, lt: end } },
+    _sum: { clicks: true, addToCarts: true },
+    orderBy: [{ _sum: { addToCarts: "desc" } }, { _sum: { clicks: "desc" } }],
+    take: limit,
+  });
+  return rows.map((row) => ({ productId: row.productId, clicks: row._sum.clicks ?? 0, addToCarts: row._sum.addToCarts ?? 0 }));
 }

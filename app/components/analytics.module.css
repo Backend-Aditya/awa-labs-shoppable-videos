@@ -1,5 +1,5 @@
-/* Analytics page pieces on top of dashboard.module.css: KPI group titles
-   and the view-to-order funnel. */
+/* Analytics page pieces on top of dashboard.module.css: KPI group titles,
+   the view-to-order funnel, and the by-widget and top-products cards. */
 
 .groupTitle {
   margin: 16px 0 8px;
@@ -74,4 +74,55 @@
   .funnelBar {
     transition: none;
   }
+}
+
+/* By widget and top products sit side by side when there's room. */
+.split {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.split > section {
+  min-width: 0;
+}
+
+.note {
+  margin: 12px 0 0;
+  color: #616161;
+  font-size: 12px;
+}
+
+.rowLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+a.rowLabel:hover span:last-child {
+  text-decoration: underline;
+}
+
+a.rowLabel:focus-visible {
+  outline: 2px solid #005bd3;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.schematic {
+  flex-shrink: 0;
+  width: 40px;
+  height: 25px;
+}
+
+.productThumb {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: #e3e3e3 center / cover no-repeat;
 }

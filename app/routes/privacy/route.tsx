@@ -69,8 +69,9 @@ export default function Privacy() {
         <ul>
           <li>
             <strong>Video activity.</strong> When a shopper opens a video, watches it to the end, taps a product or adds one to the cart,
-            the app records which video, which of those events happened, and how many seconds were watched. These are counted into daily
-            totals per video. They contain no names, email addresses, IP addresses or other identifiers of the shopper.
+            the app records which video, which widget it was in, which product was tapped or added, which of those events happened, and
+            how many seconds were watched. These are counted into daily totals per video, per widget and per product. They contain no
+            names, email addresses, IP addresses or other identifiers of the shopper.
           </li>
           <li>
             <strong>Sales from videos.</strong> An item added to the cart from a video carries a hidden reference to that video. When sales

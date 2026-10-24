@@ -223,7 +223,7 @@ describe("seen state", () => {
     click(avatar(0));
     await vi.advanceTimersByTimeAsync(0);
     const views = fetchCalls("/apps/reels/analytics").map(fetchBody).filter((b) => b.eventType === "view");
-    expect(views).toEqual([{ reelId: "gid://shopify/Metaobject/1", eventType: "view" }]);
+    expect(views).toEqual([{ reelId: "gid://shopify/Metaobject/1", eventType: "view", source: "stories" }]);
   });
 });
 

@@ -59,7 +59,9 @@ prisma/                      schema and migrations (Postgres)
   loads on first intent. Edit `scripts/extension-assets-src/`, then
   `npm run build:extension` minifies into the extension's `assets/`.
 - **Analytics**: viewers post events to `/apps/reels/analytics`; they're
-  counted into daily per-reel rollups (`ReelDailyStat`). Orders are
+  counted into daily rollups per reel (`ReelDailyStat`), per widget
+  (`WidgetDailyStat`, from the event's widget source) and per product
+  (`ProductDailyStat`, taps and adds to cart). Orders are
   attributed from a hidden `_reelup_reel_id` line-item property by the
   `orders/paid` webhook (disabled until protected customer data access is
   approved, see `shopify.app.toml`).

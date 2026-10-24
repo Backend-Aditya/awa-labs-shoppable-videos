@@ -2,7 +2,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Prisma } from "@prisma/client";
 import prisma from "../db.server";
 import { getOrCreateShop } from "./shop.server";
-import { getDashboardStats, getReelStats, getViewCountsByReel, parseRange, recordEvent, reelKey } from "./analytics.server";
+import { getDashboardStats, getReelStats, getTopProducts, getViewCountsByReel, getWidgetStats, parseRange, recordEvent, reelKey } from "./analytics.server";
 import { BRAND_DEFAULTS, resolveBrand } from "./brand";
 
 describe("reelKey", () => {
@@ -149,5 +149,53 @@ describe("parseRange", () => {
     expect(parseRange("90")).toBe(90);
     expect(parseRange("365")).toBe(30);
     expect(parseRange(null)).toBe(30);
+  });
+});
+
+describe("per-widget and per-product rollups", () => {
+  beforeEach(async () => {
+    await prisma.shop.deleteMany({ where: { shopDomain: "breakdown.myshopify.com" } });
+  });
+  afterAll(async () => {
+    await prisma.shop.deleteMany({ where: { shopDomain: "breakdown.myshopify.com" } });
+  });
+
+  it("splits engagement by widget and product, alongside the per-reel totals", async () => {
+    const shop = await getOrCreateShop("breakdown.myshopify.com");
+    const at = new Date();
+    await recordEvent(shop.id, "1", "view", at, 1, { source: "carousel" });
+    await recordEvent(shop.id, "1", "view", at, 1, { source: "carousel" });
+    await recordEvent(shop.id, "2", "view", at, 1, { source: "stories" });
+    await recordEvent(shop.id, "1", "click_product", at, 1, { source: "carousel", productId: "7" });
+    await recordEvent(shop.id, "1", "add_to_cart", at, 1, { source: "carousel", productId: "7" });
+    await recordEvent(shop.id, "2", "click_product", at, 1, { source: "stories", productId: "8" });
+    await recordEvent(shop.id, "1", "complete", at, 1, { source: "carousel" });
+    // Watch time isn't split by widget, and views carry no product.
+    await recordEvent(shop.id, "1", "watch", at, 30, { source: "carousel", productId: "7" });
+    // An older script, without context: still counted per reel.
+    await recordEvent(shop.id, "2", "view", at);
+
+    expect(await getWidgetStats(shop.id, 7)).toEqual([
+      { source: "carousel", views: 2, clicks: 1, addToCarts: 1, completions: 1 },
+      { source: "stories", views: 1, clicks: 1, addToCarts: 0, completions: 0 },
+    ]);
+    expect(await getTopProducts(shop.id, 7)).toEqual([
+      { productId: "7", clicks: 1, addToCarts: 1 },
+      { productId: "8", clicks: 1, addToCarts: 0 },
+    ]);
+    const totals = (await getDashboardStats(shop.id, 7)).current;
+    expect(totals).toMatchObject({ views: 4, clicks: 2, addToCarts: 1, completions: 1, watchSeconds: 30 });
+  });
+
+  it("keeps to the period and the limit, and is deleted with the shop", async () => {
+    const shop = await getOrCreateShop("breakdown.myshopify.com");
+    await recordEvent(shop.id, "1", "click_product", new Date("2020-01-01T00:00:00Z"), 1, { source: "stories", productId: "1" });
+    for (let i = 0; i < 4; i++) await recordEvent(shop.id, "1", "click_product", new Date(), 1, { productId: String(10 + i) });
+    expect(await getWidgetStats(shop.id, 7)).toEqual([]);
+    expect(await getTopProducts(shop.id, 7, new Date(), 3)).toHaveLength(3);
+
+    await prisma.shop.delete({ where: { id: shop.id } });
+    expect(await prisma.widgetDailyStat.count({ where: { shopId: shop.id } })).toBe(0);
+    expect(await prisma.productDailyStat.count({ where: { shopId: shop.id } })).toBe(0);
   });
 });

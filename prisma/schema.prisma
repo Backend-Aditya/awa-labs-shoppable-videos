@@ -57,6 +57,8 @@ model Shop {
   widgets           Widget[]
   reelEvents        ReelEvent[]
   reelDailyStats    ReelDailyStat[]
+  widgetDailyStats  WidgetDailyStat[]
+  productDailyStats ProductDailyStat[]
   orderAttributions OrderAttribution[]
   streamAssets      StreamAsset[]
 }
@@ -111,6 +113,38 @@ model ReelDailyStat {
   watchSeconds Int      @default(0)
 
   @@id([shopId, reelId, day])
+  @@index([shopId, day])
+}
+
+// The same engagement, split by the widget it happened in (the storefront's
+// widget source: product_page_reels, carousel, stories, featured_video,
+// add_to_cart_video, floating_video). Counted from when the storefront began
+// sending the source, so it can sum to less than ReelDailyStat.
+model WidgetDailyStat {
+  shop        Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  shopId      String
+  source      String
+  day         DateTime @db.Date
+  views       Int      @default(0)
+  clicks      Int      @default(0)
+  addToCarts  Int      @default(0)
+  completions Int      @default(0)
+
+  @@id([shopId, source, day])
+  @@index([shopId, day])
+}
+
+// Product taps and adds to cart from videos, per product (numeric id) and
+// day. Holds no customer data.
+model ProductDailyStat {
+  shop       Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  shopId     String
+  productId  String
+  day        DateTime @db.Date
+  clicks     Int      @default(0)
+  addToCarts Int      @default(0)
+
+  @@id([shopId, productId, day])
   @@index([shopId, day])
 }
 

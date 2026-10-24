@@ -5,8 +5,11 @@ import { useAppBridge } from "@shopify/app-bridge-react";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server";
 import { getOrCreateShop } from "../models/shop.server";
-import { listReels } from "../models/reel.server";
-import { getDashboardStats, parseRange, reelKey } from "../models/analytics.server";
+import { getProductsByIds, listReels } from "../models/reel.server";
+import { getDashboardStats, getTopProducts, getWidgetStats, parseRange, reelKey } from "../models/analytics.server";
+import type { ProductPerformance } from "../models/analytics.server";
+import { SOURCE_KIND, getKindMeta } from "../models/widget-kinds";
+import { KindSchematic } from "../components/widget-editor/KindSchematic";
 import { deriveKpis, formatWatchTime, formatPercent, funnel, percent, toCsv, topShare } from "../models/kpis";
 import { log } from "../lib/logger.server";
 import { ViewsChart } from "../components/ViewsChart";
@@ -19,8 +22,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const shop = await getOrCreateShop(session.shop);
   const days = parseRange(new URL(request.url).searchParams.get("days"));
   // Like Home: a slow Shopify API only costs the video titles, not the numbers.
-  const [reelsResult, statsResult] = await Promise.allSettled([listReels(admin), getDashboardStats(shop.id, days)]);
-  for (const result of [reelsResult, statsResult]) {
+  const [reelsResult, statsResult, widgetsResult, productsResult] = await Promise.allSettled([
+    listReels(admin),
+    getDashboardStats(shop.id, days),
+    getWidgetStats(shop.id, days),
+    getTopProducts(shop.id, days),
+  ]);
+  for (const result of [reelsResult, statsResult, widgetsResult, productsResult]) {
     if (result.status === "rejected") {
       if (result.reason instanceof Response) throw result.reason;
       log.error("analytics.load_failed", { shop: session.shop }, result.reason);
@@ -49,13 +57,39 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     };
   });
 
+  const widgets = (widgetsResult.status === "fulfilled" ? widgetsResult.value : []).map((w) => ({
+    ...w,
+    kind: SOURCE_KIND[w.source],
+    name: getKindMeta(SOURCE_KIND[w.source])?.name ?? w.source,
+  }));
+  const products = await withProductDetails(admin, productsResult.status === "fulfilled" ? productsResult.value : [], session.shop);
+
   return {
     days,
-    partial: reelsResult.status === "rejected" || statsResult.status === "rejected",
+    partial: [reelsResult, statsResult, widgetsResult, productsResult].some((r) => r.status === "rejected"),
+    widgets,
+    products,
     stats: stats ? { current: stats.current, previous: stats.previous, daily: stats.daily } : null,
     rows,
   };
 };
+
+// Titles and images for the top products. A slow or failing lookup only
+// costs the names (rows fall back to "Product <id>"), and a product deleted
+// since shows that way too.
+async function withProductDetails(admin: Parameters<typeof getProductsByIds>[0], rows: ProductPerformance[], shop: string) {
+  let details = new Map<string, { title: string; imageUrl: string | null }>();
+  if (rows.length > 0) {
+    try {
+      const found = await getProductsByIds(admin, rows.map((r) => `gid://shopify/Product/${r.productId}`));
+      details = new Map(found.map((p) => [reelKey(p.id), { title: p.title, imageUrl: p.imageUrl }]));
+    } catch (error) {
+      if (error instanceof Response) throw error;
+      log.error("analytics.products_failed", { shop }, error);
+    }
+  }
+  return rows.map((r) => ({ ...r, title: details.get(r.productId)?.title ?? null, imageUrl: details.get(r.productId)?.imageUrl ?? null }));
+}
 
 type Data = ReturnType<typeof useLoaderData<typeof loader>>;
 type Row = Data["rows"][number];
@@ -74,6 +108,12 @@ export default function Analytics() {
           </s-banner>
         )}
         {data.stats ? <Overview days={data.days} stats={data.stats} rows={data.rows} loading={loading} /> : null}
+        {data.stats ? (
+          <div className={own.split}>
+            <WidgetBreakdown widgets={data.widgets} days={data.days} />
+            <TopProducts products={data.products} days={data.days} />
+          </div>
+        ) : null}
         <VideoTable rows={data.rows} days={data.days} currency={data.stats?.current.revenue[0]?.currencyCode ?? null} multiCurrency={(data.stats?.current.revenue.length ?? 0) > 1} />
       </div>
     </s-page>
@@ -308,4 +348,105 @@ export const headers: HeadersFunction = (headersArgs) => {
 // Titles are merchant-written and can be long; a KPI sub line has one line.
 function shortTitle(title: string) {
   return `“${title.length > 28 ? `${title.slice(0, 27).trimEnd()}…` : title}”`;
+}
+
+// Engagement per widget: where videos earn attention and adds to cart, so
+// merchants can give the strongest placement more videos.
+function WidgetBreakdown({ widgets, days }: { widgets: Data["widgets"]; days: number }) {
+  return (
+    <section className={styles.card}>
+      <header className={styles.cardHeader}>
+        <div>
+          <h2 className={styles.cardTitle}>By widget</h2>
+          <span className={styles.muted}>Last {days} days · where shoppers watch and buy</span>
+        </div>
+      </header>
+      {widgets.length === 0 ? (
+        <p className={own.note}>Each widget&rsquo;s views, taps and adds to cart show here once shoppers use them.</p>
+      ) : (
+        <div className={styles.tableScroll}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th scope="col">Widget</th>
+                <th scope="col">Views</th>
+                <th scope="col">Completion</th>
+                <th scope="col">Taps</th>
+                <th scope="col">Adds to cart</th>
+                <th scope="col">Add-to-cart rate</th>
+              </tr>
+            </thead>
+            <tbody>
+              {widgets.map((w) => (
+                <tr key={w.source}>
+                  <th scope="row">
+                    <span className={own.rowLabel}>
+                      <span className={own.schematic}>
+                        <KindSchematic kind={w.kind} />
+                      </span>
+                      <span className={styles.reelTitle}>{w.name}</span>
+                    </span>
+                  </th>
+                  <td>{w.views.toLocaleString()}</td>
+                  <td>{formatPercent(percent(w.completions, w.views), 0)}</td>
+                  <td>{w.clicks.toLocaleString()}</td>
+                  <td>{w.addToCarts.toLocaleString()}</td>
+                  <td>{formatPercent(percent(w.addToCarts, w.views))}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {widgets.length > 0 && (
+        <p className={own.note}>Counted per widget since this version of the app; earlier activity is in the totals above.</p>
+      )}
+    </section>
+  );
+}
+
+// The products shoppers act on from videos, linked to the product in the
+// Shopify admin.
+function TopProducts({ products, days }: { products: Data["products"]; days: number }) {
+  return (
+    <section className={styles.card}>
+      <header className={styles.cardHeader}>
+        <div>
+          <h2 className={styles.cardTitle}>Top products from videos</h2>
+          <span className={styles.muted}>Last {days} days · most added to cart</span>
+        </div>
+      </header>
+      {products.length === 0 ? (
+        <p className={own.note}>Products shoppers tap or add to cart from your videos show here.</p>
+      ) : (
+        <div className={styles.tableScroll}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th scope="col">Product</th>
+                <th scope="col">Taps</th>
+                <th scope="col">Adds to cart</th>
+                <th scope="col">Tap to cart</th>
+              </tr>
+            </thead>
+            <tbody>
+              {products.map((p) => (
+                <tr key={p.productId}>
+                  <th scope="row">
+                    <a className={own.rowLabel} href={`shopify://admin/products/${p.productId}`} target="_top">
+                      <span className={own.productThumb} style={p.imageUrl ? { backgroundImage: `url("${p.imageUrl}")` } : undefined} />
+                      <span className={styles.reelTitle}>{p.title ?? `Product ${p.productId}`}</span>
+                    </a>
+                  </th>
+                  <td>{p.clicks.toLocaleString()}</td>
+                  <td>{p.addToCarts.toLocaleString()}</td>
+                  <td>{formatPercent(percent(p.addToCarts, p.clicks), 0)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
 }

@@ -59,6 +59,14 @@ beforeEach(() => {
       row("2", "=cmd|' /C calc'!A0", { views: 400, clicks: 60, addToCarts: 10, completions: 100, watchSeconds: 6000, revenue: 140, unitsSold: 2 }),
       row("3", "Not watched yet"),
     ],
+    widgets: [
+      { source: "carousel", kind: "CAROUSEL", name: "Stacked carousel", views: 700, clicks: 100, addToCarts: 35, completions: 210 },
+      { source: "stories", kind: "STORIES", name: "Stories", views: 300, clicks: 50, addToCarts: 5, completions: 90 },
+    ],
+    products: [
+      { productId: "7", title: "Linen shirt", imageUrl: null, clicks: 80, addToCarts: 30 },
+      { productId: "9", title: null, imageUrl: null, clicks: 20, addToCarts: 0 },
+    ],
   };
 });
 
@@ -104,6 +112,32 @@ describe("Analytics page", () => {
     expect(within(kpi("Top video's share")).getByText("no adds to cart yet")).toBeTruthy();
   });
 
+  it("breaks engagement down by widget", () => {
+    render(<Analytics />);
+    const table = screen.getByRole("heading", { name: "By widget" }).closest("section")!;
+    const carousel = within(table).getByText("Stacked carousel").closest("tr")!;
+    // 700 views, 30% completion, 100 taps, 35 adds, 5.0% add-to-cart rate.
+    expect(within(carousel).getAllByRole("cell").map((c) => c.textContent)).toEqual(["700", "30%", "100", "35", "5.0%"]);
+    expect(within(table).getByText(/Counted per widget since this version/)).toBeTruthy();
+  });
+
+  it("lists the top products, linked to the product in Shopify, even when a title is missing", () => {
+    render(<Analytics />);
+    const table = screen.getByRole("heading", { name: "Top products from videos" }).closest("section")!;
+    const shirt = within(table).getByRole("link", { name: "Linen shirt" });
+    expect(shirt.getAttribute("href")).toBe("shopify://admin/products/7");
+    expect(within(shirt.closest("tr")!).getAllByRole("cell").map((c) => c.textContent)).toEqual(["80", "30", "38%"]);
+    expect(within(table).getByRole("link", { name: "Product 9" })).toBeTruthy();
+  });
+
+  it("explains the breakdowns before there is anything to show", () => {
+    state.loader = { ...state.loader, widgets: [], products: [] };
+    render(<Analytics />);
+    expect(screen.getByText(/views, taps and adds to cart show here once shoppers use them/)).toBeTruthy();
+    expect(screen.getByText("Products shoppers tap or add to cart from your videos show here.")).toBeTruthy();
+    expect(screen.queryByText(/Counted per widget since this version/)).toBeNull();
+  });
+
   it("walks the funnel step by step", () => {
     render(<Analytics />);
     const steps = screen.getAllByRole("listitem").map((li) => li.textContent);
@@ -112,7 +146,8 @@ describe("Analytics page", () => {
 
   it("lists every video, unwatched ones too, and ranks by any column", () => {
     render(<Analytics />);
-    const titles = () => screen.getAllByRole("row").slice(1).map((r) => within(r).getByRole("rowheader").textContent);
+    const videos = () => screen.getByRole("heading", { name: "Videos" }).closest("section")!;
+    const titles = () => within(videos()).getAllByRole("row").slice(1).map((r) => within(r).getByRole("rowheader").textContent);
     expect(titles()).toEqual(["Morning routine", "=cmd|' /C calc'!A0", "Not watched yet"]);
     fireEvent.click(screen.getByRole("button", { name: /Views/ }));
     expect(titles()).toEqual(["Not watched yet", "=cmd|' /C calc'!A0", "Morning routine"]);

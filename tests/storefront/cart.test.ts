@@ -256,8 +256,9 @@ describe("add to cart", () => {
     await mountCards();
     card(2).querySelector<HTMLAnchorElement>(".reelup-product__title")!.addEventListener("click", (e) => e.preventDefault());
     click(card(2).querySelector(".reelup-product__title"));
+    // The widget and product feed the per-widget and per-product numbers.
     expect(fetchCalls("/apps/reels/analytics").map(fetchBody)).toEqual([
-      { reelId: REEL_ID, eventType: "click_product" },
+      { reelId: REEL_ID, eventType: "click_product", source: "featured_video", productId: "2" },
     ]);
   });
 });

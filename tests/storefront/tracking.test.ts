@@ -191,7 +191,7 @@ describe("shopper metrics", () => {
     click(viewer()!.querySelector("[data-reelup-add-to-cart]"));
     await flush();
     expect(appEvents("add_to_cart")).toEqual([
-      { shopDomain: "test.myshopify.com", reelId: "gid://shopify/Metaobject/11", eventType: "add_to_cart" },
+      { shopDomain: "test.myshopify.com", reelId: "gid://shopify/Metaobject/11", eventType: "add_to_cart", source: "product_page_reels", productId: "1" },
     ]);
     expect(published("reelup_add_to_cart")).toEqual([
       { reel_id: "11", reel_title: "First", widget: "product_page_reels", product_id: "1", variant_id: "100", quantity: 1, value: 25, currency: "USD" },

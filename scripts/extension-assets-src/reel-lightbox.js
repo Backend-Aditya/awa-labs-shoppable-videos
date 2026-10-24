@@ -101,14 +101,18 @@
   const PUBLIC_EVENTS = { view: "video_view", complete: "video_complete", click_product: "product_click", add_to_cart: "add_to_cart" };
 
   // Every shopper action the widgets report. `detail.trigger` is the reel's
-  // trigger (title and widget for connected tools), `detail.seconds` the
-  // watch time; anything else goes to connected tools as is.
+  // trigger (title and widget for connected tools, and the widget for the
+  // app's per-widget numbers), `detail.seconds` the watch time,
+  // `detail.product_id` the product for the per-product numbers; anything
+  // else goes to connected tools as is.
   const trackAnalytics = (reelId, eventType, detail = {}) => {
     if (!reelId) return;
     if (COUNTED_ONCE[eventType] && recentlyCounted(eventType, reelId)) return;
     const { trigger, seconds, ...extra } = detail;
     const body = { shopDomain: window.Shopify?.shop, reelId, eventType };
     if (eventType === "watch") body.seconds = seconds;
+    if (trigger?.dataset.source) body.source = trigger.dataset.source;
+    if (extra.product_id) body.productId = String(extra.product_id);
     fetch("/apps/reels/analytics", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

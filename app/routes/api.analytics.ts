@@ -3,7 +3,8 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { log } from "../lib/logger.server";
 import { recordEvent } from "../models/analytics.server";
-import type { TrackedEvent } from "../models/analytics.server";
+import type { EventContext, TrackedEvent } from "../models/analytics.server";
+import { isWidgetSource } from "../models/widget-kinds";
 
 // Storefront shopper events, reached only through Shopify's app proxy
 // (/apps/reels/analytics), which signs each request and supplies the shop.
@@ -17,6 +18,7 @@ import type { TrackedEvent } from "../models/analytics.server";
 
 const ALLOWED_EVENT_TYPES = new Set<TrackedEvent>(["view", "click_product", "add_to_cart", "complete", "watch"]);
 const REEL_ID = /^(?:gid:\/\/shopify\/Metaobject\/)?(\d{1,20})$/;
+const PRODUCT_ID = /^(?:gid:\/\/shopify\/Product\/)?(\d{1,20})$/;
 const MAX_WATCH_SECONDS = 900;
 const SHOP_CACHE_TTL_MS = 5 * 60 * 1000;
 const RATE_WINDOW_MS = 60 * 1000;
@@ -55,7 +57,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const shopDomain = new URL(request.url).searchParams.get("shop");
   if (!shopDomain) return Response.json({ error: "Missing shop" }, { status: 400 });
 
-  let payload: { reelId?: unknown; eventType?: unknown; seconds?: unknown };
+  let payload: { reelId?: unknown; eventType?: unknown; seconds?: unknown; source?: unknown; productId?: unknown };
   try {
     payload = await request.json();
   } catch {
@@ -78,13 +80,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
     amount = seconds;
   }
+  // Which widget and product, when the storefront says (older scripts
+  // don't). An unknown value is dropped, never a reason to lose the event.
+  const context: EventContext = {};
+  if (isWidgetSource(payload.source)) context.source = payload.source;
+  const product = typeof payload.productId === "string" || typeof payload.productId === "number" ? String(payload.productId).match(PRODUCT_ID) : null;
+  if (product) context.productId = product[1];
 
   try {
     const shopId = await shopIdFor(shopDomain);
     if (!shopId) return Response.json({ error: "Shop not found" }, { status: 404 });
     if (overLimit(shopId)) return Response.json({ error: "Too many events" }, { status: 429 });
 
-    await recordEvent(shopId, match[1], eventType, new Date(), amount);
+    await recordEvent(shopId, match[1], eventType, new Date(), amount, context);
     return Response.json({ success: true });
   } catch (error) {
     log.error("analytics.record_failed", { shop: shopDomain, eventType }, error);

@@ -402,6 +402,22 @@ export function getKindMeta(kind: string): WidgetKindMeta | undefined {
   return (WIDGET_KIND_META as Record<string, WidgetKindMeta>)[kind];
 }
 
+// The storefront names each widget in its events (the Liquid blocks'
+// `source`, sent as data-source); per-widget analytics are keyed by it.
+export const SOURCE_KIND = {
+  product_page_reels: "PRODUCT_PAGE_REELS",
+  carousel: "CAROUSEL",
+  stories: "STORIES",
+  featured_video: "SINGLE_VIDEO",
+  add_to_cart_video: "ADD_TO_CART_VIDEO",
+  floating_video: "REEL_POPS",
+} as const satisfies Record<string, WidgetKind>;
+
+export type WidgetSource = keyof typeof SOURCE_KIND;
+
+export const isWidgetSource = (value: unknown): value is WidgetSource =>
+  typeof value === "string" && Object.hasOwn(SOURCE_KIND, value);
+
 // Stored style merged over the kind's defaults, what the editor starts from
 // and what the preview renders. Unset fields fall back to defaults; fields
 // a merchant explicitly cleared (empty string) stay cleared.
