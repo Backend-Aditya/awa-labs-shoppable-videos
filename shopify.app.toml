@@ -7,9 +7,10 @@ name = "AWAlabs Shoppable Videos"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-# read_orders is re-added together with the orders/paid webhook once
-# Shopify approves protected customer data access (see [webhooks] below).
-scopes = "write_metaobject_definitions,write_metaobjects,write_products"
+# read_orders is for the orders/paid webhook (sales from videos), which
+# needs protected customer data access, Level 1 only: the app reads no
+# customer fields. Keep the SCOPES secret on Fly equal to this list.
+scopes = "write_metaobject_definitions,write_metaobjects,write_products,read_orders"
 
 [metaobjects.app.reel]
 name = "Reel"
@@ -198,17 +199,15 @@ api_version = "2026-07"
   uri = "/webhooks/app/scopes_update"
   topics = [ "app/scopes_update" ]
 
-  # orders/paid is a "protected customer data" webhook topic, Shopify
-  # rejects the whole app version if it's declared without prior approval
-  # (Partner Dashboard > App setup > Protected customer data access).
-  # The handler (webhooks.orders.paid.tsx) and its model code are already
-  # shipped; re-add this subscription once that approval comes through,
-  # then redeploy, no other changes needed. Until then, add-to-cart
-  # tagging is live but nothing captures it yet, so there's nothing to
-  # backfill once this re-enables, only orders placed after it does.
-  # [[webhooks.subscriptions]]
-  # uri = "/webhooks/orders/paid"
-  # topics = [ "orders/paid" ]
+  # orders/paid is a "protected customer data" webhook topic: Shopify
+  # rejects the whole app version if it's declared without approval
+  # (Partner Dashboard > App setup > Protected customer data access, Level
+  # 1, no name/email/phone/address fields). Deploy this only once approved.
+  # Sales are attributed from orders placed after it's live; earlier
+  # orders aren't backfilled.
+  [[webhooks.subscriptions]]
+  uri = "/webhooks/orders/paid"
+  topics = [ "orders/paid" ]
 
   [webhooks.privacy_compliance]
   customer_data_request_url = "https://awa-shoppable-videos.fly.dev/webhooks/customers/data_request"

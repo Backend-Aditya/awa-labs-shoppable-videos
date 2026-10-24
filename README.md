@@ -63,8 +63,10 @@ prisma/                      schema and migrations (Postgres)
   (`WidgetDailyStat`, from the event's widget source) and per product
   (`ProductDailyStat`, taps and adds to cart). Orders are
   attributed from a hidden `_reelup_reel_id` line-item property by the
-  `orders/paid` webhook (disabled until protected customer data access is
-  approved, see `shopify.app.toml`).
+  `orders/paid` webhook, which needs the `read_orders` scope and protected
+  customer data access (Level 1, no customer fields). Deploy a version
+  declaring it only once Shopify has approved that access, then set the
+  Fly `SCOPES` secret to match `shopify.app.toml`.
 - **Integrations**: `reel-tracking.js` publishes the same events to Shopify
   customer events and, with the visitor's consent, to tags the merchant
   connected (GA4, GTM, Meta, TikTok, Pinterest, Klaviyo, Microsoft

@@ -34,9 +34,11 @@ Dashboard or against the current Shopify docs before submitting.
 - [x] Views, product clicks and add-to-cart events, counted per reel per day.
 - [x] Add-to-cart is recorded only after Shopify accepts the line item.
 - [x] Dashboard and reel pages show add-to-carts and add-to-cart rate.
-- [ ] Revenue attribution needs the `orders/paid` webhook, which needs Protected
-      customer data approval (Partner Dashboard > App setup). Re-enable the
-      subscription in `shopify.app.toml` once approved.
+- [ ] Revenue attribution: `shopify.app.toml` declares the `orders/paid` webhook
+      and the `read_orders` scope. Request Protected customer data access,
+      Level 1 with no customer fields (Partner Dashboard > App setup), and
+      deploy this version only once approved: Shopify rejects it before. Then
+      `fly secrets set SCOPES=write_metaobject_definitions,write_metaobjects,write_products,read_orders`.
 
 ## Built for Shopify
 

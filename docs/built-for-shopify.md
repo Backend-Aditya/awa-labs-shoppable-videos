@@ -26,10 +26,11 @@ This page maps the criteria to the code. The working launch checklist
 
 ## Needs action outside the code
 
-1. **Protected customer data access** for the `orders/paid` webhook
-   (Partner Dashboard › App setup). Until it's approved, "Sales from videos"
-   shows "-" and add-to-cart is the conversion signal. Once approved,
-   uncomment the subscription in `shopify.app.toml` and deploy.
+1. **Protected customer data access** (Level 1, no name/email/phone/address
+   fields) for the `orders/paid` webhook (Partner Dashboard › App setup).
+   `shopify.app.toml` declares the webhook and the `read_orders` scope, and
+   Shopify rejects an app version that declares them before approval: deploy
+   this only once approved, then set the Fly `SCOPES` secret to match.
 2. **Usage thresholds**: net installs, reviews and rating, as set by Shopify.
 3. **Admin Web Vitals** from real traffic (LCP, CLS, INP at the 75th
    percentile): watch them in the Partner Dashboard once merchants use the app.
