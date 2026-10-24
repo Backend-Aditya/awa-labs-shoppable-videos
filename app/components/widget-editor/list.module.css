@@ -283,7 +283,9 @@
 .nameField input {
   grid-column: 2;
   grid-row: 1 / span 2;
+  box-sizing: border-box;
   width: 100%;
+  min-width: 0;
   font: inherit;
   font-weight: 400;
   padding: 8px 12px;

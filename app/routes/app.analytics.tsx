@@ -111,6 +111,8 @@ function Overview({ days, stats, loading }: { days: number; stats: NonNullable<D
           />
           <Kpi label="Completion rate" value={formatPercent(now.completionRate)} sub="watched to the end" delta={pointChange(now.completionRate, before.completionRate)} />
           <Kpi label="Click rate" value={formatPercent(now.clickRate)} sub={`${current.clicks.toLocaleString()} product taps`} delta={pointChange(now.clickRate, before.clickRate)} />
+          <Kpi label="Completed views" value={current.completions.toLocaleString()} sub="watched to the end" delta={change(current.completions, previous.completions)} />
+          <Kpi label="Total watch time" value={formatWatchTime(current.watchSeconds)} sub="across all videos" delta={change(current.watchSeconds, previous.watchSeconds)} />
         </div>
         <h3 className={own.groupTitle}>Shopping</h3>
         <div className={styles.kpis}>
@@ -126,6 +128,13 @@ function Overview({ days, stats, loading }: { days: number; stats: NonNullable<D
             label="Avg. order value"
             value={sales && now.averageOrderValue !== null && others === 0 ? formatMoney(now.averageOrderValue, sales.currencyCode, 2) : "-"}
             sub={now.conversionRate === null ? undefined : `${formatPercent(now.conversionRate, 2)} conversion`}
+            delta={null}
+          />
+          <Kpi label="Orders from videos" value={current.orders.toLocaleString()} delta={change(current.orders, previous.orders)} />
+          <Kpi
+            label="Sales per 1,000 views"
+            value={sales && now.revenuePerThousandViews !== null && others === 0 ? formatMoney(now.revenuePerThousandViews, sales.currencyCode, 2) : "-"}
+            sub="how well videos earn"
             delta={null}
           />
         </div>

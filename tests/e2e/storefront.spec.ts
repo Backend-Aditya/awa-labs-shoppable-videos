@@ -236,6 +236,14 @@ test("a page without widgets loads only the small loader from the app", async ({
 });
 
 test("@real-hls a page with widgets loads the runtime and viewer styles, and hls.js only once a shopper shows intent", async ({ page }) => {
+  // Newer Chromium plays HLS natively and the app then never needs hls.js, so
+  // present the browser the app is written for: one without native HLS.
+  await page.addInitScript(() => {
+    const canPlayType = HTMLMediaElement.prototype.canPlayType;
+    HTMLMediaElement.prototype.canPlayType = function (type) {
+      return /mpegurl/i.test(type) ? "" : canPlayType.call(this, type);
+    };
+  });
   const assets = new Set<string>();
   page.on("request", (request) => {
     const { pathname } = new URL(request.url());
