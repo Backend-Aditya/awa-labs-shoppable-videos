@@ -208,6 +208,7 @@ one non-Dawn theme.
 - [ ] Variant picker, quantity, sold-out and "You can only add N" messages on a real product.
 - [ ] Real HLS playback on iOS Safari (native) and Android Chrome (hls.js); mute choice persists; failed video shows retry.
 - [ ] Mobile bottom sheet peek/open, swipe between reels, story tap/hold.
+- [ ] Product moments: time two products on a real reel; each pops up at its second for 5 s, a tap opens it in the sheet; the story sticker switches to it.
 - [ ] Shared `?reelup=` links open the reel; native share sheet on mobile.
 - [ ] RTL locale and a translated locale render labels correctly.
 - [ ] Keyboard and screen reader: focus trap in viewers, Escape closes and focus returns, live announcements.

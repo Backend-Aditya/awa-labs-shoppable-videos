@@ -175,6 +175,14 @@ describe("after-add action", () => {
   });
 });
 
+describe("product moments", () => {
+  it("passes the reel's product times to the viewer, and nothing when it has none", async () => {
+    const timed = await trigger(makeReel({ productTimes: { "7": 3.5, "8": 12 } }));
+    expect(JSON.parse(timed.dataset.productTimes!)).toEqual({ "7": 3.5, "8": 12 });
+    expect((await trigger(makeReel())).hasAttribute("data-product-times")).toBe(false);
+  });
+});
+
 describe("reel-icon", () => {
   it.each(["play", "chevron-left", "chevron-right", "close"])("%s renders a decorative, sized svg", async (name) => {
     const { $ } = await renderDom("reel-icon", { name, size: 16, class: "reelup-x" });

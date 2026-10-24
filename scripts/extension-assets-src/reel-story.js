@@ -1,7 +1,8 @@
 // Full-screen story viewer for the Stories widget: segmented progress,
 // auto-advance, tap left/right or swipe sideways to move, swipe down to
 // close, press-and-hold or the play/pause button (Space / K) to pause, and
-// a product sticker that slides up a drawer. Product cards inside the
+// a product sticker — showing the product on screen when the reel has
+// product moments — that slides up a drawer. Product cards inside the
 // drawer are handled by the delegated cart code in reel-lightbox.js.
 (() => {
   // Loaded by the embed and possibly again by a block loader.
@@ -41,6 +42,10 @@
 
   let reels = [];
   let currentIndex = 0;
+  // This story's product moments (see productMoments in reel-lightbox.js)
+  // and the product the sticker shows for one (null: the first product).
+  let moments = [];
+  let stickerCard = null;
   let storyDurationMs = 15000; // the merchant's setting for this reel
   let durationMs = 15000; // min(video length, setting), known once playing
   let timer = null;
@@ -177,6 +182,22 @@
     schedule(dialog, durationMs);
   };
 
+  // The sticker's thumbnail: the product of the moment playing now, or the
+  // first product. A moment also lights up its row in the drawer.
+  const showStickerProduct = (dialog, card) => {
+    if (card === stickerCard) return;
+    stickerCard = card;
+    const sticker = dialog.querySelector("[data-reelup-story-shop]");
+    const list = dialog.querySelector("[data-reelup-story-list]");
+    const image = (card ?? list.querySelector("[data-reelup-product]"))?.querySelector(".reelup-product__media img")?.getAttribute("src");
+    const thumb = sticker.querySelector(".reelup-story__sticker-thumb");
+    thumb.style.backgroundImage = image ? `url("${image.replace(/"/g, "%22")}")` : "";
+    thumb.hidden = !image;
+    sticker.classList.toggle("is-moment", Boolean(card));
+    list.querySelectorAll(".is-moment").forEach((row) => row.classList.remove("is-moment"));
+    card?.classList.add("is-moment");
+  };
+
   const setDrawer = (dialog, open) => {
     const drawer = dialog.querySelector("[data-reelup-story-drawer]");
     if (open === drawerOpen) return;
@@ -262,14 +283,10 @@
     sticker.querySelector(".reelup-story__sticker-label").textContent =
       count === 0 && linkUrl ? trigger.dataset.linkLabel || viewer().labels.learnMore : viewer().labels.shop;
     sticker.hidden = count === 0 && !linkUrl;
-    if (count === 0) sticker.querySelector(".reelup-story__sticker-thumb").hidden = true;
-    if (count > 0) {
-      const firstImage = list.querySelector(".reelup-product__media img");
-      const thumb = sticker.querySelector(".reelup-story__sticker-thumb");
-      thumb.style.backgroundImage = firstImage ? `url("${firstImage.src.replace(/"/g, "%22")}")` : "";
-      thumb.hidden = !firstImage;
-      sticker.querySelector(".reelup-story__sticker-count").textContent = count > 1 ? String(count) : "";
-    }
+    sticker.querySelector(".reelup-story__sticker-count").textContent = count > 1 ? String(count) : "";
+    moments = viewer()?.productMoments(trigger, list) ?? [];
+    stickerCard = undefined;
+    showStickerProduct(dialog, null);
     dialog.querySelector("[data-reelup-cart-status]").hidden = true;
 
     let failed = false;
@@ -367,6 +384,9 @@
       if (segmentStarted && dialog.open) pause(dialog, "buffering");
     });
     video.addEventListener("ended", () => requestAdvance(dialog));
+    video.addEventListener("timeupdate", () => {
+      if (moments.length) showStickerProduct(dialog, viewer().currentMoment(moments, video.currentTime)?.card ?? null);
+    });
 
     const step = (delta) => {
       advancing = false;

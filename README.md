@@ -25,8 +25,12 @@ keyboard and screen-reader support, RTL.
 
 **Admin** — an embedded React Router app (`app/`) on Polaris web components
 and App Bridge: Home (setup checklist, KPIs), Reels (upload, import, tag,
-cover, SEO), Widgets (live-preview editor), Analytics, Integrations,
-Settings (brand kit).
+product moments, cover, SEO), Widgets (live-preview editor), Analytics,
+Integrations, Settings (brand kit).
+
+**Product moments**: a reel can time each tagged product; while it plays,
+the viewer pops that product up over the video and highlights it in the
+list (the story viewer's sticker switches to it).
 
 ## How it fits together
 

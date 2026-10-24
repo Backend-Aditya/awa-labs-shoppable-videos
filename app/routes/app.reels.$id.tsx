@@ -17,7 +17,8 @@ import { deriveReelStatus } from "../models/reel-status";
 import { healProcessingReels } from "../models/reel-media.server";
 import { releaseStreamAssets } from "../models/stream-assets.server";
 import { deleteReelEverywhere } from "../models/reel-lifecycle.server";
-import { formatDuration, isStreamThumbnail, posterAt } from "../models/reel-media";
+import { formatDuration, isStreamThumbnail, posterAt, sanitizeProductTimes } from "../models/reel-media";
+import { ProductMoments, momentKey } from "../components/reels/ProductMoments";
 import { getOrCreateShop } from "../models/shop.server";
 import { listWidgetsForShop } from "../models/widget.server";
 import { getKindMeta } from "../models/widget-kinds";
@@ -94,6 +95,7 @@ type SavePayload = {
   linkUrl?: string;
   seoTitle?: string;
   seoDescription?: string;
+  productTimes?: unknown;
 };
 
 type ActionResult = { ok: boolean; error: string | null; deleted?: boolean; duplicateKey?: string };
@@ -132,6 +134,9 @@ export const action = async ({ request, params }: ActionFunctionArgs): Promise<A
           ? Math.min(Math.max(body.coverTimeSeconds, 0), Math.max(duration - 0.1, 0))
           : undefined;
 
+      // Absent = moments weren't edited; either way only tagged products keep one.
+      const productTimes = sanitizeProductTimes(body.productTimes ?? reel.config.productTimes, productIds, duration);
+
       // Stale schedule fields from before scheduling was removed are dropped.
       const rest: ReelConfig & { publishAt?: string } = { ...reel.config };
       delete rest.publishAt;
@@ -143,6 +148,7 @@ export const action = async ({ request, params }: ActionFunctionArgs): Promise<A
         interactions: { ctaLabel: linkUrl ? linkLabel || undefined : undefined, ctaUrl: linkUrl || undefined },
         seoTitle: String(body.seoTitle ?? "").trim().slice(0, 70) || undefined,
         seoDescription: String(body.seoDescription ?? "").trim().slice(0, 160) || undefined,
+        productTimes: Object.keys(productTimes).length > 0 ? productTimes : undefined,
       };
 
       await upsertReel(admin, reel.handle, title, body.published === true, config);
@@ -193,6 +199,7 @@ interface EditorState {
   linkUrl: string;
   seoTitle: string;
   seoDescription: string;
+  productTimes: Record<string, number>;
 }
 
 function stateFrom(data: LoaderData): EditorState {
@@ -206,6 +213,7 @@ function stateFrom(data: LoaderData): EditorState {
     linkUrl: c.interactions?.ctaUrl ?? "",
     seoTitle: c.seoTitle ?? "",
     seoDescription: c.seoDescription ?? "",
+    productTimes: c.productTimes ?? {},
   };
 }
 
@@ -291,6 +299,9 @@ export default function ReelEditor() {
         linkUrl: state.linkUrl,
         seoTitle: state.seoTitle,
         seoDescription: state.seoDescription,
+        productTimes: Object.fromEntries(
+          state.products.map((p) => momentKey(p.id)).filter((key) => key in state.productTimes).map((key) => [key, state.productTimes[key]]),
+        ),
       }),
       { method: "post", encType: "application/json" },
     );
@@ -445,7 +456,16 @@ export default function ReelEditor() {
                   saved and the tags are untouched.
                 </s-banner>
               ) : (
-                <ProductsTab products={state.products} currencyCode={data.currencyCode} onChange={(products) => update({ products })} />
+                <>
+                  <ProductsTab products={state.products} currencyCode={data.currencyCode} onChange={(products) => update({ products })} />
+                  <ProductMoments
+                    products={state.products}
+                    posterUrl={reel.config.posterUrl ?? null}
+                    duration={reel.config.durationSeconds ?? 0}
+                    times={state.productTimes}
+                    onChange={(productTimes) => update({ productTimes })}
+                  />
+                </>
               ))}
             {tab === "cover" && (
               <CoverTab

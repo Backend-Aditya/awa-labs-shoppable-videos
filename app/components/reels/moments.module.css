@@ -1,0 +1,84 @@
+/* Product moments rows: frame (or product image), title, and the time
+   slider for timed products. */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px 8px 8px;
+  border-radius: 10px;
+  background: #f7f7f7;
+}
+
+.row[data-timed] {
+  align-items: stretch;
+}
+
+.thumb {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: #e3e3e3 center / cover no-repeat;
+}
+
+/* A video frame keeps the video's 9:16 shape. */
+.thumb[data-frame] {
+  height: 71px;
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.title {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 550;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.head > button {
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
+.slider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.slider input {
+  flex: 1;
+  min-width: 0;
+}
+
+.time {
+  min-width: 3.2em;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+  font-weight: 550;
+}

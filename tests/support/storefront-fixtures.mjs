@@ -33,7 +33,7 @@ export function makeProduct({ id = 1, title = `Product ${id}`, handle, image = `
 }
 
 /**
- * @param {{ id?: number, title?: string, published?: boolean, hls?: string, poster?: string | null, duration?: number | null, products?: object[], ctaUrl?: string, ctaLabel?: string, createdAt?: string }} [input]
+ * @param {{ id?: number, title?: string, published?: boolean, hls?: string, poster?: string | null, duration?: number | null, products?: object[], ctaUrl?: string, ctaLabel?: string, createdAt?: string, productTimes?: Record<string, number> }} [input]
  */
 export function makeReel({
   id = 101,
@@ -46,13 +46,14 @@ export function makeReel({
   ctaUrl,
   ctaLabel,
   createdAt = "2026-10-01T10:00:00Z",
+  productTimes,
 } = {}) {
   const interactions = ctaUrl || ctaLabel ? { ctaUrl, ctaLabel } : undefined;
   return {
     system: { id: `gid://shopify/Metaobject/${id}`, created_at: createdAt },
     title: { value: title },
     published: { value: published },
-    config: { value: { hlsManifestUrl: hls, posterUrl: poster, durationSeconds: duration, uploadedAt: createdAt, interactions } },
+    config: { value: { hlsManifestUrl: hls, posterUrl: poster, durationSeconds: duration, uploadedAt: createdAt, interactions, productTimes } },
     tagged_products: { value: products },
   };
 }

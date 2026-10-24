@@ -1,7 +1,8 @@
-// Client-safe helpers for Cloudflare Stream image URLs. Stream serves
+// Client-safe reel helpers. Cloudflare Stream image URLs: Stream serves
 // thumbnails at .../<uid>/thumbnails/thumbnail.jpg and accepts ?time=Ns to
 // pick the frame, plus an animated .gif variant — so a cover frame and a
-// hover preview are just URL tweaks, no extra API calls.
+// hover preview are just URL tweaks, no extra API calls. And product
+// moments (sanitizeProductTimes).
 
 const STREAM_THUMBNAIL = /^(https:\/\/[^/]+\/[^/]+\/thumbnails\/thumbnail)\.(jpg|gif|png|webp)(\?.*)?$/i;
 
@@ -33,4 +34,25 @@ export function formatDuration(seconds?: number): string {
   if (!seconds || !Number.isFinite(seconds)) return "";
   const s = Math.round(seconds);
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+// Product moments as stored in the reel config: only products the reel
+// still tags (keyed by numeric id, so the storefront matches them to its
+// product cards), whole seconds inside the video (the last full second at
+// most). `duration` 0 (not known yet) only floors at zero.
+// The latest second a moment can start: the video's last full second.
+export const lastMomentSecond = (duration: number) => Math.max(Math.ceil(duration) - 1, 0);
+
+export function sanitizeProductTimes(input: unknown, productIds: string[], duration: number): Record<string, number> {
+  if (typeof input !== "object" || input === null) return {};
+  const raw = input as Record<string, unknown>;
+  const out: Record<string, number> = {};
+  for (const gid of productIds) {
+    const key = gid.split("/").pop()!;
+    const value = raw[key];
+    if (typeof value !== "number" || !Number.isFinite(value)) continue;
+    const max = duration > 0 ? lastMomentSecond(duration) : Infinity;
+    out[key] = Math.min(Math.max(Math.round(value), 0), max);
+  }
+  return out;
 }

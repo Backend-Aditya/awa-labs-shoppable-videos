@@ -45,6 +45,7 @@
     mute: "Mute",
     unmute: "Unmute",
     shop: "Shop this video",
+    shopProduct: "Shop",
     previous: "Previous video",
     next: "Next video",
     viewCart: "View cart",
@@ -577,6 +578,30 @@
     };
   };
 
+  /* ------------------------------------------------- product moments */
+
+  // A reel can time each tagged product (the reel editor's "Product
+  // moments"): data-product-times maps product id → second. A moment lasts
+  // MOMENT_SECONDS; when two overlap, the later one wins.
+  const MOMENT_SECONDS = 5;
+  const productMoments = (trigger, listEl) => {
+    let times = {};
+    try {
+      times = JSON.parse(trigger?.dataset.productTimes || "{}") ?? {};
+    } catch {
+      times = {};
+    }
+    return Array.from(listEl.querySelectorAll("[data-reelup-product]"))
+      .map((card) => ({ card, at: Number(times[card.dataset.productId]) }))
+      .filter((moment) => Number.isFinite(moment.at) && moment.at >= 0)
+      .sort((a, b) => a.at - b.at);
+  };
+  const currentMoment = (moments, time) => {
+    let current = null;
+    for (const moment of moments) if (moment.at <= time && time < moment.at + MOMENT_SECONDS) current = moment;
+    return current;
+  };
+
   /* ----------------------------------------------- share + deep links */
 
   // ?reelup=<numeric id> on any page opens that reel once the page loads
@@ -776,6 +801,14 @@
             <button type="button" data-reelup-retry>${ICONS.retry}<span>${L.retry}</span></button>
           </div>
           <h2 class="reelup-viewer__title" id="reelup-viewer-title"></h2>
+          <button type="button" class="reelup-moment" data-reelup-moment hidden>
+            <span class="reelup-moment__thumb" aria-hidden="true"></span>
+            <span class="reelup-moment__text">
+              <span class="reelup-moment__title"></span>
+              <span class="reelup-moment__price"></span>
+            </span>
+            <span class="reelup-moment__cta">${L.shopProduct}</span>
+          </button>
           <div class="reelup-toast" aria-hidden="true"></div>
         </div>
         <div class="reelup-viewer__side">
@@ -970,6 +1003,51 @@
     });
     dialog.setPanelState = setPanelState;
 
+    // Product moments: while the reel plays, the product on screen pops up
+    // over the video in place of the caption and its row lights up; a tap
+    // brings up that product in the panel, its add button focused.
+    const momentEl = dialog.querySelector("[data-reelup-moment]");
+    let moments = [];
+    let shownMoment = null;
+    const showMoment = (moment) => {
+      if (moment === shownMoment) return;
+      shownMoment = moment;
+      dialog.querySelectorAll("[data-reelup-list] .is-moment").forEach((row) => row.classList.remove("is-moment"));
+      player.classList.toggle("has-moment", Boolean(moment));
+      if (!moment) {
+        momentEl.hidden = true;
+        return;
+      }
+      const { card } = moment;
+      momentEl.querySelector(".reelup-moment__title").textContent = card.querySelector(".reelup-product__title")?.textContent.trim() ?? "";
+      momentEl.querySelector(".reelup-moment__price").textContent = card.querySelector("[data-reelup-price]")?.textContent.trim() ?? "";
+      const image = card.querySelector(".reelup-product__media img")?.getAttribute("src");
+      const thumb = momentEl.querySelector(".reelup-moment__thumb");
+      thumb.style.backgroundImage = image ? `url("${image.replace(/"/g, "%22")}")` : "";
+      thumb.hidden = !image;
+      momentEl.hidden = false;
+      card.classList.add("is-moment");
+    };
+    video.addEventListener("timeupdate", () => {
+      if (moments.length) showMoment(currentMoment(moments, video.currentTime));
+    });
+    momentEl.addEventListener("click", () => {
+      const card = shownMoment?.card;
+      if (!card) return;
+      trackAnalytics(dialog.getAttribute("data-reelup-reel-id"), "click_product", {
+        trigger: dialog.reelupTrigger,
+        product_id: card.dataset.productId,
+      });
+      if (panel.dataset.state === "closed" || (panel.dataset.state === "peek" && isMobile())) setPanelState("open");
+      card.scrollIntoView({ block: "nearest" });
+      card.querySelector("[data-reelup-add-to-cart], .reelup-product__add")?.focus({ preventScroll: true });
+    });
+    dialog.setMoments = (trigger) => {
+      moments = productMoments(trigger, dialog.querySelector("[data-reelup-list]"));
+      shownMoment = undefined;
+      showMoment(null);
+    };
+
     // Backdrop click closes; a click on the stage gutter counts as backdrop.
     dialog.addEventListener("click", (event) => {
       if (event.target === dialog || event.target.classList?.contains("reelup-viewer__stage")) dialog.close();
@@ -1109,6 +1187,7 @@
     dialog.querySelector("[data-reelup-panel-count]").textContent = productCount > 1 ? String(productCount) : "";
     initialPanelState = trigger.dataset.tagRevealMode === "tap" ? "closed" : "peek";
     dialog.setPanelState(initialPanelState);
+    dialog.setMoments(trigger);
     cartStatus.hidden = true;
     dialog.querySelector("[data-reelup-share]").hidden = trigger.dataset.showShare === "false";
 
@@ -1201,6 +1280,8 @@
     announce,
     watchBuffering,
     watchProgress,
+    productMoments,
+    currentMoment,
     makeLiveRegion,
     nameDialog,
     getUserMuted,

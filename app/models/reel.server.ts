@@ -24,6 +24,10 @@ export interface ReelConfig {
   // ISO 8601 time the current video finished processing; the storefront's
   // VideoObject uses it as uploadDate.
   uploadedAt?: string;
+  // Product moments: the second each tagged product appears, keyed by the
+  // product's numeric id. The viewer pops that product up over the video
+  // then. See sanitizeProductTimes (reel-media.ts).
+  productTimes?: Record<string, number>;
 }
 
 export interface Reel {

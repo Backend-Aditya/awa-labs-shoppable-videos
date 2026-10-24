@@ -78,6 +78,7 @@ its look; this snippet owns the contract with the JS.
   data-show-share="{% if style.showShare == false %}false{% else %}true{% endif %}"
   data-show-recommendations="{% if style.showRecommendations == false %}false{% else %}true{% endif %}"
   data-after-add="{{ style.afterAdd | default: 'stay' | escape }}"
+  {%- if reel.config.value.productTimes %} data-product-times="{{ reel.config.value.productTimes | json | escape }}"{% endif %}
 >
   {{- inner -}}
   {%- if reel.tagged_products.value.size > 0 -%}

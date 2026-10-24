@@ -556,3 +556,67 @@ describe("recommendations", () => {
     expect(q("[data-reelup-recs]").hidden).toBe(true);
   });
 });
+
+describe("product moments", () => {
+  const timedReels = [
+    makeReel({ id: 11, title: "First", products: [makeProduct({ id: 1, title: "Linen shirt" }), makeProduct({ id: 2, title: "Tote" })], productTimes: { "1": 2, "2": 10 } }),
+    makeReel({ id: 22, title: "Second", products: [makeProduct({ id: 3 })] }),
+  ];
+  const play = (time: number) => {
+    const video = q<HTMLVideoElement>("video");
+    Object.defineProperty(video, "currentTime", { configurable: true, value: time });
+    video.dispatchEvent(new Event("timeupdate"));
+  };
+  const chip = () => q("[data-reelup-moment]");
+  const rows = () => Array.from(viewer()!.querySelectorAll<HTMLElement>("[data-reelup-list] [data-reelup-product]"));
+
+  it("pops each product up for five seconds at its time, in the caption's place, and lights up its row", async () => {
+    await mountStrip({}, timedReels);
+    click(triggerButton(0));
+    play(1);
+    expect(chip().hidden).toBe(true);
+    play(2.2);
+    expect(chip().hidden).toBe(false);
+    expect(chip().querySelector(".reelup-moment__title")!.textContent).toBe("Linen shirt");
+    expect(chip().querySelector(".reelup-moment__price")!.textContent).toBe("$25.00");
+    expect(q("[data-reelup-player]").classList.contains("has-moment")).toBe(true);
+    expect(rows().map((r) => r.classList.contains("is-moment"))).toEqual([true, false]);
+    play(7.5);
+    expect(chip().hidden).toBe(true);
+    expect(q("[data-reelup-player]").classList.contains("has-moment")).toBe(false);
+    play(11);
+    expect(chip().querySelector(".reelup-moment__title")!.textContent).toBe("Tote");
+    expect(rows().map((r) => r.classList.contains("is-moment"))).toEqual([false, true]);
+  });
+
+  it("a tap opens that product in the mobile sheet, focuses its add button and counts a product click", async () => {
+    media.mobile = true;
+    await mountStrip({}, timedReels);
+    click(triggerButton(0));
+    play(10.5);
+    click(chip());
+    expect(q("[data-reelup-panel]").dataset.state).toBe("open");
+    expect(document.activeElement).toBe(rows()[1].querySelector("[data-reelup-add-to-cart]"));
+    const clicks = fetchCalls("/apps/reels/analytics").map(fetchBody).filter((b) => b.eventType === "click_product");
+    expect(clicks).toEqual([expect.objectContaining({ reelId: "gid://shopify/Metaobject/11" })]);
+  });
+
+  it("a reel without moments never shows one, and moving on clears the last reel's", async () => {
+    await mountStrip({}, timedReels);
+    click(triggerButton(0));
+    play(2.5);
+    click(q("[data-reelup-next]"));
+    expect(chip().hidden).toBe(true);
+    play(2.5);
+    expect(chip().hidden).toBe(true);
+    expect(q("[data-reelup-player]").classList.contains("has-moment")).toBe(false);
+  });
+
+  it("malformed times are ignored", async () => {
+    await mountStrip({}, timedReels);
+    triggerButton(0).closest<HTMLElement>("[data-reelup-trigger]")!.dataset.productTimes = "{oops";
+    click(triggerButton(0));
+    play(2.5);
+    expect(chip().hidden).toBe(true);
+  });
+});

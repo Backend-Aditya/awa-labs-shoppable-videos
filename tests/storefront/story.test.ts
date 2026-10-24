@@ -226,3 +226,36 @@ describe("seen state", () => {
     expect(views).toEqual([{ reelId: "gid://shopify/Metaobject/1", eventType: "view" }]);
   });
 });
+
+describe("product moments", () => {
+  it("the sticker shows the product on screen, and its row lights up in the drawer", async () => {
+    const timed = [
+      makeReel({ id: 1, title: "One", products: [makeProduct({ id: 1 }), makeProduct({ id: 2 })], productTimes: { "2": 4 } }),
+    ];
+    await mount(await renderBlock("insta-stories", { reels: timed, widget: makeWidget({ style: { storyDuration: 30 } }) }));
+    click(avatar(0));
+    const thumb = q(".reelup-story__sticker-thumb");
+    const video = q<HTMLVideoElement>("video");
+    const at = (time: number) => {
+      Object.defineProperty(video, "currentTime", { configurable: true, value: time });
+      video.dispatchEvent(new Event("timeupdate"));
+    };
+    expect(thumb.style.backgroundImage).toContain("products/1.jpg");
+    at(4.5);
+    expect(thumb.style.backgroundImage).toContain("products/2.jpg");
+    expect(q("[data-reelup-story-shop]").classList.contains("is-moment")).toBe(true);
+    const rows = storyViewer()!.querySelectorAll("[data-reelup-story-list] [data-reelup-product]");
+    expect(Array.from(rows).map((r) => r.classList.contains("is-moment"))).toEqual([false, true]);
+    at(9.5);
+    expect(thumb.style.backgroundImage).toContain("products/1.jpg");
+    expect(q("[data-reelup-story-shop]").classList.contains("is-moment")).toBe(false);
+  });
+
+  it("a link-only story clears the previous story's product count", async () => {
+    await mountStories();
+    click(avatar(0));
+    expect(q(".reelup-story__sticker-count").textContent).toBe("2");
+    click(q("[data-reelup-story-next]"));
+    expect(q(".reelup-story__sticker-count").textContent).toBe("");
+  });
+});

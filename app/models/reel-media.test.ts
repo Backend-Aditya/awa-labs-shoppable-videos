@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { animatedPreviewUrl, formatDuration, isStreamThumbnail, posterAt } from "./reel-media";
+import { animatedPreviewUrl, formatDuration, isStreamThumbnail, posterAt, sanitizeProductTimes } from "./reel-media";
 import { deriveReelStatus } from "./reel-status";
 import { healProcessingReels } from "./reel-media.server";
 import type { Reel, ReelConfig } from "./reel.server";
@@ -138,5 +138,24 @@ describe("healProcessingReels", () => {
     }));
     const waiting = reel({ cloudflareStreamUid: "u" });
     expect(await healProcessingReels({ graphql: vi.fn() }, [waiting])).toEqual([waiting]);
+  });
+});
+
+describe("sanitizeProductTimes", () => {
+  const ids = ["gid://shopify/Product/7", "gid://shopify/Product/8"];
+
+  it("keeps tagged products only, keyed by numeric id, in whole seconds inside the video", () => {
+    expect(sanitizeProductTimes({ "7": 3.4, "8": 99, "9": 4 }, ids, 30)).toEqual({ "7": 3, "8": 29 });
+    expect(sanitizeProductTimes({ "8": 99 }, ids, 30.4)).toEqual({ "8": 30 });
+  });
+
+  it("drops anything that isn't a time", () => {
+    expect(sanitizeProductTimes({ "7": "3", "8": Number.NaN }, ids, 30)).toEqual({});
+    expect(sanitizeProductTimes(null, ids, 30)).toEqual({});
+    expect(sanitizeProductTimes(["7"], ids, 30)).toEqual({});
+  });
+
+  it("floors at zero, and doesn't cap while the length is unknown", () => {
+    expect(sanitizeProductTimes({ "7": -4, "8": 400 }, ids, 0)).toEqual({ "7": 0, "8": 400 });
   });
 });
