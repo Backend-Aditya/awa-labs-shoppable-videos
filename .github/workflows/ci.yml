@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 env:
-  # Matches local dev and Render; @shopify/polaris-types needs Node >= 22.18
+  # Matches local dev and Fly; @shopify/polaris-types needs Node >= 22.18
   # and .npmrc has engine-strict, so Node 20 fails at npm ci.
   NODE_VERSION: "22"
   # Prisma reads these at generate/typecheck time; nothing connects to them
