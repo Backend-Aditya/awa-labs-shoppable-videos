@@ -208,11 +208,9 @@ test("@real-hls a video that cannot play shows the error with a retry", async ({
 test.describe("mobile, video fails to play", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
-  // KNOWN BUG: when playback fails, the viewer's error overlay
-  // (.reelup-viewer__error inside the player) sits over the mobile bottom
-  // sheet's head and intercepts taps, so shoppers can't open the product
-  // list of a reel that won't play. Remove test.fail once the overlay no
-  // longer covers the sheet.
+  // Regression: the playback-error overlay once sat over the mobile
+  // sheet's head and swallowed taps, so a reel that wouldn't play hid its
+  // products. The overlay now lets taps through except on its retry button.
   test("@real-hls products stay reachable", async ({ page }) => {
     await mockShop(page);
     await stripTrigger(page, "Morning routine").click();

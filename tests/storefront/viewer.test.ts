@@ -371,10 +371,8 @@ describe("safeLink", () => {
     expect(safeLink(input)).toBe(expected);
   });
 
-  // KNOWN BUG: the safeLink regex /^(https?:\/\/|\/)/ accepts any string
-  // starting with "/", so a protocol-relative "//evil.test" URL passes and
-  // becomes an off-site link in the viewer. Remove `.fails` once
-  // safeLink rejects "//".
+  // Regression: safeLink once accepted anything starting with "/", so a
+  // protocol-relative "//evil.test" became an off-site link in the viewer.
   it("rejects protocol-relative //host URLs", async () => {
     await mount("", ["lightbox"]);
     const { safeLink } = (window as unknown as { ReelupViewer: { safeLink: (v: unknown) => string } }).ReelupViewer;
