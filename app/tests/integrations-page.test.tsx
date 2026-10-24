@@ -28,8 +28,26 @@ vi.mock("../components/useThemeStatus", () => ({ useThemeStatus: () => state.the
 
 import Integrations from "../routes/app.integrations";
 
-const card = (title: string) => screen.getByRole("heading", { name: title }).closest("section")!;
+// The page is built from Shopify's web components, which jsdom treats as
+// plain elements: props land as attributes, and a control's value or checked
+// state is set on the element before its event fires, as the browser does.
+type Control = HTMLElement & { checked?: boolean; value?: string };
+const find = (selector: string) => document.querySelector<Control>(selector)!;
+const section = (heading: string) => find(`s-section[heading="${heading}"]`);
+const control = (tag: string, label: string) => find(`${tag}[label="${label}"]`);
 const saveButton = () => within(screen.getByTestId("save-bar")).getByRole("button", { name: "Save" });
+
+function toggle(label: string, checked: boolean) {
+  const element = control("s-switch", label);
+  element.checked = checked;
+  fireEvent(element, new Event("input", { bubbles: true }));
+}
+
+function type(tag: string, label: string, value: string) {
+  const element = control(tag, label);
+  element.value = value;
+  fireEvent(element, new Event("input", { bubbles: true }));
+}
 
 beforeEach(() => {
   state.tracking = { ...TRACKING_DEFAULTS };
@@ -41,28 +59,26 @@ beforeEach(() => {
 describe("Integrations page", () => {
   it("shows what's on, and nothing to save until something changes", () => {
     render(<Integrations />);
-    expect(within(card("Shopify customer events")).getByText("On")).toBeTruthy();
-    expect(within(card("Microsoft Clarity")).getByText("Off")).toBeTruthy();
+    expect(section("Shopify customer events").querySelector("s-badge")!.textContent).toBe("On");
+    expect(section("Microsoft Clarity").querySelector("s-badge")!.textContent).toBe("Not connected");
     expect(screen.queryByTestId("save-bar")).toBeNull();
-    expect(screen.getByRole("switch", { name: "Publish video events to Shopify" }).getAttribute("aria-checked")).toBe("true");
+    expect(control("s-switch", "Publish video events to Shopify").hasAttribute("checked")).toBe(true);
   });
 
   it("switching a storefront tag on opens the save bar and saves the whole config", () => {
     render(<Integrations />);
-    fireEvent.click(screen.getByRole("switch", { name: "Google Analytics 4" }));
+    toggle("Send events to Google Analytics 4", true);
     fireEvent.click(saveButton());
     expect(JSON.parse(state.submit.mock.calls[0][0])).toEqual({ ...TRACKING_DEFAULTS, ga4: true });
   });
 
   it("a malformed Clarity project ID is flagged and can't be saved", () => {
     render(<Integrations />);
-    const input = screen.getByLabelText("Project ID");
-    fireEvent.change(input, { target: { value: "ab-1" } });
-    expect(input.getAttribute("aria-invalid")).toBe("true");
-    expect(screen.getByText("A project ID is 6–20 letters and numbers.")).toBeTruthy();
+    type("s-text-field", "Project ID", "ab-1");
+    expect(control("s-text-field", "Project ID").getAttribute("error")).toBe("A project ID is 6 to 20 letters and numbers.");
     expect(saveButton().hasAttribute("disabled")).toBe(true);
-    fireEvent.change(input, { target: { value: " K2X9AB4CDE " } });
-    expect(input.getAttribute("aria-invalid")).toBeNull();
+    type("s-text-field", "Project ID", " K2X9AB4CDE ");
+    expect(control("s-text-field", "Project ID").hasAttribute("error")).toBe(false);
     fireEvent.click(saveButton());
     expect(JSON.parse(state.submit.mock.calls[0][0]).clarityId).toBe("k2x9ab4cde");
   });
@@ -71,26 +87,33 @@ describe("Integrations page", () => {
     state.theme = { embedOn: false, placedBlocks: new Set() };
     state.tracking = { ...TRACKING_DEFAULTS, clarityId: "k2x9ab4cde" };
     render(<Integrations />);
-    expect(within(card("Microsoft Clarity")).getByText(/app embed, which is off/)).toBeTruthy();
-    expect(within(card("Microsoft Clarity")).getByText("On")).toBeTruthy();
+    expect(find('s-banner[heading="Turn on the app embed"]')).toBeTruthy();
+    expect(section("Microsoft Clarity").querySelector("s-badge")!.textContent).toBe("Connected");
+  });
+
+  it("stays quiet about the app embed when nothing needs it", () => {
+    state.theme = { embedOn: false, placedBlocks: new Set() };
+    render(<Integrations />);
+    expect(document.querySelector('s-banner[heading="Turn on the app embed"]')).toBeNull();
   });
 
   it("builds custom pixel code for the chosen tool and copies it", async () => {
     const writeText = vi.fn(async () => {});
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
     render(<Integrations />);
-    const pixel = card("Custom pixel");
-    const code = () => within(pixel).getByLabelText("Custom pixel code").textContent!;
+    const code = () => control("s-text-area", "Custom pixel code").getAttribute("value")!;
     expect(code()).toContain("G-XXXXXXXXXX");
-    fireEvent.change(within(pixel).getByLabelText("Measurement ID"), { target: { value: "g-ab12cd34ef" } });
+    type("s-text-field", "Measurement ID", "g-ab12cd34ef");
     expect(code()).toContain('gtag("config", "G-AB12CD34EF"');
 
-    fireEvent.click(within(pixel).getByRole("radio", { name: "Meta Pixel" }));
-    fireEvent.change(within(pixel).getByLabelText("Pixel ID"), { target: { value: "1234567890123456" } });
+    const select = control("s-select", "Send to");
+    select.value = "meta";
+    fireEvent(select, new Event("input", { bubbles: true }));
+    type("s-text-field", "Pixel ID", "1234567890123456");
     expect(code()).toContain('fbq("init", "1234567890123456");');
-    expect(within(pixel).getByText(/set Permission to Marketing/)).toBeTruthy();
+    expect(screen.getByText(/set Permission to Marketing/)).toBeTruthy();
 
-    fireEvent.click(within(pixel).getByRole("button", { name: "Copy" }));
+    fireEvent.click(find('s-button[slot="primary-action"]'));
     await waitFor(() => expect(state.toast).toHaveBeenCalledWith("Code copied"));
     expect(writeText).toHaveBeenCalledWith(code());
   });
@@ -98,6 +121,6 @@ describe("Integrations page", () => {
   it("explains that a custom pixel needs Shopify events on", () => {
     state.tracking = { ...TRACKING_DEFAULTS, shopifyEvents: false };
     render(<Integrations />);
-    expect(within(card("Custom pixel")).getByText(/Turn on “Publish video events to Shopify”/)).toBeTruthy();
+    expect(screen.getByText(/Turn on “Publish video events to Shopify” and save/)).toBeTruthy();
   });
 });

@@ -345,7 +345,7 @@ export default function ReelsLibrary() {
                     label="Sort"
                     labelAccessibilityVisibility="exclusive"
                     value={sort}
-                    onChange={(e: Event) => setSort((e.currentTarget as HTMLSelectElement).value as Sort)}
+                    onInput={(e: Event) => setSort((e.currentTarget as HTMLSelectElement).value as Sort)}
                   >
                     <s-option value="newest">Newest</s-option>
                     <s-option value="oldest">Oldest</s-option>
