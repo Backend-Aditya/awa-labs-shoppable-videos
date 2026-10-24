@@ -2,12 +2,10 @@ import "@shopify/shopify-app-react-router/adapters/node";
 import {
   ApiVersion,
   AppDistribution,
-  BillingInterval,
   shopifyApp,
 } from "@shopify/shopify-app-react-router/server";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import prisma from "./db.server";
-import { PLAN_BY_TIER } from "./models/plans";
 
 // A missing secret used to surface as a confusing OAuth or upload failure
 // long after boot. In production, refuse to start instead, naming exactly
@@ -27,29 +25,6 @@ if (process.env.NODE_ENV === "production") {
   }
 }
 
-// Recurring Billing API subscriptions, one per paid plan. Free has none.
-// Shopify tracks each shop's used trial days per app, so a reinstall can't
-// restart the 7-day trial.
-const planConfig = (tier: "BASIC" | "PREMIUM" | "ELITE") => ({
-  trialDays: PLAN_BY_TIER[tier].trialDays,
-  lineItems: [
-    {
-      amount: PLAN_BY_TIER[tier].price,
-      currencyCode: "USD",
-      interval: BillingInterval.Every30Days as const,
-    },
-  ],
-});
-const billing = {
-  Basic: planConfig("BASIC"),
-  Premium: planConfig("PREMIUM"),
-  Elite: planConfig("ELITE"),
-};
-
-// True charges are only created when this is not "true"; dev and review
-// stores must run with BILLING_TEST_MODE=true to get test charges.
-export const isBillingTest = () => process.env.BILLING_TEST_MODE === "true";
-
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET || "",
@@ -59,7 +34,6 @@ const shopify = shopifyApp({
   authPathPrefix: "/auth",
   sessionStorage: new PrismaSessionStorage(prisma),
   distribution: AppDistribution.AppStore,
-  billing,
   future: {
     expiringOfflineAccessTokens: true,
   },

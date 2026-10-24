@@ -80,8 +80,11 @@ export const PLAN_BY_TIER = Object.fromEntries(PLANS.map((p) => [p.tier, p])) as
 
 export const PAID_PLANS = PLANS.filter((p) => p.billingName !== null);
 
+// Shopify managed pricing names plans as typed in the Partner Dashboard
+// ("basic"), older Billing API charges used "Basic". Match either.
 export function planFromBillingName(name: string | null | undefined): Plan | null {
-  return PAID_PLANS.find((p) => p.billingName === name) ?? null;
+  const wanted = name?.trim().toLowerCase();
+  return PAID_PLANS.find((p) => p.billingName?.toLowerCase() === wanted) ?? null;
 }
 
 export function planFor(tier: string | null | undefined): Plan {

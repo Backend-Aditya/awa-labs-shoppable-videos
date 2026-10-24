@@ -94,7 +94,7 @@ without the first four):
 | `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_STREAM_WEBHOOK_SECRET` | Video upload and processing (the rest works without) |
 | `SCOPES`, `SHOP_CUSTOM_DOMAIN`, `APP_STORE_LISTING_URL` | Optional |
 | `SUPPORT_EMAIL`, `BUSINESS_NAME`, `BUSINESS_ADDRESS` | Contact details on the public privacy policy at `/privacy` (without an email it points to the App Store listing) |
-| `BILLING_TEST_MODE` | `true` makes subscriptions test charges (development stores) |
+| `SHOPIFY_APP_HANDLE` | App handle used in the Shopify-hosted plan page URL (default `awalabs-shoppable-videos`) |
 
 ## Testing
 

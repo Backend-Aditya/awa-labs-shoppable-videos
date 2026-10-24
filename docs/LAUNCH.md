@@ -21,11 +21,10 @@ Dashboard or against the current Shopify docs before submitting.
 
 - [x] Free, Basic $23.99, Premium $79.99, Elite $159.20 per 30 days (20% under the reference prices).
 - [x] 7-day free trial on every paid plan.
-- [x] Pricing page at `/app/pricing` with usage meters, upgrade, downgrade and cancel.
+- [x] Shopify managed pricing is on (plans published in the Partner Dashboard). `/app/pricing` shows usage meters and sends merchants to Shopify's plan page.
 - [x] `app_subscriptions/update` webhook keeps the plan in sync; uninstall resets to Free.
 - [x] Reel limit enforced on upload and import; views cap shown as a banner at 80% and 100%.
-- [ ] Test the full flow on a development store with `BILLING_TEST_MODE=true`
-      (`fly secrets set BILLING_TEST_MODE=true`), then remove it for production.
+- [ ] Test the full flow on a development store (Shopify makes those charges test charges). Check that `SHOPIFY_APP_HANDLE` matches the app handle in the plan page URL.
 - [ ] Decide whether to hard-limit views. Today the views cap is a warning only.
 - [?] Confirm the plan names and prices in the listing match the in-app plans exactly.
 

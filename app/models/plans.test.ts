@@ -40,6 +40,7 @@ describe("plans", () => {
 
   it("looks plans up by billing name and tier, falling back to Free", () => {
     expect(planFromBillingName("Premium")?.tier).toBe("PREMIUM");
+    expect(planFromBillingName("elite")?.tier).toBe("ELITE");
     expect(planFromBillingName("Nope")).toBeNull();
     expect(planFromBillingName(undefined)).toBeNull();
     expect(planFor("ELITE").name).toBe("Elite");

@@ -1,30 +1,50 @@
-import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { redirect, useActionData, useLoaderData, useNavigation, useSubmit } from "react-router";
+import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
+import { useLoaderData } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
-import { authenticate, isBillingTest } from "../shopify.server";
+import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { getOrCreateShop, updateShopPlan } from "../models/shop.server";
 import { listReels } from "../models/reel.server";
 import { PAID_PLANS, PLANS, planFor, planFromBillingName, usageLevel } from "../models/plans";
-import type { BillingPlanName, Plan } from "../models/plans";
+import type { Plan } from "../models/plans";
 import { log } from "../lib/logger.server";
 import styles from "../components/pricing.module.css";
 
-const PAID_NAMES = PAID_PLANS.map((p) => p.billingName as BillingPlanName);
+// Plans are Shopify managed pricing: merchants pick and change a plan on a
+// page Shopify hosts, so the app never creates charges itself.
+const APP_HANDLE = process.env.SHOPIFY_APP_HANDLE || "awalabs-shoppable-videos";
+
+const plansUrl = (shopDomain: string) =>
+  `https://admin.shopify.com/store/${shopDomain.replace(/\.myshopify\.com$/, "")}/charges/${APP_HANDLE}/pricing_plans`;
+
+const ACTIVE_SUBSCRIPTIONS = `#graphql
+  query ActiveSubscriptions {
+    currentAppInstallation {
+      activeSubscriptions {
+        name
+        status
+        test
+      }
+    }
+  }
+`;
 
 function monthStartUtc(now = new Date()) {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { admin, billing, session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const shop = await getOrCreateShop(session.shop);
 
   // Shopify is the source of truth for what the shop pays for; keep the
   // local plan (and its view cap) in step with it.
-  const check = await billing.check({ plans: PAID_NAMES, isTest: isBillingTest() });
-  const subscription = check.appSubscriptions[0] ?? null;
-  const active = planFromBillingName(subscription?.name);
+  const response = await admin.graphql(ACTIVE_SUBSCRIPTIONS);
+  const { data } = (await response.json()) as {
+    data?: { currentAppInstallation?: { activeSubscriptions?: { name: string; status: string; test: boolean }[] } };
+  };
+  const subscriptions = data?.currentAppInstallation?.activeSubscriptions ?? [];
+  const active = subscriptions.map((s) => planFromBillingName(s.name)).find(Boolean) ?? null;
   const tier = active?.tier ?? "FREE";
   if (shop.plan !== tier) await updateShopPlan(session.shop, tier);
 
@@ -42,7 +62,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   return {
     current: tier,
-    test: isBillingTest(),
+    test: subscriptions.some((s) => s.test),
+    plansUrl: plansUrl(session.shop),
     usage: {
       reels: reels.status === "fulfilled" ? reels.value.length : null,
       views: views.status === "fulfilled" ? (views.value._sum.views ?? 0) : null,
@@ -50,61 +71,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   };
 };
 
-export const action = async ({ request }: ActionFunctionArgs) => {
-  const { billing, session } = await authenticate.admin(request);
-  const form = await request.formData();
-  const intent = String(form.get("intent") ?? "");
-
-  if (intent === "subscribe") {
-    const plan = PAID_PLANS.find((p) => p.tier === form.get("plan"));
-    if (!plan) return { error: "Choose a plan." };
-    try {
-      // Redirects the merchant to Shopify's approval page; they come back here.
-      return await billing.request({ plan: plan.billingName as BillingPlanName, isTest: isBillingTest() });
-    } catch (error) {
-      // The redirect to Shopify's approval page is thrown as a Response.
-      if (error instanceof Response) throw error;
-      log.error("pricing.subscribe_failed", { shop: session.shop, plan: plan.tier }, error);
-      const message = error instanceof Error ? JSON.stringify((error as { errorData?: unknown }).errorData ?? "") : "";
-      return {
-        error: /public distribution/i.test(message)
-          ? "Paid plans aren't available yet because this app isn't publicly distributed. Set distribution to Public in the Partner Dashboard to turn them on."
-          : "We couldn't start your subscription. Please try again in a moment.",
-      };
-    }
-  }
-
-  if (intent === "cancel") {
-    const check = await billing.check({ plans: PAID_NAMES, isTest: isBillingTest() });
-    const subscription = check.appSubscriptions[0];
-    if (subscription) {
-      await billing.cancel({ subscriptionId: subscription.id, isTest: isBillingTest(), prorate: true });
-    }
-    await updateShopPlan(session.shop, "FREE");
-    return redirect("/app/pricing");
-  }
-
-  return { error: "Unknown action." };
-};
-
 const money = (n: number) => (n === 0 ? "$0" : `$${n % 1 === 0 ? n : n.toFixed(2)}`);
 
 export default function Pricing() {
   const data = useLoaderData<typeof loader>();
-  const result = useActionData<typeof action>();
-  const submit = useSubmit();
-  const navigation = useNavigation();
-  const busy = navigation.state !== "idle";
   const current = planFor(data.current);
 
   return (
     <s-page heading="Plans and pricing" inlineSize="large">
       <div className={styles.page}>
-        {result && "error" in result && result.error && (
-          <s-banner tone="critical" heading="Couldn't change your plan">
-            {result.error}
-          </s-banner>
-        )}
         {data.test && (
           <s-banner tone="info" heading="Test mode">
             Test mode is on. You won&rsquo;t be charged.
@@ -117,10 +92,8 @@ export default function Pricing() {
               key={plan.tier}
               plan={plan}
               current={plan.tier === current.tier}
-              busy={busy}
+              plansUrl={data.plansUrl}
               hasPaid={current.tier !== "FREE"}
-              onSubscribe={() => submit({ intent: "subscribe", plan: plan.tier }, { method: "post" })}
-              onCancel={() => submit({ intent: "cancel" }, { method: "post" })}
             />
           ))}
         </div>
@@ -172,17 +145,13 @@ function Usage({ current, usage }: { current: Plan; usage: { reels: number | nul
 function PlanCard({
   plan,
   current,
-  busy,
+  plansUrl,
   hasPaid,
-  onSubscribe,
-  onCancel,
 }: {
   plan: Plan;
   current: boolean;
-  busy: boolean;
+  plansUrl: string;
   hasPaid: boolean;
-  onSubscribe: () => void;
-  onCancel: () => void;
 }) {
   return (
     <section className={styles.card} data-popular={plan.popular || undefined} data-current={current || undefined}>
@@ -204,12 +173,12 @@ function PlanCard({
           <s-button disabled>Current plan</s-button>
         ) : plan.billingName === null ? (
           hasPaid ? (
-            <s-button onClick={onCancel} disabled={busy}>
+            <s-button href={plansUrl} target="_top">
               Downgrade to Free
             </s-button>
           ) : null
         ) : (
-          <s-button variant={plan.popular ? "primary" : undefined} onClick={onSubscribe} disabled={busy}>
+          <s-button variant={plan.popular ? "primary" : undefined} href={plansUrl} target="_top">
             {plan.trialDays > 0 ? "Start free trial" : "Choose plan"}
           </s-button>
         )}
