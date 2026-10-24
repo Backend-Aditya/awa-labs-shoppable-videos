@@ -7,7 +7,7 @@ import prisma from "../db.server";
 import { getOrCreateShop, updateShopPlan } from "../models/shop.server";
 import { listReels } from "../models/reel.server";
 import { fetchShopifyBilling } from "../models/billing.server";
-import { plansPageUrl, planMove, readBilling } from "../models/billing";
+import { pendingPlanFromReturn, plansPageUrl, planMove, readBilling } from "../models/billing";
 import type { PlanMove } from "../models/billing";
 import { PAID_PLANS, PLANS, PLAN_BY_TIER, planFor, usageLevel } from "../models/plans";
 import type { Plan, PlanTier } from "../models/plans";
@@ -16,7 +16,7 @@ import styles from "../components/pricing.module.css";
 
 // Last resort when Shopify can't tell us the app handle. SHOPIFY_APP_HANDLE
 // overrides it.
-const FALLBACK_HANDLE = "awalabs-shoppable-videos";
+const FALLBACK_HANDLE = "awalabs-shoppable-videos-1";
 
 function monthStartUtc(now = new Date()) {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
@@ -35,6 +35,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     tier = billing.plan.tier;
     if (shop.plan !== tier) await updateShopPlan(session.shop, tier);
   }
+  // Shopify sends the merchant back with `plan_handle` after they choose a
+  // plan. It is only a hint (anyone can type it): the plan shown always comes
+  // from Shopify's own record above.
+  const pendingPlan = pendingPlanFromReturn(new URL(request.url).searchParams.get("plan_handle"), tier);
   const appHandle = process.env.SHOPIFY_APP_HANDLE || shopify?.appHandle || FALLBACK_HANDLE;
 
   const [reels, views] = await Promise.allSettled([
@@ -52,6 +56,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return {
     current: tier,
     lookupFailed: shopify === null,
+    pendingPlan: pendingPlan?.name ?? null,
     unrecognized: billing?.unrecognized ?? null,
     test: billing?.test ?? false,
     trialEndsAt: billing?.trialEndsAt?.toISOString() ?? null,
@@ -87,6 +92,20 @@ export default function Pricing() {
     };
   }, [revalidator]);
 
+  // Right after approving a plan, Shopify can take a few seconds to show
+  // it. Look again a few times instead of leaving the old plan on screen.
+  const waiting = data.pendingPlan !== null;
+  useEffect(() => {
+    if (!waiting) return;
+    let tries = 0;
+    const timer = setInterval(() => {
+      if (++tries > 6) clearInterval(timer);
+      else if (revalidator.state === "idle") revalidator.revalidate();
+    }, 4000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waiting]);
+
   const meta = data.trialEndsAt
     ? `Free trial ends ${dateLabel(data.trialEndsAt)}`
     : current.tier === "FREE"
@@ -101,6 +120,11 @@ export default function Pricing() {
         {data.lookupFailed && (
           <s-banner tone="warning" heading="We couldn't check your plan with Shopify">
             Showing your last known plan. You can still change plans below, and this page updates when you return.
+          </s-banner>
+        )}
+        {data.pendingPlan && (
+          <s-banner tone="info" heading={`Switching you to ${data.pendingPlan}`}>
+            Shopify is confirming your new plan. This page updates by itself in a few seconds.
           </s-banner>
         )}
         {data.unrecognized && (

@@ -1,4 +1,4 @@
-import { PAID_PLANS, planFromBillingName } from "./plans";
+import { PAID_PLANS, PLAN_BY_TIER, planFromBillingName } from "./plans";
 import type { Plan } from "./plans";
 
 // Plans are Shopify managed pricing. Merchants pick and change a plan on a
@@ -75,4 +75,14 @@ export function planMove(current: Plan, target: Plan): PlanMove {
   if (current.tier === target.tier) return "current";
   if (current.tier === "FREE") return "start";
   return target.price > current.price ? "upgrade" : "downgrade";
+}
+
+// The plan a merchant just chose, from the `plan_handle` Shopify adds to the
+// redirect back to the app. Returns it only while the shop's recorded plan
+// hasn't caught up, so the page can say the change is being confirmed.
+export function pendingPlanFromReturn(planHandle: string | null, currentTier: Plan["tier"]): Plan | null {
+  if (!planHandle) return null;
+  const wanted = planHandle.trim().toLowerCase();
+  const plan = planFromBillingName(wanted) ?? (wanted === "free" ? PLAN_BY_TIER.FREE : null);
+  return plan && plan.tier !== currentTier ? plan : null;
 }

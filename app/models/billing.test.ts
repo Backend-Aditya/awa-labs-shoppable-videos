@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { plansPageUrl, planMove, readBilling } from "./billing";
+import { pendingPlanFromReturn, plansPageUrl, planMove, readBilling } from "./billing";
 import type { ShopifySubscription } from "./billing";
 import { PLAN_BY_TIER } from "./plans";
 
@@ -45,8 +45,8 @@ describe("readBilling", () => {
 
 describe("plansPageUrl", () => {
   it("builds Shopify's hosted plan page from the shop and app handle", () => {
-    expect(plansPageUrl("awalabs.myshopify.com", "awalabs-shoppable-videos")).toBe(
-      "https://admin.shopify.com/store/awalabs/charges/awalabs-shoppable-videos/pricing_plans",
+    expect(plansPageUrl("awalabs.myshopify.com", "awalabs-shoppable-videos-1")).toBe(
+      "https://admin.shopify.com/store/awalabs/charges/awalabs-shoppable-videos-1/pricing_plans",
     );
   });
 });
@@ -57,5 +57,18 @@ describe("planMove", () => {
     expect(planMove(PLAN_BY_TIER.BASIC, PLAN_BY_TIER.ELITE)).toBe("upgrade");
     expect(planMove(PLAN_BY_TIER.ELITE, PLAN_BY_TIER.FREE)).toBe("downgrade");
     expect(planMove(PLAN_BY_TIER.PREMIUM, PLAN_BY_TIER.PREMIUM)).toBe("current");
+  });
+});
+
+describe("pendingPlanFromReturn", () => {
+  it("reports a chosen plan Shopify has not shown yet", () => {
+    expect(pendingPlanFromReturn("premium", "FREE")?.tier).toBe("PREMIUM");
+    expect(pendingPlanFromReturn("free", "BASIC")?.tier).toBe("FREE");
+  });
+
+  it("says nothing once the plan matches, or for unknown or missing handles", () => {
+    expect(pendingPlanFromReturn("premium", "PREMIUM")).toBeNull();
+    expect(pendingPlanFromReturn("gold", "FREE")).toBeNull();
+    expect(pendingPlanFromReturn(null, "FREE")).toBeNull();
   });
 });
