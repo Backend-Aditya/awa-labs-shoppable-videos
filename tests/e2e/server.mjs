@@ -3,6 +3,8 @@
 //                      markup rendered from the theme extension's Liquid,
 //                      and each block's schema stylesheet/javascript in
 //                      <head> the way Shopify injects them
+//   /pages/plain       the same layout with the app embed only — a store
+//                      page without any widget
 //   /assets/*          extensions/shoppable-video-widgets/assets (the BUILT
 //                      files — run `npm run build:extension` first)
 //   anything else      404 (cart, recommendations and analytics endpoints
@@ -52,6 +54,14 @@ async function schemaAssets(blocks) {
   return [...tags].join("\n");
 }
 
+// The embed on a page with no widget (cart, blog, …): no blocks, so no
+// schema assets either.
+async function renderPlainPage() {
+  const embed = await engine.renderFile("shoppable-videos", blockContext("shoppable-videos", { widget: makeWidget({ published: false }) }));
+  const layout = await readFile(path.join(here, "fixtures/storefront.html"), "utf8");
+  return layout.replace("<!--REELUP_EMBED-->", embed).replace(/<!--REELUP_[A-Z]+-->/g, "");
+}
+
 async function renderPage() {
   const render = (block, input) => engine.renderFile(block, blockContext(block, { product: shirt, ...input }));
   const [embed, strip, stories, atc] = await Promise.all([
@@ -74,6 +84,11 @@ const TYPES = { ".js": "text/javascript", ".css": "text/css" };
 createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", `http://localhost:${port}`);
   try {
+    if (url.pathname === "/pages/plain") {
+      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+      res.end(await renderPlainPage());
+      return;
+    }
     if (url.pathname === "/" || url.pathname.startsWith("/products/")) {
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
       res.end(await renderPage());

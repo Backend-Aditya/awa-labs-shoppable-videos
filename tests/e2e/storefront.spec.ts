@@ -221,3 +221,35 @@ test.describe("mobile, video fails to play", () => {
     await expect(viewer(page).locator("[data-reelup-panel]")).toHaveAttribute("data-state", "open");
   });
 });
+
+// Built for Shopify measures what an app costs every storefront page: with
+// the embed on, a page without videos must get the loader and nothing else.
+test("a page without widgets loads only the small loader from the app", async ({ page }) => {
+  const assets: string[] = [];
+  page.on("request", (request) => {
+    const { pathname } = new URL(request.url());
+    if (pathname.startsWith("/assets/")) assets.push(pathname.slice("/assets/".length));
+  });
+  await page.goto("/pages/plain");
+  await page.waitForLoadState("networkidle");
+  expect(assets).toEqual(["reel-loader.js"]);
+  const loader = await page.request.get("/assets/reel-loader.js");
+  expect((await loader.body()).length).toBeLessThan(2048);
+});
+
+test("@real-hls a page with widgets loads the runtime and viewer styles, and hls.js only once a shopper shows intent", async ({ page }) => {
+  const assets = new Set<string>();
+  page.on("request", (request) => {
+    const { pathname } = new URL(request.url());
+    if (pathname.startsWith("/assets/")) assets.add(pathname.slice("/assets/".length));
+  });
+  await page.goto("/");
+  await page.waitForLoadState("networkidle");
+  for (const file of ["reel-loader.js", "reel-widgets.css", "reel-lightbox.css", "reel-tracking.js", "reel-lightbox.js", "reel-trigger.js"]) {
+    expect(assets).toContain(file);
+  }
+  expect(assets).not.toContain("hls.min.js");
+  await stripTrigger(page, "Morning routine").hover();
+  await expect.poll(() => assets.has("hls.min.js")).toBe(true);
+});
+

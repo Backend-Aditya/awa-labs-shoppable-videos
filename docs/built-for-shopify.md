@@ -14,7 +14,7 @@ under the app's Built for Shopify status — check there before applying.
 | Forms | Contextual save bar with discard confirmation; ⌘/Ctrl+S; leave-page guard | `SaveBar` + `useEditorGuards` on Settings, Integrations, widget and reel editors |
 | Onboarding | Setup checklist on Home with the next step's action; theme deep links for blocks and the app embed | `app/routes/app._index.tsx`, `app/components/themeEditor.ts` |
 | Theme integration | Theme app extension only (app blocks + app embed), no ScriptTag or theme asset writes; works with the embed off | `extensions/shoppable-video-widgets` |
-| Storefront performance | With the embed on, pages without a widget load one ~0.8 KB script; the runtime, styles and hls.js load only where a widget is, hls.js only on intent; posters sized, lazy, no layout shift | `scripts/extension-assets-src/reel-loader.js` |
+| Storefront performance | With the embed on, pages without a widget load one 1.7 KB script (0.8 KB gzipped), guarded by an e2e test; the runtime, styles and hls.js load only where a widget is, hls.js only on intent; posters sized, lazy, no layout shift | `scripts/extension-assets-src/reel-loader.js` |
 | Admin performance | Route bundles of 3–14 KB gzipped (the widget editor is the largest) over a ~90 KB shared React runtime that's cached across pages; loaders degrade per source instead of failing the page | `npm run build` output |
 | APIs | GraphQL Admin API only, current version (2026-07) | `app/shopify.server.ts` |
 | Privacy | GDPR webhooks; shop data (incl. tracking settings, analytics) erased on `shop/redact`; analytics hold no customer data | `app/routes/webhooks.*`, `prisma/schema.prisma` |

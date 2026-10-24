@@ -77,6 +77,8 @@ Playwright. `tests/e2e/server.mjs` serves:
   embed, filmstrip, stories, add-to-cart video) rendered by liquidjs, and
   their schema `stylesheet`/`javascript` added to `<head>` once, the way
   Shopify injects them;
+- `/pages/plain` — the app embed alone, a page without widgets (checks
+  that such pages load nothing but the loader);
 - `/assets/*` — the built extension assets;
 - `/media/sample.webm` — a 3 s clip (regenerate with
   `node tests/e2e/fixtures/make-sample-video.mjs`).
