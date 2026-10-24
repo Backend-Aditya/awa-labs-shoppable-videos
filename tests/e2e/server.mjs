@@ -81,19 +81,28 @@ async function renderPage() {
     .replace("<!--REELUP_ATC-->", atc);
 }
 
+// Each widget gets its own videos here: a view counts once per video per
+// visit, so a video shared with another widget would report no view.
+const deckReels = [21, 22, 23, 24, 25].map((id) =>
+  makeReel({ id, title: `Deck ${id}`, hls: hls(id), poster: poster(id), products: id % 2 ? [shirt] : [tote] }),
+);
+const featuredReel = makeReel({ id: 31, title: "Featured look", hls: hls(31), poster: poster(31), products: [shirt, tote] });
+const floatingReel = makeReel({ id: 41, title: "Floating look", hls: hls(41), poster: poster(41), products: [tote] });
+const atcReel = makeReel({ id: 51, title: "How it fits", hls: hls(51), poster: poster(51), products: [shirt] });
+
 async function renderAllWidgets() {
   const render = (block, input) => engine.renderFile(block, blockContext(block, { product: shirt, ...input }));
   const [embed, strip, stories, atc, deck, feature] = await Promise.all([
     render("shoppable-videos", {
-      reel: stripReels[0],
+      reel: floatingReel,
       blockId: "embed-1",
       widget: makeWidget({ style: { popDelay: 0, bubbleLabel: "Shop the look" } }),
     }),
     render("product-page-reels", { reels: stripReels, widget: makeWidget({ style: { heading: "See it in action" } }) }),
     render("insta-stories", { reels: storyReels, widget: makeWidget({ style: { heading: "Stories" } }) }),
-    render("add-to-cart-video", { reel: stripReels[1], widget: makeWidget() }),
-    render("stacked-carousel", { reels: [...stripReels, ...storyReels], widget: makeWidget({ style: { heading: "Shop our videos" } }) }),
-    render("single-video", { reel: stripReels[0], widget: makeWidget({ style: { heading: "Featured" } }) }),
+    render("add-to-cart-video", { reel: atcReel, widget: makeWidget() }),
+    render("stacked-carousel", { reels: deckReels, widget: makeWidget({ style: { heading: "Shop our videos" } }) }),
+    render("single-video", { reel: featuredReel, widget: makeWidget({ style: { heading: "Featured" } }) }),
   ]);
   const layout = await readFile(path.join(here, "fixtures/all-widgets.html"), "utf8");
   return layout
