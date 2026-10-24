@@ -1,33 +1,22 @@
+import { useEffect } from "react";
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { useLoaderData } from "react-router";
+import { useLoaderData, useRevalidator } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { getOrCreateShop, updateShopPlan } from "../models/shop.server";
 import { listReels } from "../models/reel.server";
-import { PAID_PLANS, PLANS, planFor, planFromBillingName, usageLevel } from "../models/plans";
-import type { Plan } from "../models/plans";
+import { fetchShopifyBilling } from "../models/billing.server";
+import { plansPageUrl, planMove, readBilling } from "../models/billing";
+import type { PlanMove } from "../models/billing";
+import { PAID_PLANS, PLANS, PLAN_BY_TIER, planFor, usageLevel } from "../models/plans";
+import type { Plan, PlanTier } from "../models/plans";
 import { log } from "../lib/logger.server";
 import styles from "../components/pricing.module.css";
 
-// Plans are Shopify managed pricing: merchants pick and change a plan on a
-// page Shopify hosts, so the app never creates charges itself.
-const APP_HANDLE = process.env.SHOPIFY_APP_HANDLE || "awalabs-shoppable-videos";
-
-const plansUrl = (shopDomain: string) =>
-  `https://admin.shopify.com/store/${shopDomain.replace(/\.myshopify\.com$/, "")}/charges/${APP_HANDLE}/pricing_plans`;
-
-const ACTIVE_SUBSCRIPTIONS = `#graphql
-  query ActiveSubscriptions {
-    currentAppInstallation {
-      activeSubscriptions {
-        name
-        status
-        test
-      }
-    }
-  }
-`;
+// Last resort when Shopify can't tell us the app handle. SHOPIFY_APP_HANDLE
+// overrides it.
+const FALLBACK_HANDLE = "awalabs-shoppable-videos";
 
 function monthStartUtc(now = new Date()) {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
@@ -37,16 +26,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
   const shop = await getOrCreateShop(session.shop);
 
-  // Shopify is the source of truth for what the shop pays for; keep the
-  // local plan (and its view cap) in step with it.
-  const response = await admin.graphql(ACTIVE_SUBSCRIPTIONS);
-  const { data } = (await response.json()) as {
-    data?: { currentAppInstallation?: { activeSubscriptions?: { name: string; status: string; test: boolean }[] } };
-  };
-  const subscriptions = data?.currentAppInstallation?.activeSubscriptions ?? [];
-  const active = subscriptions.map((s) => planFromBillingName(s.name)).find(Boolean) ?? null;
-  const tier = active?.tier ?? "FREE";
-  if (shop.plan !== tier) await updateShopPlan(session.shop, tier);
+  // Shopify is the source of truth for what the shop pays for. When it
+  // can't be read, keep the stored plan rather than guessing Free.
+  const shopify = await fetchShopifyBilling(admin, session.shop);
+  const billing = shopify ? readBilling(shopify.subscriptions, PLAN_BY_TIER.FREE) : null;
+  let tier: PlanTier = planFor(shop.plan).tier;
+  if (billing?.plan) {
+    tier = billing.plan.tier;
+    if (shop.plan !== tier) await updateShopPlan(session.shop, tier);
+  }
+  const appHandle = process.env.SHOPIFY_APP_HANDLE || shopify?.appHandle || FALLBACK_HANDLE;
 
   const [reels, views] = await Promise.allSettled([
     listReels(admin),
@@ -62,8 +51,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   return {
     current: tier,
-    test: subscriptions.some((s) => s.test),
-    plansUrl: plansUrl(session.shop),
+    lookupFailed: shopify === null,
+    unrecognized: billing?.unrecognized ?? null,
+    test: billing?.test ?? false,
+    trialEndsAt: billing?.trialEndsAt?.toISOString() ?? null,
+    renewsAt: billing?.renewsAt?.toISOString() ?? null,
+    plansUrl: plansPageUrl(session.shop, appHandle),
     usage: {
       reels: reels.status === "fulfilled" ? reels.value.length : null,
       views: views.status === "fulfilled" ? (views.value._sum.views ?? 0) : null,
@@ -73,33 +66,73 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 const money = (n: number) => (n === 0 ? "$0" : `$${n % 1 === 0 ? n : n.toFixed(2)}`);
 
+const dateLabel = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+
 export default function Pricing() {
   const data = useLoaderData<typeof loader>();
   const current = planFor(data.current);
+  const revalidator = useRevalidator();
+
+  // Plans change on a page Shopify hosts. When the merchant comes back to
+  // this tab, re-read what they chose.
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === "visible" && revalidator.state === "idle") revalidator.revalidate();
+    };
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [revalidator]);
+
+  const meta = data.trialEndsAt
+    ? `Free trial ends ${dateLabel(data.trialEndsAt)}`
+    : current.tier === "FREE"
+      ? "Free forever"
+      : data.renewsAt
+        ? `Renews ${dateLabel(data.renewsAt)}`
+        : null;
 
   return (
     <s-page heading="Plans and pricing" inlineSize="large">
       <div className={styles.page}>
-        {data.test && (
-          <s-banner tone="info" heading="Test mode">
-            Test mode is on. You won&rsquo;t be charged.
+        {data.lookupFailed && (
+          <s-banner tone="warning" heading="We couldn't check your plan with Shopify">
+            Showing your last known plan. You can still change plans below, and this page updates when you return.
           </s-banner>
         )}
+        {data.unrecognized && (
+          <s-banner tone="warning" heading="We don't recognise your current plan">
+            Shopify lists a plan called &ldquo;{data.unrecognized}&rdquo;. Choose one of the plans below, or contact support.
+          </s-banner>
+        )}
+        {data.test && (
+          <s-banner tone="info" heading="Test mode">
+            This is a test charge. You won&rsquo;t be billed.
+          </s-banner>
+        )}
+        <section className={styles.summary}>
+          <div>
+            <p className={styles.summaryLabel}>Current plan</p>
+            <h2 className={styles.summaryName}>{current.name}</h2>
+            {meta && <p className={styles.summaryMeta}>{meta}</p>}
+          </div>
+          <s-button href={data.plansUrl} target="_top">
+            {current.tier === "FREE" ? "Choose a plan" : "Change or cancel plan"}
+          </s-button>
+        </section>
         <Usage current={current} usage={data.usage} />
         <div className={styles.grid}>
           {PLANS.map((plan) => (
-            <PlanCard
-              key={plan.tier}
-              plan={plan}
-              current={plan.tier === current.tier}
-              plansUrl={data.plansUrl}
-              hasPaid={current.tier !== "FREE"}
-            />
+            <PlanCard key={plan.tier} plan={plan} move={planMove(current, plan)} plansUrl={data.plansUrl} />
           ))}
         </div>
         <p className={styles.note}>
           Prices are in USD per 30 days and billed by Shopify on your Shopify invoice. Paid plans start with a{" "}
-          {PAID_PLANS[0].trialDays}-day free trial. Change or cancel any time; cancelling returns you to Free.
+          {PAID_PLANS[0].trialDays}-day free trial. Changes happen on a Shopify page and take effect straight away.
+          Cancelling returns you to Free.
         </p>
       </div>
     </s-page>
@@ -142,17 +175,15 @@ function Usage({ current, usage }: { current: Plan; usage: { reels: number | nul
   );
 }
 
-function PlanCard({
-  plan,
-  current,
-  plansUrl,
-  hasPaid,
-}: {
-  plan: Plan;
-  current: boolean;
-  plansUrl: string;
-  hasPaid: boolean;
-}) {
+const CTA: Record<PlanMove, (plan: Plan) => string> = {
+  current: () => "Current plan",
+  start: (plan) => (plan.trialDays > 0 ? "Start free trial" : "Choose plan"),
+  upgrade: (plan) => `Upgrade to ${plan.name}`,
+  downgrade: (plan) => `Switch to ${plan.name}`,
+};
+
+function PlanCard({ plan, move, plansUrl }: { plan: Plan; move: PlanMove; plansUrl: string }) {
+  const current = move === "current";
   return (
     <section className={styles.card} data-popular={plan.popular || undefined} data-current={current || undefined}>
       {plan.popular && <span className={styles.badge}>Most popular</span>}
@@ -170,16 +201,10 @@ function PlanCard({
       </ul>
       <div className={styles.cta}>
         {current ? (
-          <s-button disabled>Current plan</s-button>
-        ) : plan.billingName === null ? (
-          hasPaid ? (
-            <s-button href={plansUrl} target="_top">
-              Downgrade to Free
-            </s-button>
-          ) : null
+          <s-button disabled>{CTA.current(plan)}</s-button>
         ) : (
-          <s-button variant={plan.popular ? "primary" : undefined} href={plansUrl} target="_top">
-            {plan.trialDays > 0 ? "Start free trial" : "Choose plan"}
+          <s-button variant={plan.popular && move !== "downgrade" ? "primary" : undefined} href={plansUrl} target="_top">
+            {CTA[move](plan)}
           </s-button>
         )}
       </div>
