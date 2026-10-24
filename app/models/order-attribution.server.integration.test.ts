@@ -55,6 +55,37 @@ describe("extractAttributionsFromOrderPayload", () => {
     ]);
   });
 
+  it("takes nothing about the customer from the order", () => {
+    // What a Level 1 payload still carries about the buyer. None of it may
+    // reach the extracted rows (the protected customer data answers rely on it).
+    const payload = {
+      id: 3,
+      name: "#1003",
+      currency: "USD",
+      email: "buyer@example.com",
+      customer: { id: 77, email: "buyer@example.com", first_name: "Ada", last_name: "Lovelace" },
+      billing_address: { address1: "1 Example Street", city: "London", phone: "+44 20 0000 0000" },
+      browser_ip: "203.0.113.9",
+      line_items: [
+        {
+          id: 30,
+          product_id: 100,
+          variant_id: 200,
+          quantity: 1,
+          price: "19.99",
+          properties: [{ name: "_reelup_reel_id", value: "5" }],
+        },
+      ],
+    } as OrderPaidWebhookPayload;
+
+    const rows = extractAttributionsFromOrderPayload(payload);
+    expect(rows).toHaveLength(1);
+    expect(Object.keys(rows[0]).sort()).toEqual(
+      ["currencyCode", "lineItemId", "productId", "quantity", "reelId", "revenueAmount", "variantId"].sort(),
+    );
+    expect(JSON.stringify(rows)).not.toMatch(/buyer@|Ada|Lovelace|Example Street|London|\+44|203\.0\.113/);
+  });
+
   it("computes revenue with decimal precision, not float multiplication", () => {
     // 19.99 * 3 in native floating point is 59.964999999999996, not 59.97,
     // this is exactly the rounding error the Decimal arithmetic avoids.

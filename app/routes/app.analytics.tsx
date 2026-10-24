@@ -7,7 +7,7 @@ import { authenticate } from "../shopify.server";
 import { getOrCreateShop } from "../models/shop.server";
 import { listReels } from "../models/reel.server";
 import { getDashboardStats, parseRange, reelKey } from "../models/analytics.server";
-import { deriveKpis, formatWatchTime, formatPercent, funnel, percent, toCsv } from "../models/kpis";
+import { deriveKpis, formatWatchTime, formatPercent, funnel, percent, toCsv, topShare } from "../models/kpis";
 import { log } from "../lib/logger.server";
 import { ViewsChart } from "../components/ViewsChart";
 import { Kpi, RangePicker, change, formatMoney, pointChange } from "../components/analytics-ui";
@@ -73,14 +73,14 @@ export default function Analytics() {
             Shopify took too long to respond. Reload the page to try again.
           </s-banner>
         )}
-        {data.stats ? <Overview days={data.days} stats={data.stats} loading={loading} /> : null}
+        {data.stats ? <Overview days={data.days} stats={data.stats} rows={data.rows} loading={loading} /> : null}
         <VideoTable rows={data.rows} days={data.days} currency={data.stats?.current.revenue[0]?.currencyCode ?? null} multiCurrency={(data.stats?.current.revenue.length ?? 0) > 1} />
       </div>
     </s-page>
   );
 }
 
-function Overview({ days, stats, loading }: { days: number; stats: NonNullable<Data["stats"]>; loading: boolean }) {
+function Overview({ days, stats, rows, loading }: { days: number; stats: NonNullable<Data["stats"]>; rows: Row[]; loading: boolean }) {
   const { current, previous } = stats;
   // Money is never summed across currencies: the main one, and a note.
   const sales = current.revenue[0];
@@ -89,6 +89,9 @@ function Overview({ days, stats, loading }: { days: number; stats: NonNullable<D
   const before = deriveKpis({ ...previous, revenue: prevSales });
   const others = current.revenue.length - 1;
   const steps = funnel(current);
+  // From the per-video rows (empty if the titles failed to load).
+  const watched = rows.filter((r) => r.views > 0).length;
+  const topCarts = topShare(rows, (r) => r.addToCarts, current.addToCarts);
 
   return (
     <>
@@ -111,7 +114,12 @@ function Overview({ days, stats, loading }: { days: number; stats: NonNullable<D
           />
           <Kpi label="Completion rate" value={formatPercent(now.completionRate)} sub="watched to the end" delta={pointChange(now.completionRate, before.completionRate)} />
           <Kpi label="Click rate" value={formatPercent(now.clickRate)} sub={`${current.clicks.toLocaleString()} product taps`} delta={pointChange(now.clickRate, before.clickRate)} />
-          <Kpi label="Completed views" value={current.completions.toLocaleString()} sub="watched to the end" delta={change(current.completions, previous.completions)} />
+          <Kpi
+            label="Videos with views"
+            value={rows.length ? watched.toLocaleString() : "-"}
+            sub={rows.length ? `of ${rows.length.toLocaleString()} in your library` : undefined}
+            delta={null}
+          />
           <Kpi label="Total watch time" value={formatWatchTime(current.watchSeconds)} sub="across all videos" delta={change(current.watchSeconds, previous.watchSeconds)} />
         </div>
         <h3 className={own.groupTitle}>Shopping</h3>
@@ -130,7 +138,12 @@ function Overview({ days, stats, loading }: { days: number; stats: NonNullable<D
             sub={now.conversionRate === null ? undefined : `${formatPercent(now.conversionRate, 2)} conversion`}
             delta={null}
           />
-          <Kpi label="Orders from videos" value={current.orders.toLocaleString()} delta={change(current.orders, previous.orders)} />
+          <Kpi
+            label="Top video's share"
+            value={topCarts ? formatPercent(topCarts.share, 0) : "-"}
+            sub={topCarts ? `of adds to cart: ${shortTitle(topCarts.title)}` : current.addToCarts > 0 ? undefined : "no adds to cart yet"}
+            delta={null}
+          />
           <Kpi
             label="Sales per 1,000 views"
             value={sales && now.revenuePerThousandViews !== null && others === 0 ? formatMoney(now.revenuePerThousandViews, sales.currencyCode, 2) : "-"}
@@ -291,3 +304,8 @@ function VideoTable({ rows, days, currency, multiCurrency }: { rows: Row[]; days
 export const headers: HeadersFunction = (headersArgs) => {
   return boundary.headers(headersArgs);
 };
+
+// Titles are merchant-written and can be long; a KPI sub line has one line.
+function shortTitle(title: string) {
+  return `“${title.length > 28 ? `${title.slice(0, 27).trimEnd()}…` : title}”`;
+}

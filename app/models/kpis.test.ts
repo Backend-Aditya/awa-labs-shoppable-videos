@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveKpis, formatWatchTime, formatPercent, funnel, percent, toCsv } from "./kpis";
+import { deriveKpis, formatWatchTime, formatPercent, funnel, percent, toCsv, topShare } from "./kpis";
 
 const zero = { views: 0, clicks: 0, addToCarts: 0, completions: 0, watchSeconds: 0 };
 
@@ -60,6 +60,29 @@ describe("funnel", () => {
       { label: "Added to cart", count: 10, ofPrevious: 20, ofViews: 5 },
       { label: "Ordered", count: 2, ofPrevious: 20, ofViews: 1 },
     ]);
+  });
+});
+
+describe("topShare", () => {
+  const rows = [
+    { title: "Summer drop", carts: 6 },
+    { title: "Linen care", carts: 3 },
+    { title: "Unwatched", carts: 0 },
+  ];
+
+  it("names the video with the biggest share of the counter", () => {
+    expect(topShare(rows, (r) => r.carts)).toEqual({ title: "Summer drop", share: (6 / 9) * 100 });
+  });
+
+  it("measures against the period's whole count when deleted videos add to it", () => {
+    expect(topShare(rows, (r) => r.carts, 12)?.share).toBe(50);
+    // A total below the rows' own sum is ignored.
+    expect(topShare(rows, (r) => r.carts, 3)?.share).toBe((6 / 9) * 100);
+  });
+
+  it("is null when no video has any, or there are no videos", () => {
+    expect(topShare(rows, () => 0)).toBeNull();
+    expect(topShare([], () => 1)).toBeNull();
   });
 });
 

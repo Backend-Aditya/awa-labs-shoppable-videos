@@ -61,6 +61,25 @@ export function formatPercent(value: number | null, digits = 1): string {
   return value === null ? "-" : `${value.toFixed(digits)}%`;
 }
 
+// The video with the biggest share of a counter (adds to cart, say), for
+// "is one video carrying the rest?". `total` is the period's whole count
+// when it can exceed the rows' sum (videos deleted since still counted).
+// Null when no video has any.
+export function topShare<T extends { title: string }>(
+  rows: T[],
+  value: (row: T) => number,
+  total = 0,
+): { title: string; share: number } | null {
+  let sum = 0;
+  let top: T | null = null;
+  for (const row of rows) {
+    sum += value(row);
+    if (!top || value(row) > value(top)) top = row;
+  }
+  if (!top || value(top) <= 0) return null;
+  return { title: top.title, share: (value(top) / Math.max(sum, total)) * 100 };
+}
+
 // 0:42, 3:05, 1:02:10.
 export function formatWatchTime(seconds: number | null): string {
   if (seconds === null) return "-";

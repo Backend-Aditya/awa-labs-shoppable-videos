@@ -79,6 +79,31 @@ describe("Analytics page", () => {
     expect(within(kpi("Avg. order value")).getByText("0.80% conversion")).toBeTruthy();
   });
 
+  it("shows how much of the library gets watched and which video drives adds to cart", () => {
+    render(<Analytics />);
+    expect(within(kpi("Videos with views")).getByText("2")).toBeTruthy();
+    expect(within(kpi("Videos with views")).getByText("of 3 in your library")).toBeTruthy();
+    // 30 of the 40 adds to cart came from one video.
+    expect(within(kpi("Top video's share")).getByText("75%")).toBeTruthy();
+    expect(within(kpi("Top video's share")).getByText("of adds to cart: “Morning routine”")).toBeTruthy();
+  });
+
+  it("says so when nothing has been added to cart, and shortens long titles", () => {
+    state.loader = {
+      ...state.loader,
+      rows: [row("9", "A very long video title that keeps going and going", { views: 5, addToCarts: 1 })],
+    };
+    const { unmount } = render(<Analytics />);
+    expect(within(kpi("Top video's share")).getByText("of adds to cart: “A very long video title tha…”")).toBeTruthy();
+    unmount();
+
+    const stats = state.loader.stats as { current: object; previous: object };
+    state.loader = { ...state.loader, stats: { ...stats, current: totals({ addToCarts: 0 }) }, rows: [row("9", "Quiet")] };
+    render(<Analytics />);
+    expect(within(kpi("Top video's share")).getByText("-")).toBeTruthy();
+    expect(within(kpi("Top video's share")).getByText("no adds to cart yet")).toBeTruthy();
+  });
+
   it("walks the funnel step by step", () => {
     render(<Analytics />);
     const steps = screen.getAllByRole("listitem").map((li) => li.textContent);
