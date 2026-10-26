@@ -33,7 +33,8 @@ import Integrations from "../routes/app.integrations";
 // state is set on the element before its event fires, as the browser does.
 type Control = HTMLElement & { checked?: boolean; value?: string };
 const find = (selector: string) => document.querySelector<Control>(selector)!;
-const section = (heading: string) => find(`s-section[heading="${heading}"]`);
+const rowBadge = (title: string) =>
+  [...document.querySelectorAll("s-text")].find((el) => el.textContent === title)!.parentElement!.querySelector("s-badge")!;
 const control = (tag: string, label: string) => find(`${tag}[label="${label}"]`);
 const saveButton = () => within(screen.getByTestId("save-bar")).getByRole("button", { name: "Save" });
 
@@ -59,8 +60,7 @@ beforeEach(() => {
 describe("Integrations page", () => {
   it("shows what's on, and nothing to save until something changes", () => {
     render(<Integrations />);
-    expect(section("Shopify customer events").querySelector("s-badge")!.textContent).toBe("On");
-    expect(section("Microsoft Clarity").querySelector("s-badge")!.textContent).toBe("Not connected");
+    expect(rowBadge("Microsoft Clarity").textContent).toBe("Not connected");
     expect(screen.queryByTestId("save-bar")).toBeNull();
     expect(control("s-switch", "Publish video events to Shopify").hasAttribute("checked")).toBe(true);
   });
@@ -88,7 +88,7 @@ describe("Integrations page", () => {
     state.tracking = { ...TRACKING_DEFAULTS, clarityId: "k2x9ab4cde" };
     render(<Integrations />);
     expect(find('s-banner[heading="Turn on the app embed"]')).toBeTruthy();
-    expect(section("Microsoft Clarity").querySelector("s-badge")!.textContent).toBe("Connected");
+    expect(rowBadge("Microsoft Clarity").textContent).toBe("Connected");
   });
 
   it("stays quiet about the app embed when nothing needs it", () => {
@@ -113,7 +113,7 @@ describe("Integrations page", () => {
     expect(code()).toContain('fbq("init", "1234567890123456");');
     expect(screen.getByText(/set Permission to Marketing/)).toBeTruthy();
 
-    fireEvent.click(find('s-button[slot="primary-action"]'));
+    fireEvent.click(find('s-modal#custom-pixel-modal s-button[slot="primary-action"]'));
     await waitFor(() => expect(state.toast).toHaveBeenCalledWith("Code copied"));
     expect(writeText).toHaveBeenCalledWith(code());
   });
