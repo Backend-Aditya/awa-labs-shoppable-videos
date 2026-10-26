@@ -1057,15 +1057,6 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
   transform: scale(0.97);
 }
 
-.reelup-pop__play {
-  position: absolute;
-  right: 5px;
-  bottom: 5px;
-  z-index: 2;
-  width: 24px;
-  height: 24px;
-}
-
 .reelup-pop--pulse .reelup-pop__frame::before {
   content: "";
   position: absolute;
