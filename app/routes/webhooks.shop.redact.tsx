@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs } from "react-router";
-import { authenticate } from "../shopify.server";
+import { verifyWebhook } from "../lib/webhook.server";
 import db from "../db.server";
 import { purgeShopStreamAssets } from "../models/stream-assets.server";
 import { log } from "../lib/logger.server";
@@ -9,7 +9,7 @@ import { log } from "../lib/logger.server";
 // onDelete: Cascade relation to Shop, so deleting the Shop row alone
 // takes them with it.
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { shop, topic } = await authenticate.webhook(request);
+  const { shop, topic } = await verifyWebhook(request);
   console.log(`Received ${topic} webhook for ${shop}`);
 
   // Cloudflare videos first: deleting the Shop row cascades away the

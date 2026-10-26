@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs } from "react-router";
-import { authenticate } from "../shopify.server";
+import { verifyWebhook } from "../lib/webhook.server";
 import prisma from "../db.server";
 import { log } from "../lib/logger.server";
 
@@ -8,7 +8,7 @@ import { log } from "../lib/logger.server";
 // orders. They're logged here so the store owner can be sent them (reel,
 // order name, quantity, amount), Shopify relays the request to the merchant.
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { shop, topic, payload } = await authenticate.webhook(request);
+  const { shop, topic, payload } = await verifyWebhook(request);
   const orderIds = ((payload as { orders_requested?: (number | string)[] }).orders_requested ?? []).map(String);
 
   let records: { reelId: string; orderName: string; quantity: number; revenueAmount: string; currencyCode: string }[] = [];

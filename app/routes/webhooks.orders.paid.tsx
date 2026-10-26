@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs } from "react-router";
-import { authenticate } from "../shopify.server";
+import { verifyWebhook } from "../lib/webhook.server";
 import { getOrCreateShop } from "../models/shop.server";
 import {
   extractAttributionsFromOrderPayload,
@@ -13,7 +13,7 @@ import type { OrderPaidWebhookPayload } from "../models/order-attribution.server
 // currency/line_items) rather than passed through wholesale, and nothing
 // beyond its narrow return value ever reaches storage or a log line.
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { shop, topic, payload } = await authenticate.webhook(request);
+  const { shop, topic, payload } = await verifyWebhook(request);
   console.log(`Received ${topic} webhook for ${shop}`);
 
   const shopRecord = await getOrCreateShop(shop);

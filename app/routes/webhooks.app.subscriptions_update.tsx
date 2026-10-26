@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs } from "react-router";
-import { authenticate } from "../shopify.server";
+import { verifyWebhook } from "../lib/webhook.server";
 import { planFromBillingName } from "../models/plans";
 import { updateShopPlan } from "../models/shop.server";
 import db from "../db.server";
@@ -13,7 +13,7 @@ import { log } from "../lib/logger.server";
 const ENDED = new Set(["CANCELLED", "DECLINED", "EXPIRED", "FROZEN"]);
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { payload, shop, topic } = await authenticate.webhook(request);
+  const { payload, shop, topic } = await verifyWebhook(request);
   log.info("billing.subscription_update", { shop, topic });
 
   const subscription = (payload as { app_subscription?: { name?: string; status?: string } }).app_subscription;

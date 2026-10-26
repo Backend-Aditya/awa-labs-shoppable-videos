@@ -1,21 +1,16 @@
 import type { ActionFunctionArgs } from "react-router";
-import { authenticate } from "../shopify.server";
+import { verifyWebhook } from "../lib/webhook.server";
 import db from "../db.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-    const { payload, session, topic, shop } = await authenticate.webhook(request);
+    const { payload, topic, shop } = await verifyWebhook(request);
     console.log(`Received ${topic} webhook for ${shop}`);
 
-    const current = payload.current as string[];
-    if (session) {
-        await db.session.update({   
-            where: {
-                id: session.id
-            },
-            data: {
-                scope: current.toString(),
-            },
-        });
-    }
+    const current = Array.isArray(payload.current) ? (payload.current as string[]) : [];
+    // The shop's offline session, by id: nothing here needs a live token.
+    await db.session.updateMany({
+        where: { shop, isOnline: false },
+        data: { scope: current.toString() },
+    });
     return new Response();
 };

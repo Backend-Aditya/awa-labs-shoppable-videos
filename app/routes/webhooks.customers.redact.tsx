@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs } from "react-router";
-import { authenticate } from "../shopify.server";
+import { verifyWebhook } from "../lib/webhook.server";
 import prisma from "../db.server";
 import { log } from "../lib/logger.server";
 
@@ -8,7 +8,7 @@ import { log } from "../lib/logger.server";
 // Shopify lists, drop the order identifiers but keep the anonymous amounts
 // so a merchant's revenue totals stay correct.
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { shop, topic, payload } = await authenticate.webhook(request);
+  const { shop, topic, payload } = await verifyWebhook(request);
   const orderIds = ((payload as { orders_to_redact?: (number | string)[] }).orders_to_redact ?? []).map(String);
 
   let redacted = 0;
