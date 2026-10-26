@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
-import type { DragEvent, ReactNode } from "react";
+import type { DragEvent } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFetcher, useLoaderData, useNavigate, useRevalidator, useSearchParams } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
@@ -305,6 +305,24 @@ export default function ReelsLibrary() {
         ) : (
           <>
             <div className={styles.toolbar}>
+              {selected.size > 0 ? (
+                <SelectionBar
+                  count={selected.size}
+                  hidden={hiddenSelected}
+                  selectableCount={shown.length}
+                  allSelected={allShownSelected}
+                  busy={bulkBusy}
+                  busyIntent={bulkBusy ? String(bulkFetcher.formData?.get("intent") ?? "") : ""}
+                  onClear={() => setSelected(new Set())}
+                  onSelectAll={() => setSelected(new Set(shown.map((r) => r.id)))}
+                  onPublish={() => bulk("bulk-publish")}
+                  onUnpublish={() => bulk("bulk-unpublish")}
+                  onDelete={() => {
+                    setDeleteCount(selected.size);
+                    shopify.modal.show("bulk-delete-modal");
+                  }}
+                />
+              ) : (
               <div className={styles.filters} role="group" aria-label="Filter videos">
                 {FILTERS.filter((f) => f.id === "all" || f.id === filter || counts[f.id] > 0).map((f) => (
                   <button
@@ -319,7 +337,10 @@ export default function ReelsLibrary() {
                   </button>
                 ))}
               </div>
+              )}
               <div className={styles.toolbarRight}>
+                {selected.size === 0 && (
+                  <>
                 {/* Escape clears the search. The key event bubbles up from the web component. */}
                 {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
                 <div
@@ -353,6 +374,8 @@ export default function ReelsLibrary() {
                     <s-option value="title">Title A to Z</s-option>
                   </s-select>
                 </div>
+                  </>
+                )}
                 <div /* eslint-disable-line jsx-a11y/interactive-supports-focus -- roving tabindex: the chosen child is the tab stop */
                   className={styles.viewToggle}
                   role="radiogroup"
@@ -425,51 +448,6 @@ export default function ReelsLibrary() {
           </>
         )}
 
-        {selected.size > 0 && (
-          <div className={styles.bulkBar} role="region" aria-label="Bulk actions" aria-busy={bulkBusy}>
-            <button type="button" className={styles.bulkClose} aria-label="Clear selection" onClick={() => setSelected(new Set())}>
-              <CloseIcon />
-            </button>
-            <span className={styles.bulkCount} aria-live="polite">
-              {bulkBusy ? `Working on ${selected.size}…` : `${selected.size} selected`}
-              {!bulkBusy && hiddenSelected > 0 && <span className={styles.bulkHidden}> ({hiddenSelected} not shown)</span>}
-            </span>
-            {!allShownSelected && shown.length > selected.size && (
-              <button type="button" className={styles.bulkLink} onClick={() => setSelected(new Set(shown.map((r) => r.id)))}>
-                Select all {shown.length}
-              </button>
-            )}
-            <span className={styles.bulkDivider} aria-hidden="true" />
-            <BulkAction
-              label="Publish"
-              busyLabel="Publishing"
-              icon={<EyeIcon />}
-              disabled={bulkBusy}
-              busy={bulkBusy && bulkFetcher.formData?.get("intent") === "bulk-publish"}
-              onClick={() => bulk("bulk-publish")}
-            />
-            <BulkAction
-              label="Unpublish"
-              busyLabel="Unpublishing"
-              icon={<EyeOffIcon />}
-              disabled={bulkBusy}
-              busy={bulkBusy && bulkFetcher.formData?.get("intent") === "bulk-unpublish"}
-              onClick={() => bulk("bulk-unpublish")}
-            />
-            <BulkAction
-              label="Delete"
-              busyLabel="Deleting"
-              icon={<TrashIcon />}
-              danger
-              disabled={bulkBusy}
-              busy={bulkBusy && bulkFetcher.formData?.get("intent") === "bulk-delete"}
-              onClick={() => {
-                setDeleteCount(selected.size);
-                shopify.modal.show("bulk-delete-modal");
-              }}
-            />
-          </div>
-        )}
       </div>
 
       <UploadModal initialFiles={pendingFiles} onClear={() => setPendingFiles([])} />
@@ -1094,67 +1072,63 @@ function ImportModal() {
 
 /* --------------------------------------------------------------- icons */
 
-function BulkAction({
-  label,
-  busyLabel,
-  icon,
-  danger,
-  disabled,
+function SelectionBar({
+  count,
+  hidden,
+  selectableCount,
+  allSelected,
   busy,
-  onClick,
+  busyIntent,
+  onClear,
+  onSelectAll,
+  onPublish,
+  onUnpublish,
+  onDelete,
 }: {
-  label: string;
-  busyLabel: string;
-  icon: ReactNode;
-  danger?: boolean;
-  disabled: boolean;
+  count: number;
+  hidden: number;
+  selectableCount: number;
+  allSelected: boolean;
   busy: boolean;
-  onClick: () => void;
+  busyIntent: string;
+  onClear: () => void;
+  onSelectAll: () => void;
+  onPublish: () => void;
+  onUnpublish: () => void;
+  onDelete: () => void;
 }) {
-  return (
-    <button type="button" className={styles.bulkAction} data-danger={danger || undefined} disabled={disabled} onClick={onClick}>
-      {busy ? <span className={styles.bulkSpin} aria-hidden="true" /> : icon}
-      <span className={styles.bulkLabel}>{busy ? `${busyLabel}…` : label}</span>
-    </button>
-  );
-}
+  const box = useRef<HTMLInputElement>(null);
+  // Shopify's index tables show a dash while only some rows are selected.
+  useEffect(() => {
+    if (box.current) box.current.indeterminate = !allSelected;
+  }, [allSelected]);
 
-const bulkIcon = {
-  width: 16,
-  height: 16,
-  viewBox: "0 0 20 20",
-  fill: "none",
-  stroke: "currentColor",
-  strokeWidth: 1.6,
-  strokeLinecap: "round",
-  strokeLinejoin: "round",
-  "aria-hidden": true,
-} as const;
-
-function EyeIcon() {
   return (
-    <svg {...bulkIcon}>
-      <path d="M1.5 10S4.500 4 10 4s8.500 6 8.500 6-3 6-8.500 6S1.500 10 1.500 10Z" />
-      <circle cx="10" cy="10" r="2.500" />
-    </svg>
-  );
-}
-
-function EyeOffIcon() {
-  return (
-    <svg {...bulkIcon}>
-      <path d="M1.5 10S4.500 4 10 4s8.500 6 8.500 6-3 6-8.500 6S1.500 10 1.500 10Z" />
-      <circle cx="10" cy="10" r="2.500" />
-      <path d="M3 3l14 14" />
-    </svg>
-  );
-}
-
-function TrashIcon() {
-  return (
-    <svg {...bulkIcon}>
-      <path d="M4 6h12M8 6V4h4v2M6 6l.700 10h6.600L14 6M8.500 9v4M11.500 9v4" />
-    </svg>
+    <div className={styles.selectionBar} role="region" aria-label="Bulk actions" aria-busy={busy}>
+      <label className={styles.selectionLead}>
+        <input ref={box} type="checkbox" checked={allSelected} aria-label="Clear selection" onChange={onClear} />
+        <span className={styles.selectionCount} aria-live="polite">
+          {busy ? `Working on ${count}…` : `${count} selected`}
+          {!busy && hidden > 0 && <span className={styles.bulkHidden}> ({hidden} not shown)</span>}
+        </span>
+      </label>
+      {!busy && !allSelected && selectableCount > count && (
+        <button type="button" className={styles.bulkLink} onClick={onSelectAll}>
+          Select all {selectableCount}
+        </button>
+      )}
+      <div className={styles.selectionActions}>
+        <s-button onClick={onPublish} disabled={busy} loading={busyIntent === "bulk-publish"}>
+          Publish
+        </s-button>
+        <s-button onClick={onUnpublish} disabled={busy} loading={busyIntent === "bulk-unpublish"}>
+          Unpublish
+        </s-button>
+        <s-button tone="critical" onClick={onDelete} disabled={busy} loading={busyIntent === "bulk-delete"}>
+          Delete
+        </s-button>
+      </div>
+    </div>
   );
 }
 
