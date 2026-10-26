@@ -1,5 +1,5 @@
 import type { ActionFunctionArgs, HeadersFunction, LoaderFunctionArgs } from "react-router";
-import type { DragEvent } from "react";
+import type { DragEvent, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useFetcher, useLoaderData, useNavigate, useRevalidator, useSearchParams } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
@@ -427,45 +427,47 @@ export default function ReelsLibrary() {
 
         {selected.size > 0 && (
           <div className={styles.bulkBar} role="region" aria-label="Bulk actions" aria-busy={bulkBusy}>
-            <span className={styles.bulkCount}>
-              {bulkBusy ? `Working on ${selected.size}…` : `${selected.size} selected`}
-              {!bulkBusy && hiddenSelected > 0 && (
-                <span className={styles.bulkHidden}> ({hiddenSelected} not shown)</span>
-              )}
-            </span>
-            <button
-              type="button"
-              className={styles.bulkLink}
-              onClick={() => setSelected(allShownSelected ? new Set() : new Set(shown.map((r) => r.id)))}
-            >
-              {allShownSelected ? "Clear" : `Select all ${shown.length}`}
+            <button type="button" className={styles.bulkClose} aria-label="Clear selection" onClick={() => setSelected(new Set())}>
+              <CloseIcon />
             </button>
-            <span className={styles.bulkSpacer} />
-            <s-button
+            <span className={styles.bulkCount} aria-live="polite">
+              {bulkBusy ? `Working on ${selected.size}…` : `${selected.size} selected`}
+              {!bulkBusy && hiddenSelected > 0 && <span className={styles.bulkHidden}> ({hiddenSelected} not shown)</span>}
+            </span>
+            {!allShownSelected && shown.length > selected.size && (
+              <button type="button" className={styles.bulkLink} onClick={() => setSelected(new Set(shown.map((r) => r.id)))}>
+                Select all {shown.length}
+              </button>
+            )}
+            <span className={styles.bulkDivider} aria-hidden="true" />
+            <BulkAction
+              label="Publish"
+              busyLabel="Publishing"
+              icon={<EyeIcon />}
+              disabled={bulkBusy}
+              busy={bulkBusy && bulkFetcher.formData?.get("intent") === "bulk-publish"}
               onClick={() => bulk("bulk-publish")}
+            />
+            <BulkAction
+              label="Unpublish"
+              busyLabel="Unpublishing"
+              icon={<EyeOffIcon />}
               disabled={bulkBusy}
-              loading={bulkBusy && bulkFetcher.formData?.get("intent") === "bulk-publish"}
-            >
-              Publish
-            </s-button>
-            <s-button
+              busy={bulkBusy && bulkFetcher.formData?.get("intent") === "bulk-unpublish"}
               onClick={() => bulk("bulk-unpublish")}
+            />
+            <BulkAction
+              label="Delete"
+              busyLabel="Deleting"
+              icon={<TrashIcon />}
+              danger
               disabled={bulkBusy}
-              loading={bulkBusy && bulkFetcher.formData?.get("intent") === "bulk-unpublish"}
-            >
-              Unpublish
-            </s-button>
-            <s-button
-              tone="critical"
-              disabled={bulkBusy}
-              loading={bulkBusy && bulkFetcher.formData?.get("intent") === "bulk-delete"}
+              busy={bulkBusy && bulkFetcher.formData?.get("intent") === "bulk-delete"}
               onClick={() => {
                 setDeleteCount(selected.size);
                 shopify.modal.show("bulk-delete-modal");
               }}
-            >
-              Delete
-            </s-button>
+            />
           </div>
         )}
       </div>
@@ -1091,6 +1093,70 @@ function ImportModal() {
 }
 
 /* --------------------------------------------------------------- icons */
+
+function BulkAction({
+  label,
+  busyLabel,
+  icon,
+  danger,
+  disabled,
+  busy,
+  onClick,
+}: {
+  label: string;
+  busyLabel: string;
+  icon: ReactNode;
+  danger?: boolean;
+  disabled: boolean;
+  busy: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" className={styles.bulkAction} data-danger={danger || undefined} disabled={disabled} onClick={onClick}>
+      {busy ? <span className={styles.bulkSpin} aria-hidden="true" /> : icon}
+      <span className={styles.bulkLabel}>{busy ? `${busyLabel}…` : label}</span>
+    </button>
+  );
+}
+
+const bulkIcon = {
+  width: 16,
+  height: 16,
+  viewBox: "0 0 20 20",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: 1.6,
+  strokeLinecap: "round",
+  strokeLinejoin: "round",
+  "aria-hidden": true,
+} as const;
+
+function EyeIcon() {
+  return (
+    <svg {...bulkIcon}>
+      <path d="M1.5 10S4.500 4 10 4s8.500 6 8.500 6-3 6-8.500 6S1.500 10 1.500 10Z" />
+      <circle cx="10" cy="10" r="2.500" />
+    </svg>
+  );
+}
+
+function EyeOffIcon() {
+  return (
+    <svg {...bulkIcon}>
+      <path d="M1.5 10S4.500 4 10 4s8.500 6 8.500 6-3 6-8.500 6S1.500 10 1.500 10Z" />
+      <circle cx="10" cy="10" r="2.500" />
+      <path d="M3 3l14 14" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg {...bulkIcon}>
+      <path d="M4 6h12M8 6V4h4v2M6 6l.700 10h6.600L14 6M8.500 9v4M11.500 9v4" />
+    </svg>
+  );
+}
 
 function UploadIcon() {
   return (
