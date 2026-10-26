@@ -13,10 +13,10 @@ vi.mock("../models/cloudflare-stream.server", () => ({
   deleteStreamVideo: vi.fn(async () => {}),
 }));
 
-import { action as uninstalled } from "./webhooks.app.uninstalled";
-import { action as shopRedact } from "./webhooks.shop.redact";
-import { action as customersRedact } from "./webhooks.customers.redact";
-import { action as dataRequest } from "./webhooks.customers.data_request";
+import { action as uninstalled } from "../routes/webhooks.app.uninstalled";
+import { action as shopRedact } from "../routes/webhooks.shop.redact";
+import { action as customersRedact } from "../routes/webhooks.customers.redact";
+import { action as dataRequest } from "../routes/webhooks.customers.data_request";
 
 const SHOP = "app-review-test-victim.myshopify.com";
 const SECRET = "integration-secret";
