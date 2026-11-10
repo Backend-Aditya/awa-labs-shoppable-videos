@@ -337,3 +337,114 @@ describe("sale badge", () => {
     expect(screen.queryByText(/^−\d+%$/)).toBeNull();
   });
 });
+
+describe("carousel card templates", () => {
+  const sale = (n: number, products = 1): PreviewReel => ({
+    ...reel(n, products),
+    products: reel(n, products).products.map((p, i) => (i === 0 ? { ...p, compareAtPrice: "$40.00", discountPercent: 58 } : p)),
+  });
+
+  it("header shows eyebrow, heading and subheading; none renders no header", () => {
+    const { container } = renderPreview("CAROUSEL", { eyebrow: "Shoppable reels", heading: "See it", subheading: "Tap any reel" });
+    expect(screen.getByText("Shoppable reels")).toHaveClass("eyebrow");
+    expect(screen.getByRole("heading", { name: "See it" })).toBeInTheDocument();
+    expect(screen.getByText("Tap any reel")).toHaveClass("subheading");
+    const none = renderPreview("CAROUSEL", { eyebrow: "", heading: "", subheading: "" });
+    expect(none.container.querySelector(".deckHeader")).toBeNull();
+    expect(container.querySelector(".deckHeader")).not.toBeNull();
+  });
+
+  it("overlay: product bar with price and compare-at, ribbon, no play button", () => {
+    const { container } = renderPreview(
+      "CAROUSEL",
+      { layoutMode: "carousel", cardTemplate: "overlay", showCardBadge: true, showPlayIcon: false },
+      [sale(1), reel(2, 0), sale(3)],
+    );
+    const overlays = container.querySelectorAll(".cardOverlay");
+    expect(overlays).toHaveLength(3);
+    expect(overlays[0].textContent).toContain("Product 1.0");
+    expect(overlays[0].querySelector("s")!.textContent).toBe("$40.00");
+    // No products: the reel title stands in.
+    expect(overlays[1].textContent).toBe("Reel 2");
+    expect(container.querySelectorAll(".cardBadge")).toHaveLength(2);
+    expect(container.querySelector(".cardBadge")!.textContent).toBe("58% OFF");
+    expect(container.querySelector(".deckPlay")).toBeNull();
+    expect(container.querySelector(".overlayCaption")).toBeNull();
+  });
+
+  it.each([
+    ["classic", false, true],
+    ["modern", true, false],
+    ["vibrant", true, true],
+  ] as const)("%s: product under the card (shop button %s, thumbnail %s)", (cardTemplate, button, thumb) => {
+    const { container } = renderPreview("CAROUSEL", { layoutMode: "grid", cardTemplate, showPrice: false }, reels(3));
+    const info = container.querySelectorAll(".cardInfo");
+    expect(info).toHaveLength(3);
+    expect(info[0]).toHaveAttribute("data-template", cardTemplate);
+    expect(Boolean(info[0].querySelector(".cardShop"))).toBe(button);
+    expect(Boolean(info[0].querySelector(".productThumb"))).toBe(thumb);
+    expect(info[0].querySelector(".cardProductPrice")).toBeNull();
+  });
+
+  it("stack: only the front card shows its product line, and the deck grows to fit it", () => {
+    const { container } = renderPreview("CAROUSEL", { layoutMode: "stack", cardTemplate: "modern" }, reels(5));
+    expect(container.querySelectorAll(".cardInfo")).toHaveLength(1);
+    expect(container.querySelector<HTMLElement>(".deck")!.style.height).toBe("392px");
+    const titled = renderPreview("CAROUSEL", { layoutMode: "stack", cardTemplate: "title" }, reels(5));
+    expect(titled.container.querySelector<HTMLElement>(".deck")!.style.height).toBe("300px");
+  });
+
+  it("a reel with neither products nor title has an empty product line", () => {
+    const blank = { ...reel(1, 0), title: "" };
+    const { container } = renderPreview("CAROUSEL", { layoutMode: "carousel", cardTemplate: "classic" }, [blank]);
+    expect(container.querySelector(".cardInfo .cardProduct")).toBeNull();
+  });
+});
+
+describe("viewer: large product tiles and product details", () => {
+  const openViewer = () => userEvent.click(screen.getByRole("radio", { name: "Video viewer" }));
+
+  it("large images show one big tile; thumbnails show compact rows", async () => {
+    const { container } = renderPreview("CAROUSEL", { productImageSize: "large" });
+    await openViewer();
+    expect(container.querySelector(".viewerPanel")).toHaveAttribute("data-large", "true");
+    expect(container.querySelectorAll(".viewerTileImage")).toHaveLength(1);
+    const compact = renderPreview("CAROUSEL", { productImageSize: "compact" });
+    await userEvent.click(within(compact.container).getByRole("radio", { name: "Video viewer" }));
+    expect(compact.container.querySelector(".viewerPanel")).not.toHaveAttribute("data-large");
+    expect(compact.container.querySelectorAll(".viewerTileImage")).toHaveLength(0);
+  });
+
+  it("tapping a product opens its details; options toggle; back returns to the list", async () => {
+    const { container } = renderPreview("CAROUSEL", { productDetails: true, showDescription: true }, [
+      { ...reel(1), products: [{ id: "x", title: "Chair", imageUrl: "https://cdn.test/c.jpg", price: "$10.00", compareAtPrice: "$20.00" }] },
+    ]);
+    await openViewer();
+    await userEvent.click(screen.getByRole("button", { name: "Chair" }));
+    expect(container.querySelector(".details")).not.toBeNull();
+    expect(container.querySelector<HTMLElement>(".detailsImage")!.style.backgroundImage).toContain("https://cdn.test/c.jpg");
+    expect(screen.getByText("$20.00")).toBeInTheDocument();
+    expect(screen.getByText("Description")).toBeInTheDocument();
+    const maple = screen.getByRole("button", { name: "Maple" });
+    await userEvent.click(maple);
+    expect(maple).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Black" })).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(screen.getByRole("button", { name: "Back to products" }));
+    expect(container.querySelector(".details")).toBeNull();
+  });
+
+  it("details without price or description", async () => {
+    const { container } = renderPreview("CAROUSEL", { productDetails: true, showDescription: false, showPrice: false });
+    await openViewer();
+    await userEvent.click(screen.getByRole("button", { name: "Product 1.0" }));
+    expect(container.querySelector(".detailsDesc")).toBeNull();
+    expect(container.querySelector(".details .priceRow")).toBeNull();
+  });
+
+  it("with details off, product names are plain text", async () => {
+    renderPreview("CAROUSEL", { productDetails: false });
+    await openViewer();
+    expect(screen.queryByRole("button", { name: "Product 1.0" })).toBeNull();
+    expect(screen.getByText("Product 1.0")).toBeInTheDocument();
+  });
+});
