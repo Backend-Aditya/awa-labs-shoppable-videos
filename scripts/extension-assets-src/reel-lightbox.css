@@ -1121,10 +1121,27 @@ html[dir="rtl"] .awa-sv-story {
   }
 }
 
-/* Same space on both sides even while a scrollbar is showing. */
-.awa-sv-viewer__panel,
-.awa-sv-viewer__list {
-  scrollbar-gutter: stable both-edges;
+/* ---------- square popup corners (widget setting) ---------- */
+
+.awa-sv-viewer--square :is(.awa-sv-viewer__player, .awa-sv-viewer__panel) {
+  border-radius: 0;
+}
+
+/* ---------- sliders: no selection or drag ghosts while sliding ---------- */
+
+:is(.awa-sv-pdp__media, .awa-sv-pdp__related, .awa-sv-viewer__recs) {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:is(.awa-sv-pdp__gallery, .awa-sv-pdp__related-row, .awa-sv-viewer__recs-row) img {
+  -webkit-user-drag: none;
+  user-drag: none;
+}
+
+.awa-sv-viewer .awa-sv-pdp__arrow:focus:not(:focus-visible) {
+  outline: none;
 }
 
 /* ---------- product details (in-viewer product page) ---------- */
@@ -1136,13 +1153,6 @@ html[dir="rtl"] .awa-sv-story {
 .awa-sv-viewer__panel.is-detail {
   flex: 1 1 auto;
   overflow-y: auto;
-}
-
-@media (min-width: 1081px) {
-  .awa-sv-viewer__side:has(> .awa-sv-viewer__panel.is-detail) {
-    flex-basis: 420px;
-    max-width: 420px;
-  }
 }
 
 @media (max-width: 749px) {

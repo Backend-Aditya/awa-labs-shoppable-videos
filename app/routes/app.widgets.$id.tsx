@@ -15,6 +15,7 @@ import { createWidget, deleteWidget, getWidget, listWidgetsForShop, saveWidgetSe
 import {
   CARD_TEMPLATES,
   PAGE_TYPE_OPTIONS,
+  SIZING_FIELDS,
   getKindMeta,
   resolveStyle,
   sanitizeStyle,
@@ -1086,7 +1087,7 @@ function DesignTab({
             ]}
           />
         )}
-        {has("triggerSize") && (meta.kind !== "PRODUCT_PAGE_REELS" || style.layoutMode !== "grid") && (
+        {has("triggerSize") && meta.kind !== "CAROUSEL" && (meta.kind !== "PRODUCT_PAGE_REELS" || style.layoutMode !== "grid") && (
           <Slider
             label={meta.sizeLabel}
             min={meta.sizeMin}
@@ -1158,6 +1159,39 @@ function DesignTab({
               onChange={(textColor) => setStyle({ textColor })}
             />
           )}
+        </Card>
+      )}
+
+      {has("headingSize") && (
+        <Card title="Sizing & spacing" description="Text sizes, card width and the space around your videos. Phones scale these down to fit.">
+          {(style.layoutMode ?? "stack") !== "grid" && (
+            <Slider
+              label="Card width"
+              min={meta.sizeMin}
+              max={meta.sizeMax}
+              value={style.triggerSize ?? 240}
+              onChange={(triggerSize) => setStyle({ triggerSize })}
+            />
+          )}
+          {SIZING_FIELDS.map((field) => (
+            <Slider
+              key={field.key}
+              label={field.label}
+              min={field.min}
+              max={field.max}
+              value={(style[field.key] as number | undefined) ?? field.auto}
+              onChange={(value) => setStyle({ [field.key]: value } as Partial<WidgetStyleConfig>)}
+            />
+          ))}
+          <button
+            type="button"
+            className={styles.linkButton}
+            onClick={() =>
+              setStyle(Object.fromEntries([["triggerSize", undefined], ...SIZING_FIELDS.map((f) => [f.key, undefined])]) as Partial<WidgetStyleConfig>)
+            }
+          >
+            Reset to automatic sizes
+          </button>
         </Card>
       )}
 
@@ -1304,6 +1338,17 @@ function ShoppingTab({
             checked={style.productDetails ?? true}
             onChange={(productDetails) => setStyle({ productDetails })}
           />
+          {has("popupCorners") && (
+            <Segmented
+              label="Popup corners"
+              value={style.popupCorners ?? "rounded"}
+              onChange={(popupCorners) => setStyle({ popupCorners })}
+              options={[
+                { value: "square", label: "Square" },
+                { value: "rounded", label: "Rounded" },
+              ]}
+            />
+          )}
           {has("showDescription") && style.productDetails !== false && (
             <Toggle
               label="Product description"

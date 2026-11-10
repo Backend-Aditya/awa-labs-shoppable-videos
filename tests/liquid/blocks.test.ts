@@ -113,6 +113,19 @@ describe("stacked-carousel card templates", () => {
     expect(card.querySelector("img")!.getAttribute("width")).toBe("200");
   });
 
+  it("sizing and spacing become CSS variables only when set; corners default to square", async () => {
+    const set = await render({ headingSize: 40, subheadingSize: 16, eyebrowSize: 12, cardTextSize: 14, cardGap: 0, sectionPaddingY: 60, sectionPaddingX: 24, triggerSize: 260 });
+    const style = set.$("section")!.getAttribute("style")!;
+    for (const part of ["--awa-sv-heading-size: 40px", "--awa-sv-sub-size: 16px", "--awa-sv-eyebrow-size: 12px", "--awa-sv-card-text: 14px", "--awa-sv-gap: 0px", "--awa-sv-pad-y: 60px", "--awa-sv-pad-x: 24px", "--awa-sv-card-w: 260px"]) {
+      expect(style).toContain(part);
+    }
+    expect(set.$("[data-awa-sv-trigger]")!.getAttribute("data-popup-corners")).toBe("square");
+    const unset = await render({});
+    expect(unset.$("section")!.getAttribute("style")).not.toMatch(/--awa-sv-(heading-size|gap|pad-y|pad-x|card-w)/);
+    const rounded = await render({ popupCorners: "rounded" });
+    expect(rounded.$("[data-awa-sv-trigger]")!.getAttribute("data-popup-corners")).toBe("rounded");
+  });
+
   it("large images make each product a tile: no variant picker or add button, a Shop now link", async () => {
     const multi = makeProduct({ id: 9, variants: [{ id: 901, title: "Black" }, { id: 902, title: "Teak" }] });
     const { $ } = await render({ productImageSize: "large", ctaLabel: "Buy it" }, [multi]);

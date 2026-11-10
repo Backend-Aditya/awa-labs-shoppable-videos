@@ -375,7 +375,7 @@
 .deckGrid {
   display: grid;
   grid-template-columns: repeat(var(--pv-columns), minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--pv-gap, 12px);
 }
 
 @container (max-width: 400px) {
@@ -386,12 +386,12 @@
 
 .deckSlider {
   display: flex;
-  gap: 12px;
+  gap: var(--pv-gap, 12px);
   overflow: hidden;
 }
 
 .deckSlider .deckGridCard {
-  flex: 0 0 140px;
+  flex: 0 0 var(--pv-card-w, 140px);
 }
 
 .deckGridCard {
@@ -424,11 +424,12 @@
 
 .deckHeader .heading {
   margin: 0;
+  font-size: var(--pv-heading-size, 17px);
 }
 
 .eyebrow {
   margin: 0 0 6px;
-  font-size: 9px;
+  font-size: var(--pv-eyebrow-size, 9px);
   font-weight: 600;
   letter-spacing: 0.2em;
   text-transform: uppercase;
@@ -437,7 +438,7 @@
 
 .subheading {
   margin: 6px 0 0;
-  font-size: 11px;
+  font-size: var(--pv-sub-size, 11px);
   line-height: 1.5;
   color: color-mix(in srgb, var(--pv-text) 62%, transparent);
 }
@@ -482,7 +483,7 @@
 
 .cardProductTitle {
   overflow: hidden;
-  font-size: 11px;
+  font-size: var(--pv-card-text, 11px);
   font-weight: 600;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -1284,4 +1285,8 @@
 .detailsDescHead {
   font-size: 11px;
   font-weight: 650;
+}
+
+.viewer[data-corners="square"] :is(.viewerPlayer, .viewerPanel) {
+  border-radius: 0;
 }

@@ -14,6 +14,7 @@ its look; this snippet owns the contract with the JS.
 @param autoplay_preview {boolean} [optional] - force the inline muted preview on
 @param source {string} [optional] - which widget this is, reported with its events (e.g. 'stories')
 @param details_default {boolean} [optional] - open product details in the viewer when the merchant hasn't chosen
+@param corners_default {string} [optional] - 'square' or 'rounded' popup corners when the merchant hasn't chosen
 @param image_size_default {string} [optional] - 'compact' or 'large' product images in the viewer when the merchant hasn't chosen
 
 @example
@@ -94,6 +95,7 @@ its look; this snippet owns the contract with the JS.
   data-product-details="{{ product_details }}"
   data-product-image-size="{{ image_size | escape }}"
   data-show-description="{% if style.showDescription == false %}false{% else %}true{% endif %}"
+  data-popup-corners="{{ style.popupCorners | default: corners_default | default: 'rounded' | escape }}"
   data-show-quantity="{% if style.showQuantity %}true{% else %}false{% endif %}"
   {%- if reel.config.value.productTimes %} data-product-times="{{ reel.config.value.productTimes | json | escape }}"{% endif %}
 >

@@ -495,6 +495,7 @@
     video.loop = trigger.dataset.loop === "true";
     if (titleEl) titleEl.hidden = trigger.dataset.showTitle === "false";
     dialog.classList.toggle("awa-sv-products--large", trigger.dataset.productImageSize === "large");
+    dialog.classList.toggle("awa-sv-viewer--square", trigger.dataset.popupCorners === "square");
   };
 
   // Gives the dialog an accessible name even when the reel has no title.
@@ -1066,6 +1067,12 @@
 
   // Prev/next buttons for any horizontal slider in the details view: the
   // nearest [data-awa-sv-slider] in the same section moves by most of a view.
+  // A press on a slider arrow must not start a text/image selection (fast
+  // repeated clicks would otherwise highlight the photos beside it).
+  document.addEventListener("mousedown", (event) => {
+    if (event.target.closest?.("[data-awa-sv-slide]")) event.preventDefault();
+  });
+
   document.addEventListener("click", (event) => {
     const button = event.target.closest?.("[data-awa-sv-slide]");
     if (!button) return;

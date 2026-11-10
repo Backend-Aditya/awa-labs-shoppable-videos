@@ -192,4 +192,23 @@ describe("product details inside the viewer", () => {
     click(q(".awa-sv-pdp__arrow--prev"));
     expect(gallery.scrollBy).toHaveBeenCalledTimes(2);
   });
+
+  it("square corners by default, and the arrows never start a selection", async () => {
+    await mountCarousel();
+    await openFirstProduct();
+    expect(viewer()!.classList.contains("awa-sv-viewer--square")).toBe(true);
+    const down = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
+    q(".awa-sv-pdp__arrow--next").dispatchEvent(down);
+    expect(down.defaultPrevented).toBe(true);
+    const elsewhere = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
+    q(".awa-sv-pdp__title").dispatchEvent(elsewhere);
+    expect(elsewhere.defaultPrevented).toBe(false);
+  });
+
+  it("rounded corners when chosen", async () => {
+    await mountCarousel({ popupCorners: "rounded" });
+    openReel();
+    await flush();
+    expect(viewer()!.classList.contains("awa-sv-viewer--square")).toBe(false);
+  });
 });

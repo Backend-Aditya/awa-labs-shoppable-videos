@@ -880,3 +880,23 @@
   background: #303030;
   color: #fff;
 }
+
+/* A quiet text button, e.g. "Reset to automatic sizes". */
+.linkButton {
+  appearance: none;
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ed-focus);
+  font: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.linkButton:focus-visible {
+  outline: 2px solid var(--ed-focus);
+  outline-offset: 2px;
+}
