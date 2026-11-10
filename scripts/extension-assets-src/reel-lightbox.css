@@ -1123,7 +1123,26 @@ html[dir="rtl"] .awa-sv-story {
 
 /* ---------- square popup corners (widget setting) ---------- */
 
-.awa-sv-viewer--square :is(.awa-sv-viewer__player, .awa-sv-viewer__panel) {
+/* Square means square throughout the popup: the panel and player, and
+   everything inside the panel (tiles, images, buttons, badges, sliders).
+   Round controls over the video and the round arrows/back buttons stay. */
+.awa-sv-viewer--square :is(.awa-sv-viewer__player, .awa-sv-viewer__panel),
+.awa-sv-viewer--square .awa-sv-viewer__panel :is(
+  .awa-sv-product__media,
+  .awa-sv-product__add,
+  .awa-sv-product__shop,
+  .awa-sv-product__badge,
+  .awa-sv-product__variant,
+  .awa-sv-qty,
+  .awa-sv-rec__media,
+  .awa-sv-viewer__link,
+  .awa-sv-viewer__panel-count,
+  .awa-sv-pdp__value,
+  .awa-sv-pdp__add,
+  .awa-sv-pdp__cart,
+  .awa-sv-pdp__badge,
+  .awa-sv-product.is-moment
+) {
   border-radius: 0;
 }
 
