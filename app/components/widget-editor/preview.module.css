@@ -424,7 +424,9 @@
 
 .deckHeader .heading {
   margin: 0;
-  font-size: var(--pv-heading-size, 17px);
+  font-size: var(--pv-heading-size, 30px);
+  font-weight: 400;
+  line-height: 1.15;
 }
 
 .eyebrow {
@@ -438,7 +440,7 @@
 
 .subheading {
   margin: 6px 0 0;
-  font-size: var(--pv-sub-size, 11px);
+  font-size: var(--pv-sub-size, 12px);
   line-height: 1.5;
   color: color-mix(in srgb, var(--pv-text) 62%, transparent);
 }

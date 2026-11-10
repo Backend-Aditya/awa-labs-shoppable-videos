@@ -565,8 +565,8 @@ const NUMBER_RANGES: Partial<Record<StyleFieldKey, [number, number]>> = {
 // the slider shows while unset (the storefront's own default at desktop).
 export const SIZING_FIELDS: { key: StyleFieldKey; label: string; min: number; max: number; auto: number }[] = [
   { key: "eyebrowSize", label: "Eyebrow text", min: 9, max: 20, auto: 11 },
-  { key: "headingSize", label: "Heading text", min: 14, max: 64, auto: 24 },
-  { key: "subheadingSize", label: "Subheading text", min: 11, max: 28, auto: 14 },
+  { key: "headingSize", label: "Heading text", min: 14, max: 64, auto: 40 },
+  { key: "subheadingSize", label: "Subheading text", min: 11, max: 28, auto: 15 },
   { key: "cardTextSize", label: "Card text", min: 10, max: 20, auto: 13 },
   { key: "cardGap", label: "Space between videos", min: 0, max: 48, auto: 14 },
   { key: "sectionPaddingY", label: "Space above and below", min: 0, max: 160, auto: 32 },
