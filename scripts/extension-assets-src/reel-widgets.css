@@ -497,8 +497,10 @@ html[dir="rtl"] .awa-sv-arrow svg { transform: scaleX(-1); }
   padding-inline: var(--awa-sv-pad-x, 0px);
 }
 
-/* With a background, the spacing is inside it. */
+/* With a background, the spacing is inside it, and the section is a
+   sharp-cornered band (the Corners setting shapes the cards, not this). */
 .awa-sv-deck.awa-sv--filled {
+  border-radius: 0;
   padding-block: var(--awa-sv-pad-y, clamp(16px, 3vw, 28px));
   padding-inline: var(--awa-sv-pad-x, clamp(16px, 3vw, 28px));
 }
