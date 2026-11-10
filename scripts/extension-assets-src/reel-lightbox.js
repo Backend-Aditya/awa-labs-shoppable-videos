@@ -1225,7 +1225,7 @@
         <div class="awa-sv-viewer__side">
         <aside class="awa-sv-viewer__panel" data-awa-sv-panel hidden>
           <button type="button" class="awa-sv-viewer__panel-head" data-awa-sv-panel-toggle aria-expanded="true">
-            ${ICONS.bag}
+            <span class="awa-sv-viewer__panel-icon" aria-hidden="true">${ICONS.bag}</span>
             <span class="awa-sv-viewer__panel-text">
               <span class="awa-sv-viewer__panel-title">${L.shop}</span>
               <span class="awa-sv-viewer__panel-sub" data-awa-sv-panel-sub>${L.panelHint}</span>

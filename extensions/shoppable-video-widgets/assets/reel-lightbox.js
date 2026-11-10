@@ -89,7 +89,7 @@
         <div class="awa-sv-viewer__side">
         <aside class="awa-sv-viewer__panel" data-awa-sv-panel hidden>
           <button type="button" class="awa-sv-viewer__panel-head" data-awa-sv-panel-toggle aria-expanded="true">
-            ${b.bag}
+            <span class="awa-sv-viewer__panel-icon" aria-hidden="true">${b.bag}</span>
             <span class="awa-sv-viewer__panel-text">
               <span class="awa-sv-viewer__panel-title">${a.shop}</span>
               <span class="awa-sv-viewer__panel-sub" data-awa-sv-panel-sub>${a.panelHint}</span>
