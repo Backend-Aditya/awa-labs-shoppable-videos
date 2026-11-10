@@ -83,8 +83,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 type Data = ReturnType<typeof useLoaderData<typeof loader>>;
 
-const EMBED_KEY = "reelup-embed-opened";
-const CHECKLIST_DONE_KEY = "reelup-checklist-complete";
+const EMBED_KEY = "awa-sv-embed-opened";
+const CHECKLIST_DONE_KEY = "awa-sv-checklist-complete";
 
 export default function Dashboard() {
   const data = useLoaderData<typeof loader>();
@@ -353,7 +353,7 @@ function Checklist({ data, theme }: { data: Data; theme: ThemeStatus | null }) {
     try {
       setEmbedOpened(localStorage.getItem(EMBED_KEY) === "1");
       setDismissed(
-        localStorage.getItem("reelup-checklist-dismissed") === "1" ||
+        localStorage.getItem("awa-sv-checklist-dismissed") === "1" ||
           localStorage.getItem(CHECKLIST_DONE_KEY) === "1",
       );
     } catch {
@@ -431,7 +431,7 @@ function Checklist({ data, theme }: { data: Data; theme: ThemeStatus | null }) {
           onClick={() => {
             setDismissed(true);
             try {
-              localStorage.setItem("reelup-checklist-dismissed", "1");
+              localStorage.setItem("awa-sv-checklist-dismissed", "1");
             } catch {
               // ignore
             }

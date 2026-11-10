@@ -552,7 +552,7 @@ with:
   {% for reel in reels_field.value %}
 ```
 
-Then find the second, identical `{% for reel in reels_field.value %}` loop further down (the one that renders the actual `<div class="reelup-reel"...>` markup) — no change needed there, since `reels_field` is now assigned once at the top and reused by both loops (this matches the existing pattern exactly: the file already reuses one `reels_field` variable across two loops, just previously pointed at a product metafield instead of a shop metafield).
+Then find the second, identical `{% for reel in reels_field.value %}` loop further down (the one that renders the actual `<div class="awa-sv-reel"...>` markup) — no change needed there, since `reels_field` is now assigned once at the top and reused by both loops (this matches the existing pattern exactly: the file already reuses one `reels_field` variable across two loops, just previously pointed at a product metafield instead of a shop metafield).
 
 - [ ] **Step 2: Update `stacked-carousel.liquid`**
 

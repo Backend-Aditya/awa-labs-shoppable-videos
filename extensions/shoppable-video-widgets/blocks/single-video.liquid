@@ -88,58 +88,58 @@ pulls in the viewer runtime when the app embed is off.
   {%- render 'reel-config' -%}
   {%- render 'reel-video-schema', reel: reel -%}
   {%- capture wrapper_style -%}
-    --ru-radius: {{ radius }};
-    --ru-video-width: {{ video_width }}px;
-    {%- if widget_style.accentColor != blank %}--ru-accent: {{ widget_style.accentColor | escape }}; --ru-play: {{ widget_style.accentColor | escape }};{% endif -%}
-    {%- if widget_style.backgroundColor != blank %}--ru-bg: {{ widget_style.backgroundColor | escape }};{% endif -%}
-    {%- if widget_style.textColor != blank %}--ru-text: {{ widget_style.textColor | escape }};{% endif -%}
-    {%- if widget_style.ctaColor != blank %}--ru-cta: {{ widget_style.ctaColor | escape }};{% endif -%}
-    {%- if widget_style.ctaTextColor != blank %}--ru-cta-text: {{ widget_style.ctaTextColor | escape }};{% endif -%}
+    --awa-sv-radius: {{ radius }};
+    --awa-sv-video-width: {{ video_width }}px;
+    {%- if widget_style.accentColor != blank %}--awa-sv-accent: {{ widget_style.accentColor | escape }}; --awa-sv-play: {{ widget_style.accentColor | escape }};{% endif -%}
+    {%- if widget_style.backgroundColor != blank %}--awa-sv-bg: {{ widget_style.backgroundColor | escape }};{% endif -%}
+    {%- if widget_style.textColor != blank %}--awa-sv-text: {{ widget_style.textColor | escape }};{% endif -%}
+    {%- if widget_style.ctaColor != blank %}--awa-sv-cta: {{ widget_style.ctaColor | escape }};{% endif -%}
+    {%- if widget_style.ctaTextColor != blank %}--awa-sv-cta-text: {{ widget_style.ctaTextColor | escape }};{% endif -%}
   {%- endcapture -%}
   {%- capture poster -%}
-    <button type="button" class="reelup-trigger__button reelup-feature__poster" aria-label="{{ play_label }}">
+    <button type="button" class="awa-sv-trigger__button awa-sv-feature__poster" aria-label="{{ play_label }}">
       {%- if reel.config.value.posterUrl != blank -%}
         {%- capture poster_sizes %}min({{ video_width }}px, 78vw){% endcapture -%}
         {%- render 'reel-poster', url: reel.config.value.posterUrl, height: 1000, width_attr: 540, height_attr: 960, srcset_heights: '640,1000,1440', sizes: poster_sizes, eager: true, priority: true -%}
       {%- endif -%}
-      <span class="reelup-feature__play reelup-play" aria-hidden="true">
+      <span class="awa-sv-feature__play awa-sv-play" aria-hidden="true">
         {%- render 'reel-icon', name: 'play', size: 22 -%}
       </span>
       {%- if show_duration -%}{%- render 'reel-duration', reel: reel -%}{%- endif -%}
     </button>
   {%- endcapture -%}
   <section
-    class="reelup reelup-feature reelup-feature--{{ layout }} reelup-shadow--{{ widget_style.shadowPreset | default: 'soft' | escape }} reelup-device--{{ widget.deviceVisibility | default: 'all' | escape }}{% if widget_style.backgroundColor != blank %} reelup--filled{% endif %} reelup-cta--{{ widget_style.ctaStyle | default: 'pill' | escape }}"
+    class="awa-sv awa-sv-feature awa-sv-feature--{{ layout }} awa-sv-shadow--{{ widget_style.shadowPreset | default: 'soft' | escape }} awa-sv-device--{{ widget.deviceVisibility | default: 'all' | escape }}{% if widget_style.backgroundColor != blank %} awa-sv--filled{% endif %} awa-sv-cta--{{ widget_style.ctaStyle | default: 'pill' | escape }}"
     style="{{ wrapper_style | strip_newlines }}"
     aria-label="{{ section_label }}"
     {{ block.shopify_attributes }}
   >
     {%- if layout == 'poster' and widget_style.heading != blank -%}
-      <h2 class="reelup-heading reelup-heading--center">{{ widget_style.heading | escape }}</h2>
+      <h2 class="awa-sv-heading awa-sv-heading--center">{{ widget_style.heading | escape }}</h2>
     {%- endif -%}
-    <div class="reelup-feature__video">
+    <div class="awa-sv-feature__video">
       {%- render 'reel-trigger', reel: reel, style: widget_style, source: 'featured_video', inner: poster, muted_default: false, autoplay_default: true -%}
     </div>
     {%- if layout == 'split' -%}
-      <div class="reelup-feature__body" data-reelup-reel-id="{{ reel.system.id }}">
+      <div class="awa-sv-feature__body" data-awa-sv-reel-id="{{ reel.system.id }}">
         {%- if widget_style.heading != blank -%}
-          <h2 class="reelup-feature__heading">{{ widget_style.heading | escape }}</h2>
+          <h2 class="awa-sv-feature__heading">{{ widget_style.heading | escape }}</h2>
         {%- endif -%}
         {%- if reel.title.value != blank -%}
-          <p class="reelup-feature__subtitle">{{ reel.title.value | escape }}</p>
+          <p class="awa-sv-feature__subtitle">{{ reel.title.value | escape }}</p>
         {%- endif -%}
-        <div class="reelup-feature__products">
+        <div class="awa-sv-feature__products">
           {%- render 'reel-product-card' for reel.tagged_products.value as product, style: widget_style -%}
         </div>
-        <p class="reelup-feature__status" data-reelup-cart-status hidden>
-          <span class="reelup-cart-message"></span>
+        <p class="awa-sv-feature__status" data-awa-sv-cart-status hidden>
+          <span class="awa-sv-cart-message"></span>
           <a href="{{ routes.cart_url }}">{{ 'reels.view_cart' | t }}</a>
         </p>
       </div>
     {%- endif -%}
   </section>
 {%- elsif request.design_mode -%}
-  <div class="reelup reelup-placeholder" {{ block.shopify_attributes }}>{{ 'reels.editor_placeholder' | t }}</div>
+  <div class="awa-sv awa-sv-placeholder" {{ block.shopify_attributes }}>{{ 'reels.editor_placeholder' | t }}</div>
 {%- endif -%}
 
 {% schema %}

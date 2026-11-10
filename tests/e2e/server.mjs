@@ -25,7 +25,7 @@ const port = Number(process.argv[2] ?? process.env.E2E_PORT ?? 4173);
 const engine = createLiquidEngine({ assetBase: "/assets" });
 
 // HLS manifest URLs 404 on this server (real hls.js → playback error path).
-// Specs that need real playback swap window.ReelupHls for a stub that plays
+// Specs that need real playback swap window.AwaSvHls for a stub that plays
 // /media/sample.webm (see playableVideo() in storefront.spec.ts).
 const hls = (id) => `/media/${id}/manifest/video.m3u8`;
 const poster = (id) =>
@@ -61,7 +61,7 @@ async function schemaAssets(blocks) {
 async function renderPlainPage() {
   const embed = await engine.renderFile("shoppable-videos", blockContext("shoppable-videos", { widget: makeWidget({ published: false }) }));
   const layout = await readFile(path.join(here, "fixtures/storefront.html"), "utf8");
-  return layout.replace("<!--REELUP_EMBED-->", embed).replace(/<!--REELUP_[A-Z]+-->/g, "");
+  return layout.replace("<!--AWA_SV_EMBED-->", embed).replace(/<!--AWA_SV_[A-Z]+-->/g, "");
 }
 
 async function renderPage() {
@@ -74,11 +74,11 @@ async function renderPage() {
   ]);
   const layout = await readFile(path.join(here, "fixtures/storefront.html"), "utf8");
   return layout
-    .replace("<!--REELUP_HEAD-->", await schemaAssets(["product-page-reels", "insta-stories", "add-to-cart-video"]))
-    .replace("<!--REELUP_EMBED-->", embed)
-    .replace("<!--REELUP_STRIP-->", strip)
-    .replace("<!--REELUP_STORIES-->", stories)
-    .replace("<!--REELUP_ATC-->", atc);
+    .replace("<!--AWA_SV_HEAD-->", await schemaAssets(["product-page-reels", "insta-stories", "add-to-cart-video"]))
+    .replace("<!--AWA_SV_EMBED-->", embed)
+    .replace("<!--AWA_SV_STRIP-->", strip)
+    .replace("<!--AWA_SV_STORIES-->", stories)
+    .replace("<!--AWA_SV_ATC-->", atc);
 }
 
 // Each widget gets its own videos here: a view counts once per video per
@@ -107,15 +107,15 @@ async function renderAllWidgets() {
   const layout = await readFile(path.join(here, "fixtures/all-widgets.html"), "utf8");
   return layout
     .replace(
-      "<!--REELUP_HEAD-->",
+      "<!--AWA_SV_HEAD-->",
       await schemaAssets(["product-page-reels", "insta-stories", "add-to-cart-video", "stacked-carousel", "single-video"]),
     )
-    .replace("<!--REELUP_EMBED-->", embed)
-    .replace("<!--REELUP_STRIP-->", strip)
-    .replace("<!--REELUP_STORIES-->", stories)
-    .replace("<!--REELUP_ATC-->", atc)
-    .replace("<!--REELUP_DECK-->", deck)
-    .replace("<!--REELUP_FEATURE-->", feature);
+    .replace("<!--AWA_SV_EMBED-->", embed)
+    .replace("<!--AWA_SV_STRIP-->", strip)
+    .replace("<!--AWA_SV_STORIES-->", stories)
+    .replace("<!--AWA_SV_ATC-->", atc)
+    .replace("<!--AWA_SV_DECK-->", deck)
+    .replace("<!--AWA_SV_FEATURE-->", feature);
 }
 
 const TYPES = { ".js": "text/javascript", ".css": "text/css" };

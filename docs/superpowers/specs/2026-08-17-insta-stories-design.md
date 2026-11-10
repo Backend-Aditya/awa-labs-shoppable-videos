@@ -35,13 +35,13 @@ identical logic. Rather than duplicate it a second time, extract it into
 a new shared `assets/reel-hls.js`:
 
 ```js
-window.ReelupHls = {
+window.AwaSvHls = {
   attach(video, hlsSrc): Promise<void>,  // native HLS, or loads hls.min.js + Hls.js as needed
   teardown(video): void,                  // destroys any active Hls.js instance, clears video src
 };
 ```
 
-`reel-lightbox.js` is updated to call `window.ReelupHls.attach`/
+`reel-lightbox.js` is updated to call `window.AwaSvHls.attach`/
 `.teardown` instead of its own inline copies — this is a refactor of
 already-shipped code with no intended behavior change (same fallback
 order: native HLS → Hls.js → reject; same teardown-on-close timing). All
@@ -51,15 +51,15 @@ loaded before `reel-lightbox.js`).
 ### Trigger markup: circular avatars, same data contract
 
 Each reel renders using the *exact same* trigger contract already
-established (`data-reelup-trigger` with `data-hls-src`/`data-poster-
+established (`data-awa-sv-trigger` with `data-hls-src`/`data-poster-
 url`/`data-title`/`data-close-label`/`data-shop-label`, plus a sibling
-`<template data-reelup-products>` of pre-rendered tagged-product
-markup, reusing the `.reelup-lightbox__product*` classes from
+`<template data-awa-sv-products>` of pre-rendered tagged-product
+markup, reusing the `.awa-sv-lightbox__product*` classes from
 `reel-lightbox.css`) — just styled as a small circle instead of a big
 9:16 card, and wrapped in a new container attribute,
-`data-reelup-story-group`, on the block's outer `<div>`. The story
-viewer JS collects all `[data-reelup-trigger]` elements inside the
-clicked avatar's `[data-reelup-story-group]` ancestor to build its full
+`data-awa-sv-story-group`, on the block's outer `<div>`. The story
+viewer JS collects all `[data-awa-sv-trigger]` elements inside the
+clicked avatar's `[data-awa-sv-story-group]` ancestor to build its full
 navigation sequence — so tapping any avatar starts the story session at
 that reel, but the shopper can navigate through every curated reel in
 the widget from there.
@@ -89,15 +89,15 @@ owns:
 - **Shop drawer**: when the active reel has tagged products, a small
   "Shop this video" pill (using `reels.shop_this_video_label`) sits at
   the bottom of the frame. Tapping it slides up a drawer containing that
-  reel's cloned `<template data-reelup-products>` content (same
-  `.reelup-lightbox__product`/`.reelup-lightbox__add-to-cart` markup and
+  reel's cloned `<template data-awa-sv-products>` content (same
+  `.awa-sv-lightbox__product`/`.awa-sv-lightbox__add-to-cart` markup and
   delegated add-to-cart handler pattern as the lightbox) — opening the
   drawer pauses the video and the auto-advance timer; a drag-handle/tap
   closes the drawer, which resumes both. When the active reel has no
   tagged products, the pill is hidden.
 - **Close**: × button, ESC (native dialog), or backdrop click (same
   `event.target === dialog || event.target === bodyEl` pattern already
-  proven in the lightbox) — tears down HLS via `window.ReelupHls.teardown`,
+  proven in the lightbox) — tears down HLS via `window.AwaSvHls.teardown`,
   clears the timer, and resets the drawer.
 
 ### New block: `insta-stories.liquid`
@@ -107,7 +107,7 @@ Same gating pattern as the other three blocks (`widget_matches_product`/
 .insta_stories_widget`/`.insta_stories_widget_reels`, same
 `reel.published.value`/`cloudflareStreamUid`/`hlsManifestUrl` per-reel
 readiness check). Renders the avatar row wrapped in
-`data-reelup-story-group`, loads `reel-lightbox.css` (for the shared
+`data-awa-sv-story-group`, loads `reel-lightbox.css` (for the shared
 product-card classes the drawer reuses) + a new `reel-story.css`, and
 `reel-hls.js` + `reel-story.js` at the end.
 

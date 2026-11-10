@@ -11,8 +11,8 @@ const MISSING_FILE = "tests/unit/__does_not_exist__.env";
 
 describe("test database URL guard", () => {
   it.each([
-    "postgresql://postgres:postgres@localhost:5432/reelup_test?schema=test",
-    "postgresql://postgres:postgres@localhost:5432/reelup_test",
+    "postgresql://postgres:postgres@localhost:5432/awa_sv_test?schema=test",
+    "postgresql://postgres:postgres@localhost:5432/awa_sv_test",
     "postgresql://u:p@127.0.0.1/db",
     "postgresql://u:p@postgres:5432/db",
     "postgresql://u:p@db:5432/db",

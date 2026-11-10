@@ -9,13 +9,13 @@
 // brings reel-tracking.js everywhere.
 //
 // Double-loading is safe: this file runs once per page, and every runtime
-// file returns early if its global (window.ReelupTracking / ReelupHls /
-// ReelupLightbox / ReelupStory / ReelupTrigger / ReelupPop) already exists,
+// file returns early if its global (window.AwaSvTracking / AwaSvHls /
+// AwaSvLightbox / AwaSvStory / AwaSvTrigger / AwaSvPop) already exists,
 // so delegated listeners, the add-to-cart one in particular, are only
 // attached once.
 (() => {
-  if (window.__reelupLoader) return;
-  window.__reelupLoader = true;
+  if (window.__awaSvLoader) return;
+  window.__awaSvLoader = true;
 
   const base = document.currentScript?.src ?? "";
   const assetUrl = (name) => base.replace(/reel-loader\.js/, name);
@@ -23,7 +23,7 @@
 
   const clarityConnected = () => {
     try {
-      return Boolean(JSON.parse(document.querySelector("script[data-reelup-config]")?.textContent ?? "{}").tracking?.clarityId);
+      return Boolean(JSON.parse(document.querySelector("script[data-awa-sv-config]")?.textContent ?? "{}").tracking?.clarityId);
     } catch {
       return false;
     }
@@ -34,7 +34,7 @@
   // and replayed once the runtime has run.
   let heldTap = null;
   const holdEarlyTap = (event) => {
-    const button = event.target.closest?.("[data-reelup-trigger] .reelup-trigger__button, [data-reelup-pop-open]");
+    const button = event.target.closest?.("[data-awa-sv-trigger] .awa-sv-trigger__button, [data-awa-sv-pop-open]");
     if (!button) return;
     event.stopImmediatePropagation();
     heldTap = button;
@@ -54,7 +54,7 @@
       // them executing in insertion order (lightbox needs hls, etc.), so the
       // last one settling means they all have.
       script.async = false;
-      script.dataset.reelupLoader = "";
+      script.dataset.awaSvLoader = "";
       if (onSettled && i === files.length - 1) {
         script.addEventListener("load", onSettled, { once: true });
         script.addEventListener("error", onSettled, { once: true });
@@ -66,16 +66,16 @@
   let runtimeRequested = false;
   const run = () => {
     if (!base) return;
-    const hasPop = Boolean(document.querySelector("[data-reelup-pop]"));
+    const hasPop = Boolean(document.querySelector("[data-awa-sv-pop]"));
     // No widget means no blocks, every widget unpublished or targeted
     // elsewhere. A theme-editor section load may add one later.
-    const hasWidget = hasPop || Boolean(document.querySelector("[data-reelup-trigger]"));
+    const hasWidget = hasPop || Boolean(document.querySelector("[data-awa-sv-trigger]"));
     const files = [];
-    if (!trackingRequested && !window.ReelupTracking && (hasWidget || clarityConnected())) {
+    if (!trackingRequested && !window.AwaSvTracking && (hasWidget || clarityConnected())) {
       trackingRequested = true;
       files.push("reel-tracking.js");
     }
-    const loadRuntime = hasWidget && !runtimeRequested && !window.ReelupLightbox;
+    const loadRuntime = hasWidget && !runtimeRequested && !window.AwaSvLightbox;
     if (loadRuntime) {
       runtimeRequested = true;
       document.addEventListener("click", holdEarlyTap, true);

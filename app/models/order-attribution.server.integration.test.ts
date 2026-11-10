@@ -23,7 +23,7 @@ describe("extractAttributionsFromOrderPayload", () => {
     expect(extractAttributionsFromOrderPayload(payload)).toEqual([]);
   });
 
-  it("extracts only the line items carrying _reelup_reel_id", () => {
+  it("extracts only the line items carrying _awa_sv_reel_id", () => {
     const payload: OrderPaidWebhookPayload = {
       id: 2,
       name: "#1002",
@@ -35,7 +35,7 @@ describe("extractAttributionsFromOrderPayload", () => {
           variant_id: 200,
           quantity: 3,
           price: "19.99",
-          properties: [{ name: "_reelup_reel_id", value: "gid://shopify/Metaobject/1" }],
+          properties: [{ name: "_awa_sv_reel_id", value: "gid://shopify/Metaobject/1" }],
         },
         { id: 21, product_id: 101, variant_id: 201, quantity: 1, price: "9.99", properties: [] },
       ],
@@ -73,7 +73,7 @@ describe("extractAttributionsFromOrderPayload", () => {
           variant_id: 200,
           quantity: 1,
           price: "19.99",
-          properties: [{ name: "_reelup_reel_id", value: "5" }],
+          properties: [{ name: "_awa_sv_reel_id", value: "5" }],
         },
       ],
     } as OrderPaidWebhookPayload;
@@ -98,7 +98,7 @@ describe("extractAttributionsFromOrderPayload", () => {
           id: 30,
           quantity: 3,
           price: "19.99",
-          properties: [{ name: "_reelup_reel_id", value: "gid://shopify/Metaobject/1" }],
+          properties: [{ name: "_awa_sv_reel_id", value: "gid://shopify/Metaobject/1" }],
         },
       ],
     };

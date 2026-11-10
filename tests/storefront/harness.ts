@@ -30,16 +30,16 @@ export function renderBlock(block: Block, input: Parameters<typeof blockContext>
   return engine.renderFile(block, blockContext(block, input)) as Promise<string>;
 }
 
-/** The shared [data-reelup-config] JSON (snippets/reel-config.liquid). */
+/** The shared [data-awa-sv-config] JSON (snippets/reel-config.liquid). */
 export async function configScript(overrides: Record<string, unknown> = {}) {
   const html = (await engine.renderFile("reel-config", blockContext("shoppable-videos", { widget: { published: false } }))) as string;
-  const json = html.match(/<script type="application\/json" data-reelup-config>([\s\S]*?)<\/script>/)![1];
+  const json = html.match(/<script type="application\/json" data-awa-sv-config>([\s\S]*?)<\/script>/)![1];
   const config = { ...JSON.parse(json), ...overrides };
-  return `<script type="application/json" data-reelup-config>${JSON.stringify(config)}</script>`;
+  return `<script type="application/json" data-awa-sv-config>${JSON.stringify(config)}</script>`;
 }
 
 // Each runtime file returns early when its global already exists.
-const RUNTIME_GLOBALS = ["ReelupLightbox", "ReelupViewer", "ReelupStory", "ReelupTrigger", "ReelupPop", "ReelupHls", "ReelupTracking", "__reelupLoader"];
+const RUNTIME_GLOBALS = ["AwaSvLightbox", "AwaSvViewer", "AwaSvStory", "AwaSvTrigger", "AwaSvPop", "AwaSvHls", "AwaSvTracking", "__awaSvLoader"];
 
 /* ------------------------------------------------------------ stubs */
 
@@ -159,7 +159,7 @@ function installStubs() {
   vi.stubGlobal("IntersectionObserver", FakeIntersectionObserver);
   vi.stubGlobal("CSS", { escape: (s: string) => s.replace(/["\\]/g, "\\$&") });
   vi.stubGlobal("fetch", fetchMock);
-  (window as unknown as { ReelupHls: typeof hls }).ReelupHls = hls;
+  (window as unknown as { AwaSvHls: typeof hls }).AwaSvHls = hls;
   Element.prototype.scrollIntoView = vi.fn();
   (Element.prototype as unknown as { scrollBy: () => void }).scrollBy = vi.fn();
 }
@@ -197,8 +197,8 @@ export async function flush(times = 5) {
   for (let i = 0; i < times; i++) await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-export const viewer = () => document.getElementById("reelup-lightbox") as HTMLDialogElement | null;
-export const storyViewer = () => document.getElementById("reelup-story-viewer") as HTMLDialogElement | null;
+export const viewer = () => document.getElementById("awa-sv-lightbox") as HTMLDialogElement | null;
+export const storyViewer = () => document.getElementById("awa-sv-story-viewer") as HTMLDialogElement | null;
 
 export function click(el: Element | null | undefined) {
   if (!el) throw new Error("click(): element not found");

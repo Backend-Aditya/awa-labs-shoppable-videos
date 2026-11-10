@@ -46,12 +46,12 @@ Reel pops) build on.
 `reel-lightbox.js` is a self-contained IIFE, idempotent against being
 evaluated multiple times (if two blocks are on the same page, each
 loads it, and the browser runs it twice) via a lazy singleton: on first
-`window.ReelupLightbox.open(triggerEl)` call, it checks for an existing
-`#reelup-lightbox` element in the DOM and creates one only if absent,
+`window.AwaSvLightbox.open(triggerEl)` call, it checks for an existing
+`#awa-sv-lightbox` element in the DOM and creates one only if absent,
 so a second evaluation of the script reuses the first one's dialog.
 
 It owns:
-- **The `<dialog id="reelup-lightbox">` element** — built once via
+- **The `<dialog id="awa-sv-lightbox">` element** — built once via
   `document.createElement`/`innerHTML` and appended to `document.body`,
   not rendered by any block's Liquid.
 - **HLS attach/detach** — the same `supportsNativeHls`/`attachSource`/
@@ -60,7 +60,7 @@ It owns:
   path via `document.currentScript.src.replace("reel-lightbox.js",
   "hls.min.js")`.
 - **Add-to-cart** — one delegated `click` listener on the lightbox's
-  product-panel container, using `event.target.closest("[data-reelup-
+  product-panel container, using `event.target.closest("[data-awa-sv-
   add-to-cart]")`, so cloned product markup (see below) never needs its
   own per-clone listener wiring.
 - **Open/close lifecycle** — `open(triggerEl)` reads the trigger's data
@@ -78,34 +78,34 @@ fully interactive inline player:
 
 ```html
 <div
-  class="reelup-trigger"
-  data-reelup-trigger
+  class="awa-sv-trigger"
+  data-awa-sv-trigger
   data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
   data-poster-url="{{ reel.config.value.posterUrl | escape }}"
   data-title="{{ reel.title.value | escape }}"
 >
-  <button type="button" class="reelup-trigger__button" aria-label="{{ 'reels.play_label' | t }}">
+  <button type="button" class="awa-sv-trigger__button" aria-label="{{ 'reels.play_label' | t }}">
     {% if reel.config.value.posterUrl != blank %}
-      <img class="reelup-trigger__poster" src="{{ reel.config.value.posterUrl | escape }}" alt="{{ reel.title.value | escape }}" loading="lazy" width="360" height="640">
+      <img class="awa-sv-trigger__poster" src="{{ reel.config.value.posterUrl | escape }}" alt="{{ reel.title.value | escape }}" loading="lazy" width="360" height="640">
     {% endif %}
-    <span class="reelup-trigger__play-icon" aria-hidden="true"></span>
+    <span class="awa-sv-trigger__play-icon" aria-hidden="true"></span>
   </button>
   {% if reel.tagged_products.value.size > 0 %}
-    <template data-reelup-products>
+    <template data-awa-sv-products>
       {% for product in reel.tagged_products.value %}
         {% assign variant = product.selected_or_first_available_variant %}
-        <div class="reelup-lightbox__product">
-          <a class="reelup-lightbox__product-link" href="{{ product.url }}">
+        <div class="awa-sv-lightbox__product">
+          <a class="awa-sv-lightbox__product-link" href="{{ product.url }}">
             {% if product.featured_image %}
-              <img class="reelup-lightbox__product-image" src="{{ product.featured_image | image_url: width: 160 }}" alt="{{ product.title | escape }}" loading="lazy" width="64" height="64">
+              <img class="awa-sv-lightbox__product-image" src="{{ product.featured_image | image_url: width: 160 }}" alt="{{ product.title | escape }}" loading="lazy" width="64" height="64">
             {% endif %}
-            <span class="reelup-lightbox__product-info">
-              <span class="reelup-lightbox__product-title">{{ product.title }}</span>
-              <span class="reelup-lightbox__product-price">{{ product.price | money }}</span>
+            <span class="awa-sv-lightbox__product-info">
+              <span class="awa-sv-lightbox__product-title">{{ product.title }}</span>
+              <span class="awa-sv-lightbox__product-price">{{ product.price | money }}</span>
             </span>
           </a>
           {% if variant %}
-            <button type="button" class="reelup-lightbox__add-to-cart" data-reelup-add-to-cart data-variant-id="{{ variant.id }}" data-add-label="{{ 'reels.add_to_cart' | t }}" data-added-label="{{ 'reels.added_to_cart' | t }}">
+            <button type="button" class="awa-sv-lightbox__add-to-cart" data-awa-sv-add-to-cart data-variant-id="{{ variant.id }}" data-add-label="{{ 'reels.add_to_cart' | t }}" data-added-label="{{ 'reels.added_to_cart' | t }}">
               {{ 'reels.add_to_cart' | t }}
             </button>
           {% endif %}
@@ -116,13 +116,13 @@ fully interactive inline player:
 </div>
 ```
 
-`.reelup-trigger`, `.reelup-trigger__button`, `.reelup-trigger__poster`,
-`.reelup-trigger__play-icon` are defined once in `reel-lightbox.css` and
+`.awa-sv-trigger`, `.awa-sv-trigger__button`, `.awa-sv-trigger__poster`,
+`.awa-sv-trigger__play-icon` are defined once in `reel-lightbox.css` and
 shared by all three blocks. Each block keeps its own CSS only for the
 **layout that positions triggers** (product-page-reels' horizontal
 scroll row, stacked-carousel's grid, single-video's single centered
 column) — sizing/aspect-ratio of the trigger frame itself stays
-block-controlled via the existing `--reelup-aspect-ratio` custom
+block-controlled via the existing `--awa-sv-aspect-ratio` custom
 property pattern, since a single video's frame is bigger than a grid
 cell's.
 
@@ -132,10 +132,10 @@ nothing plays until a reel is actually opened:
 
 ```js
 (() => {
-  document.querySelectorAll("[data-reelup-trigger]").forEach((trigger) => {
+  document.querySelectorAll("[data-awa-sv-trigger]").forEach((trigger) => {
     trigger
-      .querySelector(".reelup-trigger__button")
-      ?.addEventListener("click", () => window.ReelupLightbox?.open(trigger));
+      .querySelector(".awa-sv-trigger__button")
+      ?.addEventListener("click", () => window.AwaSvLightbox?.open(trigger));
   });
 })();
 ```
@@ -143,14 +143,14 @@ nothing plays until a reel is actually opened:
 ### Lightbox markup (built by JS, not Liquid)
 
 ```html
-<dialog id="reelup-lightbox" class="reelup-lightbox" aria-labelledby="reelup-lightbox-title">
-  <button type="button" class="reelup-lightbox__close" data-reelup-lightbox-close aria-label="{close label}">×</button>
-  <div class="reelup-lightbox__body">
-    <div class="reelup-lightbox__player">
-      <h2 id="reelup-lightbox-title" class="reelup-lightbox__title"></h2>
-      <video class="reelup-lightbox__video" playsinline controls></video>
+<dialog id="awa-sv-lightbox" class="awa-sv-lightbox" aria-labelledby="awa-sv-lightbox-title">
+  <button type="button" class="awa-sv-lightbox__close" data-awa-sv-lightbox-close aria-label="{close label}">×</button>
+  <div class="awa-sv-lightbox__body">
+    <div class="awa-sv-lightbox__player">
+      <h2 id="awa-sv-lightbox-title" class="awa-sv-lightbox__title"></h2>
+      <video class="awa-sv-lightbox__video" playsinline controls></video>
     </div>
-    <div class="reelup-lightbox__products" data-reelup-lightbox-products></div>
+    <div class="awa-sv-lightbox__products" data-awa-sv-lightbox-products></div>
   </div>
 </dialog>
 ```
@@ -176,8 +176,8 @@ surface).
 
 - **`product-page-reels.liquid`**: cards become triggers per the
   contract above. The current inline mini-carousel-with-add-to-cart
-  markup, and its now-dead CSS (`.reelup-reel__products*`,
-  `.reelup-reel__product*`, `.reelup-reel__products-nav*` in
+  markup, and its now-dead CSS (`.awa-sv-reel__products*`,
+  `.awa-sv-reel__product*`, `.awa-sv-reel__products-nav*` in
   `product-page-reels.css`) and JS (`bindProductsCarousel`,
   `bindAddToCartButtons` in `product-page-reels.js`), are removed —
   the lightbox supersedes them. The horizontal-scroll row layout for

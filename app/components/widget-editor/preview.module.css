@@ -307,11 +307,10 @@
   top: 0;
   left: 50%;
   width: 168px;
-  aspect-ratio: 9 / 16;
-  border-radius: var(--pv-radius);
-  overflow: hidden;
-  background: #222;
-  box-shadow: var(--pv-shadow);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
   transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), filter 0.35s ease;
   cursor: pointer;
   transform-origin: 50% 60%;
@@ -397,11 +396,143 @@
 
 .deckGridCard {
   position: relative;
+  cursor: pointer;
+}
+
+/* ---------- carousel card templates ---------- */
+
+.cardFace {
+  position: relative;
+  display: block;
   aspect-ratio: 9 / 16;
   border-radius: var(--pv-radius);
   overflow: hidden;
   background: #222;
   box-shadow: var(--pv-shadow);
+}
+
+[data-template="modern"] > .cardFace {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.deckHeader {
+  margin: 0 auto 14px;
+  max-width: 420px;
+  text-align: center;
+}
+
+.deckHeader .heading {
+  margin: 0;
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--pv-eyebrow, color-mix(in srgb, var(--pv-text) 60%, transparent));
+}
+
+.subheading {
+  margin: 6px 0 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: color-mix(in srgb, var(--pv-text) 62%, transparent);
+}
+
+.cardBadge {
+  position: absolute;
+  top: 8px;
+  left: 6px;
+  padding: 2px 9px 2px 5px;
+  background: var(--pv-card-badge, var(--pv-sale, #c8102e));
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 5px) 50%, 100% 100%, 0 100%);
+}
+
+.cardOverlay {
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  bottom: 5px;
+  padding: 5px;
+  border: 1px solid rgb(255 255 255 / 0.18);
+  border-radius: min(var(--pv-radius), 8px);
+  background: rgb(24 24 24 / 0.42);
+  backdrop-filter: blur(8px);
+  color: #fff;
+}
+
+.cardProduct {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cardProductText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.cardProductTitle {
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.cardProductPrice {
+  display: flex;
+  gap: 4px;
+  font-size: 10px;
+}
+
+.cardProductPrice s {
+  opacity: 0.7;
+}
+
+.cardInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  color: var(--pv-text);
+}
+
+.cardInfo[data-template="modern"] {
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--pv-text) 14%, transparent);
+  border-top: 0;
+  border-radius: 0 0 var(--pv-radius) var(--pv-radius);
+}
+
+.cardInfo[data-template="vibrant"] .cardProductPrice > span:first-child {
+  color: var(--pv-sale, #b42318);
+  font-weight: 700;
+}
+
+.cardShop {
+  display: grid;
+  place-items: center;
+  height: 26px;
+  border-radius: min(var(--pv-radius), 999px);
+  border: 1.5px solid currentColor;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.cardInfo[data-template="vibrant"] .cardShop {
+  border: 0;
+  border-radius: 999px;
+  background: var(--pv-cta);
+  color: var(--pv-cta-text);
 }
 
 /* ---------- stories ---------- */
@@ -979,4 +1110,141 @@
   font-size: 9px;
   font-weight: 700;
   line-height: 14px;
+}
+
+/* ---------- viewer: large product tiles + details view ---------- */
+
+.viewerTileImage {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  background: #e8e2dc center / cover no-repeat;
+}
+
+.viewerPanel[data-large] .viewerProduct {
+  flex-wrap: wrap;
+}
+
+.viewerPanel[data-large] .viewerProduct > .filmProductText {
+  flex: 1 1 100%;
+}
+
+.viewerPanel[data-large] .viewerProduct > :last-child {
+  flex: 1 1 auto;
+  text-align: center;
+}
+
+.viewerProductLink {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, currentColor 30%, transparent);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.details {
+  display: flex;
+  flex-direction: column;
+  margin: -12px;
+}
+
+.detailsGallery {
+  position: relative;
+  display: flex;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.detailsImage {
+  flex: 0 0 80%;
+  aspect-ratio: 1;
+  background: #e8e2dc center / cover no-repeat;
+}
+
+.detailsBack {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 1;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.92);
+  color: #141414;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.detailsBody {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px 12px 12px;
+}
+
+.detailsTitle {
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.detailsOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.detailsOption {
+  padding: 3px 8px;
+  border: 1px solid #d6d6d6;
+  border-radius: 3px;
+  background: #fff;
+  color: #141414;
+  font: inherit;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.detailsOption[aria-pressed="true"] {
+  border-color: #141414;
+  box-shadow: inset 0 0 0 1px #141414;
+}
+
+.detailsActions {
+  display: flex;
+  gap: 6px;
+}
+
+.detailsActions > :first-child {
+  flex: 1;
+  text-align: center;
+}
+
+.detailsCart {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  border: 1px solid #d6d6d6;
+  border-radius: 4px;
+}
+
+.detailsDesc {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-top: 8px;
+  border-top: 1px solid #efefef;
+}
+
+.detailsDescHead {
+  font-size: 11px;
+  font-weight: 650;
 }

@@ -62,7 +62,7 @@ prisma/                      schema and migrations (Postgres)
   counted into daily rollups per reel (`ReelDailyStat`), per widget
   (`WidgetDailyStat`, from the event's widget source) and per product
   (`ProductDailyStat`, taps and adds to cart). Orders are
-  attributed from a hidden `_reelup_reel_id` line-item property by the
+  attributed from a hidden `_awa_sv_reel_id` line-item property by the
   `orders/paid` webhook (disabled until protected customer data access is
   approved, see `shopify.app.toml`).
 - **Integrations**: `reel-tracking.js` publishes the same events to Shopify

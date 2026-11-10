@@ -197,6 +197,8 @@ export function WidgetPreview({
     "--pv-sale": brand.salePriceColor,
     "--pv-size": `${style.triggerSize ?? 200}px`,
     "--pv-columns": String(style.columns ?? 4),
+    "--pv-eyebrow": style.accentColor || undefined,
+    "--pv-card-badge": style.badgeColor || undefined,
   } as CSSProperties;
 
   return (
@@ -394,6 +396,94 @@ function Filmstrip({ style, reels, interact }: { style: WidgetStyleConfig; reels
 
 /* ------------------------------------------------------------------ deck */
 
+type CardTemplate = NonNullable<WidgetStyleConfig["cardTemplate"]>;
+const BELOW_TEMPLATES: CardTemplate[] = ["classic", "modern", "vibrant"];
+// Height the product line adds under each card (storefront: --awa-sv-info-h).
+const INFO_HEIGHT: Partial<Record<CardTemplate, number>> = { classic: 46, modern: 92, vibrant: 84 };
+
+function DeckHeader({ style }: { style: WidgetStyleConfig }) {
+  if (!style.eyebrow && !style.heading && !style.subheading) return null;
+  return (
+    <div className={styles.deckHeader}>
+      {style.eyebrow && <p className={styles.eyebrow}>{style.eyebrow}</p>}
+      {style.heading && <h3 className={styles.heading}>{style.heading}</h3>}
+      {style.subheading && <p className={styles.subheading}>{style.subheading}</p>}
+    </div>
+  );
+}
+
+function CardProduct({ reel, style, template }: { reel: PreviewReel; style: WidgetStyleConfig; template: CardTemplate }) {
+  const product = reel.products[0];
+  if (!product) {
+    return reel.title ? (
+      <span className={styles.cardProduct}>
+        <span className={styles.cardProductTitle}>{reel.title}</span>
+      </span>
+    ) : null;
+  }
+  return (
+    <span className={styles.cardProduct}>
+      {template !== "modern" && <ProductThumb product={product} size={26} />}
+      <span className={styles.cardProductText}>
+        <span className={styles.cardProductTitle}>{product.title}</span>
+        {style.showPrice !== false && (
+          <span className={styles.cardProductPrice}>
+            <span>{product.price}</span>
+            {product.compareAtPrice && <s>{product.compareAtPrice}</s>}
+          </span>
+        )}
+      </span>
+    </span>
+  );
+}
+
+// Everything drawn over a card's poster: discount ribbon, play button,
+// and the title caption or the overlay product bar.
+function CardFace({
+  reel,
+  index,
+  style,
+  playing,
+  front,
+}: {
+  reel: PreviewReel;
+  index: number;
+  style: WidgetStyleConfig;
+  playing: boolean;
+  front: boolean;
+}) {
+  const template = style.cardTemplate ?? "title";
+  const discount = reel.products[0]?.discountPercent;
+  return (
+    <span className={styles.cardFace}>
+      <Poster reel={reel} index={index} playing={playing} />
+      {style.showCardBadge && discount ? <span className={styles.cardBadge}>{discount}% OFF</span> : null}
+      {front && style.showPlayIcon !== false && (
+        <span className={styles.deckPlay}>
+          <PlayGlyph size={14} />
+        </span>
+      )}
+      {front && template === "title" && style.showCaption && <span className={styles.overlayCaption}>{reel.title}</span>}
+      {front && template === "overlay" && (
+        <span className={styles.cardOverlay}>
+          <CardProduct reel={reel} style={style} template={template} />
+        </span>
+      )}
+    </span>
+  );
+}
+
+function CardInfo({ reel, style }: { reel: PreviewReel; style: WidgetStyleConfig }) {
+  const template = style.cardTemplate ?? "title";
+  if (!BELOW_TEMPLATES.includes(template)) return null;
+  return (
+    <span className={styles.cardInfo} data-template={template}>
+      <CardProduct reel={reel} style={style} template={template} />
+      {template !== "classic" && <span className={styles.cardShop}>Shop now</span>}
+    </span>
+  );
+}
+
 function Deck({
   style,
   reels,
@@ -411,16 +501,17 @@ function Deck({
   // otherwise it renders as a slider.
   const requestedMode = style.layoutMode ?? "stack";
   const mode = requestedMode === "stack" && reels.length < 3 ? "carousel" : requestedMode;
+  const template = style.cardTemplate ?? "title";
 
   if (mode === "grid" || mode === "carousel") {
     return (
       <div className={styles.section} style={{ background: "var(--pv-bg)" }}>
-        <Heading text={style.heading} align="center" />
+        <DeckHeader style={style} />
         <div className={mode === "grid" ? styles.deckGrid : styles.deckSlider}>
           {reels.map((reel, i) => (
-            <div key={reel.id} className={styles.deckGridCard} {...interact.bind(i, reel.title)}>
-              <Poster reel={reel} index={i} playing={interact.hovered === i} />
-              {style.showCaption && <span className={styles.overlayCaption}>{reel.title}</span>}
+            <div key={reel.id} className={styles.deckGridCard} data-template={template} {...interact.bind(i, reel.title)}>
+              <CardFace reel={reel} index={i} style={style} playing={interact.hovered === i} front />
+              <CardInfo reel={reel} style={style} />
             </div>
           ))}
         </div>
@@ -431,8 +522,8 @@ function Deck({
   const spread = device === "mobile" ? 46 : 58;
   return (
     <div className={styles.section} style={{ background: "var(--pv-bg)" }}>
-      <Heading text={style.heading} align="center" />
-      <div className={styles.deck}>
+      <DeckHeader style={style} />
+      <div className={styles.deck} style={{ height: 300 + (INFO_HEIGHT[template] ?? 0) }}>
         {reels.map((reel, i) => {
           const offset = i - active;
           const abs = Math.abs(offset);
@@ -442,6 +533,7 @@ function Deck({
               type="button"
               key={reel.id}
               className={styles.deckCard}
+              data-template={template}
               data-active={offset === 0 || undefined}
               // Like the storefront: a side card comes forward, the front
               // card opens the viewer.
@@ -457,15 +549,9 @@ function Deck({
                 filter: abs ? `brightness(${1 - abs * 0.18})` : undefined,
               }}
             >
-              <Poster reel={reel} index={i} playing={offset === 0} />
-              {offset === 0 && (
-                <>
-                  <span className={styles.deckPlay}>
-                    <PlayGlyph size={14} />
-                  </span>
-                  {style.showCaption && <span className={styles.overlayCaption}>{reel.title}</span>}
-                </>
-              )}
+              <CardFace reel={reel} index={i} style={style} playing={offset === 0} front={offset === 0} />
+              {/* Side cards tuck behind; only the front one shows its product. */}
+              {offset === 0 && <CardInfo reel={reel} style={style} />}
             </button>
           );
         })}
@@ -703,6 +789,11 @@ function ViewerPreview({
   theme: BrandConfig["viewerTheme"];
 }) {
   const tap = style.tagRevealMode === "tap";
+  const large = style.productImageSize === "large" && style.showProductImage !== false;
+  // Clicking a product in the mock opens the details view, as on the store.
+  const [detail, setDetail] = useState<PreviewProduct | null>(null);
+  const details = style.productDetails === true;
+  const shownDetail = details ? detail : null;
   return (
     <div className={styles.viewer} data-device={device} data-theme={theme}>
       <div className={styles.viewerPlayer}>
@@ -745,17 +836,35 @@ function ViewerPreview({
           <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8.03v7.94c1.48-.73 2.5-2.25 2.5-3.97z" /></svg>
         </span>
       </div>
-      <div className={styles.viewerPanel}>
+      <div className={styles.viewerPanel} data-large={large || undefined}>
+        {shownDetail ? (
+          <DetailsPreview product={shownDetail} style={style} onBack={() => setDetail(null)} />
+        ) : (
+          <>
         <div className={styles.viewerPanelHead}>
           <span>Shop this video</span>
           {tap && <span className={styles.subdued}>{reel.products.length} ›</span>}
         </div>
         {!tap &&
-          reel.products.slice(0, 2).map((product) => (
+          reel.products.slice(0, large ? 1 : 2).map((product) => (
             <div key={product.id} className={styles.viewerProduct}>
-              {style.showProductImage && <ProductThumb product={product} size={44} />}
+              {style.showProductImage &&
+                (large ? (
+                  <span
+                    className={styles.viewerTileImage}
+                    style={{ backgroundImage: product.imageUrl ? `url("${product.imageUrl}")` : undefined }}
+                  />
+                ) : (
+                  <ProductThumb product={product} size={44} />
+                ))}
               <span className={styles.filmProductText}>
-                <span className={styles.oneLine}>{product.title}</span>
+                {details ? (
+                  <button type="button" className={styles.viewerProductLink} onClick={() => setDetail(product)}>
+                    {product.title}
+                  </button>
+                ) : (
+                  <span className={styles.oneLine}>{product.title}</span>
+                )}
                 {style.showPrice && (
                   <span className={styles.priceRow}>
                     <span className={product.compareAtPrice ? styles.salePrice : styles.subdued}>{product.price}</span>
@@ -779,6 +888,67 @@ function ViewerPreview({
               ))}
             </span>
           </div>
+        )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// The in-viewer product page: gallery, price, option buttons, add to cart
+// and description, approximated with sample content.
+function DetailsPreview({ product, style, onBack }: { product: PreviewProduct; style: WidgetStyleConfig; onBack: () => void }) {
+  const [option, setOption] = useState(0);
+  return (
+    <div className={styles.details}>
+      <div className={styles.detailsGallery}>
+        <button type="button" className={styles.detailsBack} aria-label="Back to products" onClick={onBack}>
+          ←
+        </button>
+        {[0, 1].map((i) => (
+          <span
+            key={i}
+            className={styles.detailsImage}
+            style={{ backgroundImage: product.imageUrl ? `url("${product.imageUrl}")` : undefined, opacity: i ? 0.7 : 1 }}
+          />
+        ))}
+      </div>
+      <div className={styles.detailsBody}>
+        <span className={styles.detailsTitle}>{product.title}</span>
+        {style.showPrice !== false && (
+          <span className={styles.priceRow}>
+            <span className={product.compareAtPrice ? styles.salePrice : undefined}>{product.price}</span>
+            {product.compareAtPrice && <s className={styles.subdued}>{product.compareAtPrice}</s>}
+          </span>
+        )}
+        <span className={styles.subdued}>Color:</span>
+        <span className={styles.detailsOptions}>
+          {["Black", "Maple", "Teak"].map((value, i) => (
+            <button
+              key={value}
+              type="button"
+              className={styles.detailsOption}
+              aria-pressed={option === i}
+              onClick={() => setOption(i)}
+            >
+              {value}
+            </button>
+          ))}
+        </span>
+        <span className={styles.detailsActions}>
+          <CtaButton style={style} />
+          <span className={styles.detailsCart} aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="8" cy="21" r="1" /><circle cx="19" cy="21" r="1" /><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" /></svg>
+          </span>
+        </span>
+        {style.showDescription !== false && (
+          <span className={styles.detailsDesc}>
+            <span className={styles.detailsDescHead}>Description</span>
+            <Skeleton w="100%" h={6} />
+            <Skeleton w="92%" h={6} />
+            <Skeleton w="70%" h={6} />
+          </span>
         )}
       </div>
     </div>

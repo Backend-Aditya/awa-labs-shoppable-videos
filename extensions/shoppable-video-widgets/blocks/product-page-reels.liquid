@@ -101,24 +101,24 @@ pulls in the viewer runtime when the app embed is off.
 {%- if visible_count > 0 -%}
   {%- render 'reel-config' -%}
   {%- capture wrapper_style -%}
-    --ru-radius: {{ radius }};
-    --ru-card-width: {{ card_width }}px;
-    --ru-columns: {{ widget_style.columns | default: 4 | times: 1 }};
-    {%- if widget_style.accentColor != blank %}--ru-accent: {{ widget_style.accentColor | escape }}; --ru-play: {{ widget_style.accentColor | escape }};{% endif -%}
-    {%- if widget_style.backgroundColor != blank %}--ru-bg: {{ widget_style.backgroundColor | escape }};{% endif -%}
-    {%- if widget_style.textColor != blank %}--ru-text: {{ widget_style.textColor | escape }};{% endif -%}
+    --awa-sv-radius: {{ radius }};
+    --awa-sv-card-width: {{ card_width }}px;
+    --awa-sv-columns: {{ widget_style.columns | default: 4 | times: 1 }};
+    {%- if widget_style.accentColor != blank %}--awa-sv-accent: {{ widget_style.accentColor | escape }}; --awa-sv-play: {{ widget_style.accentColor | escape }};{% endif -%}
+    {%- if widget_style.backgroundColor != blank %}--awa-sv-bg: {{ widget_style.backgroundColor | escape }};{% endif -%}
+    {%- if widget_style.textColor != blank %}--awa-sv-text: {{ widget_style.textColor | escape }};{% endif -%}
   {%- endcapture -%}
   <section
-    class="reelup reelup-strip reelup-strip--{{ layout }} reelup-shadow--{{ widget_style.shadowPreset | default: 'none' | escape }} reelup-device--{{ widget.deviceVisibility | default: 'all' | escape }}{% if widget_style.backgroundColor != blank %} reelup--filled{% endif %}"
+    class="awa-sv awa-sv-strip awa-sv-strip--{{ layout }} awa-sv-shadow--{{ widget_style.shadowPreset | default: 'none' | escape }} awa-sv-device--{{ widget.deviceVisibility | default: 'all' | escape }}{% if widget_style.backgroundColor != blank %} awa-sv--filled{% endif %}"
     style="{{ wrapper_style | strip_newlines }}"
     {% if widget_style.heading != blank %}aria-label="{{ widget_style.heading | escape }}"{% endif %}
     {{ block.shopify_attributes }}
   >
     {%- if widget_style.heading != blank -%}
-      <h2 class="reelup-heading">{{ widget_style.heading | escape }}</h2>
+      <h2 class="awa-sv-heading">{{ widget_style.heading | escape }}</h2>
     {%- endif -%}
-    <div class="reelup-strip__viewport">
-      <ul class="reelup-strip__track" data-reelup-group data-reelup-strip role="list">
+    <div class="awa-sv-strip__viewport">
+      <ul class="awa-sv-strip__track" data-awa-sv-group data-awa-sv-strip role="list">
         {%- assign rendered = 0 -%}
         {%- for reel in reels -%}
           {%- if reel.published.value and reel.config.value.hlsManifestUrl != blank -%}
@@ -135,30 +135,30 @@ pulls in the viewer runtime when the app embed is off.
             -%}
             {%- render 'reel-video-schema', reel: reel -%}
             {%- capture card -%}
-              <button type="button" class="reelup-trigger__button reelup-strip__poster" aria-label="{{ play_label }}">
+              <button type="button" class="awa-sv-trigger__button awa-sv-strip__poster" aria-label="{{ play_label }}">
                 {%- if reel.config.value.posterUrl != blank -%}
                   {%- capture poster_sizes %}min({{ card_width }}px, 70vw){% endcapture -%}
                   {%- render 'reel-poster', url: reel.config.value.posterUrl, height: 800, width_attr: 360, height_attr: 640, srcset_heights: '480,800,1200', sizes: poster_sizes, eager: first, priority: first -%}
                 {%- endif -%}
-                <span class="reelup-strip__play reelup-play" aria-hidden="true">{%- render 'reel-icon', name: 'play', size: 18 -%}</span>
+                <span class="awa-sv-strip__play awa-sv-play" aria-hidden="true">{%- render 'reel-icon', name: 'play', size: 18 -%}</span>
                 {%- if show_duration -%}{%- render 'reel-duration', reel: reel, icon: true -%}{%- endif -%}
               </button>
             {%- endcapture -%}
-            <li class="reelup-strip__item">
+            <li class="awa-sv-strip__item">
               {%- render 'reel-trigger', reel: reel, style: widget_style, source: 'product_page_reels', inner: card, muted_default: true, autoplay_default: true -%}
               {%- if show_caption and reel.title.value != blank -%}
-                <p class="reelup-strip__caption">{{ reel.title.value | escape }}</p>
+                <p class="awa-sv-strip__caption">{{ reel.title.value | escape }}</p>
               {%- endif -%}
               {%- if show_product -%}
                 {%- assign lead = reel.tagged_products.value | first -%}
                 {%- if lead -%}
-                  <a class="reelup-strip__product" href="{{ lead.url }}">
+                  <a class="awa-sv-strip__product" href="{{ lead.url }}">
                     {%- if lead.featured_image -%}
                       <img src="{{ lead.featured_image | image_url: width: 72 }}" alt="" loading="lazy" width="28" height="28">
                     {%- endif -%}
-                    <span class="reelup-strip__product-text">
-                      <span class="reelup-strip__product-title">{{ lead.title | escape }}</span>
-                      {%- if show_price -%}<span class="reelup-strip__product-price">{{ lead.price | money }}</span>{%- endif -%}
+                    <span class="awa-sv-strip__product-text">
+                      <span class="awa-sv-strip__product-title">{{ lead.title | escape }}</span>
+                      {%- if show_price -%}<span class="awa-sv-strip__product-price">{{ lead.price | money }}</span>{%- endif -%}
                     </span>
                   </a>
                 {%- endif -%}
@@ -168,17 +168,17 @@ pulls in the viewer runtime when the app embed is off.
         {%- endfor -%}
       </ul>
       {%- if layout == 'carousel' and visible_count > 1 -%}
-        <button type="button" class="reelup-arrow reelup-arrow--prev" data-reelup-strip-prev aria-label="{{ 'reels.scroll_back_label' | t }}" hidden>
+        <button type="button" class="awa-sv-arrow awa-sv-arrow--prev" data-awa-sv-strip-prev aria-label="{{ 'reels.scroll_back_label' | t }}" hidden>
           {%- render 'reel-icon', name: 'chevron-left', size: 16 -%}
         </button>
-        <button type="button" class="reelup-arrow reelup-arrow--next" data-reelup-strip-next aria-label="{{ 'reels.scroll_forward_label' | t }}" hidden>
+        <button type="button" class="awa-sv-arrow awa-sv-arrow--next" data-awa-sv-strip-next aria-label="{{ 'reels.scroll_forward_label' | t }}" hidden>
           {%- render 'reel-icon', name: 'chevron-right', size: 16 -%}
         </button>
       {%- endif -%}
     </div>
   </section>
 {%- elsif request.design_mode -%}
-  <div class="reelup reelup-placeholder" {{ block.shopify_attributes }}>{{ 'reels.editor_placeholder' | t }}</div>
+  <div class="awa-sv awa-sv-placeholder" {{ block.shopify_attributes }}>{{ 'reels.editor_placeholder' | t }}</div>
 {%- endif -%}
 
 {% schema %}

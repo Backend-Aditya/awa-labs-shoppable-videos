@@ -9,7 +9,7 @@ const card = (product: object, style: object = {}) => renderDom("reel-product-ca
 describe("reel-product-card", () => {
   it("multi-variant product: <select> with every variant, first available selected, sold-out suffix", async () => {
     const { $, $$ } = await card(multiVariantProduct());
-    const select = $<HTMLSelectElement>("select[data-reelup-variant]")!;
+    const select = $<HTMLSelectElement>("select[data-awa-sv-variant]")!;
     expect(select.getAttribute("aria-label")).toBe("Options for Linen Shirt");
     const options = $$<HTMLOptionElement>("option");
     expect(options.map((o) => o.value)).toEqual(["701", "702", "703"]);
@@ -30,33 +30,33 @@ describe("reel-product-card", () => {
     });
     const { $ } = await card(product);
     expect($<HTMLSelectElement>("select")!.value).toBe("32");
-    expect($("[data-reelup-add-to-cart]")!.dataset.variantId).toBe("32");
+    expect($("[data-awa-sv-add-to-cart]")!.dataset.variantId).toBe("32");
   });
 
   it("single default variant: no variant picker", async () => {
     const { $ } = await card(makeProduct({ id: 2 }));
     expect($("select")).toBeNull();
-    expect($("[data-reelup-add-to-cart]")!.dataset.variantId).toBe("200");
+    expect($("[data-awa-sv-add-to-cart]")!.dataset.variantId).toBe("200");
   });
 
   it("price and compare-at price; compare hidden unless higher", async () => {
     const onSale = await card(multiVariantProduct());
-    expect(onSale.$("[data-reelup-price]")!.textContent).toBe("$48.00");
-    expect(onSale.$("[data-reelup-compare]")!.hasAttribute("hidden")).toBe(false);
+    expect(onSale.$("[data-awa-sv-price]")!.textContent).toBe("$48.00");
+    expect(onSale.$("[data-awa-sv-compare]")!.hasAttribute("hidden")).toBe(false);
     const regular = await card(makeProduct({ id: 2, variants: [{ id: 1, price: 1000, compare_at_price: 900 }] }));
-    expect(regular.$("[data-reelup-compare]")!.hasAttribute("hidden")).toBe(true);
+    expect(regular.$("[data-awa-sv-compare]")!.hasAttribute("hidden")).toBe(true);
   });
 
   it("sold-out product: disabled button labelled Sold out", async () => {
     const { $ } = await card(makeProduct({ id: 4, variants: [{ id: 41, available: false }] }));
-    const button = $<HTMLButtonElement>("[data-reelup-add-to-cart]")!;
+    const button = $<HTMLButtonElement>("[data-awa-sv-add-to-cart]")!;
     expect(button.disabled).toBe(true);
     expect(button.textContent!.trim()).toBe("Sold out");
   });
 
   it("available product: enabled button with the add/added/sold-out labels for JS", async () => {
     const { $ } = await card(makeProduct({ id: 2 }));
-    const button = $<HTMLButtonElement>("[data-reelup-add-to-cart]")!;
+    const button = $<HTMLButtonElement>("[data-awa-sv-add-to-cart]")!;
     expect(button.disabled).toBe(false);
     expect(button.textContent!.trim()).toBe("Add to cart");
     expect(button.dataset).toMatchObject({ addLabel: "Add to cart", addedLabel: "Added", soldOutLabel: "Sold out" });
@@ -64,7 +64,7 @@ describe("reel-product-card", () => {
 
   it("custom CTA label is escaped in text and attribute", async () => {
     const { $, html } = await card(makeProduct({ id: 2 }), { ctaLabel: `Buy "now" <b>` });
-    const button = $("[data-reelup-add-to-cart]")!;
+    const button = $("[data-awa-sv-add-to-cart]")!;
     expect(button.textContent!.trim()).toBe(`Buy "now" <b>`);
     expect(button.dataset.addLabel).toBe(`Buy "now" <b>`);
     expect(html).not.toContain("<b>");
@@ -72,7 +72,7 @@ describe("reel-product-card", () => {
 
   it("product title is escaped", async () => {
     const { $, html } = await card(makeProduct({ id: 2, title: `<img src=x onerror=alert(1)>` }));
-    expect($(".reelup-product__title")!.textContent).toBe("<img src=x onerror=alert(1)>");
+    expect($(".awa-sv-product__title")!.textContent).toBe("<img src=x onerror=alert(1)>");
     expect(html).not.toContain("<img src=x");
   });
 
@@ -85,19 +85,19 @@ describe("reel-product-card", () => {
 
   it("style toggles: price, image, quantity stepper", async () => {
     const plain = await card(multiVariantProduct(), { showPrice: false, showProductImage: false });
-    expect(plain.$("[data-reelup-price]")).toBeNull();
-    expect(plain.$(".reelup-product__media")).toBeNull();
-    expect(plain.$("[data-reelup-qty]")).toBeNull();
+    expect(plain.$("[data-awa-sv-price]")).toBeNull();
+    expect(plain.$(".awa-sv-product__media")).toBeNull();
+    expect(plain.$("[data-awa-sv-qty]")).toBeNull();
 
     const full = await card(multiVariantProduct(), { showQuantity: true });
-    expect(full.$(".reelup-product__media img")!.getAttribute("src")).toBe("https://cdn.test/products/7.jpg?width=192");
-    expect(full.$<HTMLInputElement>("[data-reelup-qty-input]")!.value).toBe("1");
-    expect(full.$$("[data-reelup-qty-step]").map((b) => b.dataset.reelupQtyStep)).toEqual(["-1", "1"]);
+    expect(full.$(".awa-sv-product__media img")!.getAttribute("src")).toBe("https://cdn.test/products/7.jpg?width=192");
+    expect(full.$<HTMLInputElement>("[data-awa-sv-qty-input]")!.value).toBe("1");
+    expect(full.$$("[data-awa-sv-qty-step]").map((b) => b.dataset.awaSvQtyStep)).toEqual(["-1", "1"]);
   });
 
   it("no image → no media link", async () => {
     const { $ } = await card(makeProduct({ id: 2, image: null }));
-    expect($(".reelup-product__media")).toBeNull();
+    expect($(".awa-sv-product__media")).toBeNull();
   });
 
   it("renders nothing for a product without variants", async () => {
@@ -116,22 +116,22 @@ describe("reel-product-card", () => {
       [100, 300, "−67%"],
     ])("%i on %i shows %s", async (price, compare, text) => {
       const { $ } = await card(onSale(price, compare), { showSaleBadge: true });
-      expect($("[data-reelup-badge]")!.textContent).toBe(text);
-      expect($("[data-reelup-badge]")!.getAttribute("aria-hidden")).toBe("true");
+      expect($("[data-awa-sv-badge]")!.textContent).toBe(text);
+      expect($("[data-awa-sv-badge]")!.getAttribute("aria-hidden")).toBe("true");
     });
 
     it("is off unless the merchant turns it on, and never without prices", async () => {
-      expect((await card(onSale(4800, 6000))).$("[data-reelup-badge]")).toBeNull();
-      expect((await card(onSale(4800, 6000), { showSaleBadge: true, showPrice: false })).$("[data-reelup-badge]")).toBeNull();
+      expect((await card(onSale(4800, 6000))).$("[data-awa-sv-badge]")).toBeNull();
+      expect((await card(onSale(4800, 6000), { showSaleBadge: true, showPrice: false })).$("[data-awa-sv-badge]")).toBeNull();
     });
 
     it("stays in the markup, hidden, for a full-price variant the picker may switch away from", async () => {
       const { $, $$ } = await card(multiVariantProduct(), { showSaleBadge: true });
-      expect($("[data-reelup-badge]")!.hidden).toBe(false);
+      expect($("[data-awa-sv-badge]")!.hidden).toBe(false);
       expect($$<HTMLOptionElement>("option").map((o) => o.dataset.discount ?? null)).toEqual(["20", null, null]);
 
       const fullPrice = await card(makeProduct({ id: 4 }), { showSaleBadge: true });
-      expect(fullPrice.$("[data-reelup-badge]")!.hidden).toBe(true);
+      expect(fullPrice.$("[data-awa-sv-badge]")!.hidden).toBe(true);
     });
   });
 });

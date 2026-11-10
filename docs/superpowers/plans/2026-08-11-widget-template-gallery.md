@@ -852,15 +852,15 @@ no carousel, no product tags. Gated on the shop-level widget metafield
 {% endif %}
 
 {% if show_reel %}
-  <div class="reelup-single-video" {{ block.shopify_attributes }}>
+  <div class="awa-sv-single-video" {{ block.shopify_attributes }}>
     <div
-      class="reelup-single-video__frame"
-      data-reelup-single-video
+      class="awa-sv-single-video__frame"
+      data-awa-sv-single-video
       data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
     >
       {% if reel.config.value.posterUrl != blank %}
         <img
-          class="reelup-single-video__poster"
+          class="awa-sv-single-video__poster"
           src="{{ reel.config.value.posterUrl | escape }}"
           alt="{{ reel.title.value | escape }}"
           loading="lazy"
@@ -870,13 +870,13 @@ no carousel, no product tags. Gated on the shop-level widget metafield
       {% endif %}
       <button
         type="button"
-        class="reelup-single-video__play"
+        class="awa-sv-single-video__play"
         aria-label="{{ 'reels.play_label' | t }}"
       >
-        <span class="reelup-single-video__play-icon" aria-hidden="true"></span>
+        <span class="awa-sv-single-video__play-icon" aria-hidden="true"></span>
       </button>
       <video
-        class="reelup-single-video__video"
+        class="awa-sv-single-video__video"
         playsinline
         muted
         loop
@@ -901,7 +901,7 @@ no carousel, no product tags. Gated on the shop-level widget metafield
 - [ ] **Step 2: Write the CSS**
 
 ```css
-.reelup-single-video__frame {
+.awa-sv-single-video__frame {
   position: relative;
   width: 100%;
   max-width: 480px;
@@ -911,8 +911,8 @@ no carousel, no product tags. Gated on the shop-level widget metafield
   overflow: hidden;
 }
 
-.reelup-single-video__poster,
-.reelup-single-video__video {
+.awa-sv-single-video__poster,
+.awa-sv-single-video__video {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -921,19 +921,19 @@ no carousel, no product tags. Gated on the shop-level widget metafield
   z-index: 0;
 }
 
-.reelup-single-video__video {
+.awa-sv-single-video__video {
   display: none;
 }
 
-.reelup-single-video__frame[data-activated] .reelup-single-video__poster {
+.awa-sv-single-video__frame[data-activated] .awa-sv-single-video__poster {
   display: none;
 }
 
-.reelup-single-video__frame[data-activated] .reelup-single-video__video {
+.awa-sv-single-video__frame[data-activated] .awa-sv-single-video__video {
   display: block;
 }
 
-.reelup-single-video__play {
+.awa-sv-single-video__play {
   position: absolute;
   inset: 0;
   z-index: 1;
@@ -949,17 +949,17 @@ no carousel, no product tags. Gated on the shop-level widget metafield
   justify-content: center;
 }
 
-.reelup-single-video__frame[data-playing="true"] .reelup-single-video__play {
+.awa-sv-single-video__frame[data-playing="true"] .awa-sv-single-video__play {
   opacity: 0;
   transition: opacity 0.15s ease;
 }
 
-.reelup-single-video__frame[data-playing="true"]:hover .reelup-single-video__play,
-.reelup-single-video__frame[data-playing="true"] .reelup-single-video__play:focus-visible {
+.awa-sv-single-video__frame[data-playing="true"]:hover .awa-sv-single-video__play,
+.awa-sv-single-video__frame[data-playing="true"] .awa-sv-single-video__play:focus-visible {
   opacity: 1;
 }
 
-.reelup-single-video__play-icon {
+.awa-sv-single-video__play-icon {
   width: 0;
   height: 0;
   border-style: solid;
@@ -968,7 +968,7 @@ no carousel, no product tags. Gated on the shop-level widget metafield
   margin-left: 3px;
 }
 
-.reelup-single-video__frame[data-playing="true"] .reelup-single-video__play-icon {
+.awa-sv-single-video__frame[data-playing="true"] .awa-sv-single-video__play-icon {
   width: 5px;
   height: 16px;
   margin-left: 0;
@@ -999,12 +999,12 @@ Same play/pause/HLS mechanics as `product-page-reels.js`'s `activateReel`, adapt
       return Promise.reject(new Error("HLS not supported"));
     }
 
-    frameEl._reelupHlsInstance?.destroy();
-    frameEl._reelupHlsInstance = null;
+    frameEl._awaSvHlsInstance?.destroy();
+    frameEl._awaSvHlsInstance = null;
 
     return new Promise((resolve, reject) => {
       const hls = new window.Hls();
-      frameEl._reelupHlsInstance = hls;
+      frameEl._awaSvHlsInstance = hls;
       hls.loadSource(hlsSrc);
       hls.attachMedia(video);
       hls.on(window.Hls.Events.MANIFEST_PARSED, () => resolve());
@@ -1015,14 +1015,14 @@ Same play/pause/HLS mechanics as `product-page-reels.js`'s `activateReel`, adapt
   };
 
   const loadHlsJsIfNeeded = () => {
-    if (window.Hls || document.querySelector("script[data-reelup-hlsjs]")) {
+    if (window.Hls || document.querySelector("script[data-awa-sv-hlsjs]")) {
       return Promise.resolve();
     }
 
     return new Promise((resolve, reject) => {
       const script = document.createElement("script");
       script.src = currentScriptSrc.replace("single-video.js", "hls.min.js");
-      script.dataset.reelupHlsjs = "true";
+      script.dataset.awaSvHlsjs = "true";
       script.onload = () => resolve();
       script.onerror = () => reject(new Error("Failed to load hls.js"));
       document.head.appendChild(script);
@@ -1030,11 +1030,11 @@ Same play/pause/HLS mechanics as `product-page-reels.js`'s `activateReel`, adapt
   };
 
   const activateFrame = (frameEl) => {
-    if (frameEl.dataset.reelupBound) return;
-    frameEl.dataset.reelupBound = "true";
+    if (frameEl.dataset.awaSvBound) return;
+    frameEl.dataset.awaSvBound = "true";
 
-    const video = frameEl.querySelector(".reelup-single-video__video");
-    const playButton = frameEl.querySelector(".reelup-single-video__play");
+    const video = frameEl.querySelector(".awa-sv-single-video__video");
+    const playButton = frameEl.querySelector(".awa-sv-single-video__play");
     const hlsSrc = frameEl.dataset.hlsSrc;
 
     if (!video || !playButton || !hlsSrc) return;
@@ -1065,7 +1065,7 @@ Same play/pause/HLS mechanics as `product-page-reels.js`'s `activateReel`, adapt
     });
   };
 
-  document.querySelectorAll("[data-reelup-single-video]").forEach((el) => activateFrame(el));
+  document.querySelectorAll("[data-awa-sv-single-video]").forEach((el) => activateFrame(el));
 })();
 ```
 
@@ -1131,18 +1131,18 @@ product-page-reels.liquid; different visual layout.
 {% endif %}
 
 {% if visible_reels.size > 0 %}
-  <div class="reelup-stack" {{ block.shopify_attributes }} data-reelup-stack>
+  <div class="awa-sv-stack" {{ block.shopify_attributes }} data-awa-sv-stack>
     {% for reel in reels_field.value %}
       {% if reel.published.value and reel.config.value.cloudflareStreamUid != blank and reel.config.value.hlsManifestUrl != blank %}
         <div
-          class="reelup-stack__card"
-          style="--reelup-stack-index: {{ forloop.index0 }};"
-          data-reelup-stack-card
+          class="awa-sv-stack__card"
+          style="--awa-sv-stack-index: {{ forloop.index0 }};"
+          data-awa-sv-stack-card
           data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
         >
           {% if reel.config.value.posterUrl != blank %}
             <img
-              class="reelup-stack__poster"
+              class="awa-sv-stack__poster"
               src="{{ reel.config.value.posterUrl | escape }}"
               alt="{{ reel.title.value | escape }}"
               loading="lazy"
@@ -1150,12 +1150,12 @@ product-page-reels.liquid; different visual layout.
               height="640"
             >
           {% endif %}
-          <video class="reelup-stack__video" playsinline muted loop preload="none"></video>
+          <video class="awa-sv-stack__video" playsinline muted loop preload="none"></video>
         </div>
       {% endif %}
     {% endfor %}
     {% if visible_reels.size > 1 %}
-      <button type="button" class="reelup-stack__next" data-reelup-stack-next aria-label="{{ 'reels.next_product_label' | t }}">›</button>
+      <button type="button" class="awa-sv-stack__next" data-awa-sv-stack-next aria-label="{{ 'reels.next_product_label' | t }}">›</button>
     {% endif %}
   </div>
   <script src="{{ 'stacked-carousel.js' | asset_url }}" defer></script>
@@ -1177,31 +1177,31 @@ product-page-reels.liquid; different visual layout.
 Cards absolutely stacked on top of each other, front card fully visible, others peeking behind (scaled down + offset), front card advances to the back on tap:
 
 ```css
-.reelup-stack {
+.awa-sv-stack {
   position: relative;
   width: 100%;
   max-width: 320px;
   aspect-ratio: 9 / 16;
 }
 
-.reelup-stack__card {
+.awa-sv-stack__card {
   position: absolute;
   inset: 0;
   border-radius: 14px;
   overflow: hidden;
   background: #111;
-  transform: translateY(calc(var(--reelup-stack-index) * 8px)) scale(calc(1 - var(--reelup-stack-index) * 0.04));
+  transform: translateY(calc(var(--awa-sv-stack-index) * 8px)) scale(calc(1 - var(--awa-sv-stack-index) * 0.04));
   transition: transform 0.25s ease, opacity 0.25s ease;
-  z-index: calc(100 - var(--reelup-stack-index));
+  z-index: calc(100 - var(--awa-sv-stack-index));
 }
 
-.reelup-stack__card[data-reelup-stack-sent-back] {
+.awa-sv-stack__card[data-awa-sv-stack-sent-back] {
   transform: translateY(-100%) scale(0.9);
   opacity: 0;
 }
 
-.reelup-stack__poster,
-.reelup-stack__video {
+.awa-sv-stack__poster,
+.awa-sv-stack__video {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -1209,19 +1209,19 @@ Cards absolutely stacked on top of each other, front card fully visible, others 
   object-fit: cover;
 }
 
-.reelup-stack__video {
+.awa-sv-stack__video {
   display: none;
 }
 
-.reelup-stack__card[data-activated] .reelup-stack__poster {
+.awa-sv-stack__card[data-activated] .awa-sv-stack__poster {
   display: none;
 }
 
-.reelup-stack__card[data-activated] .reelup-stack__video {
+.awa-sv-stack__card[data-activated] .awa-sv-stack__video {
   display: block;
 }
 
-.reelup-stack__next {
+.awa-sv-stack__next {
   position: absolute;
   z-index: 200;
   right: 8px;
@@ -1239,7 +1239,7 @@ Cards absolutely stacked on top of each other, front card fully visible, others 
 
 - [ ] **Step 3: Write the JS**
 
-Front card auto-plays on activation; tapping "next" (or the front card itself) sends the front card to the back of the stack (CSS handles the visual reorder via re-numbering `--reelup-stack-index`) and activates the new front card:
+Front card auto-plays on activation; tapping "next" (or the front card itself) sends the front card to the back of the stack (CSS handles the visual reorder via re-numbering `--awa-sv-stack-index`) and activates the new front card:
 
 ```javascript
 (() => {
@@ -1255,10 +1255,10 @@ Front card auto-plays on activation; tapping "next" (or the front card itself) s
   };
 
   const activateCard = async (cardEl) => {
-    if (cardEl.dataset.reelupBound) return;
-    cardEl.dataset.reelupBound = "true";
+    if (cardEl.dataset.awaSvBound) return;
+    cardEl.dataset.awaSvBound = "true";
 
-    const video = cardEl.querySelector(".reelup-stack__video");
+    const video = cardEl.querySelector(".awa-sv-stack__video");
     const hlsSrc = cardEl.dataset.hlsSrc;
     if (!video || !hlsSrc) return;
 
@@ -1271,20 +1271,20 @@ Front card auto-plays on activation; tapping "next" (or the front card itself) s
     }
   };
 
-  document.querySelectorAll("[data-reelup-stack]").forEach((stackEl) => {
-    const cards = Array.from(stackEl.querySelectorAll("[data-reelup-stack-card]"));
+  document.querySelectorAll("[data-awa-sv-stack]").forEach((stackEl) => {
+    const cards = Array.from(stackEl.querySelectorAll("[data-awa-sv-stack-card]"));
     if (cards.length === 0) return;
 
     let order = cards;
     const reindex = () => {
       order.forEach((card, index) => {
-        card.style.setProperty("--reelup-stack-index", String(index));
+        card.style.setProperty("--awa-sv-stack-index", String(index));
       });
     };
 
     const advance = () => {
       const [front, ...rest] = order;
-      front.querySelector(".reelup-stack__video")?.pause();
+      front.querySelector(".awa-sv-stack__video")?.pause();
       order = [...rest, front];
       reindex();
       activateCard(order[0]);
@@ -1293,7 +1293,7 @@ Front card auto-plays on activation; tapping "next" (or the front card itself) s
     reindex();
     activateCard(order[0]);
 
-    stackEl.querySelector("[data-reelup-stack-next]")?.addEventListener("click", advance);
+    stackEl.querySelector("[data-awa-sv-stack-next]")?.addEventListener("click", advance);
     order[0].addEventListener("click", () => {
       if (order.length > 1) advance();
     });
@@ -1363,36 +1363,36 @@ navigation between the product's tagged reels.
 {% endif %}
 
 {% if visible_count > 0 %}
-  <div class="reelup-stories" {{ block.shopify_attributes }}>
+  <div class="awa-sv-stories" {{ block.shopify_attributes }}>
     {% assign story_index = 0 %}
     {% for reel in reels_field.value %}
       {% if reel.published.value and reel.config.value.cloudflareStreamUid != blank and reel.config.value.hlsManifestUrl != blank %}
         <button
           type="button"
-          class="reelup-stories__avatar-button"
-          data-reelup-story-trigger
+          class="awa-sv-stories__avatar-button"
+          data-awa-sv-story-trigger
           data-story-index="{{ story_index }}"
           data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
           aria-label="{{ reel.title.value | escape }}"
         >
-          <span class="reelup-stories__ring">
+          <span class="awa-sv-stories__ring">
             {% if reel.config.value.posterUrl != blank %}
-              <img class="reelup-stories__avatar" src="{{ reel.config.value.posterUrl | image_url: width: 160 }}" alt="" loading="lazy" width="64" height="64">
+              <img class="awa-sv-stories__avatar" src="{{ reel.config.value.posterUrl | image_url: width: 160 }}" alt="" loading="lazy" width="64" height="64">
             {% endif %}
           </span>
-          <span class="reelup-stories__label">{{ reel.title.value | truncate: 12 }}</span>
+          <span class="awa-sv-stories__label">{{ reel.title.value | truncate: 12 }}</span>
         </button>
         {% assign story_index = story_index | plus: 1 %}
       {% endif %}
     {% endfor %}
   </div>
 
-  <div class="reelup-story-viewer" data-reelup-story-viewer hidden>
-    <div class="reelup-story-viewer__progress" data-reelup-story-progress></div>
-    <button type="button" class="reelup-story-viewer__close" data-reelup-story-close aria-label="{{ 'reels.play_label' | t }}">✕</button>
-    <video class="reelup-story-viewer__video" data-reelup-story-video playsinline muted loop></video>
-    <button type="button" class="reelup-story-viewer__nav reelup-story-viewer__nav--prev" data-reelup-story-prev aria-label="{{ 'reels.previous_product_label' | t }}"></button>
-    <button type="button" class="reelup-story-viewer__nav reelup-story-viewer__nav--next" data-reelup-story-next aria-label="{{ 'reels.next_product_label' | t }}"></button>
+  <div class="awa-sv-story-viewer" data-awa-sv-story-viewer hidden>
+    <div class="awa-sv-story-viewer__progress" data-awa-sv-story-progress></div>
+    <button type="button" class="awa-sv-story-viewer__close" data-awa-sv-story-close aria-label="{{ 'reels.play_label' | t }}">✕</button>
+    <video class="awa-sv-story-viewer__video" data-awa-sv-story-video playsinline muted loop></video>
+    <button type="button" class="awa-sv-story-viewer__nav awa-sv-story-viewer__nav--prev" data-awa-sv-story-prev aria-label="{{ 'reels.previous_product_label' | t }}"></button>
+    <button type="button" class="awa-sv-story-viewer__nav awa-sv-story-viewer__nav--next" data-awa-sv-story-next aria-label="{{ 'reels.next_product_label' | t }}"></button>
   </div>
 
   <script src="{{ 'insta-stories.js' | asset_url }}" defer></script>
@@ -1412,14 +1412,14 @@ navigation between the product's tagged reels.
 - [ ] **Step 2: Write the CSS**
 
 ```css
-.reelup-stories {
+.awa-sv-stories {
   display: flex;
   gap: 14px;
   overflow-x: auto;
   padding-block: 10px;
 }
 
-.reelup-stories__avatar-button {
+.awa-sv-stories__avatar-button {
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
@@ -1431,7 +1431,7 @@ navigation between the product's tagged reels.
   cursor: pointer;
 }
 
-.reelup-stories__ring {
+.awa-sv-stories__ring {
   display: block;
   width: 64px;
   height: 64px;
@@ -1441,7 +1441,7 @@ navigation between the product's tagged reels.
   overflow: hidden;
 }
 
-.reelup-stories__avatar {
+.awa-sv-stories__avatar {
   width: 100%;
   height: 100%;
   border-radius: 50%;
@@ -1450,7 +1450,7 @@ navigation between the product's tagged reels.
   display: block;
 }
 
-.reelup-stories__label {
+.awa-sv-stories__label {
   font-size: 11px;
   max-width: 68px;
   overflow: hidden;
@@ -1458,7 +1458,7 @@ navigation between the product's tagged reels.
   white-space: nowrap;
 }
 
-.reelup-story-viewer {
+.awa-sv-story-viewer {
   position: fixed;
   inset: 0;
   z-index: 1000;
@@ -1468,11 +1468,11 @@ navigation between the product's tagged reels.
   justify-content: center;
 }
 
-.reelup-story-viewer[hidden] {
+.awa-sv-story-viewer[hidden] {
   display: none;
 }
 
-.reelup-story-viewer__video {
+.awa-sv-story-viewer__video {
   max-width: 100%;
   max-height: 100%;
   width: auto;
@@ -1480,7 +1480,7 @@ navigation between the product's tagged reels.
   object-fit: contain;
 }
 
-.reelup-story-viewer__progress {
+.awa-sv-story-viewer__progress {
   position: absolute;
   top: 12px;
   left: 12px;
@@ -1491,16 +1491,16 @@ navigation between the product's tagged reels.
   overflow: hidden;
 }
 
-.reelup-story-viewer__progress::after {
+.awa-sv-story-viewer__progress::after {
   content: "";
   display: block;
   height: 100%;
-  width: var(--reelup-story-progress, 0%);
+  width: var(--awa-sv-story-progress, 0%);
   background: #fff;
   transition: width 0.1s linear;
 }
 
-.reelup-story-viewer__close {
+.awa-sv-story-viewer__close {
   position: absolute;
   top: 16px;
   right: 16px;
@@ -1514,7 +1514,7 @@ navigation between the product's tagged reels.
   cursor: pointer;
 }
 
-.reelup-story-viewer__nav {
+.awa-sv-story-viewer__nav {
   position: absolute;
   top: 0;
   bottom: 0;
@@ -1524,11 +1524,11 @@ navigation between the product's tagged reels.
   cursor: pointer;
 }
 
-.reelup-story-viewer__nav--prev {
+.awa-sv-story-viewer__nav--prev {
   left: 0;
 }
 
-.reelup-story-viewer__nav--next {
+.awa-sv-story-viewer__nav--next {
   right: 0;
 }
 ```
@@ -1541,13 +1541,13 @@ Story viewer opens on avatar click, autoplays, advances on a fixed duration time
 (() => {
   const STORY_DURATION_MS = 8000;
 
-  document.querySelectorAll(".reelup-stories").forEach((row) => {
-    const viewer = row.parentElement?.querySelector("[data-reelup-story-viewer]");
+  document.querySelectorAll(".awa-sv-stories").forEach((row) => {
+    const viewer = row.parentElement?.querySelector("[data-awa-sv-story-viewer]");
     if (!viewer) return;
 
-    const video = viewer.querySelector("[data-reelup-story-video]");
-    const progress = viewer.querySelector("[data-reelup-story-progress]");
-    const triggers = Array.from(row.querySelectorAll("[data-reelup-story-trigger]"));
+    const video = viewer.querySelector("[data-awa-sv-story-video]");
+    const progress = viewer.querySelector("[data-awa-sv-story-progress]");
+    const triggers = Array.from(row.querySelectorAll("[data-awa-sv-story-trigger]"));
     let currentIndex = 0;
     let timer = null;
 
@@ -1569,10 +1569,10 @@ Story viewer opens on avatar click, autoplays, advances on a fixed duration time
 
       clearTimer();
       const start = Date.now();
-      progress.style.setProperty("--reelup-story-progress", "0%");
+      progress.style.setProperty("--awa-sv-story-progress", "0%");
       timer = setInterval(() => {
         const pct = Math.min(100, ((Date.now() - start) / STORY_DURATION_MS) * 100);
-        progress.style.setProperty("--reelup-story-progress", `${pct}%`);
+        progress.style.setProperty("--awa-sv-story-progress", `${pct}%`);
         if (pct >= 100) openStory(currentIndex + 1);
       }, 100);
     };
@@ -1591,9 +1591,9 @@ Story viewer opens on avatar click, autoplays, advances on a fixed duration time
       });
     });
 
-    viewer.querySelector("[data-reelup-story-close]")?.addEventListener("click", closeViewer);
-    viewer.querySelector("[data-reelup-story-prev]")?.addEventListener("click", () => openStory(currentIndex - 1));
-    viewer.querySelector("[data-reelup-story-next]")?.addEventListener("click", () => openStory(currentIndex + 1));
+    viewer.querySelector("[data-awa-sv-story-close]")?.addEventListener("click", closeViewer);
+    viewer.querySelector("[data-awa-sv-story-prev]")?.addEventListener("click", () => openStory(currentIndex - 1));
+    viewer.querySelector("[data-awa-sv-story-next]")?.addEventListener("click", () => openStory(currentIndex + 1));
 
     document.addEventListener("keydown", (event) => {
       if (viewer.hidden) return;
@@ -1657,21 +1657,21 @@ Expands into a video overlay showing the merchant's featured reel.
 {% if show_bubble %}
   <button
     type="button"
-    class="reelup-pop-bubble"
-    data-reelup-pop-trigger
+    class="awa-sv-pop-bubble"
+    data-awa-sv-pop-trigger
     aria-label="{{ reel.title.value | escape }}"
   >
     {% if reel.config.value.posterUrl != blank %}
-      <img class="reelup-pop-bubble__avatar" src="{{ reel.config.value.posterUrl | image_url: width: 160 }}" alt="" loading="lazy" width="56" height="56">
+      <img class="awa-sv-pop-bubble__avatar" src="{{ reel.config.value.posterUrl | image_url: width: 160 }}" alt="" loading="lazy" width="56" height="56">
     {% endif %}
   </button>
 
-  <div class="reelup-pop-overlay" data-reelup-pop-overlay hidden>
-    <div class="reelup-pop-overlay__frame">
-      <button type="button" class="reelup-pop-overlay__close" data-reelup-pop-close aria-label="{{ 'reels.play_label' | t }}">✕</button>
+  <div class="awa-sv-pop-overlay" data-awa-sv-pop-overlay hidden>
+    <div class="awa-sv-pop-overlay__frame">
+      <button type="button" class="awa-sv-pop-overlay__close" data-awa-sv-pop-close aria-label="{{ 'reels.play_label' | t }}">✕</button>
       <video
-        class="reelup-pop-overlay__video"
-        data-reelup-pop-video
+        class="awa-sv-pop-overlay__video"
+        data-awa-sv-pop-video
         data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
         playsinline
         muted
@@ -1695,7 +1695,7 @@ Expands into a video overlay showing the merchant's featured reel.
 - [ ] **Step 2: Write the CSS**
 
 ```css
-.reelup-pop-bubble {
+.awa-sv-pop-bubble {
   position: fixed;
   z-index: 900;
   right: 20px;
@@ -1711,14 +1711,14 @@ Expands into a video overlay showing the merchant's featured reel.
   background: #111;
 }
 
-.reelup-pop-bubble__avatar {
+.awa-sv-pop-bubble__avatar {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
 
-.reelup-pop-overlay {
+.awa-sv-pop-overlay {
   position: fixed;
   inset: 0;
   z-index: 1000;
@@ -1728,11 +1728,11 @@ Expands into a video overlay showing the merchant's featured reel.
   justify-content: center;
 }
 
-.reelup-pop-overlay[hidden] {
+.awa-sv-pop-overlay[hidden] {
   display: none;
 }
 
-.reelup-pop-overlay__frame {
+.awa-sv-pop-overlay__frame {
   position: relative;
   width: min(90vw, 380px);
   aspect-ratio: 9 / 16;
@@ -1741,13 +1741,13 @@ Expands into a video overlay showing the merchant's featured reel.
   overflow: hidden;
 }
 
-.reelup-pop-overlay__video {
+.awa-sv-pop-overlay__video {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.reelup-pop-overlay__close {
+.awa-sv-pop-overlay__close {
   position: absolute;
   top: 10px;
   right: 10px;
@@ -1766,10 +1766,10 @@ Expands into a video overlay showing the merchant's featured reel.
 
 ```javascript
 (() => {
-  const trigger = document.querySelector("[data-reelup-pop-trigger]");
-  const overlay = document.querySelector("[data-reelup-pop-overlay]");
-  const video = document.querySelector("[data-reelup-pop-video]");
-  const closeButton = document.querySelector("[data-reelup-pop-close]");
+  const trigger = document.querySelector("[data-awa-sv-pop-trigger]");
+  const overlay = document.querySelector("[data-awa-sv-pop-overlay]");
+  const video = document.querySelector("[data-awa-sv-pop-video]");
+  const closeButton = document.querySelector("[data-awa-sv-pop-close]");
   if (!trigger || !overlay || !video) return;
 
   let sourceAttached = false;

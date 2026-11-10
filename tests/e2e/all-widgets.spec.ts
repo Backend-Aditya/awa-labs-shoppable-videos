@@ -6,7 +6,7 @@ import { expect, test, type Page } from "@playwright/test";
 // Plays the local WebM instead of HLS (headless Chromium has none).
 async function playableVideo(page: Page) {
   await page.addInitScript(() => {
-    (window as unknown as { ReelupHls: unknown }).ReelupHls = {
+    (window as unknown as { AwaSvHls: unknown }).AwaSvHls = {
       attach: async (video: HTMLVideoElement) => {
         video.src = "/media/sample.webm";
       },
@@ -38,12 +38,12 @@ async function mockShop(page: Page) {
 // What a shopper taps in each widget to watch, and the widget name its
 // events carry (the per-widget analytics key).
 const OPENERS = {
-  "product page reels": ["[data-reelup-strip] .reelup-trigger__button", "product_page_reels"],
-  stories: [".reelup-stories [data-reelup-trigger] .reelup-trigger__button, [data-reelup-story-trigger]", "stories"],
-  "stacked carousel": [".reelup-deck__card.is-active .reelup-trigger__button", "carousel"],
-  "featured video": [".reelup-feature .reelup-trigger__button", "featured_video"],
-  "add-to-cart video": [".reelup-atc .reelup-trigger__button", "add_to_cart_video"],
-  "floating video": [".reelup-pop__player", "floating_video"],
+  "product page reels": ["[data-awa-sv-strip] .awa-sv-trigger__button", "product_page_reels"],
+  stories: [".awa-sv-stories [data-awa-sv-trigger] .awa-sv-trigger__button, [data-awa-sv-story-trigger]", "stories"],
+  "stacked carousel": [".awa-sv-deck__card.is-active .awa-sv-trigger__button", "carousel"],
+  "featured video": [".awa-sv-feature .awa-sv-trigger__button", "featured_video"],
+  "add-to-cart video": [".awa-sv-atc .awa-sv-trigger__button", "add_to_cart_video"],
+  "floating video": [".awa-sv-pop__player", "floating_video"],
 } as const;
 
 const openDialog = (page: Page) => page.locator("dialog[open]");

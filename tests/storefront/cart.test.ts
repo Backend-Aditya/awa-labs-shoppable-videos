@@ -13,9 +13,9 @@ async function mountCards(style: object = {}, products = [multiVariantProduct(),
   await mount(await renderBlock("single-video", { reel, widget: makeWidget({ style }) }), ["lightbox"]);
 }
 
-const card = (productId: number) => document.querySelector<HTMLElement>(`[data-reelup-product][data-product-id="${productId}"]`)!;
-const addButton = (productId: number) => card(productId).querySelector<HTMLButtonElement>("[data-reelup-add-to-cart]")!;
-const status = () => document.querySelector<HTMLElement>("[data-reelup-cart-status]")!;
+const card = (productId: number) => document.querySelector<HTMLElement>(`[data-awa-sv-product][data-product-id="${productId}"]`)!;
+const addButton = (productId: number) => card(productId).querySelector<HTMLButtonElement>("[data-awa-sv-add-to-cart]")!;
+const status = () => document.querySelector<HTMLElement>("[data-awa-sv-cart-status]")!;
 
 beforeEach(() => {
   resetPage();
@@ -24,9 +24,9 @@ beforeEach(() => {
 describe("variant picker", () => {
   it("updates price, compare-at, button variant and availability", async () => {
     await mountCards();
-    const select = card(7).querySelector<HTMLSelectElement>("[data-reelup-variant]")!;
-    const price = card(7).querySelector("[data-reelup-price]")!;
-    const compare = card(7).querySelector<HTMLElement>("[data-reelup-compare]")!;
+    const select = card(7).querySelector<HTMLSelectElement>("[data-awa-sv-variant]")!;
+    const price = card(7).querySelector("[data-awa-sv-price]")!;
+    const compare = card(7).querySelector<HTMLElement>("[data-awa-sv-compare]")!;
 
     select.value = "702";
     fireEvent.change(select);
@@ -52,8 +52,8 @@ describe("variant picker", () => {
 describe("quantity stepper", () => {
   it("steps within 1–99", async () => {
     await mountCards({ showQuantity: true });
-    const input = card(2).querySelector<HTMLInputElement>("[data-reelup-qty-input]")!;
-    const [minus, plus] = card(2).querySelectorAll("[data-reelup-qty-step]");
+    const input = card(2).querySelector<HTMLInputElement>("[data-awa-sv-qty-input]")!;
+    const [minus, plus] = card(2).querySelectorAll("[data-awa-sv-qty-step]");
     click(minus);
     expect(input.value).toBe("1");
     click(plus);
@@ -71,7 +71,7 @@ describe("quantity stepper", () => {
 describe("add to cart", () => {
   it("posts an items array with quantity from the stepper and the hidden reel property", async () => {
     await mountCards({ showQuantity: true });
-    const plus = card(2).querySelectorAll("[data-reelup-qty-step]")[1];
+    const plus = card(2).querySelectorAll("[data-awa-sv-qty-step]")[1];
     click(plus);
     click(plus);
     click(addButton(2));
@@ -81,7 +81,7 @@ describe("add to cart", () => {
     expect(call[1]).toMatchObject({ method: "POST" });
     expect((call[1]!.headers as Record<string, string>)["Content-Type"]).toBe("application/json");
     expect(fetchBody(call)).toEqual({
-      items: [{ id: 200, quantity: 3, properties: { _reelup_reel_id: REEL_ID } }],
+      items: [{ id: 200, quantity: 3, properties: { _awa_sv_reel_id: REEL_ID } }],
       sections: "cart-icon-bubble,cart-drawer,cart-notification-button,cart-live-region-text",
       sections_url: "/products/linen-shirt",
     });
@@ -89,7 +89,7 @@ describe("add to cart", () => {
 
   it("clamps a typed quantity and defaults to 1 without a stepper", async () => {
     await mountCards({ showQuantity: true });
-    card(2).querySelector<HTMLInputElement>("[data-reelup-qty-input]")!.value = "500";
+    card(2).querySelector<HTMLInputElement>("[data-awa-sv-qty-input]")!.value = "500";
     click(addButton(2));
     await flush();
     expect(fetchBody(fetchCalls("/cart/add.js")[0]).items[0].quantity).toBe(99);
@@ -103,7 +103,7 @@ describe("add to cart", () => {
 
   it("uses the variant chosen in the picker", async () => {
     await mountCards();
-    const select = card(7).querySelector<HTMLSelectElement>("[data-reelup-variant]")!;
+    const select = card(7).querySelector<HTMLSelectElement>("[data-awa-sv-variant]")!;
     select.value = "702";
     fireEvent.change(select);
     click(addButton(7));
@@ -135,7 +135,7 @@ describe("add to cart", () => {
       expect(status().hasAttribute("data-failed")).toBe(false);
       expect(status().textContent).toContain("Added to your cart");
       expect(events).toEqual(["refresh", "updated:3"]);
-      expect(publish).toHaveBeenCalledWith("cart-update", expect.objectContaining({ source: "reelup" }));
+      expect(publish).toHaveBeenCalledWith("cart-update", expect.objectContaining({ source: "awa-sv" }));
       const analytics = fetchCalls("/apps/reels/analytics").map(fetchBody);
       expect(analytics).toContainEqual(expect.objectContaining({ reelId: REEL_ID, eventType: "click_product" }));
       expect(analytics).toContainEqual(expect.objectContaining({ reelId: REEL_ID, eventType: "add_to_cart" }));
@@ -254,8 +254,8 @@ describe("add to cart", () => {
 
   it("product links record a click_product event", async () => {
     await mountCards();
-    card(2).querySelector<HTMLAnchorElement>(".reelup-product__title")!.addEventListener("click", (e) => e.preventDefault());
-    click(card(2).querySelector(".reelup-product__title"));
+    card(2).querySelector<HTMLAnchorElement>(".awa-sv-product__title")!.addEventListener("click", (e) => e.preventDefault());
+    click(card(2).querySelector(".awa-sv-product__title"));
     // The widget and product feed the per-widget and per-product numbers.
     expect(fetchCalls("/apps/reels/analytics").map(fetchBody)).toEqual([
       { reelId: REEL_ID, eventType: "click_product", source: "featured_video", productId: "2" },
@@ -267,20 +267,20 @@ describe("sale badge and after-add actions", () => {
   async function mountStrip(style: object) {
     const reel = makeReel({ id: 11, title: "First", products: [multiVariantProduct(7)] });
     await mount(await renderBlock("product-page-reels", { reels: [reel], widget: makeWidget({ style }) }));
-    click(document.querySelector("[data-reelup-trigger] .reelup-trigger__button"));
+    click(document.querySelector("[data-awa-sv-trigger] .awa-sv-trigger__button"));
     return viewer()!;
   }
   const navigate = () => {
     const spy = vi.fn();
-    (window as unknown as { ReelupViewer: { navigate: (url: string) => void } }).ReelupViewer.navigate = spy;
+    (window as unknown as { AwaSvViewer: { navigate: (url: string) => void } }).AwaSvViewer.navigate = spy;
     return spy;
   };
 
   it("the sale badge follows the chosen variant", async () => {
     const dialog = await mountStrip({ showSaleBadge: true });
-    const badge = dialog.querySelector<HTMLElement>("[data-reelup-badge]")!;
+    const badge = dialog.querySelector<HTMLElement>("[data-awa-sv-badge]")!;
     expect(badge.textContent).toBe("−20%");
-    const select = dialog.querySelector<HTMLSelectElement>("[data-reelup-variant]")!;
+    const select = dialog.querySelector<HTMLSelectElement>("[data-awa-sv-variant]")!;
     select.value = "702";
     select.dispatchEvent(new Event("change", { bubbles: true }));
     expect(badge.hidden).toBe(true);
@@ -292,13 +292,13 @@ describe("sale badge and after-add actions", () => {
 
   it("no badge unless the merchant turned it on", async () => {
     const dialog = await mountStrip({});
-    expect(dialog.querySelector("[data-reelup-badge]")).toBeNull();
+    expect(dialog.querySelector("[data-awa-sv-badge]")).toBeNull();
   });
 
   it("'Keep watching' (default) stays in the viewer", async () => {
     const dialog = await mountStrip({});
     const go = navigate();
-    click(dialog.querySelector("[data-reelup-add-to-cart]"));
+    click(dialog.querySelector("[data-awa-sv-add-to-cart]"));
     await flush();
     expect(go).not.toHaveBeenCalled();
     expect(dialog.open).toBe(true);
@@ -310,11 +310,11 @@ describe("sale badge and after-add actions", () => {
     fetchMock.mockImplementation(async (url) =>
       String(url).startsWith("/cart/add.js") ? json({ description: "Sold out" }, 422) : defaultRoutesFor(String(url)),
     );
-    click(dialog.querySelector("[data-reelup-add-to-cart]"));
+    click(dialog.querySelector("[data-awa-sv-add-to-cart]"));
     await flush();
     expect(go).not.toHaveBeenCalled();
     fetchMock.mockImplementation(async (url) => defaultRoutesFor(String(url)));
-    click(dialog.querySelector("[data-reelup-add-to-cart]"));
+    click(dialog.querySelector("[data-awa-sv-add-to-cart]"));
     await flush();
     expect(go).toHaveBeenCalledWith("/checkout");
   });
@@ -329,7 +329,7 @@ describe("sale badge and after-add actions", () => {
       String(url).startsWith("/cart/add.js") ? json({ items: [{ id: 701 }], sections: { "cart-drawer": "<div></div>" } }) : defaultRoutesFor(String(url)),
     );
     const go = navigate();
-    click(dialog.querySelector("[data-reelup-add-to-cart]"));
+    click(dialog.querySelector("[data-awa-sv-add-to-cart]"));
     await flush();
     expect(renderContents).toHaveBeenCalled();
     expect(dialog.open).toBe(false);
@@ -339,7 +339,7 @@ describe("sale badge and after-add actions", () => {
   it("'Show cart' goes to the cart page on themes without a drawer", async () => {
     const dialog = await mountStrip({ afterAdd: "cart" });
     const go = navigate();
-    click(dialog.querySelector("[data-reelup-add-to-cart]"));
+    click(dialog.querySelector("[data-awa-sv-add-to-cart]"));
     await flush();
     expect(go).toHaveBeenCalledWith("/cart");
   });

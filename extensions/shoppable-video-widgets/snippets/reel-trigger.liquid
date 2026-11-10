@@ -7,12 +7,14 @@ its look; this snippet owns the contract with the JS.
 
 @param reel {metaobject} - the reel metaobject
 @param style {object} - the widget's style object from its shop metafield
-@param inner {string} - the widget's own markup for this trigger (must contain a .reelup-trigger__button)
+@param inner {string} - the widget's own markup for this trigger (must contain a .awa-sv-trigger__button)
 @param class {string} [optional] - extra classes for the wrapper
 @param muted_default {boolean} - whether video starts muted when the merchant hasn't chosen
 @param autoplay_default {boolean} [optional] - preview on when the merchant hasn't chosen
 @param autoplay_preview {boolean} [optional] - force the inline muted preview on
 @param source {string} [optional] - which widget this is, reported with its events (e.g. 'stories')
+@param details_default {boolean} [optional] - open product details in the viewer when the merchant hasn't chosen
+@param image_size_default {string} [optional] - 'compact' or 'large' product images in the viewer when the merchant hasn't chosen
 
 @example
 {% render 'reel-trigger', reel: reel, style: widget_style, inner: card, muted_default: true %}
@@ -43,6 +45,17 @@ its look; this snippet owns the contract with the JS.
     assign autoplay = true
   endif
 
+  assign product_details = false
+  if details_default
+    assign product_details = true
+  endif
+  if style.productDetails == true
+    assign product_details = true
+  elsif style.productDetails == false
+    assign product_details = false
+  endif
+  assign image_size = style.productImageSize | default: image_size_default | default: 'compact'
+
   assign cta_hover = ''
   if style.ctaColor != blank
     assign cta_brightness = style.ctaColor | color_brightness
@@ -54,8 +67,8 @@ its look; this snippet owns the contract with the JS.
   endif
 -%}
 <div
-  class="reelup-trigger {{ class }}"
-  data-reelup-trigger
+  class="awa-sv-trigger {{ class }}"
+  data-awa-sv-trigger
   data-reel-id="{{ reel.system.id }}"
   data-source="{{ source | escape }}"
   data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
@@ -78,16 +91,20 @@ its look; this snippet owns the contract with the JS.
   data-show-share="{% if style.showShare == false %}false{% else %}true{% endif %}"
   data-show-recommendations="{% if style.showRecommendations == false %}false{% else %}true{% endif %}"
   data-after-add="{{ style.afterAdd | default: 'stay' | escape }}"
+  data-product-details="{{ product_details }}"
+  data-product-image-size="{{ image_size | escape }}"
+  data-show-description="{% if style.showDescription == false %}false{% else %}true{% endif %}"
+  data-show-quantity="{% if style.showQuantity %}true{% else %}false{% endif %}"
   {%- if reel.config.value.productTimes %} data-product-times="{{ reel.config.value.productTimes | json | escape }}"{% endif %}
 >
   {{- inner -}}
   {%- if reel.tagged_products.value.size > 0 -%}
-    <template data-reelup-products>
-      {%- render 'reel-product-card' for reel.tagged_products.value as product, style: style -%}
+    <template data-awa-sv-products>
+      {%- render 'reel-product-card' for reel.tagged_products.value as product, style: style, image_size: image_size -%}
     </template>
     {%- comment -%} Without JS the trigger can't play; still let shoppers reach what's in the video. {%- endcomment -%}
     <noscript>
-      <ul class="reelup-noscript">
+      <ul class="awa-sv-noscript">
         {%- for tagged in reel.tagged_products.value -%}
           <li><a href="{{ tagged.url }}">{{ tagged.title | escape }}</a></li>
         {%- endfor -%}

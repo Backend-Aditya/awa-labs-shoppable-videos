@@ -10,12 +10,12 @@ const BLOCKS = Object.keys(BLOCK_METAFIELDS) as Block[];
 
 // The marker element each block renders when visible.
 const ROOT: Record<Block, string> = {
-  "product-page-reels": "section.reelup-strip",
-  "stacked-carousel": "section.reelup-deck",
-  "insta-stories": "section.reelup-stories",
-  "single-video": "section.reelup-feature",
-  "add-to-cart-video": "div.reelup-atc",
-  "shoppable-videos": "[data-reelup-pop]",
+  "product-page-reels": "section.awa-sv-strip",
+  "stacked-carousel": "section.awa-sv-deck",
+  "insta-stories": "section.awa-sv-stories",
+  "single-video": "section.awa-sv-feature",
+  "add-to-cart-video": "div.awa-sv-atc",
+  "shoppable-videos": "[data-awa-sv-pop]",
 };
 
 const shirt = makeProduct({ id: 5, handle: "linen-shirt", collections: ["summer", "shirts"] });
@@ -93,7 +93,7 @@ describe("list blocks skip unplayable reels", () => {
   it.each(["product-page-reels", "stacked-carousel", "insta-stories"] as const)("%s", async (block) => {
     const list = [makeReel({ id: 1 }), makeReel({ id: 2, published: false }), makeReel({ id: 3, hls: "" }), makeReel({ id: 4 })];
     const { $$ } = await renderDom(block, blockContext(block, { reels: list, product: shirt }));
-    expect($$("[data-reelup-trigger]").map((t) => t.dataset.reelId)).toEqual([
+    expect($$("[data-awa-sv-trigger]").map((t) => t.dataset.reelId)).toEqual([
       "gid://shopify/Metaobject/1",
       "gid://shopify/Metaobject/4",
     ]);
@@ -101,8 +101,8 @@ describe("list blocks skip unplayable reels", () => {
 });
 
 describe("device visibility class", () => {
-  it.each(BLOCKS)("%s carries reelup-device--<setting>", async (block) => {
+  it.each(BLOCKS)("%s carries awa-sv-device--<setting>", async (block) => {
     const { $ } = await renderDom(block, blockContext(block, { reels, product: shirt, widget: makeWidget({ deviceVisibility: "mobile" }) }));
-    expect($(ROOT[block])!.className).toContain("reelup-device--mobile");
+    expect($(ROOT[block])!.className).toContain("awa-sv-device--mobile");
   });
 });

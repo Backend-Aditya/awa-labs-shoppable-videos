@@ -6,9 +6,9 @@
 // drawer are handled by the delegated cart code in reel-lightbox.js.
 (() => {
   // Loaded by the embed and possibly again by a block loader.
-  if (window.ReelupStory) return;
+  if (window.AwaSvStory) return;
 
-  const viewer = () => window.ReelupViewer;
+  const viewer = () => window.AwaSvViewer;
   const prefersReducedMotion = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
   // Stream thumbnails accept ?height=; the avatar is tiny, so don't pull
@@ -18,7 +18,7 @@
     return `${url}${url.includes("?") ? "&" : "?"}height=${height}`;
   };
 
-  const SEEN_KEY = "reelup-seen-stories";
+  const SEEN_KEY = "awa-sv-seen-stories";
   const SEEN_AFTER_MS = 3000;
   const readSeen = () => {
     try {
@@ -36,7 +36,7 @@
       // Private mode / storage full: rings just stay coloured.
     }
     document
-      .querySelectorAll(`[data-reelup-story-group] [data-reelup-trigger][data-reel-id="${CSS.escape(reelId)}"]`)
+      .querySelectorAll(`[data-awa-sv-story-group] [data-awa-sv-trigger][data-reel-id="${CSS.escape(reelId)}"]`)
       .forEach((el) => el.classList.add("is-seen"));
   };
 
@@ -69,7 +69,7 @@
   };
 
   const segmentFill = (dialog, i) =>
-    dialog.querySelector(`.reelup-story__segment[data-index="${i}"] .reelup-story__segment-fill`);
+    dialog.querySelector(`.awa-sv-story__segment[data-index="${i}"] .awa-sv-story__segment-fill`);
 
   const setSegment = (dialog, i, state) => {
     const fill = segmentFill(dialog, i);
@@ -122,7 +122,7 @@
   };
 
   const syncToggle = (dialog) => {
-    const toggle = dialog.querySelector("[data-reelup-story-toggle]");
+    const toggle = dialog.querySelector("[data-awa-sv-story-toggle]");
     if (!toggle) return;
     const { labels, icons } = viewer();
     const paused = pauseReasons.has("user");
@@ -187,10 +187,10 @@
   const showStickerProduct = (dialog, card) => {
     if (card === stickerCard) return;
     stickerCard = card;
-    const sticker = dialog.querySelector("[data-reelup-story-shop]");
-    const list = dialog.querySelector("[data-reelup-story-list]");
-    const image = (card ?? list.querySelector("[data-reelup-product]"))?.querySelector(".reelup-product__media img")?.getAttribute("src");
-    const thumb = sticker.querySelector(".reelup-story__sticker-thumb");
+    const sticker = dialog.querySelector("[data-awa-sv-story-shop]");
+    const list = dialog.querySelector("[data-awa-sv-story-list]");
+    const image = (card ?? list.querySelector("[data-awa-sv-product]"))?.querySelector(".awa-sv-product__media img")?.getAttribute("src");
+    const thumb = sticker.querySelector(".awa-sv-story__sticker-thumb");
     thumb.style.backgroundImage = image ? `url("${image.replace(/"/g, "%22")}")` : "";
     thumb.hidden = !image;
     sticker.classList.toggle("is-moment", Boolean(card));
@@ -199,7 +199,7 @@
   };
 
   const setDrawer = (dialog, open) => {
-    const drawer = dialog.querySelector("[data-reelup-story-drawer]");
+    const drawer = dialog.querySelector("[data-awa-sv-story-drawer]");
     if (open === drawerOpen) return;
     drawerOpen = open;
     drawer.hidden = !open;
@@ -209,7 +209,7 @@
       drawer.querySelector("button, a, select")?.focus();
     } else {
       resume(dialog, "drawer");
-      dialog.querySelector("[data-reelup-story-shop]")?.focus();
+      dialog.querySelector("[data-awa-sv-story-shop]")?.focus();
     }
   };
 
@@ -227,7 +227,7 @@
 
     if (drawerOpen) {
       drawerOpen = false;
-      dialog.querySelector("[data-reelup-story-drawer]").hidden = true;
+      dialog.querySelector("[data-awa-sv-story-drawer]").hidden = true;
       dialog.classList.remove("is-shopping");
     }
     // Moving on resumes a paused story (like the social apps); a hidden tab
@@ -250,17 +250,17 @@
     durationMs = storyDurationMs;
     const reelId = trigger.dataset.reelId ?? "";
     dialog.progress.flush();
-    dialog.setAttribute("data-reelup-reel-id", reelId);
-    dialog.reelupTrigger = trigger;
+    dialog.setAttribute("data-awa-sv-reel-id", reelId);
+    dialog.awaSvTrigger = trigger;
 
     const video = dialog.querySelector("video");
-    const title = dialog.querySelector(".reelup-story__title");
-    const avatar = dialog.querySelector(".reelup-story__avatar");
-    window.ReelupHls?.teardown(video);
+    const title = dialog.querySelector(".awa-sv-story__title");
+    const avatar = dialog.querySelector(".awa-sv-story__avatar");
+    window.AwaSvHls?.teardown(video);
     dialog.buffering.reset();
 
     title.textContent = trigger.dataset.title ?? "";
-    viewer()?.nameDialog(dialog, "reelup-story-title", trigger.dataset.title);
+    viewer()?.nameDialog(dialog, "awa-sv-story-title", trigger.dataset.title);
     const poster = trigger.dataset.posterUrl;
     if (poster) {
       video.setAttribute("poster", poster);
@@ -271,23 +271,23 @@
     }
 
     viewer()?.applyViewerSettings(dialog, video, null, trigger);
-    dialog.querySelector("[data-reelup-story-share]").hidden = trigger.dataset.showShare === "false";
+    dialog.querySelector("[data-awa-sv-story-share]").hidden = trigger.dataset.showShare === "false";
     video.dispatchEvent(new Event("volumechange"));
 
-    const list = dialog.querySelector("[data-reelup-story-list]");
+    const list = dialog.querySelector("[data-awa-sv-story-list]");
     const count = viewer()?.cloneProducts(trigger, list) ?? 0;
-    const sticker = dialog.querySelector("[data-reelup-story-shop]");
+    const sticker = dialog.querySelector("[data-awa-sv-story-shop]");
     const linkUrl = viewer()?.safeLink(trigger.dataset.linkUrl) ?? "";
     // No products but a link button: the sticker goes straight to the link.
     sticker.dataset.link = count === 0 ? linkUrl : "";
-    sticker.querySelector(".reelup-story__sticker-label").textContent =
+    sticker.querySelector(".awa-sv-story__sticker-label").textContent =
       count === 0 && linkUrl ? trigger.dataset.linkLabel || viewer().labels.learnMore : viewer().labels.shop;
     sticker.hidden = count === 0 && !linkUrl;
-    sticker.querySelector(".reelup-story__sticker-count").textContent = count > 1 ? String(count) : "";
+    sticker.querySelector(".awa-sv-story__sticker-count").textContent = count > 1 ? String(count) : "";
     moments = viewer()?.productMoments(trigger, list) ?? [];
     stickerCard = undefined;
     showStickerProduct(dialog, null);
-    dialog.querySelector("[data-reelup-cart-status]").hidden = true;
+    dialog.querySelector("[data-awa-sv-cart-status]").hidden = true;
 
     let failed = false;
     let started = false;
@@ -298,7 +298,7 @@
     }
     if (failed && isCurrent()) dialog.buffering.fail();
     if (!dialog.open) {
-      window.ReelupHls?.teardown(video);
+      window.AwaSvHls?.teardown(video);
       return;
     }
     if (!isCurrent()) return;
@@ -310,45 +310,45 @@
   };
 
   const build = () => {
-    const existing = document.getElementById("reelup-story-viewer");
+    const existing = document.getElementById("awa-sv-story-viewer");
     if (existing) return existing;
     const { labels, icons, escapeHtml } = viewer();
     const L = Object.fromEntries(Object.entries(labels).map(([k, v]) => [k, escapeHtml(v)]));
 
     const dialog = document.createElement("dialog");
-    dialog.id = "reelup-story-viewer";
-    dialog.className = `reelup-story${viewer().theme === "light" ? " reelup-viewer--light" : ""}`;
-    dialog.setAttribute("aria-labelledby", "reelup-story-title");
+    dialog.id = "awa-sv-story-viewer";
+    dialog.className = `awa-sv-story${viewer().theme === "light" ? " awa-sv-viewer--light" : ""}`;
+    dialog.setAttribute("aria-labelledby", "awa-sv-story-title");
     dialog.innerHTML = `
-      <div class="reelup-story__frame">
-        <video class="reelup-story__video" playsinline muted></video>
-        <div class="reelup-story__shade" aria-hidden="true"></div>
-        <span class="reelup-spinner" aria-hidden="true"></span>
-        <div class="reelup-story__progress" data-reelup-story-progress aria-hidden="true"></div>
-        <header class="reelup-story__header">
-          <span class="reelup-story__avatar" aria-hidden="true"></span>
-          <h2 class="reelup-story__title" id="reelup-story-title"></h2>
-          <button type="button" class="reelup-viewer__icon" data-reelup-story-toggle aria-label="${L.pause}">${icons.pauseSmall}</button>
-          <button type="button" class="reelup-viewer__icon" data-reelup-story-share aria-label="${L.share}" hidden>${icons.share}</button>
-          <button type="button" class="reelup-viewer__icon" data-reelup-story-mute></button>
-          <button type="button" class="reelup-viewer__icon" data-reelup-story-close aria-label="${L.close}">${icons.close}</button>
+      <div class="awa-sv-story__frame">
+        <video class="awa-sv-story__video" playsinline muted></video>
+        <div class="awa-sv-story__shade" aria-hidden="true"></div>
+        <span class="awa-sv-spinner" aria-hidden="true"></span>
+        <div class="awa-sv-story__progress" data-awa-sv-story-progress aria-hidden="true"></div>
+        <header class="awa-sv-story__header">
+          <span class="awa-sv-story__avatar" aria-hidden="true"></span>
+          <h2 class="awa-sv-story__title" id="awa-sv-story-title"></h2>
+          <button type="button" class="awa-sv-viewer__icon" data-awa-sv-story-toggle aria-label="${L.pause}">${icons.pauseSmall}</button>
+          <button type="button" class="awa-sv-viewer__icon" data-awa-sv-story-share aria-label="${L.share}" hidden>${icons.share}</button>
+          <button type="button" class="awa-sv-viewer__icon" data-awa-sv-story-mute></button>
+          <button type="button" class="awa-sv-viewer__icon" data-awa-sv-story-close aria-label="${L.close}">${icons.close}</button>
         </header>
-        <button type="button" class="reelup-story__tap reelup-story__tap--prev" data-reelup-story-prev aria-label="${L.previous}"></button>
-        <button type="button" class="reelup-story__tap reelup-story__tap--next" data-reelup-story-next aria-label="${L.next}"></button>
-        <button type="button" class="reelup-story__sticker" data-reelup-story-shop hidden>
-          <span class="reelup-story__sticker-thumb" aria-hidden="true"></span>
-          <span class="reelup-story__sticker-label">${L.shop}</span>
-          <span class="reelup-story__sticker-count"></span>
+        <button type="button" class="awa-sv-story__tap awa-sv-story__tap--prev" data-awa-sv-story-prev aria-label="${L.previous}"></button>
+        <button type="button" class="awa-sv-story__tap awa-sv-story__tap--next" data-awa-sv-story-next aria-label="${L.next}"></button>
+        <button type="button" class="awa-sv-story__sticker" data-awa-sv-story-shop hidden>
+          <span class="awa-sv-story__sticker-thumb" aria-hidden="true"></span>
+          <span class="awa-sv-story__sticker-label">${L.shop}</span>
+          <span class="awa-sv-story__sticker-count"></span>
         </button>
-        <div class="reelup-toast" aria-hidden="true"></div>
-        <div class="reelup-story__drawer" data-reelup-story-drawer hidden>
-          <div class="reelup-story__drawer-head">
+        <div class="awa-sv-toast" aria-hidden="true"></div>
+        <div class="awa-sv-story__drawer" data-awa-sv-story-drawer hidden>
+          <div class="awa-sv-story__drawer-head">
             <span>${L.shop}</span>
-            <button type="button" class="reelup-viewer__icon reelup-viewer__icon--light" data-reelup-story-drawer-close aria-label="${L.closeProducts}">${icons.down}</button>
+            <button type="button" class="awa-sv-viewer__icon awa-sv-viewer__icon--light" data-awa-sv-story-drawer-close aria-label="${L.closeProducts}">${icons.down}</button>
           </div>
-          <div class="reelup-story__list" data-reelup-story-list></div>
-          <p class="reelup-viewer__cart" data-reelup-cart-status hidden>
-            <span class="reelup-cart-message"></span>
+          <div class="awa-sv-story__list" data-awa-sv-story-list></div>
+          <p class="awa-sv-viewer__cart" data-awa-sv-cart-status hidden>
+            <span class="awa-sv-cart-message"></span>
             <a href="${escapeHtml(viewer().cartUrl)}">${L.viewCart}</a>
           </p>
         </div>
@@ -358,13 +358,13 @@
     document.body.appendChild(dialog);
 
     const video = dialog.querySelector("video");
-    const frame = dialog.querySelector(".reelup-story__frame");
-    const mute = dialog.querySelector("[data-reelup-story-mute]");
+    const frame = dialog.querySelector(".awa-sv-story__frame");
+    const mute = dialog.querySelector("[data-awa-sv-story-mute]");
     dialog.buffering = viewer().watchBuffering(video, frame);
     dialog.progress = viewer().watchProgress(
       video,
-      () => dialog.getAttribute("data-reelup-reel-id"),
-      () => dialog.reelupTrigger,
+      () => dialog.getAttribute("data-awa-sv-reel-id"),
+      () => dialog.awaSvTrigger,
     );
     video.addEventListener("volumechange", () => {
       mute.innerHTML = video.muted ? icons.muted : icons.unmuted;
@@ -392,9 +392,9 @@
       advancing = false;
       goTo(dialog, currentIndex + delta);
     };
-    dialog.querySelector("[data-reelup-story-toggle]").addEventListener("click", () => togglePause(dialog));
-    dialog.querySelector("[data-reelup-story-close]").addEventListener("click", () => dialog.close());
-    dialog.querySelector("[data-reelup-story-share]").addEventListener("click", () => {
+    dialog.querySelector("[data-awa-sv-story-toggle]").addEventListener("click", () => togglePause(dialog));
+    dialog.querySelector("[data-awa-sv-story-close]").addEventListener("click", () => dialog.close());
+    dialog.querySelector("[data-awa-sv-story-share]").addEventListener("click", () => {
       const trigger = reels[currentIndex];
       if (!trigger) return;
       pause(dialog, "share");
@@ -402,9 +402,9 @@
         .share(frame, trigger.dataset.reelId, trigger.dataset.title || document.title)
         .finally(() => resume(dialog, "share"));
     });
-    dialog.querySelector("[data-reelup-story-prev]").addEventListener("click", () => step(-1));
-    dialog.querySelector("[data-reelup-story-next]").addEventListener("click", () => step(1));
-    dialog.querySelector("[data-reelup-story-shop]").addEventListener("click", (event) => {
+    dialog.querySelector("[data-awa-sv-story-prev]").addEventListener("click", () => step(-1));
+    dialog.querySelector("[data-awa-sv-story-next]").addEventListener("click", () => step(1));
+    dialog.querySelector("[data-awa-sv-story-shop]").addEventListener("click", (event) => {
       const link = event.currentTarget.dataset.link;
       if (link) {
         viewer().trackAnalytics(reels[currentIndex]?.dataset.reelId, "click_product", { trigger: reels[currentIndex] });
@@ -413,7 +413,7 @@
       }
       setDrawer(dialog, true);
     });
-    dialog.querySelector("[data-reelup-story-drawer-close]").addEventListener("click", () => setDrawer(dialog, false));
+    dialog.querySelector("[data-awa-sv-story-drawer-close]").addEventListener("click", () => setDrawer(dialog, false));
 
     dialog.addEventListener("click", (event) => {
       if (event.target === dialog) dialog.close();
@@ -445,13 +445,13 @@
       clearTimeout(seenTimer);
       pauseReasons.clear();
       segmentStarted = false;
-      window.ReelupHls?.teardown(video);
+      window.AwaSvHls?.teardown(video);
       drawerOpen = false;
       dialog.classList.remove("is-shopping");
-      dialog.querySelector("[data-reelup-story-drawer]").hidden = true;
-      document.documentElement.classList.remove("reelup-locked");
-      document.dispatchEvent(new CustomEvent("reelup:viewer-change"));
-      reels[currentIndex]?.querySelector(".reelup-trigger__button")?.focus({ preventScroll: true });
+      dialog.querySelector("[data-awa-sv-story-drawer]").hidden = true;
+      document.documentElement.classList.remove("awa-sv-locked");
+      document.dispatchEvent(new CustomEvent("awa-sv:viewer-change"));
+      reels[currentIndex]?.querySelector(".awa-sv-trigger__button")?.focus({ preventScroll: true });
     });
 
     document.addEventListener("visibilitychange", () => {
@@ -467,7 +467,7 @@
     let swipeStart = null;
     let swiped = false;
     frame.addEventListener("pointerdown", (event) => {
-      if (drawerOpen || event.target.closest("button:not(.reelup-story__tap), a, select, [data-reelup-story-drawer]")) return;
+      if (drawerOpen || event.target.closest("button:not(.awa-sv-story__tap), a, select, [data-awa-sv-story-drawer]")) return;
       holdTimer = setTimeout(() => {
         held = true;
         pause(dialog, "hold");
@@ -475,7 +475,7 @@
     });
     frame.addEventListener("click", (event) => {
       // A hold or swipe that ended over a tap zone isn't also a tap.
-      if ((held || swiped) && event.target.closest("[data-reelup-story-prev], [data-reelup-story-next]")) {
+      if ((held || swiped) && event.target.closest("[data-awa-sv-story-prev], [data-awa-sv-story-next]")) {
         event.stopImmediatePropagation();
       }
       swiped = false;
@@ -496,7 +496,7 @@
     frame.addEventListener("touchstart", (event) => {
       swiped = false;
       swipeStart =
-        event.touches.length === 1 && !drawerOpen && !event.target.closest("[data-reelup-story-drawer]")
+        event.touches.length === 1 && !drawerOpen && !event.target.closest("[data-awa-sv-story-drawer]")
           ? { x: event.touches[0].clientX, y: event.touches[0].clientY }
           : null;
     }, { passive: true });
@@ -519,38 +519,38 @@
 
   const openViewer = (groupEl, startIndex) => {
     if (!viewer()) return;
-    reels = Array.from(groupEl.querySelectorAll("[data-reelup-trigger]"));
+    reels = Array.from(groupEl.querySelectorAll("[data-awa-sv-trigger]"));
     if (reels.length === 0) return;
     const dialog = build();
-    dialog.querySelector("[data-reelup-story-progress]").innerHTML = reels
-      .map((_, i) => `<span class="reelup-story__segment" data-index="${i}"><span class="reelup-story__segment-fill"></span></span>`)
+    dialog.querySelector("[data-awa-sv-story-progress]").innerHTML = reels
+      .map((_, i) => `<span class="awa-sv-story__segment" data-index="${i}"><span class="awa-sv-story__segment-fill"></span></span>`)
       .join("");
     currentIndex = startIndex;
     if (!dialog.open) {
       dialog.showModal();
-      document.documentElement.classList.add("reelup-locked");
-      document.dispatchEvent(new CustomEvent("reelup:viewer-change"));
-      dialog.querySelector("[data-reelup-story-close]")?.focus();
+      document.documentElement.classList.add("awa-sv-locked");
+      document.dispatchEvent(new CustomEvent("awa-sv:viewer-change"));
+      dialog.querySelector("[data-awa-sv-story-close]")?.focus();
     }
     goTo(dialog, startIndex);
   };
 
   const bindAll = () => {
     const seen = readSeen();
-    document.querySelectorAll("[data-reelup-story-group]").forEach((group) => {
-      const triggers = Array.from(group.querySelectorAll("[data-reelup-trigger]"));
+    document.querySelectorAll("[data-awa-sv-story-group]").forEach((group) => {
+      const triggers = Array.from(group.querySelectorAll("[data-awa-sv-trigger]"));
       triggers.forEach((trigger) => {
         if (seen.has(trigger.dataset.reelId)) trigger.classList.add("is-seen");
       });
-      if (group.dataset.reelupStoryBound) return;
-      group.dataset.reelupStoryBound = "true";
+      if (group.dataset.awaSvStoryBound) return;
+      group.dataset.awaSvStoryBound = "true";
       triggers.forEach((trigger, i) => {
-        trigger.querySelector(".reelup-trigger__button")?.addEventListener("click", () => openViewer(group, i));
+        trigger.querySelector(".awa-sv-trigger__button")?.addEventListener("click", () => openViewer(group, i));
       });
     });
   };
 
-  window.ReelupStory = { open: openViewer, bind: bindAll };
+  window.AwaSvStory = { open: openViewer, bind: bindAll };
   bindAll();
   document.addEventListener("shopify:section:load", bindAll);
 })();

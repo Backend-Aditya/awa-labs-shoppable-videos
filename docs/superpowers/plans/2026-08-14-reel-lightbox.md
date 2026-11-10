@@ -13,7 +13,7 @@
 - This plan touches only `extensions/shoppable-video-widgets/**` — no admin-app (`app/`) file changes.
 - No change to how a block decides which reels/products are eligible (the `widget_matches_product`/`visible_count` gating Liquid in each block) — only the per-reel markup shape and the client-side interaction change.
 - The cart-add request stays `POST /cart/add.js` with `{ id: variantId, quantity: 1 }` body, same as today.
-- All three blocks share one `.reelup-trigger`/`.reelup-trigger__button`/`.reelup-trigger__poster`/`.reelup-trigger__play-icon` CSS contract (defined once, in `reel-lightbox.css`) and one `reel-trigger.js` click-wiring script (defined once, not duplicated per block) — this is a deliberate DRY refinement beyond the design spec's illustrative per-block JS sketch, since all three blocks' click-wiring logic is byte-identical.
+- All three blocks share one `.awa-sv-trigger`/`.awa-sv-trigger__button`/`.awa-sv-trigger__poster`/`.awa-sv-trigger__play-icon` CSS contract (defined once, in `reel-lightbox.css`) and one `reel-trigger.js` click-wiring script (defined once, not duplicated per block) — this is a deliberate DRY refinement beyond the design spec's illustrative per-block JS sketch, since all three blocks' click-wiring logic is byte-identical.
 - Every reel's poster `<img>` keeps `loading="lazy"` and explicit `width`/`height` (unchanged CLS-prevention practice from the current code).
 - No automated test suite covers this extension (Liquid/JS/CSS) — verification per task is visual/manual via the theme editor, described in each task's Step 2. Run `npm run typecheck`, `npm run lint`, and `npm run test` after every task anyway, since a typo in shared JS/CSS filenames referenced from `asset_url` calls wouldn't be caught by those, but a broken admin build would be — they must stay clean as a basic sanity check that nothing else was accidentally touched.
 
@@ -66,18 +66,18 @@ git commit -m "feat(storefront): add lightbox locale keys, drop unused carousel-
 - Create: `extensions/shoppable-video-widgets/assets/reel-lightbox.css`
 
 **Interfaces:**
-- Produces: `.reelup-trigger`, `.reelup-trigger__button`, `.reelup-trigger__poster`, `.reelup-trigger__play-icon` (the shared per-reel trigger frame, 9:16, consumed by all three blocks in Tasks 5-7) and `.reelup-lightbox*` (the lightbox itself and its product-list classes, consumed by `reel-lightbox.js` in Task 3 and by every block's `<template>` product markup in Tasks 5-7).
+- Produces: `.awa-sv-trigger`, `.awa-sv-trigger__button`, `.awa-sv-trigger__poster`, `.awa-sv-trigger__play-icon` (the shared per-reel trigger frame, 9:16, consumed by all three blocks in Tasks 5-7) and `.awa-sv-lightbox*` (the lightbox itself and its product-list classes, consumed by `reel-lightbox.js` in Task 3 and by every block's `<template>` product markup in Tasks 5-7).
 
 - [ ] **Step 1: Create the file**
 
 ```css
-.reelup-trigger {
+.awa-sv-trigger {
   display: block;
   width: 100%;
   height: 100%;
 }
 
-.reelup-trigger__button {
+.awa-sv-trigger__button {
   position: relative;
   display: block;
   width: 100%;
@@ -92,7 +92,7 @@ git commit -m "feat(storefront): add lightbox locale keys, drop unused carousel-
   background: #111;
 }
 
-.reelup-trigger__poster {
+.awa-sv-trigger__poster {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -100,7 +100,7 @@ git commit -m "feat(storefront): add lightbox locale keys, drop unused carousel-
   object-fit: cover;
 }
 
-.reelup-trigger__play-icon {
+.awa-sv-trigger__play-icon {
   position: absolute;
   inset: 0;
   margin: auto;
@@ -113,7 +113,7 @@ git commit -m "feat(storefront): add lightbox locale keys, drop unused carousel-
   justify-content: center;
 }
 
-.reelup-trigger__play-icon::before {
+.awa-sv-trigger__play-icon::before {
   content: "";
   display: block;
   width: 0;
@@ -124,12 +124,12 @@ git commit -m "feat(storefront): add lightbox locale keys, drop unused carousel-
   margin-left: 3px;
 }
 
-.reelup-trigger__button:hover .reelup-trigger__play-icon,
-.reelup-trigger__button:focus-visible .reelup-trigger__play-icon {
+.awa-sv-trigger__button:hover .awa-sv-trigger__play-icon,
+.awa-sv-trigger__button:focus-visible .awa-sv-trigger__play-icon {
   background: rgba(0, 0, 0, 0.75);
 }
 
-.reelup-lightbox {
+.awa-sv-lightbox {
   position: fixed;
   inset: 0;
   margin: 0;
@@ -143,12 +143,12 @@ git commit -m "feat(storefront): add lightbox locale keys, drop unused carousel-
   z-index: 1000;
 }
 
-.reelup-lightbox::backdrop {
+.awa-sv-lightbox::backdrop {
   background: rgba(0, 0, 0, 0.85);
   backdrop-filter: blur(4px);
 }
 
-.reelup-lightbox__close {
+.awa-sv-lightbox__close {
   position: absolute;
   top: 16px;
   right: 16px;
@@ -164,12 +164,12 @@ git commit -m "feat(storefront): add lightbox locale keys, drop unused carousel-
   cursor: pointer;
 }
 
-.reelup-lightbox__close:hover,
-.reelup-lightbox__close:focus-visible {
+.awa-sv-lightbox__close:hover,
+.awa-sv-lightbox__close:focus-visible {
   background: rgba(255, 255, 255, 0.3);
 }
 
-.reelup-lightbox__body {
+.awa-sv-lightbox__body {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -182,7 +182,7 @@ git commit -m "feat(storefront): add lightbox locale keys, drop unused carousel-
   box-sizing: border-box;
 }
 
-.reelup-lightbox__player {
+.awa-sv-lightbox__player {
   position: relative;
   flex: 0 0 auto;
   width: 100%;
@@ -194,7 +194,7 @@ git commit -m "feat(storefront): add lightbox locale keys, drop unused carousel-
   background: #000;
 }
 
-.reelup-lightbox__title {
+.awa-sv-lightbox__title {
   position: absolute;
   left: 16px;
   right: 16px;
@@ -208,14 +208,14 @@ git commit -m "feat(storefront): add lightbox locale keys, drop unused carousel-
   pointer-events: none;
 }
 
-.reelup-lightbox__video {
+.awa-sv-lightbox__video {
   width: 100%;
   height: 100%;
   object-fit: cover;
   background: #000;
 }
 
-.reelup-lightbox__products {
+.awa-sv-lightbox__products {
   flex: 0 0 auto;
   width: 100%;
   max-width: 420px;
@@ -225,14 +225,14 @@ git commit -m "feat(storefront): add lightbox locale keys, drop unused carousel-
   box-sizing: border-box;
 }
 
-.reelup-lightbox__products-heading {
+.awa-sv-lightbox__products-heading {
   margin: 0 0 12px;
   font-size: 14px;
   font-weight: 600;
   color: #111;
 }
 
-.reelup-lightbox__products-list {
+.awa-sv-lightbox__products-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -240,13 +240,13 @@ git commit -m "feat(storefront): add lightbox locale keys, drop unused carousel-
   overflow-y: auto;
 }
 
-.reelup-lightbox__product {
+.awa-sv-lightbox__product {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
-.reelup-lightbox__product-link {
+.awa-sv-lightbox__product-link {
   flex: 1 1 auto;
   min-width: 0;
   display: flex;
@@ -256,7 +256,7 @@ git commit -m "feat(storefront): add lightbox locale keys, drop unused carousel-
   color: inherit;
 }
 
-.reelup-lightbox__product-image {
+.awa-sv-lightbox__product-image {
   flex: 0 0 auto;
   width: 56px;
   height: 56px;
@@ -264,14 +264,14 @@ git commit -m "feat(storefront): add lightbox locale keys, drop unused carousel-
   border-radius: 10px;
 }
 
-.reelup-lightbox__product-info {
+.awa-sv-lightbox__product-info {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
 }
 
-.reelup-lightbox__product-title {
+.awa-sv-lightbox__product-title {
   font-size: 14px;
   font-weight: 500;
   overflow: hidden;
@@ -279,13 +279,13 @@ git commit -m "feat(storefront): add lightbox locale keys, drop unused carousel-
   white-space: nowrap;
 }
 
-.reelup-lightbox__product-price {
+.awa-sv-lightbox__product-price {
   font-size: 13px;
   font-weight: 600;
   color: #555;
 }
 
-.reelup-lightbox__add-to-cart {
+.awa-sv-lightbox__add-to-cart {
   flex: 0 0 auto;
   font-size: 12px;
   font-weight: 600;
@@ -298,34 +298,34 @@ git commit -m "feat(storefront): add lightbox locale keys, drop unused carousel-
   white-space: nowrap;
 }
 
-.reelup-lightbox__add-to-cart[data-state="loading"] {
+.awa-sv-lightbox__add-to-cart[data-state="loading"] {
   opacity: 0.6;
   cursor: default;
 }
 
-.reelup-lightbox__add-to-cart[data-state="added"] {
+.awa-sv-lightbox__add-to-cart[data-state="added"] {
   background: #1f9d55;
 }
 
 @media (min-width: 720px) {
-  .reelup-lightbox__body {
+  .awa-sv-lightbox__body {
     flex-direction: row;
     align-items: center;
     justify-content: center;
     padding: 24px;
   }
 
-  .reelup-lightbox__player {
+  .awa-sv-lightbox__player {
     max-height: 88vh;
   }
 
-  .reelup-lightbox__products {
+  .awa-sv-lightbox__products {
     align-self: center;
     max-height: 88vh;
     overflow-y: auto;
   }
 
-  .reelup-lightbox__products-list {
+  .awa-sv-lightbox__products-list {
     max-height: none;
   }
 }
@@ -356,8 +356,8 @@ git commit -m "feat(storefront): add shared trigger + lightbox stylesheet"
 - Create: `extensions/shoppable-video-widgets/assets/reel-lightbox.js`
 
 **Interfaces:**
-- Produces: `window.ReelupLightbox.open(triggerEl: HTMLElement): Promise<void>` — consumed by `reel-trigger.js` (Task 4).
-- Consumes (via `triggerEl.dataset`): `hlsSrc`, `posterUrl`, `title`, `closeLabel`, `shopLabel`, and a sibling `<template data-reelup-products>` holding pre-rendered product markup — all produced per-reel by each block's Liquid (Tasks 5-7).
+- Produces: `window.AwaSvLightbox.open(triggerEl: HTMLElement): Promise<void>` — consumed by `reel-trigger.js` (Task 4).
+- Consumes (via `triggerEl.dataset`): `hlsSrc`, `posterUrl`, `title`, `closeLabel`, `shopLabel`, and a sibling `<template data-awa-sv-products>` holding pre-rendered product markup — all produced per-reel by each block's Liquid (Tasks 5-7).
 
 - [ ] **Step 1: Create the file**
 
@@ -371,14 +371,14 @@ git commit -m "feat(storefront): add shared trigger + lightbox stylesheet"
   let hlsInstance = null;
 
   const loadHlsJsIfNeeded = () => {
-    if (window.Hls || document.querySelector("script[data-reelup-hlsjs]")) {
+    if (window.Hls || document.querySelector("script[data-awa-sv-hlsjs]")) {
       return Promise.resolve();
     }
 
     return new Promise((resolve, reject) => {
       const script = document.createElement("script");
       script.src = currentScriptSrc.replace("reel-lightbox.js", "hls.min.js");
-      script.dataset.reelupHlsjs = "true";
+      script.dataset.awaSvHlsjs = "true";
       script.onload = () => resolve();
       script.onerror = () => reject(new Error("Failed to load hls.js"));
       document.head.appendChild(script);
@@ -422,32 +422,32 @@ git commit -m "feat(storefront): add shared trigger + lightbox stylesheet"
   };
 
   const buildLightbox = () => {
-    const existing = document.getElementById("reelup-lightbox");
+    const existing = document.getElementById("awa-sv-lightbox");
     if (existing) return existing;
 
     const dialog = document.createElement("dialog");
-    dialog.id = "reelup-lightbox";
-    dialog.className = "reelup-lightbox";
-    dialog.setAttribute("aria-labelledby", "reelup-lightbox-title");
+    dialog.id = "awa-sv-lightbox";
+    dialog.className = "awa-sv-lightbox";
+    dialog.setAttribute("aria-labelledby", "awa-sv-lightbox-title");
     dialog.innerHTML = `
-      <button type="button" class="reelup-lightbox__close" data-reelup-lightbox-close>&times;</button>
-      <div class="reelup-lightbox__body">
-        <div class="reelup-lightbox__player">
-          <h2 id="reelup-lightbox-title" class="reelup-lightbox__title"></h2>
-          <video class="reelup-lightbox__video" playsinline controls></video>
+      <button type="button" class="awa-sv-lightbox__close" data-awa-sv-lightbox-close>&times;</button>
+      <div class="awa-sv-lightbox__body">
+        <div class="awa-sv-lightbox__player">
+          <h2 id="awa-sv-lightbox-title" class="awa-sv-lightbox__title"></h2>
+          <video class="awa-sv-lightbox__video" playsinline controls></video>
         </div>
-        <div class="reelup-lightbox__products" data-reelup-lightbox-products hidden>
-          <h3 class="reelup-lightbox__products-heading" data-reelup-lightbox-products-heading></h3>
-          <div class="reelup-lightbox__products-list" data-reelup-lightbox-products-list></div>
+        <div class="awa-sv-lightbox__products" data-awa-sv-lightbox-products hidden>
+          <h3 class="awa-sv-lightbox__products-heading" data-awa-sv-lightbox-products-heading></h3>
+          <div class="awa-sv-lightbox__products-list" data-awa-sv-lightbox-products-list></div>
         </div>
       </div>
     `;
     document.body.appendChild(dialog);
 
-    const video = dialog.querySelector(".reelup-lightbox__video");
-    const productsPanel = dialog.querySelector("[data-reelup-lightbox-products]");
-    const productsList = dialog.querySelector("[data-reelup-lightbox-products-list]");
-    const closeButton = dialog.querySelector("[data-reelup-lightbox-close]");
+    const video = dialog.querySelector(".awa-sv-lightbox__video");
+    const productsPanel = dialog.querySelector("[data-awa-sv-lightbox-products]");
+    const productsList = dialog.querySelector("[data-awa-sv-lightbox-products-list]");
+    const closeButton = dialog.querySelector("[data-awa-sv-lightbox-close]");
 
     dialog.addEventListener("close", () => {
       teardownSource(video);
@@ -462,7 +462,7 @@ git commit -m "feat(storefront): add shared trigger + lightbox stylesheet"
     closeButton.addEventListener("click", () => dialog.close());
 
     productsList.addEventListener("click", async (event) => {
-      const button = event.target.closest("[data-reelup-add-to-cart]");
+      const button = event.target.closest("[data-awa-sv-add-to-cart]");
       if (!button || button.dataset.state === "loading") return;
 
       const variantId = button.dataset.variantId;
@@ -502,12 +502,12 @@ git commit -m "feat(storefront): add shared trigger + lightbox stylesheet"
     if (!hlsSrc) return;
 
     const dialog = buildLightbox();
-    const video = dialog.querySelector(".reelup-lightbox__video");
-    const title = dialog.querySelector(".reelup-lightbox__title");
-    const closeButton = dialog.querySelector("[data-reelup-lightbox-close]");
-    const productsPanel = dialog.querySelector("[data-reelup-lightbox-products]");
-    const productsHeading = dialog.querySelector("[data-reelup-lightbox-products-heading]");
-    const productsList = dialog.querySelector("[data-reelup-lightbox-products-list]");
+    const video = dialog.querySelector(".awa-sv-lightbox__video");
+    const title = dialog.querySelector(".awa-sv-lightbox__title");
+    const closeButton = dialog.querySelector("[data-awa-sv-lightbox-close]");
+    const productsPanel = dialog.querySelector("[data-awa-sv-lightbox-products]");
+    const productsHeading = dialog.querySelector("[data-awa-sv-lightbox-products-heading]");
+    const productsList = dialog.querySelector("[data-awa-sv-lightbox-products-list]");
 
     const posterUrl = triggerEl.dataset.posterUrl;
     const reelTitle = triggerEl.dataset.title ?? "";
@@ -523,7 +523,7 @@ git commit -m "feat(storefront): add shared trigger + lightbox stylesheet"
     }
 
     productsList.replaceChildren();
-    const template = triggerEl.querySelector("template[data-reelup-products]");
+    const template = triggerEl.querySelector("template[data-awa-sv-products]");
     if (template) {
       productsHeading.textContent = shopLabel;
       productsList.appendChild(template.content.cloneNode(true));
@@ -546,13 +546,13 @@ git commit -m "feat(storefront): add shared trigger + lightbox stylesheet"
     }
   };
 
-  window.ReelupLightbox = { open };
+  window.AwaSvLightbox = { open };
 })();
 ```
 
 - [ ] **Step 2: Verify**
 
-Nothing calls `window.ReelupLightbox.open` yet (Task 4 adds the caller). Run:
+Nothing calls `window.AwaSvLightbox.open` yet (Task 4 adds the caller). Run:
 ```bash
 npm run typecheck
 npm run lint
@@ -575,17 +575,17 @@ git commit -m "feat(storefront): add shared reel lightbox behavior (HLS, add-to-
 - Create: `extensions/shoppable-video-widgets/assets/reel-trigger.js`
 
 **Interfaces:**
-- Consumes: `window.ReelupLightbox.open` (Task 3).
+- Consumes: `window.AwaSvLightbox.open` (Task 3).
 - Consumed by: every block's `<script>` tag (Tasks 5-7), loaded alongside `reel-lightbox.js`.
 
 - [ ] **Step 1: Create the file**
 
 ```js
 (() => {
-  document.querySelectorAll("[data-reelup-trigger]").forEach((trigger) => {
+  document.querySelectorAll("[data-awa-sv-trigger]").forEach((trigger) => {
     trigger
-      .querySelector(".reelup-trigger__button")
-      ?.addEventListener("click", () => window.ReelupLightbox?.open(trigger));
+      .querySelector(".awa-sv-trigger__button")
+      ?.addEventListener("click", () => window.AwaSvLightbox?.open(trigger));
   });
 })();
 ```
@@ -670,13 +670,13 @@ Liquid at render time, no runtime API call.
 {% endif %}
 
 {% if visible_count > 0 %}
-  <div class="reelup-product-reels" {{ block.shopify_attributes }}>
+  <div class="awa-sv-product-reels" {{ block.shopify_attributes }}>
     {% for reel in reels_field.value %}
       {% if reel.published.value and reel.config.value.cloudflareStreamUid != blank and reel.config.value.hlsManifestUrl != blank %}
-        <div class="reelup-product-reels__item">
+        <div class="awa-sv-product-reels__item">
           <div
-            class="reelup-trigger"
-            data-reelup-trigger
+            class="awa-sv-trigger"
+            data-awa-sv-trigger
             data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
             data-poster-url="{{ reel.config.value.posterUrl | escape }}"
             data-title="{{ reel.title.value | escape }}"
@@ -685,12 +685,12 @@ Liquid at render time, no runtime API call.
           >
             <button
               type="button"
-              class="reelup-trigger__button"
+              class="awa-sv-trigger__button"
               aria-label="{{ 'reels.play_label' | t }}"
             >
               {% if reel.config.value.posterUrl != blank %}
                 <img
-                  class="reelup-trigger__poster"
+                  class="awa-sv-trigger__poster"
                   src="{{ reel.config.value.posterUrl | escape }}"
                   alt="{{ reel.title.value | escape }}"
                   loading="lazy"
@@ -698,17 +698,17 @@ Liquid at render time, no runtime API call.
                   height="640"
                 >
               {% endif %}
-              <span class="reelup-trigger__play-icon" aria-hidden="true"></span>
+              <span class="awa-sv-trigger__play-icon" aria-hidden="true"></span>
             </button>
             {% if reel.tagged_products.value.size > 0 %}
-              <template data-reelup-products>
+              <template data-awa-sv-products>
                 {% for product in reel.tagged_products.value %}
                   {% assign variant = product.selected_or_first_available_variant %}
-                  <div class="reelup-lightbox__product">
-                    <a class="reelup-lightbox__product-link" href="{{ product.url }}">
+                  <div class="awa-sv-lightbox__product">
+                    <a class="awa-sv-lightbox__product-link" href="{{ product.url }}">
                       {% if product.featured_image %}
                         <img
-                          class="reelup-lightbox__product-image"
+                          class="awa-sv-lightbox__product-image"
                           src="{{ product.featured_image | image_url: width: 160 }}"
                           alt="{{ product.title | escape }}"
                           loading="lazy"
@@ -716,16 +716,16 @@ Liquid at render time, no runtime API call.
                           height="56"
                         >
                       {% endif %}
-                      <span class="reelup-lightbox__product-info">
-                        <span class="reelup-lightbox__product-title">{{ product.title }}</span>
-                        <span class="reelup-lightbox__product-price">{{ product.price | money }}</span>
+                      <span class="awa-sv-lightbox__product-info">
+                        <span class="awa-sv-lightbox__product-title">{{ product.title }}</span>
+                        <span class="awa-sv-lightbox__product-price">{{ product.price | money }}</span>
                       </span>
                     </a>
                     {% if variant %}
                       <button
                         type="button"
-                        class="reelup-lightbox__add-to-cart"
-                        data-reelup-add-to-cart
+                        class="awa-sv-lightbox__add-to-cart"
+                        data-awa-sv-add-to-cart
                         data-variant-id="{{ variant.id }}"
                         data-add-label="{{ 'reels.add_to_cart' | t }}"
                         data-added-label="{{ 'reels.added_to_cart' | t }}"
@@ -760,14 +760,14 @@ Liquid at render time, no runtime API call.
 - [ ] **Step 2: Replace the CSS file in full**
 
 ```css
-.reelup-product-reels {
+.awa-sv-product-reels {
   display: flex;
   gap: 12px;
   overflow-x: auto;
   padding-block: 12px;
 }
 
-.reelup-product-reels__item {
+.awa-sv-product-reels__item {
   flex: 0 0 auto;
   width: 220px;
 }
@@ -847,10 +847,10 @@ any tagged products.
 {% endif %}
 
 {% if show_reel %}
-  <div class="reelup-single-video" {{ block.shopify_attributes }}>
+  <div class="awa-sv-single-video" {{ block.shopify_attributes }}>
     <div
-      class="reelup-trigger"
-      data-reelup-trigger
+      class="awa-sv-trigger"
+      data-awa-sv-trigger
       data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
       data-poster-url="{{ reel.config.value.posterUrl | escape }}"
       data-title="{{ reel.title.value | escape }}"
@@ -859,12 +859,12 @@ any tagged products.
     >
       <button
         type="button"
-        class="reelup-trigger__button"
+        class="awa-sv-trigger__button"
         aria-label="{{ 'reels.play_label' | t }}"
       >
         {% if reel.config.value.posterUrl != blank %}
           <img
-            class="reelup-trigger__poster"
+            class="awa-sv-trigger__poster"
             src="{{ reel.config.value.posterUrl | escape }}"
             alt="{{ reel.title.value | escape }}"
             loading="lazy"
@@ -872,17 +872,17 @@ any tagged products.
             height="854"
           >
         {% endif %}
-        <span class="reelup-trigger__play-icon" aria-hidden="true"></span>
+        <span class="awa-sv-trigger__play-icon" aria-hidden="true"></span>
       </button>
       {% if reel.tagged_products.value.size > 0 %}
-        <template data-reelup-products>
+        <template data-awa-sv-products>
           {% for product in reel.tagged_products.value %}
             {% assign variant = product.selected_or_first_available_variant %}
-            <div class="reelup-lightbox__product">
-              <a class="reelup-lightbox__product-link" href="{{ product.url }}">
+            <div class="awa-sv-lightbox__product">
+              <a class="awa-sv-lightbox__product-link" href="{{ product.url }}">
                 {% if product.featured_image %}
                   <img
-                    class="reelup-lightbox__product-image"
+                    class="awa-sv-lightbox__product-image"
                     src="{{ product.featured_image | image_url: width: 160 }}"
                     alt="{{ product.title | escape }}"
                     loading="lazy"
@@ -890,16 +890,16 @@ any tagged products.
                     height="56"
                   >
                 {% endif %}
-                <span class="reelup-lightbox__product-info">
-                  <span class="reelup-lightbox__product-title">{{ product.title }}</span>
-                  <span class="reelup-lightbox__product-price">{{ product.price | money }}</span>
+                <span class="awa-sv-lightbox__product-info">
+                  <span class="awa-sv-lightbox__product-title">{{ product.title }}</span>
+                  <span class="awa-sv-lightbox__product-price">{{ product.price | money }}</span>
                 </span>
               </a>
               {% if variant %}
                 <button
                   type="button"
-                  class="reelup-lightbox__add-to-cart"
-                  data-reelup-add-to-cart
+                  class="awa-sv-lightbox__add-to-cart"
+                  data-awa-sv-add-to-cart
                   data-variant-id="{{ variant.id }}"
                   data-add-label="{{ 'reels.add_to_cart' | t }}"
                   data-added-label="{{ 'reels.added_to_cart' | t }}"
@@ -931,7 +931,7 @@ any tagged products.
 - [ ] **Step 2: Replace the CSS file in full**
 
 ```css
-.reelup-single-video {
+.awa-sv-single-video {
   width: 100%;
   max-width: 320px;
 }
@@ -1011,12 +1011,12 @@ lightbox with the video and any tagged products.
 {% endif %}
 
 {% if visible_count > 0 %}
-  <div class="reelup-carousel" {{ block.shopify_attributes }}>
+  <div class="awa-sv-carousel" {{ block.shopify_attributes }}>
     {% for reel in reels_field.value %}
       {% if reel.published.value and reel.config.value.cloudflareStreamUid != blank and reel.config.value.hlsManifestUrl != blank %}
         <div
-          class="reelup-trigger"
-          data-reelup-trigger
+          class="awa-sv-trigger"
+          data-awa-sv-trigger
           data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
           data-poster-url="{{ reel.config.value.posterUrl | escape }}"
           data-title="{{ reel.title.value | escape }}"
@@ -1025,12 +1025,12 @@ lightbox with the video and any tagged products.
         >
           <button
             type="button"
-            class="reelup-trigger__button"
+            class="awa-sv-trigger__button"
             aria-label="{{ 'reels.play_label' | t }}"
           >
             {% if reel.config.value.posterUrl != blank %}
               <img
-                class="reelup-trigger__poster"
+                class="awa-sv-trigger__poster"
                 src="{{ reel.config.value.posterUrl | escape }}"
                 alt="{{ reel.title.value | escape }}"
                 loading="lazy"
@@ -1038,17 +1038,17 @@ lightbox with the video and any tagged products.
                 height="640"
               >
             {% endif %}
-            <span class="reelup-trigger__play-icon" aria-hidden="true"></span>
+            <span class="awa-sv-trigger__play-icon" aria-hidden="true"></span>
           </button>
           {% if reel.tagged_products.value.size > 0 %}
-            <template data-reelup-products>
+            <template data-awa-sv-products>
               {% for product in reel.tagged_products.value %}
                 {% assign variant = product.selected_or_first_available_variant %}
-                <div class="reelup-lightbox__product">
-                  <a class="reelup-lightbox__product-link" href="{{ product.url }}">
+                <div class="awa-sv-lightbox__product">
+                  <a class="awa-sv-lightbox__product-link" href="{{ product.url }}">
                     {% if product.featured_image %}
                       <img
-                        class="reelup-lightbox__product-image"
+                        class="awa-sv-lightbox__product-image"
                         src="{{ product.featured_image | image_url: width: 160 }}"
                         alt="{{ product.title | escape }}"
                         loading="lazy"
@@ -1056,16 +1056,16 @@ lightbox with the video and any tagged products.
                         height="56"
                       >
                     {% endif %}
-                    <span class="reelup-lightbox__product-info">
-                      <span class="reelup-lightbox__product-title">{{ product.title }}</span>
-                      <span class="reelup-lightbox__product-price">{{ product.price | money }}</span>
+                    <span class="awa-sv-lightbox__product-info">
+                      <span class="awa-sv-lightbox__product-title">{{ product.title }}</span>
+                      <span class="awa-sv-lightbox__product-price">{{ product.price | money }}</span>
                     </span>
                   </a>
                   {% if variant %}
                     <button
                       type="button"
-                      class="reelup-lightbox__add-to-cart"
-                      data-reelup-add-to-cart
+                      class="awa-sv-lightbox__add-to-cart"
+                      data-awa-sv-add-to-cart
                       data-variant-id="{{ variant.id }}"
                       data-add-label="{{ 'reels.add_to_cart' | t }}"
                       data-added-label="{{ 'reels.added_to_cart' | t }}"
@@ -1099,20 +1099,20 @@ lightbox with the video and any tagged products.
 - [ ] **Step 2: Replace the CSS file in full**
 
 ```css
-.reelup-carousel {
+.awa-sv-carousel {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 10px;
 }
 
 @media (max-width: 900px) {
-  .reelup-carousel {
+  .awa-sv-carousel {
     grid-template-columns: repeat(3, 1fr);
   }
 }
 
 @media (max-width: 600px) {
-  .reelup-carousel {
+  .awa-sv-carousel {
     grid-template-columns: repeat(2, 1fr);
   }
 }

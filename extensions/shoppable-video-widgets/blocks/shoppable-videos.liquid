@@ -80,29 +80,29 @@ Enabled under Theme settings › App embeds, not placed with {% content_for %}.
   {{ 'reel-widgets.css' | asset_url | stylesheet_tag }}
   {%- comment -%} No VideoObject JSON-LD here: the floating player repeats on every page and isn't the page's content. {%- endcomment -%}
   {%- capture player -%}
-    <button type="button" class="reelup-trigger__button reelup-pop__player" aria-label="{{ play_label }}">
+    <button type="button" class="awa-sv-trigger__button awa-sv-pop__player" aria-label="{{ play_label }}">
       {%- if reel.config.value.posterUrl != blank -%}
         {%- render 'reel-poster', url: reel.config.value.posterUrl, height: 400, width_attr: 240, height_attr: 426, eager: true -%}
       {%- endif -%}
     </button>
   {%- endcapture -%}
   <div
-    class="reelup reelup-pop reelup-pop--{{ position | escape }} reelup-pop--{{ shape | escape }}{% if pulse %} reelup-pop--pulse{% endif %} reelup-device--{{ widget.deviceVisibility | default: 'all' | escape }}"
-    data-reelup-pop
+    class="awa-sv awa-sv-pop awa-sv-pop--{{ position | escape }} awa-sv-pop--{{ shape | escape }}{% if pulse %} awa-sv-pop--pulse{% endif %} awa-sv-device--{{ widget.deviceVisibility | default: 'all' | escape }}"
+    data-awa-sv-pop
     data-reel-id="{{ reel.system.id }}"
     data-block-id="{{ block.id }}"
     data-delay="{{ widget_style.popDelay | default: 2 | escape }}"
-    style="--ru-pop-size: {{ widget_style.triggerSize | default: 96 | escape }}px; --ru-pop-border: {{ widget_style.accentColor | default: '#ffffff' | escape }};"
+    style="--awa-sv-pop-size: {{ widget_style.triggerSize | default: 96 | escape }}px; --awa-sv-pop-border: {{ widget_style.accentColor | default: '#ffffff' | escape }};"
     hidden
   >
-    <div class="reelup-pop__frame">
+    <div class="awa-sv-pop__frame">
       {%- render 'reel-trigger', reel: reel, style: widget_style, source: 'floating_video', inner: player, muted_default: false, autoplay_preview: preview -%}
-      <button type="button" class="reelup-pop__dismiss" data-reelup-pop-dismiss aria-label="{{ 'reels.dismiss_label' | t }}">
+      <button type="button" class="awa-sv-pop__dismiss" data-awa-sv-pop-dismiss aria-label="{{ 'reels.dismiss_label' | t }}">
         {%- render 'reel-icon', name: 'close', size: 12, stroke: 3 -%}
       </button>
     </div>
     {%- if widget_style.bubbleLabel != blank -%}
-      <button type="button" class="reelup-pop__label" data-reelup-pop-open tabindex="-1" aria-hidden="true">
+      <button type="button" class="awa-sv-pop__label" data-awa-sv-pop-open tabindex="-1" aria-hidden="true">
         {{- widget_style.bubbleLabel | escape -}}
       </button>
     {%- endif -%}

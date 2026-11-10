@@ -163,7 +163,7 @@ model ReelEvent {
 }
 
 // Revenue attribution: recorded from the orders/paid webhook when a line
-// item carries the hidden `_reelup_reel_id` property that reel-lightbox.js/
+// item carries the hidden `_awa_sv_reel_id` property that reel-lightbox.js/
 // reel-story.js attach on add-to-cart. Deliberately holds no customer PII
 // (no email, name, or address) even though the webhook payload it's built
 // from contains plenty — only orderId/productId/variantId/quantity/revenue

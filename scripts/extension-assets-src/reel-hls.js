@@ -11,7 +11,7 @@
 (() => {
   // Loaded by the app embed and, when the embed is off, by the blocks'
   // loader, a second copy must not replace the first one's instances.
-  if (window.ReelupHls) return;
+  if (window.AwaSvHls) return;
 
   const currentScriptSrc = document.currentScript?.src ?? "";
   const instances = new WeakMap();
@@ -51,7 +51,7 @@
     if (window.Hls) return Promise.resolve();
     if (!hlsJsPromise) {
       hlsJsPromise = new Promise((resolve, reject) => {
-        const existing = document.querySelector("script[data-reelup-hlsjs]");
+        const existing = document.querySelector("script[data-awa-sv-hlsjs]");
         const script = existing ?? document.createElement("script");
         script.addEventListener("load", () => resolve());
         script.addEventListener("error", () => {
@@ -61,7 +61,7 @@
         });
         if (!existing) {
           script.src = currentScriptSrc.replace(/reel-hls\.js/, "hls.min.js");
-          script.dataset.reelupHlsjs = "true";
+          script.dataset.awaSvHlsjs = "true";
           document.head.appendChild(script);
         }
       });
@@ -91,7 +91,7 @@
   };
 
   const fail = (video) => {
-    video.dispatchEvent(new CustomEvent("reelup:playback-error", { bubbles: true }));
+    video.dispatchEvent(new CustomEvent("awa-sv:playback-error", { bubbles: true }));
   };
 
   // Mid-play fatal errors: retry the network a couple of times, recover the
@@ -199,5 +199,5 @@
     instances.get(video)?.stopLoad();
   };
 
-  window.ReelupHls = { attach, teardown, stopLoading, prefetch, supportsNativeHls };
+  window.AwaSvHls = { attach, teardown, stopLoading, prefetch, supportsNativeHls };
 })();

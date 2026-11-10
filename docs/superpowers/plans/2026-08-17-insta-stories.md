@@ -4,7 +4,7 @@
 
 **Goal:** Build the missing Insta-stories theme block: circular avatar triggers opening a full-screen, auto-advancing story viewer with a tap-to-open tagged-products drawer.
 
-**Architecture:** Extract the lightbox's HLS logic into a new shared `reel-hls.js` (used by both the lightbox and the new story viewer), then build the story viewer (`reel-story.css`/`reel-story.js`) on top of the exact same `.reelup-trigger` data contract the three existing blocks already use, and a new `insta-stories.liquid` block that renders that contract as an avatar row.
+**Architecture:** Extract the lightbox's HLS logic into a new shared `reel-hls.js` (used by both the lightbox and the new story viewer), then build the story viewer (`reel-story.css`/`reel-story.js`) on top of the exact same `.awa-sv-trigger` data contract the three existing blocks already use, and a new `insta-stories.liquid` block that renders that contract as an avatar row.
 
 **Tech Stack:** Plain Liquid/CSS/JS, no build step, no dependencies — same as the rest of this extension.
 
@@ -27,7 +27,7 @@
 - Modify: `extensions/shoppable-video-widgets/blocks/stacked-carousel.liquid`
 
 **Interfaces:**
-- Produces: `window.ReelupHls.attach(video: HTMLVideoElement, hlsSrc: string): Promise<void>` and `window.ReelupHls.teardown(video: HTMLVideoElement): void` — consumed by `reel-lightbox.js` (this task) and `reel-story.js` (Task 3).
+- Produces: `window.AwaSvHls.attach(video: HTMLVideoElement, hlsSrc: string): Promise<void>` and `window.AwaSvHls.teardown(video: HTMLVideoElement): void` — consumed by `reel-lightbox.js` (this task) and `reel-story.js` (Task 3).
 
 - [ ] **Step 1: Create the shared HLS module**
 
@@ -40,14 +40,14 @@
     video.canPlayType("application/vnd.apple.mpegurl") !== "";
 
   const loadHlsJsIfNeeded = () => {
-    if (window.Hls || document.querySelector("script[data-reelup-hlsjs]")) {
+    if (window.Hls || document.querySelector("script[data-awa-sv-hlsjs]")) {
       return Promise.resolve();
     }
 
     return new Promise((resolve, reject) => {
       const script = document.createElement("script");
       script.src = currentScriptSrc.replace("reel-hls.js", "hls.min.js");
-      script.dataset.reelupHlsjs = "true";
+      script.dataset.awaSvHlsjs = "true";
       script.onload = () => resolve();
       script.onerror = () => reject(new Error("Failed to load hls.js"));
       document.head.appendChild(script);
@@ -93,7 +93,7 @@
     video.load();
   };
 
-  window.ReelupHls = { attach, teardown };
+  window.AwaSvHls = { attach, teardown };
 })();
 ```
 
@@ -104,36 +104,36 @@ Replace `extensions/shoppable-video-widgets/assets/reel-lightbox.js` in full:
 ```js
 (() => {
   const buildLightbox = () => {
-    const existing = document.getElementById("reelup-lightbox");
+    const existing = document.getElementById("awa-sv-lightbox");
     if (existing) return existing;
 
     const dialog = document.createElement("dialog");
-    dialog.id = "reelup-lightbox";
-    dialog.className = "reelup-lightbox";
-    dialog.setAttribute("aria-labelledby", "reelup-lightbox-title");
+    dialog.id = "awa-sv-lightbox";
+    dialog.className = "awa-sv-lightbox";
+    dialog.setAttribute("aria-labelledby", "awa-sv-lightbox-title");
     dialog.innerHTML = `
-      <button type="button" class="reelup-lightbox__close" data-reelup-lightbox-close>&times;</button>
-      <div class="reelup-lightbox__body">
-        <div class="reelup-lightbox__player">
-          <h2 id="reelup-lightbox-title" class="reelup-lightbox__title"></h2>
-          <video class="reelup-lightbox__video" playsinline controls></video>
+      <button type="button" class="awa-sv-lightbox__close" data-awa-sv-lightbox-close>&times;</button>
+      <div class="awa-sv-lightbox__body">
+        <div class="awa-sv-lightbox__player">
+          <h2 id="awa-sv-lightbox-title" class="awa-sv-lightbox__title"></h2>
+          <video class="awa-sv-lightbox__video" playsinline controls></video>
         </div>
-        <div class="reelup-lightbox__products" data-reelup-lightbox-products hidden>
-          <h3 class="reelup-lightbox__products-heading" data-reelup-lightbox-products-heading></h3>
-          <div class="reelup-lightbox__products-list" data-reelup-lightbox-products-list></div>
+        <div class="awa-sv-lightbox__products" data-awa-sv-lightbox-products hidden>
+          <h3 class="awa-sv-lightbox__products-heading" data-awa-sv-lightbox-products-heading></h3>
+          <div class="awa-sv-lightbox__products-list" data-awa-sv-lightbox-products-list></div>
         </div>
       </div>
     `;
     document.body.appendChild(dialog);
 
-    const video = dialog.querySelector(".reelup-lightbox__video");
-    const bodyEl = dialog.querySelector(".reelup-lightbox__body");
-    const productsPanel = dialog.querySelector("[data-reelup-lightbox-products]");
-    const productsList = dialog.querySelector("[data-reelup-lightbox-products-list]");
-    const closeButton = dialog.querySelector("[data-reelup-lightbox-close]");
+    const video = dialog.querySelector(".awa-sv-lightbox__video");
+    const bodyEl = dialog.querySelector(".awa-sv-lightbox__body");
+    const productsPanel = dialog.querySelector("[data-awa-sv-lightbox-products]");
+    const productsList = dialog.querySelector("[data-awa-sv-lightbox-products-list]");
+    const closeButton = dialog.querySelector("[data-awa-sv-lightbox-close]");
 
     dialog.addEventListener("close", () => {
-      window.ReelupHls?.teardown(video);
+      window.AwaSvHls?.teardown(video);
       productsList.replaceChildren();
       productsPanel.hidden = true;
     });
@@ -145,7 +145,7 @@ Replace `extensions/shoppable-video-widgets/assets/reel-lightbox.js` in full:
     closeButton.addEventListener("click", () => dialog.close());
 
     productsList.addEventListener("click", async (event) => {
-      const button = event.target.closest("[data-reelup-add-to-cart]");
+      const button = event.target.closest("[data-awa-sv-add-to-cart]");
       if (!button || button.dataset.state === "loading") return;
 
       const variantId = button.dataset.variantId;
@@ -185,12 +185,12 @@ Replace `extensions/shoppable-video-widgets/assets/reel-lightbox.js` in full:
     if (!hlsSrc) return;
 
     const dialog = buildLightbox();
-    const video = dialog.querySelector(".reelup-lightbox__video");
-    const title = dialog.querySelector(".reelup-lightbox__title");
-    const closeButton = dialog.querySelector("[data-reelup-lightbox-close]");
-    const productsPanel = dialog.querySelector("[data-reelup-lightbox-products]");
-    const productsHeading = dialog.querySelector("[data-reelup-lightbox-products-heading]");
-    const productsList = dialog.querySelector("[data-reelup-lightbox-products-list]");
+    const video = dialog.querySelector(".awa-sv-lightbox__video");
+    const title = dialog.querySelector(".awa-sv-lightbox__title");
+    const closeButton = dialog.querySelector("[data-awa-sv-lightbox-close]");
+    const productsPanel = dialog.querySelector("[data-awa-sv-lightbox-products]");
+    const productsHeading = dialog.querySelector("[data-awa-sv-lightbox-products-heading]");
+    const productsList = dialog.querySelector("[data-awa-sv-lightbox-products-list]");
 
     const posterUrl = triggerEl.dataset.posterUrl;
     const reelTitle = triggerEl.dataset.title ?? "";
@@ -206,7 +206,7 @@ Replace `extensions/shoppable-video-widgets/assets/reel-lightbox.js` in full:
     }
 
     productsList.replaceChildren();
-    const template = triggerEl.querySelector("template[data-reelup-products]");
+    const template = triggerEl.querySelector("template[data-awa-sv-products]");
     if (template) {
       productsHeading.textContent = shopLabel;
       productsList.appendChild(template.content.cloneNode(true));
@@ -218,7 +218,7 @@ Replace `extensions/shoppable-video-widgets/assets/reel-lightbox.js` in full:
     dialog.showModal();
 
     try {
-      await window.ReelupHls.attach(video, hlsSrc);
+      await window.AwaSvHls.attach(video, hlsSrc);
       await video.play();
     } catch {
       // Playback failed to initialize; the lightbox stays open with the
@@ -226,7 +226,7 @@ Replace `extensions/shoppable-video-widgets/assets/reel-lightbox.js` in full:
     }
   };
 
-  window.ReelupLightbox = { open };
+  window.AwaSvLightbox = { open };
 })();
 ```
 
@@ -273,19 +273,19 @@ git commit -m "refactor(storefront): extract shared reel-hls.js, wire it into al
 - Create: `extensions/shoppable-video-widgets/assets/reel-story.css`
 
 **Interfaces:**
-- Produces: `.reelup-stories*` (avatar row + avatar override of the shared `.reelup-trigger__button`) and `.reelup-story*` (the story viewer, its progress bar, nav tap zones, shop pill, and drawer) — consumed by `insta-stories.liquid` (Task 4) and `reel-story.js` (Task 3). The drawer reuses `.reelup-lightbox__products-heading`/`.reelup-lightbox__products-list`/`.reelup-lightbox__product*` from `reel-lightbox.css` (loaded alongside this file), not redefined here.
+- Produces: `.awa-sv-stories*` (avatar row + avatar override of the shared `.awa-sv-trigger__button`) and `.awa-sv-story*` (the story viewer, its progress bar, nav tap zones, shop pill, and drawer) — consumed by `insta-stories.liquid` (Task 4) and `reel-story.js` (Task 3). The drawer reuses `.awa-sv-lightbox__products-heading`/`.awa-sv-lightbox__products-list`/`.awa-sv-lightbox__product*` from `reel-lightbox.css` (loaded alongside this file), not redefined here.
 
 - [ ] **Step 1: Create the file**
 
 ```css
-.reelup-stories {
+.awa-sv-stories {
   display: flex;
   gap: 16px;
   overflow-x: auto;
   padding-block: 12px;
 }
 
-.reelup-stories__item {
+.awa-sv-stories__item {
   flex: 0 0 auto;
   width: 72px;
   display: flex;
@@ -294,12 +294,12 @@ git commit -m "refactor(storefront): extract shared reel-hls.js, wire it into al
   gap: 6px;
 }
 
-.reelup-stories__avatar {
+.awa-sv-stories__avatar {
   width: 64px;
   height: 64px;
 }
 
-.reelup-stories__avatar-button {
+.awa-sv-stories__avatar-button {
   width: 64px;
   height: 64px;
   aspect-ratio: 1 / 1;
@@ -309,11 +309,11 @@ git commit -m "refactor(storefront): extract shared reel-hls.js, wire it into al
   background: #fff;
 }
 
-.reelup-stories__avatar-button .reelup-trigger__poster {
+.awa-sv-stories__avatar-button .awa-sv-trigger__poster {
   border-radius: 50%;
 }
 
-.reelup-stories__label {
+.awa-sv-stories__label {
   font-size: 12px;
   color: #333;
   max-width: 72px;
@@ -323,7 +323,7 @@ git commit -m "refactor(storefront): extract shared reel-hls.js, wire it into al
   white-space: nowrap;
 }
 
-.reelup-story {
+.awa-sv-story {
   position: fixed;
   inset: 0;
   margin: 0;
@@ -342,11 +342,11 @@ git commit -m "refactor(storefront): extract shared reel-hls.js, wire it into al
   z-index: 1001;
 }
 
-.reelup-story::backdrop {
+.awa-sv-story::backdrop {
   background: #000;
 }
 
-.reelup-story__progress {
+.awa-sv-story__progress {
   position: absolute;
   top: 12px;
   left: 12px;
@@ -356,7 +356,7 @@ git commit -m "refactor(storefront): extract shared reel-hls.js, wire it into al
   z-index: 2;
 }
 
-.reelup-story__segment {
+.awa-sv-story__segment {
   flex: 1 1 0;
   height: 3px;
   border-radius: 999px;
@@ -364,13 +364,13 @@ git commit -m "refactor(storefront): extract shared reel-hls.js, wire it into al
   overflow: hidden;
 }
 
-.reelup-story__segment-fill {
+.awa-sv-story__segment-fill {
   height: 100%;
   width: 0%;
   background: #fff;
 }
 
-.reelup-story__close {
+.awa-sv-story__close {
   position: absolute;
   top: 16px;
   right: 16px;
@@ -386,12 +386,12 @@ git commit -m "refactor(storefront): extract shared reel-hls.js, wire it into al
   cursor: pointer;
 }
 
-.reelup-story__close:hover,
-.reelup-story__close:focus-visible {
+.awa-sv-story__close:hover,
+.awa-sv-story__close:focus-visible {
   background: rgba(255, 255, 255, 0.3);
 }
 
-.reelup-story__frame {
+.awa-sv-story__frame {
   position: relative;
   width: 100%;
   max-width: min(420px, calc(88vh * 9 / 16));
@@ -402,7 +402,7 @@ git commit -m "refactor(storefront): extract shared reel-hls.js, wire it into al
   background: #111;
 }
 
-.reelup-story__title {
+.awa-sv-story__title {
   position: absolute;
   left: 16px;
   right: 16px;
@@ -416,14 +416,14 @@ git commit -m "refactor(storefront): extract shared reel-hls.js, wire it into al
   pointer-events: none;
 }
 
-.reelup-story__video {
+.awa-sv-story__video {
   width: 100%;
   height: 100%;
   object-fit: cover;
   background: #000;
 }
 
-.reelup-story__nav {
+.awa-sv-story__nav {
   position: absolute;
   top: 0;
   bottom: 0;
@@ -437,24 +437,24 @@ git commit -m "refactor(storefront): extract shared reel-hls.js, wire it into al
   font-size: 28px;
 }
 
-.reelup-story__nav:hover,
-.reelup-story__nav:focus-visible {
+.awa-sv-story__nav:hover,
+.awa-sv-story__nav:focus-visible {
   opacity: 0.6;
 }
 
-.reelup-story__nav--prev {
+.awa-sv-story__nav--prev {
   left: 0;
   text-align: left;
   padding-left: 8px;
 }
 
-.reelup-story__nav--next {
+.awa-sv-story__nav--next {
   right: 0;
   text-align: right;
   padding-right: 8px;
 }
 
-.reelup-story__shop {
+.awa-sv-story__shop {
   position: absolute;
   left: 50%;
   bottom: 16px;
@@ -470,7 +470,7 @@ git commit -m "refactor(storefront): extract shared reel-hls.js, wire it into al
   cursor: pointer;
 }
 
-.reelup-story__drawer {
+.awa-sv-story__drawer {
   position: absolute;
   left: 0;
   right: 0;
@@ -484,7 +484,7 @@ git commit -m "refactor(storefront): extract shared reel-hls.js, wire it into al
   overflow-y: auto;
 }
 
-.reelup-story__drawer-handle {
+.awa-sv-story__drawer-handle {
   display: block;
   width: 40px;
   height: 4px;
@@ -521,9 +521,9 @@ git commit -m "feat(storefront): add story viewer + avatar stylesheet"
 - Create: `extensions/shoppable-video-widgets/assets/reel-story.js`
 
 **Interfaces:**
-- Consumes: `window.ReelupHls.attach`/`.teardown` (Task 1).
-- Consumes (via each trigger's `.dataset`): the same `hlsSrc`/`posterUrl`/`title`/`shopLabel` contract every other block already produces, plus a sibling `<template data-reelup-products>`.
-- Wires clicks on any `[data-reelup-story-group] [data-reelup-trigger]` (produced by `insta-stories.liquid`, Task 4).
+- Consumes: `window.AwaSvHls.attach`/`.teardown` (Task 1).
+- Consumes (via each trigger's `.dataset`): the same `hlsSrc`/`posterUrl`/`title`/`shopLabel` contract every other block already produces, plus a sibling `<template data-awa-sv-products>`.
+- Wires clicks on any `[data-awa-sv-story-group] [data-awa-sv-trigger]` (produced by `insta-stories.liquid`, Task 4).
 
 - [ ] **Step 1: Create the file**
 
@@ -544,18 +544,18 @@ git commit -m "feat(storefront): add story viewer + avatar stylesheet"
   };
 
   const renderProgress = (dialog) => {
-    const progress = dialog.querySelector("[data-reelup-story-progress]");
+    const progress = dialog.querySelector("[data-awa-sv-story-progress]");
     progress.innerHTML = reels
       .map(
         (_, i) =>
-          `<div class="reelup-story__segment" data-index="${i}"><div class="reelup-story__segment-fill"></div></div>`,
+          `<div class="awa-sv-story__segment" data-index="${i}"><div class="awa-sv-story__segment-fill"></div></div>`,
       )
       .join("");
   };
 
   const setSegmentState = (dialog, index, state) => {
-    const segment = dialog.querySelector(`.reelup-story__segment[data-index="${index}"]`);
-    const fill = segment?.querySelector(".reelup-story__segment-fill");
+    const segment = dialog.querySelector(`.awa-sv-story__segment[data-index="${index}"]`);
+    const fill = segment?.querySelector(".awa-sv-story__segment-fill");
     if (!fill) return;
 
     if (state === "done") {
@@ -577,20 +577,20 @@ git commit -m "feat(storefront): add story viewer + avatar stylesheet"
   };
 
   const closeDrawerImmediate = (dialog) => {
-    dialog.querySelector("[data-reelup-story-drawer]").hidden = true;
+    dialog.querySelector("[data-awa-sv-story-drawer]").hidden = true;
     drawerOpen = false;
   };
 
   const openDrawer = (dialog) => {
-    dialog.querySelector("[data-reelup-story-drawer]").hidden = false;
+    dialog.querySelector("[data-awa-sv-story-drawer]").hidden = false;
     drawerOpen = true;
-    dialog.querySelector(".reelup-story__video").pause();
+    dialog.querySelector(".awa-sv-story__video").pause();
     clearTimer();
   };
 
   const closeDrawer = (dialog) => {
     closeDrawerImmediate(dialog);
-    dialog.querySelector(".reelup-story__video").play().catch(() => {});
+    dialog.querySelector(".awa-sv-story__video").play().catch(() => {});
     scheduleAdvance(dialog);
   };
 
@@ -615,14 +615,14 @@ git commit -m "feat(storefront): add story viewer + avatar stylesheet"
 
     currentIndex = index;
     const trigger = reels[index];
-    const video = dialog.querySelector(".reelup-story__video");
-    const title = dialog.querySelector(".reelup-story__title");
-    const shopButton = dialog.querySelector("[data-reelup-story-shop]");
-    const drawerHeading = dialog.querySelector("[data-reelup-story-drawer-heading]");
-    const drawerList = dialog.querySelector("[data-reelup-story-drawer-list]");
+    const video = dialog.querySelector(".awa-sv-story__video");
+    const title = dialog.querySelector(".awa-sv-story__title");
+    const shopButton = dialog.querySelector("[data-awa-sv-story-shop]");
+    const drawerHeading = dialog.querySelector("[data-awa-sv-story-drawer-heading]");
+    const drawerList = dialog.querySelector("[data-awa-sv-story-drawer-list]");
 
     clearTimer();
-    window.ReelupHls?.teardown(video);
+    window.AwaSvHls?.teardown(video);
 
     title.textContent = trigger.dataset.title ?? "";
     const posterUrl = trigger.dataset.posterUrl;
@@ -633,7 +633,7 @@ git commit -m "feat(storefront): add story viewer + avatar stylesheet"
     }
 
     drawerList.replaceChildren();
-    const template = trigger.querySelector("template[data-reelup-products]");
+    const template = trigger.querySelector("template[data-awa-sv-products]");
     if (template) {
       const shopLabel = trigger.dataset.shopLabel ?? "";
       drawerHeading.textContent = shopLabel;
@@ -647,7 +647,7 @@ git commit -m "feat(storefront): add story viewer + avatar stylesheet"
     setSegmentState(dialog, index, "active");
 
     try {
-      await window.ReelupHls.attach(video, trigger.dataset.hlsSrc);
+      await window.AwaSvHls.attach(video, trigger.dataset.hlsSrc);
       await video.play();
     } catch {
       // Playback failed to initialize; still advance on schedule below so
@@ -657,40 +657,40 @@ git commit -m "feat(storefront): add story viewer + avatar stylesheet"
   };
 
   const buildViewer = () => {
-    const existing = document.getElementById("reelup-story-viewer");
+    const existing = document.getElementById("awa-sv-story-viewer");
     if (existing) return existing;
 
     const dialog = document.createElement("dialog");
-    dialog.id = "reelup-story-viewer";
-    dialog.className = "reelup-story";
-    dialog.setAttribute("aria-labelledby", "reelup-story-title");
+    dialog.id = "awa-sv-story-viewer";
+    dialog.className = "awa-sv-story";
+    dialog.setAttribute("aria-labelledby", "awa-sv-story-title");
     dialog.innerHTML = `
-      <div class="reelup-story__progress" data-reelup-story-progress></div>
-      <button type="button" class="reelup-story__close" data-reelup-story-close aria-label="Close">&times;</button>
-      <div class="reelup-story__frame">
-        <h2 id="reelup-story-title" class="reelup-story__title"></h2>
-        <video class="reelup-story__video" playsinline></video>
-        <button type="button" class="reelup-story__nav reelup-story__nav--prev" data-reelup-story-prev aria-label="Previous">&lsaquo;</button>
-        <button type="button" class="reelup-story__nav reelup-story__nav--next" data-reelup-story-next aria-label="Next">&rsaquo;</button>
-        <button type="button" class="reelup-story__shop" data-reelup-story-shop hidden></button>
+      <div class="awa-sv-story__progress" data-awa-sv-story-progress></div>
+      <button type="button" class="awa-sv-story__close" data-awa-sv-story-close aria-label="Close">&times;</button>
+      <div class="awa-sv-story__frame">
+        <h2 id="awa-sv-story-title" class="awa-sv-story__title"></h2>
+        <video class="awa-sv-story__video" playsinline></video>
+        <button type="button" class="awa-sv-story__nav awa-sv-story__nav--prev" data-awa-sv-story-prev aria-label="Previous">&lsaquo;</button>
+        <button type="button" class="awa-sv-story__nav awa-sv-story__nav--next" data-awa-sv-story-next aria-label="Next">&rsaquo;</button>
+        <button type="button" class="awa-sv-story__shop" data-awa-sv-story-shop hidden></button>
       </div>
-      <div class="reelup-story__drawer" data-reelup-story-drawer hidden>
-        <button type="button" class="reelup-story__drawer-handle" data-reelup-story-drawer-close aria-label="Close products"></button>
-        <h3 class="reelup-lightbox__products-heading" data-reelup-story-drawer-heading></h3>
-        <div class="reelup-lightbox__products-list" data-reelup-story-drawer-list></div>
+      <div class="awa-sv-story__drawer" data-awa-sv-story-drawer hidden>
+        <button type="button" class="awa-sv-story__drawer-handle" data-awa-sv-story-drawer-close aria-label="Close products"></button>
+        <h3 class="awa-sv-lightbox__products-heading" data-awa-sv-story-drawer-heading></h3>
+        <div class="awa-sv-lightbox__products-list" data-awa-sv-story-drawer-list></div>
       </div>
     `;
     document.body.appendChild(dialog);
 
-    const video = dialog.querySelector(".reelup-story__video");
-    const drawerList = dialog.querySelector("[data-reelup-story-drawer-list]");
+    const video = dialog.querySelector(".awa-sv-story__video");
+    const drawerList = dialog.querySelector("[data-awa-sv-story-drawer-list]");
 
-    dialog.querySelector("[data-reelup-story-close]").addEventListener("click", () => dialog.close());
-    dialog.querySelector("[data-reelup-story-prev]").addEventListener("click", () => goTo(dialog, currentIndex - 1));
-    dialog.querySelector("[data-reelup-story-next]").addEventListener("click", () => goTo(dialog, currentIndex + 1));
-    dialog.querySelector("[data-reelup-story-shop]").addEventListener("click", () => openDrawer(dialog));
+    dialog.querySelector("[data-awa-sv-story-close]").addEventListener("click", () => dialog.close());
+    dialog.querySelector("[data-awa-sv-story-prev]").addEventListener("click", () => goTo(dialog, currentIndex - 1));
+    dialog.querySelector("[data-awa-sv-story-next]").addEventListener("click", () => goTo(dialog, currentIndex + 1));
+    dialog.querySelector("[data-awa-sv-story-shop]").addEventListener("click", () => openDrawer(dialog));
     dialog
-      .querySelector("[data-reelup-story-drawer-close]")
+      .querySelector("[data-awa-sv-story-drawer-close]")
       .addEventListener("click", () => closeDrawer(dialog));
 
     dialog.addEventListener("click", (event) => {
@@ -699,14 +699,14 @@ git commit -m "feat(storefront): add story viewer + avatar stylesheet"
 
     dialog.addEventListener("close", () => {
       clearTimer();
-      window.ReelupHls?.teardown(video);
+      window.AwaSvHls?.teardown(video);
       closeDrawerImmediate(dialog);
     });
 
     video.addEventListener("ended", () => goTo(dialog, currentIndex + 1));
 
     drawerList.addEventListener("click", async (event) => {
-      const button = event.target.closest("[data-reelup-add-to-cart]");
+      const button = event.target.closest("[data-awa-sv-add-to-cart]");
       if (!button || button.dataset.state === "loading") return;
 
       const variantId = button.dataset.variantId;
@@ -742,7 +742,7 @@ git commit -m "feat(storefront): add story viewer + avatar stylesheet"
   };
 
   const openViewer = (groupEl, startIndex) => {
-    reels = Array.from(groupEl.querySelectorAll("[data-reelup-trigger]"));
+    reels = Array.from(groupEl.querySelectorAll("[data-awa-sv-trigger]"));
     if (reels.length === 0) return;
 
     const dialog = buildViewer();
@@ -751,13 +751,13 @@ git commit -m "feat(storefront): add story viewer + avatar stylesheet"
     goTo(dialog, startIndex);
   };
 
-  document.querySelectorAll("[data-reelup-story-group]").forEach((group) => {
-    if (group.dataset.reelupStoryGroupBound) return;
-    group.dataset.reelupStoryGroupBound = "true";
+  document.querySelectorAll("[data-awa-sv-story-group]").forEach((group) => {
+    if (group.dataset.awaSvStoryGroupBound) return;
+    group.dataset.awaSvStoryGroupBound = "true";
 
-    Array.from(group.querySelectorAll("[data-reelup-trigger]")).forEach((trigger, index) => {
+    Array.from(group.querySelectorAll("[data-awa-sv-trigger]")).forEach((trigger, index) => {
       trigger
-        .querySelector(".reelup-trigger__button")
+        .querySelector(".awa-sv-trigger__button")
         ?.addEventListener("click", () => openViewer(group, index));
     });
   });
@@ -766,7 +766,7 @@ git commit -m "feat(storefront): add story viewer + avatar stylesheet"
 
 - [ ] **Step 2: Verify**
 
-Nothing renders `[data-reelup-story-group]` yet. Run:
+Nothing renders `[data-awa-sv-story-group]` yet. Run:
 ```bash
 npm run typecheck
 npm run lint
@@ -789,7 +789,7 @@ git commit -m "feat(storefront): add story viewer behavior (progress, navigation
 - Create: `extensions/shoppable-video-widgets/blocks/insta-stories.liquid`
 
 **Interfaces:**
-- Consumes: `reel-lightbox.css` (for the shared `.reelup-lightbox__product*` classes the drawer reuses), `reel-story.css`, `reel-hls.js`, `reel-story.js` (Tasks 1-3).
+- Consumes: `reel-lightbox.css` (for the shared `.awa-sv-lightbox__product*` classes the drawer reuses), `reel-story.css`, `reel-hls.js`, `reel-story.js` (Tasks 1-3).
 - Reads: `shop.metafields[reel_namespace].insta_stories_widget` / `.insta_stories_widget_reels` (both already declared in `shopify.app.toml`, confirmed present before this plan started).
 
 - [ ] **Step 1: Create the file**
@@ -834,13 +834,13 @@ other reel blocks.
 {% endif %}
 
 {% if visible_count > 0 %}
-  <div class="reelup-stories" data-reelup-story-group {{ block.shopify_attributes }}>
+  <div class="awa-sv-stories" data-awa-sv-story-group {{ block.shopify_attributes }}>
     {% for reel in reels_field.value %}
       {% if reel.published.value and reel.config.value.cloudflareStreamUid != blank and reel.config.value.hlsManifestUrl != blank %}
-        <div class="reelup-stories__item">
+        <div class="awa-sv-stories__item">
           <div
-            class="reelup-trigger reelup-stories__avatar"
-            data-reelup-trigger
+            class="awa-sv-trigger awa-sv-stories__avatar"
+            data-awa-sv-trigger
             data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
             data-poster-url="{{ reel.config.value.posterUrl | escape }}"
             data-title="{{ reel.title.value | escape }}"
@@ -849,12 +849,12 @@ other reel blocks.
           >
             <button
               type="button"
-              class="reelup-trigger__button reelup-stories__avatar-button"
+              class="awa-sv-trigger__button awa-sv-stories__avatar-button"
               aria-label="{{ 'reels.play_label' | t }}"
             >
               {% if reel.config.value.posterUrl != blank %}
                 <img
-                  class="reelup-trigger__poster"
+                  class="awa-sv-trigger__poster"
                   src="{{ reel.config.value.posterUrl | escape }}"
                   alt="{{ reel.title.value | escape }}"
                   loading="lazy"
@@ -864,14 +864,14 @@ other reel blocks.
               {% endif %}
             </button>
             {% if reel.tagged_products.value.size > 0 %}
-              <template data-reelup-products>
+              <template data-awa-sv-products>
                 {% for product in reel.tagged_products.value %}
                   {% assign variant = product.selected_or_first_available_variant %}
-                  <div class="reelup-lightbox__product">
-                    <a class="reelup-lightbox__product-link" href="{{ product.url }}">
+                  <div class="awa-sv-lightbox__product">
+                    <a class="awa-sv-lightbox__product-link" href="{{ product.url }}">
                       {% if product.featured_image %}
                         <img
-                          class="reelup-lightbox__product-image"
+                          class="awa-sv-lightbox__product-image"
                           src="{{ product.featured_image | image_url: width: 160 }}"
                           alt="{{ product.title | escape }}"
                           loading="lazy"
@@ -879,16 +879,16 @@ other reel blocks.
                           height="56"
                         >
                       {% endif %}
-                      <span class="reelup-lightbox__product-info">
-                        <span class="reelup-lightbox__product-title">{{ product.title }}</span>
-                        <span class="reelup-lightbox__product-price">{{ product.price | money }}</span>
+                      <span class="awa-sv-lightbox__product-info">
+                        <span class="awa-sv-lightbox__product-title">{{ product.title }}</span>
+                        <span class="awa-sv-lightbox__product-price">{{ product.price | money }}</span>
                       </span>
                     </a>
                     {% if variant %}
                       <button
                         type="button"
-                        class="reelup-lightbox__add-to-cart"
-                        data-reelup-add-to-cart
+                        class="awa-sv-lightbox__add-to-cart"
+                        data-awa-sv-add-to-cart
                         data-variant-id="{{ variant.id }}"
                         data-add-label="{{ 'reels.add_to_cart' | t }}"
                         data-added-label="{{ 'reels.added_to_cart' | t }}"
@@ -901,7 +901,7 @@ other reel blocks.
               </template>
             {% endif %}
           </div>
-          <span class="reelup-stories__label">{{ reel.title.value | truncate: 12 }}</span>
+          <span class="awa-sv-stories__label">{{ reel.title.value | truncate: 12 }}</span>
         </div>
       {% endif %}
     {% endfor %}

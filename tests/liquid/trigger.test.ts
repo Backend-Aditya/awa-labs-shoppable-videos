@@ -6,10 +6,10 @@ import { makeProduct, makeReel } from "../support/storefront-fixtures.mjs";
 import { colorBrightness, shiftLightness } from "../support/liquid-engine.mjs";
 import { renderDom } from "./helpers";
 
-const INNER = '<button type="button" class="reelup-trigger__button">Play</button>';
+const INNER = '<button type="button" class="awa-sv-trigger__button">Play</button>';
 const trigger = async (reel: object, style: object = {}, extra: object = {}) => {
   const { $ } = await renderDom("reel-trigger", { reel, style, inner: INNER, muted_default: true, ...extra });
-  return $("[data-reelup-trigger]")!;
+  return $("[data-awa-sv-trigger]")!;
 };
 
 describe("reel-trigger data attributes", () => {
@@ -34,8 +34,8 @@ describe("reel-trigger data attributes", () => {
       showShare: "true",
       showRecommendations: "true",
     });
-    expect(t.querySelector(".reelup-trigger__button")).not.toBeNull();
-    expect(t.querySelector("template[data-reelup-products]")).not.toBeNull();
+    expect(t.querySelector(".awa-sv-trigger__button")).not.toBeNull();
+    expect(t.querySelector("template[data-awa-sv-products]")).not.toBeNull();
   });
 
   it("no tagged products → no product template", async () => {
@@ -88,7 +88,7 @@ describe("reel-trigger data attributes", () => {
   it("link button attributes are present and escaped", async () => {
     const reel = makeReel({ ctaUrl: 'https://shop.test/a?x=1&y="2"', ctaLabel: `Shop <the> "look"` });
     const { html, $ } = await renderDom("reel-trigger", { reel, style: {}, inner: INNER, muted_default: true });
-    const t = $("[data-reelup-trigger]")!;
+    const t = $("[data-awa-sv-trigger]")!;
     expect(t.dataset.linkUrl).toBe('https://shop.test/a?x=1&y="2"');
     expect(t.dataset.linkLabel).toBe(`Shop <the> "look"`);
     expect(html).not.toContain("<the>");
@@ -97,7 +97,7 @@ describe("reel-trigger data attributes", () => {
   it("reel title and URLs are escaped into attributes", async () => {
     const reel = makeReel({ title: `"><script>alert(1)</script>`, poster: 'https://cdn.test/p.jpg?"x' });
     const { html, $ } = await renderDom("reel-trigger", { reel, style: {}, inner: INNER, muted_default: true });
-    expect($("[data-reelup-trigger]")!.dataset.title).toBe(`"><script>alert(1)</script>`);
+    expect($("[data-awa-sv-trigger]")!.dataset.title).toBe(`"><script>alert(1)</script>`);
     expect($("script")).toBeNull();
     expect(html).not.toContain("<script>");
   });
@@ -111,7 +111,7 @@ describe("reel-duration", () => {
     [600, "10:00"],
   ])("%s seconds → %s", async (seconds, text) => {
     const { $ } = await renderDom("reel-duration", { reel: makeReel({ duration: seconds }) });
-    expect($(".reelup-chip")!.textContent).toBe(`Length${text}`);
+    expect($(".awa-sv-chip")!.textContent).toBe(`Length${text}`);
   });
 
   it("renders nothing without a duration", async () => {
@@ -121,7 +121,7 @@ describe("reel-duration", () => {
 
   it("optional play glyph", async () => {
     const { $ } = await renderDom("reel-duration", { reel: makeReel(), icon: true });
-    expect($(".reelup-chip svg")).not.toBeNull();
+    expect($(".awa-sv-chip svg")).not.toBeNull();
   });
 });
 
@@ -186,12 +186,12 @@ describe("product moments", () => {
 
 describe("reel-icon", () => {
   it.each(["play", "chevron-left", "chevron-right", "close"])("%s renders a decorative, sized svg", async (name) => {
-    const { $ } = await renderDom("reel-icon", { name, size: 16, class: "reelup-x" });
+    const { $ } = await renderDom("reel-icon", { name, size: 16, class: "awa-sv-x" });
     const svg = $("svg")!;
     expect(svg.getAttribute("aria-hidden")).toBe("true");
     expect(svg.getAttribute("focusable")).toBe("false");
     expect(svg.getAttribute("width")).toBe("16");
-    expect(svg.getAttribute("class")).toBe("reelup-x");
+    expect(svg.getAttribute("class")).toBe("awa-sv-x");
   });
 
   it("strokes chevrons and close (default 2, overridable); play stays solid", async () => {

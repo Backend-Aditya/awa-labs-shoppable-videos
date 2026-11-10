@@ -85,7 +85,7 @@ Playwright. `tests/e2e/server.mjs` serves:
 
 Shopify endpoints (`/cart/add.js`, `/cart.js`, recommendations, analytics)
 are mocked per test with `page.route`. Headless Chromium has no native HLS,
-so most specs replace `window.ReelupHls` (via `addInitScript`; `reel-hls.js`
+so most specs replace `window.AwaSvHls` (via `addInitScript`; `reel-hls.js`
 returns early when it exists) with a bridge that plays the local WebM.
 Specs whose title contains `@real-hls` keep the real bridge and exercise
 the playback-error path. hls.js integration itself is unit-tested in
@@ -104,17 +104,17 @@ the playback-error path. hls.js integration itself is unit-tested in
   restore with `vi.useRealTimers()` in `finally`/`afterEach`. Under fake
   `setTimeout`, settle promises with `vi.advanceTimersByTimeAsync(0)`, not
   a real-timer `flush()`.
-- **Selectors:** query by role/label first, then `data-reelup-*`
+- **Selectors:** query by role/label first, then `data-awa-sv-*`
   attributes. Avoid CSS classes and DOM shape, so markup refactors don't
   break tests. CSS-module class names in the `components` project are
   un-hashed (`.deckSlider` is `styles.deckSlider`).
 - **Storefront harness** (`tests/storefront/harness.ts`): `resetPage()` in
-  `beforeEach` clears the DOM, storage, run-once globals (`ReelupLightbox`,
+  `beforeEach` clears the DOM, storage, run-once globals (`AwaSvLightbox`,
   …) and every document/window listener a script added, re-installs the
   stubs (dialog modal API, media playback, `matchMedia` with a mutable
   `media` object, `IntersectionObserver`, `CSS.escape`, `fetch`,
-  `window.ReelupHls`) and resets modules. `mount(html, scripts)` puts
-  markup plus `[data-reelup-config]` on the page and runs the source
+  `window.AwaSvHls`) and resets modules. `mount(html, scripts)` puts
+  markup plus `[data-awa-sv-config]` on the page and runs the source
   scripts in theme order. Use `renderBlock()` to get real block markup.
 - **Polaris `s-*` elements** are unknown elements in jsdom; assert on their
   attributes and text. Mock `@shopify/app-bridge-react` and `react-router`
@@ -209,14 +209,14 @@ one non-Dawn theme.
 - [ ] Real HLS playback on iOS Safari (native) and Android Chrome (hls.js); mute choice persists; failed video shows retry.
 - [ ] Mobile bottom sheet peek/open, swipe between reels, story tap/hold.
 - [ ] Product moments: time two products on a real reel; each pops up at its second for 5 s, a tap opens it in the sheet; the story sticker switches to it.
-- [ ] Shared `?reelup=` links open the reel; native share sheet on mobile.
+- [ ] Shared `?awa-sv=` links open the reel; native share sheet on mobile.
 - [ ] RTL locale and a translated locale render labels correctly.
 - [ ] Keyboard and screen reader: focus trap in viewers, Escape closes and focus returns, live announcements.
 
 **Tracking integrations**
-- [ ] Integrations › Custom pixel: paste the GA4 code as a custom pixel (permission Analytics); opening a video and adding to cart shows `reelup_video_view` / `reelup_add_to_cart` in GA4 DebugView.
+- [ ] Integrations › Custom pixel: paste the GA4 code as a custom pixel (permission Analytics); opening a video and adding to cart shows `awa_sv_video_view` / `awa_sv_add_to_cart` in GA4 DebugView.
 - [ ] A Microsoft Clarity project ID with the embed on: Clarity loads on a page without videos once analytics consent is given (not before, with the cookie banner on); video events appear as Clarity custom events.
-- [ ] Storefront tag forwarding (e.g. Meta Pixel in theme.liquid): `ReelupVideoView` reaches Meta's Pixel Helper only with marketing consent.
+- [ ] Storefront tag forwarding (e.g. Meta Pixel in theme.liquid): `AwaSvVideoView` reaches Meta's Pixel Helper only with marketing consent.
 - [ ] Home/Analytics show adds to cart, completions and watch time after a few test views.
 
 **Performance**

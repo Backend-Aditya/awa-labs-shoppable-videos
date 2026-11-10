@@ -63,24 +63,24 @@ differently-configured instances exist on the page.
 ### Settings list
 
 **Trigger — shared block setting group, present on all 5 blocks**
-(CSS vars set inline on the block wrapper; consumed via `var(--reelup-x,
+(CSS vars set inline on the block wrapper; consumed via `var(--awa-sv-x,
 <current-hardcoded-default>)` in the shared stylesheets so an
 unconfigured block is pixel-identical to today):
 
 | Setting id | Type | Options / range | CSS var | Default |
 |---|---|---|---|---|
-| `corner_style` | select — **Product page reels, Single video, Stacked carousel only** (Stories/Reel pops triggers are always circular via `border-radius: 50%` and unaffected by this setting) | `sharp` (0px) / `rounded` (12px, current) / `soft` (20px) | `--reelup-corner-radius` | `rounded` |
-| `accent_color` | color, **no default (blank allowed)** | — | `--reelup-accent-color` | blank |
-| `trigger_size` | range — **Product page reels, Stories, Reel pops only** (Stacked carousel's items size via a responsive CSS grid `1fr`, not a fixed width, so a fixed-px size setting doesn't apply there; Single video keeps its own `video_max_width` setting instead, see below) | 120–320px, step 10 (px meaning is block-specific: item width for Product page reels, avatar diameter for Stories, bubble diameter for Reel pops) | `--reelup-trigger-size` | current per-block hardcoded value |
+| `corner_style` | select — **Product page reels, Single video, Stacked carousel only** (Stories/Reel pops triggers are always circular via `border-radius: 50%` and unaffected by this setting) | `sharp` (0px) / `rounded` (12px, current) / `soft` (20px) | `--awa-sv-corner-radius` | `rounded` |
+| `accent_color` | color, **no default (blank allowed)** | — | `--awa-sv-accent-color` | blank |
+| `trigger_size` | range — **Product page reels, Stories, Reel pops only** (Stacked carousel's items size via a responsive CSS grid `1fr`, not a fixed width, so a fixed-px size setting doesn't apply there; Single video keeps its own `video_max_width` setting instead, see below) | 120–320px, step 10 (px meaning is block-specific: item width for Product page reels, avatar diameter for Stories, bubble diameter for Reel pops) | `--awa-sv-trigger-size` | current per-block hardcoded value |
 
 `accent_color` recolors two surfaces that each have a *different*
 current hardcoded color today (play-icon backdrop `rgba(0,0,0,0.55)`,
 story ring `#e1306c`). A single literal default couldn't reproduce
 both, so the setting itself defaults to blank and the block only emits
-the `--reelup-accent-color` inline style when the merchant actually
+the `--awa-sv-accent-color` inline style when the merchant actually
 picks a color (`{% unless block.settings.accent_color == blank %}`).
 Left untouched, each surface keeps its own current color via its own
-`var(--reelup-accent-color, <that surface's current value>)` fallback;
+`var(--awa-sv-accent-color, <that surface's current value>)` fallback;
 once set, one accent color applies uniformly across both — a
 deliberate "brand accent" control, not two independent color pickers.
 The reel-pop bubble's arrival pulse stays a fixed white glow rather
@@ -148,29 +148,29 @@ at all (never a merchant-facing option that silently does nothing).
 2. The block's `{% schema %}` gains a `settings` array with the entries
    above (scoped to what's relevant for that block kind).
 3. The block's root wrapper gets an inline `style` attribute setting
-   the CSS custom properties (`--reelup-corner-radius`,
-   `--reelup-accent-color`, `--reelup-trigger-size` or equivalent).
-4. Every `data-reelup-trigger` element additionally carries
+   the CSS custom properties (`--awa-sv-corner-radius`,
+   `--awa-sv-accent-color`, `--awa-sv-trigger-size` or equivalent).
+4. Every `data-awa-sv-trigger` element additionally carries
    `data-cta-color`, `data-cta-text-color`, `data-cta-label`,
    `data-show-price`, `data-show-title`, `data-muted-default`,
    `data-loop`, and (Product page reels/Stacked carousel only)
    `data-autoplay-mode`.
 5. `reel-lightbox.js`/`reel-story.js`, at open time, read these
    attributes off the clicked trigger and apply them to the dialog:
-   inline `style="--reelup-cta-color: ...; --reelup-cta-text-color: ..."`
+   inline `style="--awa-sv-cta-color: ...; --awa-sv-cta-text-color: ..."`
    on the dialog root, `video.muted`/`video.loop` set directly,
    product price/title elements toggled via existing hidden-attribute
    patterns, and the add-to-cart button's `textContent` set from
    `data-cta-label` when non-blank.
 6. Reel pops' `position` setting maps to one of four fixed CSS classes
-   (`.reelup-pop--bottom-right`, etc.) applied to the embed's root
+   (`.awa-sv-pop--bottom-right`, etc.) applied to the embed's root
    `<div>`, replacing the current single hardcoded `right: 20px; bottom:
    20px`.
 
 ### Stylesheet changes
 
 Every hardcoded value the settings list above overrides gets rewritten
-as `var(--reelup-x, <current value>)` in the relevant shared CSS file
+as `var(--awa-sv-x, <current value>)` in the relevant shared CSS file
 (`reel-lightbox.css` for the trigger/button rules, `reel-story.css` for
 the stories ring, `reel-pop.css` for the pulse/position). The fallback
 is always today's literal value, so any block that hasn't had its

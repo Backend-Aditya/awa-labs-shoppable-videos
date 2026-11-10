@@ -32,7 +32,7 @@ frame; any other URL is used untouched.
 {%- comment -%} Posters live on Cloudflare Stream, not Shopify's CDN, remote by design. {%- endcomment -%}
 {% # theme-check-disable-next-line RemoteAsset %}
 <img
-  class="reelup-trigger__poster"
+  class="awa-sv-trigger__poster"
   src="{% if sized %}{{ poster_url | append: separator | append: 'height=' | append: height | escape }}{% else %}{{ poster_url | escape }}{% endif %}"
   {%- if sized and srcset_heights != blank %}
     {%- assign heights = srcset_heights | split: ',' %}

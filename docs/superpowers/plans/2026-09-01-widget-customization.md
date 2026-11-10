@@ -27,13 +27,13 @@
 - Modify: `extensions/shoppable-video-widgets/assets/reel-lightbox.css`
 
 **Interfaces:**
-- Produces: `--reelup-corner-radius` (trigger button radius, fallback `12px`), `--reelup-accent-color`/`--reelup-accent-hover-color` (play-icon backdrop, fallback `rgba(0, 0, 0, 0.55)`/`rgba(0, 0, 0, 0.75)`), `--reelup-cta-color`/`--reelup-cta-text-color`/`--reelup-cta-hover-color` (add-to-cart button, fallback `#111`/`#fff`/`#2b2b2b`) — all consumed later by block wrappers (trigger vars, Tasks 7–11) and the dialog (cta vars, set by Task 5's JS via Task 4's helper). Also produces `.reelup-widget-heading` (new shared class for the optional heading, Tasks 7/8/10).
+- Produces: `--awa-sv-corner-radius` (trigger button radius, fallback `12px`), `--awa-sv-accent-color`/`--awa-sv-accent-hover-color` (play-icon backdrop, fallback `rgba(0, 0, 0, 0.55)`/`rgba(0, 0, 0, 0.75)`), `--awa-sv-cta-color`/`--awa-sv-cta-text-color`/`--awa-sv-cta-hover-color` (add-to-cart button, fallback `#111`/`#fff`/`#2b2b2b`) — all consumed later by block wrappers (trigger vars, Tasks 7–11) and the dialog (cta vars, set by Task 5's JS via Task 4's helper). Also produces `.awa-sv-widget-heading` (new shared class for the optional heading, Tasks 7/8/10).
 
 - [ ] **Step 1: Replace the trigger button, play-icon, and add-to-cart rules**
 
 Find this block:
 ```css
-.reelup-trigger__button {
+.awa-sv-trigger__button {
   position: relative;
   display: block;
   width: 100%;
@@ -51,12 +51,12 @@ Find this block:
 ```
 Replace only the `border-radius` line:
 ```css
-  border-radius: var(--reelup-corner-radius, 12px);
+  border-radius: var(--awa-sv-corner-radius, 12px);
 ```
 
 Find:
 ```css
-.reelup-trigger__play-icon {
+.awa-sv-trigger__play-icon {
   position: absolute;
   inset: 0;
   margin: auto;
@@ -71,24 +71,24 @@ Find:
 ```
 Replace the `background` line:
 ```css
-  background: var(--reelup-accent-color, rgba(0, 0, 0, 0.55));
+  background: var(--awa-sv-accent-color, rgba(0, 0, 0, 0.55));
 ```
 
 Find:
 ```css
-.reelup-trigger__button:hover .reelup-trigger__play-icon,
-.reelup-trigger__button:focus-visible .reelup-trigger__play-icon {
+.awa-sv-trigger__button:hover .awa-sv-trigger__play-icon,
+.awa-sv-trigger__button:focus-visible .awa-sv-trigger__play-icon {
   background: rgba(0, 0, 0, 0.75);
 }
 ```
 Replace the `background` line:
 ```css
-  background: var(--reelup-accent-hover-color, rgba(0, 0, 0, 0.75));
+  background: var(--awa-sv-accent-hover-color, rgba(0, 0, 0, 0.75));
 ```
 
 Find:
 ```css
-.reelup-lightbox__add-to-cart {
+.awa-sv-lightbox__add-to-cart {
   flex: 0 0 auto;
   font-size: 12px;
   font-weight: 600;
@@ -104,20 +104,20 @@ Find:
 ```
 Replace the `background`/`color` lines:
 ```css
-  background: var(--reelup-cta-color, #111);
-  color: var(--reelup-cta-text-color, #fff);
+  background: var(--awa-sv-cta-color, #111);
+  color: var(--awa-sv-cta-text-color, #fff);
 ```
 
 Find:
 ```css
-.reelup-lightbox__add-to-cart:hover,
-.reelup-lightbox__add-to-cart:focus-visible {
+.awa-sv-lightbox__add-to-cart:hover,
+.awa-sv-lightbox__add-to-cart:focus-visible {
   background: #2b2b2b;
 }
 ```
 Replace the `background` line:
 ```css
-  background: var(--reelup-cta-hover-color, #2b2b2b);
+  background: var(--awa-sv-cta-hover-color, #2b2b2b);
 ```
 
 Leave `[data-state="added"] { background: #1f9d55; }` untouched — the success state is semantic, not brand-colorable.
@@ -126,7 +126,7 @@ Leave `[data-state="added"] { background: #1f9d55; }` untouched — the success 
 
 Append to the end of the file:
 ```css
-.reelup-widget-heading {
+.awa-sv-widget-heading {
   margin: 0 0 12px;
   font-size: 16px;
   font-weight: 600;
@@ -157,13 +157,13 @@ git commit -m "feat(storefront): add CSS var hooks for trigger/CTA customization
 - Modify: `extensions/shoppable-video-widgets/assets/reel-story.css`
 
 **Interfaces:**
-- Consumes: `--reelup-accent-color` (produced by Task 1's convention, same var name reused here for the story ring), `--reelup-corner-radius` and `--reelup-trigger-size` are NOT consumed here — the avatar's `border-radius: 50%` and fixed `width`/`height: 64px` in `.reelup-stories .reelup-trigger__button` stay as literal overrides for radius (circular, not customizable) but the size becomes a var (see Step 1).
+- Consumes: `--awa-sv-accent-color` (produced by Task 1's convention, same var name reused here for the story ring), `--awa-sv-corner-radius` and `--awa-sv-trigger-size` are NOT consumed here — the avatar's `border-radius: 50%` and fixed `width`/`height: 64px` in `.awa-sv-stories .awa-sv-trigger__button` stay as literal overrides for radius (circular, not customizable) but the size becomes a var (see Step 1).
 
 - [ ] **Step 1: Make the avatar ring color and size variable-driven**
 
 Find:
 ```css
-.reelup-stories .reelup-trigger__button {
+.awa-sv-stories .awa-sv-trigger__button {
   width: 64px;
   height: 64px;
   aspect-ratio: 1 / 1;
@@ -175,12 +175,12 @@ Find:
 ```
 Replace with:
 ```css
-.reelup-stories .reelup-trigger__button {
-  width: var(--reelup-trigger-size, 64px);
-  height: var(--reelup-trigger-size, 64px);
+.awa-sv-stories .awa-sv-trigger__button {
+  width: var(--awa-sv-trigger-size, 64px);
+  height: var(--awa-sv-trigger-size, 64px);
   aspect-ratio: 1 / 1;
   border-radius: 50%;
-  border: 2px solid var(--reelup-accent-color, #e1306c);
+  border: 2px solid var(--awa-sv-accent-color, #e1306c);
   padding: 2px;
   background: #fff;
 }
@@ -188,7 +188,7 @@ Replace with:
 
 Also update the item width so the label column stays proportional when the avatar grows/shrinks. Find:
 ```css
-.reelup-stories__item {
+.awa-sv-stories__item {
   flex: 0 0 auto;
   width: 72px;
   display: flex;
@@ -200,12 +200,12 @@ Also update the item width so the label column stays proportional when the avata
 ```
 Replace `width: 72px;` with:
 ```css
-  width: calc(var(--reelup-trigger-size, 64px) + 8px);
+  width: calc(var(--awa-sv-trigger-size, 64px) + 8px);
 ```
 
 And the label's `max-width` should track it too. Find:
 ```css
-.reelup-stories__label {
+.awa-sv-stories__label {
   font-size: 12px;
   color: #333;
   max-width: 72px;
@@ -217,7 +217,7 @@ And the label's `max-width` should track it too. Find:
 ```
 Replace `max-width: 72px;` with:
 ```css
-  max-width: calc(var(--reelup-trigger-size, 64px) + 8px);
+  max-width: calc(var(--awa-sv-trigger-size, 64px) + 8px);
 ```
 
 - [ ] **Step 2: Verify no visual change with no settings applied**
@@ -244,14 +244,14 @@ git commit -m "feat(storefront): add CSS var hooks for story avatar ring color a
 - Modify: `extensions/shoppable-video-widgets/assets/reel-pop.css`
 
 **Interfaces:**
-- Produces: `.reelup-pop--bottom-right`/`.reelup-pop--bottom-left`/`.reelup-pop--top-right`/`.reelup-pop--top-left` (position modifiers) and `.reelup-pop--no-pulse` (disables the arrival pulse) — consumed by `reel-pops.liquid` (Task 11).
-- Consumes: `--reelup-trigger-size` (bubble diameter, fallback `72px`).
+- Produces: `.awa-sv-pop--bottom-right`/`.awa-sv-pop--bottom-left`/`.awa-sv-pop--top-right`/`.awa-sv-pop--top-left` (position modifiers) and `.awa-sv-pop--no-pulse` (disables the arrival pulse) — consumed by `reel-pops.liquid` (Task 11).
+- Consumes: `--awa-sv-trigger-size` (bubble diameter, fallback `72px`).
 
 - [ ] **Step 1: Replace the fixed position with modifier classes**
 
 Find:
 ```css
-.reelup-pop {
+.awa-sv-pop {
   position: fixed;
   right: 20px;
   bottom: 20px;
@@ -260,27 +260,27 @@ Find:
 ```
 Replace with:
 ```css
-.reelup-pop {
+.awa-sv-pop {
   position: fixed;
   z-index: 900;
 }
 
-.reelup-pop--bottom-right {
+.awa-sv-pop--bottom-right {
   right: 20px;
   bottom: 20px;
 }
 
-.reelup-pop--bottom-left {
+.awa-sv-pop--bottom-left {
   left: 20px;
   bottom: 20px;
 }
 
-.reelup-pop--top-right {
+.awa-sv-pop--top-right {
   right: 20px;
   top: 20px;
 }
 
-.reelup-pop--top-left {
+.awa-sv-pop--top-left {
   left: 20px;
   top: 20px;
 }
@@ -290,7 +290,7 @@ Replace with:
 
 Find:
 ```css
-.reelup-pop .reelup-trigger__button {
+.awa-sv-pop .awa-sv-trigger__button {
   width: 72px;
   height: 72px;
   aspect-ratio: 1 / 1;
@@ -298,24 +298,24 @@ Find:
   border: 3px solid #fff;
   box-sizing: border-box;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-  animation: reelup-pop-in 0.3s ease-out, reelup-pop-pulse 2s ease-in-out 0.5s 2;
+  animation: awa-sv-pop-in 0.3s ease-out, awa-sv-pop-pulse 2s ease-in-out 0.5s 2;
 }
 ```
 Replace with:
 ```css
-.reelup-pop .reelup-trigger__button {
-  width: var(--reelup-trigger-size, 72px);
-  height: var(--reelup-trigger-size, 72px);
+.awa-sv-pop .awa-sv-trigger__button {
+  width: var(--awa-sv-trigger-size, 72px);
+  height: var(--awa-sv-trigger-size, 72px);
   aspect-ratio: 1 / 1;
   border-radius: 50%;
   border: 3px solid #fff;
   box-sizing: border-box;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-  animation: reelup-pop-in 0.3s ease-out, reelup-pop-pulse 2s ease-in-out 0.5s 2;
+  animation: awa-sv-pop-in 0.3s ease-out, awa-sv-pop-pulse 2s ease-in-out 0.5s 2;
 }
 
-.reelup-pop--no-pulse .reelup-trigger__button {
-  animation: reelup-pop-in 0.3s ease-out;
+.awa-sv-pop--no-pulse .awa-sv-trigger__button {
+  animation: awa-sv-pop-in 0.3s ease-out;
 }
 ```
 
@@ -343,10 +343,10 @@ git commit -m "feat(storefront): add reel-pop position variants, no-pulse modifi
 - Create: `extensions/shoppable-video-widgets/assets/reel-viewer-settings.js`
 
 **Interfaces:**
-- Produces: `window.ReelupViewerSettings.applyDialogSettings(dialog, video, titleEl, triggerEl)` and `window.ReelupViewerSettings.applyProductListSettings(listEl, triggerEl)` — consumed by `reel-lightbox.js` (Task 5) and `reel-story.js` (Task 6).
+- Produces: `window.AwaSvViewerSettings.applyDialogSettings(dialog, video, titleEl, triggerEl)` and `window.AwaSvViewerSettings.applyProductListSettings(listEl, triggerEl)` — consumed by `reel-lightbox.js` (Task 5) and `reel-story.js` (Task 6).
 - Consumes: `triggerEl.dataset.ctaColor`/`ctaTextColor`/`ctaHoverColor`/`ctaLabel`/`showPrice`/`showTitle`/`mutedDefault`/`loop` — all produced by the per-block Liquid changes in Tasks 7–11.
 
-Both the lightbox's products panel and the story's product drawer render the exact same markup classes (`.reelup-lightbox__products-heading`, `.reelup-lightbox__products-list`, `.reelup-lightbox__product-price`, `[data-reelup-add-to-cart]` — confirmed by reading both files: `reel-story.js`'s `buildViewer()` reuses these identical class names for its drawer), so one shared helper serves both viewers without duplicating this logic twice.
+Both the lightbox's products panel and the story's product drawer render the exact same markup classes (`.awa-sv-lightbox__products-heading`, `.awa-sv-lightbox__products-list`, `.awa-sv-lightbox__product-price`, `[data-awa-sv-add-to-cart]` — confirmed by reading both files: `reel-story.js`'s `buildViewer()` reuses these identical class names for its drawer), so one shared helper serves both viewers without duplicating this logic twice.
 
 - [ ] **Step 1: Create the file**
 
@@ -354,9 +354,9 @@ Both the lightbox's products panel and the story's product drawer render the exa
 (() => {
   const applyDialogSettings = (dialog, video, titleEl, triggerEl) => {
     const cssVars = {
-      "--reelup-cta-color": triggerEl.dataset.ctaColor,
-      "--reelup-cta-text-color": triggerEl.dataset.ctaTextColor,
-      "--reelup-cta-hover-color": triggerEl.dataset.ctaHoverColor,
+      "--awa-sv-cta-color": triggerEl.dataset.ctaColor,
+      "--awa-sv-cta-text-color": triggerEl.dataset.ctaTextColor,
+      "--awa-sv-cta-hover-color": triggerEl.dataset.ctaHoverColor,
     };
 
     for (const [name, value] of Object.entries(cssVars)) {
@@ -375,20 +375,20 @@ Both the lightbox's products panel and the story's product drawer render the exa
 
   const applyProductListSettings = (listEl, triggerEl) => {
     const hidePrice = triggerEl.dataset.showPrice === "false";
-    listEl.querySelectorAll(".reelup-lightbox__product-price").forEach((priceEl) => {
+    listEl.querySelectorAll(".awa-sv-lightbox__product-price").forEach((priceEl) => {
       priceEl.hidden = hidePrice;
     });
 
     const ctaLabel = triggerEl.dataset.ctaLabel;
     if (ctaLabel) {
-      listEl.querySelectorAll("[data-reelup-add-to-cart]").forEach((button) => {
+      listEl.querySelectorAll("[data-awa-sv-add-to-cart]").forEach((button) => {
         button.dataset.addLabel = ctaLabel;
         button.textContent = ctaLabel;
       });
     }
   };
 
-  window.ReelupViewerSettings = { applyDialogSettings, applyProductListSettings };
+  window.AwaSvViewerSettings = { applyDialogSettings, applyProductListSettings };
 })();
 ```
 
@@ -417,7 +417,7 @@ git commit -m "feat(storefront): add shared viewer-settings helper for lightbox/
 - Modify: `extensions/shoppable-video-widgets/assets/reel-lightbox.js`
 
 **Interfaces:**
-- Consumes: `window.ReelupViewerSettings` (Task 4).
+- Consumes: `window.AwaSvViewerSettings` (Task 4).
 
 - [ ] **Step 1: Call the helper inside `open()`**
 
@@ -432,7 +432,7 @@ Find:
     }
 
     productsList.replaceChildren();
-    const template = triggerEl.querySelector("template[data-reelup-products]");
+    const template = triggerEl.querySelector("template[data-awa-sv-products]");
     if (template) {
       productsHeading.textContent = shopLabel;
       productsList.appendChild(template.content.cloneNode(true));
@@ -451,15 +451,15 @@ Replace with:
       video.removeAttribute("poster");
     }
 
-    window.ReelupViewerSettings?.applyDialogSettings(dialog, video, title, triggerEl);
+    window.AwaSvViewerSettings?.applyDialogSettings(dialog, video, title, triggerEl);
 
     productsList.replaceChildren();
-    const template = triggerEl.querySelector("template[data-reelup-products]");
+    const template = triggerEl.querySelector("template[data-awa-sv-products]");
     if (template) {
       productsHeading.textContent = shopLabel;
       productsList.appendChild(template.content.cloneNode(true));
       productsPanel.hidden = false;
-      window.ReelupViewerSettings?.applyProductListSettings(productsList, triggerEl);
+      window.AwaSvViewerSettings?.applyProductListSettings(productsList, triggerEl);
     } else {
       productsPanel.hidden = true;
     }
@@ -490,7 +490,7 @@ git commit -m "feat(storefront): apply viewer settings when the lightbox opens"
 - Modify: `extensions/shoppable-video-widgets/assets/reel-story.js`
 
 **Interfaces:**
-- Consumes: `window.ReelupViewerSettings` (Task 4), `trigger.dataset.storyDuration` (produced by Task 10).
+- Consumes: `window.AwaSvViewerSettings` (Task 4), `trigger.dataset.storyDuration` (produced by Task 10).
 - Produces: module-level `currentDurationMs` replacing the old fixed `DURATION_MS` constant — internal to this file only, no other file references `DURATION_MS`.
 
 - [ ] **Step 1: Replace the fixed duration constant with a mutable one**
@@ -572,7 +572,7 @@ Find:
     }
 
     drawerList.replaceChildren();
-    const template = trigger.querySelector("template[data-reelup-products]");
+    const template = trigger.querySelector("template[data-awa-sv-products]");
     if (template) {
       const shopLabel = trigger.dataset.shopLabel ?? "";
       drawerHeading.textContent = shopLabel;
@@ -594,17 +594,17 @@ Replace with:
       video.removeAttribute("poster");
     }
 
-    window.ReelupViewerSettings?.applyDialogSettings(dialog, video, title, trigger);
+    window.AwaSvViewerSettings?.applyDialogSettings(dialog, video, title, trigger);
 
     drawerList.replaceChildren();
-    const template = trigger.querySelector("template[data-reelup-products]");
+    const template = trigger.querySelector("template[data-awa-sv-products]");
     if (template) {
       const shopLabel = trigger.dataset.shopLabel ?? "";
       drawerHeading.textContent = shopLabel;
       drawerList.appendChild(template.content.cloneNode(true));
       shopButton.hidden = false;
       shopButton.textContent = shopLabel;
-      window.ReelupViewerSettings?.applyProductListSettings(drawerList, trigger);
+      window.AwaSvViewerSettings?.applyProductListSettings(drawerList, trigger);
     } else {
       shopButton.hidden = true;
     }
@@ -705,11 +705,11 @@ Replace with:
 {% endcase %}
 
 {% capture wrapper_style %}
-  --reelup-corner-radius: {{ corner_radius_px }};
-  --reelup-trigger-size: {{ block.settings.trigger_size }}px;
+  --awa-sv-corner-radius: {{ corner_radius_px }};
+  --awa-sv-trigger-size: {{ block.settings.trigger_size }}px;
   {% unless block.settings.accent_color == blank %}
-    --reelup-accent-color: {{ block.settings.accent_color }};
-    --reelup-accent-hover-color: {{ block.settings.accent_color | color_darken: 15 }};
+    --awa-sv-accent-color: {{ block.settings.accent_color }};
+    --awa-sv-accent-hover-color: {{ block.settings.accent_color | color_darken: 15 }};
   {% endunless %}
 {% endcapture %}
 
@@ -723,22 +723,22 @@ Replace with:
 Find:
 ```liquid
 {% if visible_count > 0 %}
-  <div class="reelup-product-reels" data-reelup-story-group {{ block.shopify_attributes }}>
+  <div class="awa-sv-product-reels" data-awa-sv-story-group {{ block.shopify_attributes }}>
 ```
 Replace with:
 ```liquid
 {% if visible_count > 0 %}
   {% unless block.settings.heading == blank %}
-    <h2 class="reelup-widget-heading">{{ block.settings.heading }}</h2>
+    <h2 class="awa-sv-widget-heading">{{ block.settings.heading }}</h2>
   {% endunless %}
-  <div class="reelup-product-reels" data-reelup-story-group style="{{ wrapper_style | strip_newlines | strip }}" {{ block.shopify_attributes }}>
+  <div class="awa-sv-product-reels" data-awa-sv-story-group style="{{ wrapper_style | strip_newlines | strip }}" {{ block.shopify_attributes }}>
 ```
 
 Find the trigger's attribute list:
 ```liquid
           <div
-            class="reelup-trigger"
-            data-reelup-trigger
+            class="awa-sv-trigger"
+            data-awa-sv-trigger
             data-reel-id="{{ reel.system.id }}"
             data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
             data-poster-url="{{ reel.config.value.posterUrl | escape }}"
@@ -750,8 +750,8 @@ Find the trigger's attribute list:
 Replace with:
 ```liquid
           <div
-            class="reelup-trigger"
-            data-reelup-trigger
+            class="awa-sv-trigger"
+            data-awa-sv-trigger
             data-reel-id="{{ reel.system.id }}"
             data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
             data-poster-url="{{ reel.config.value.posterUrl | escape }}"
@@ -776,7 +776,7 @@ npm run typecheck
 npm run lint
 npm run test
 ```
-Expected: all clean. With every setting at its schema default, `wrapper_style` renders `--reelup-corner-radius: 12px; --reelup-trigger-size: 220px;` (accent block skipped, blank) — identical to the old hardcoded `12px`/`220px`. `data-cta-color`/`data-cta-hover-color`/`data-cta-label` render empty strings (JS treats falsy as "use fallback"). `data-cta-text-color="#ffffff"`, `data-show-price="true"`, `data-show-title="true"`, `data-muted-default="false"`, `data-loop="false"` — all match current behavior exactly.
+Expected: all clean. With every setting at its schema default, `wrapper_style` renders `--awa-sv-corner-radius: 12px; --awa-sv-trigger-size: 220px;` (accent block skipped, blank) — identical to the old hardcoded `12px`/`220px`. `data-cta-color`/`data-cta-hover-color`/`data-cta-label` render empty strings (JS treats falsy as "use fallback"). `data-cta-text-color="#ffffff"`, `data-show-price="true"`, `data-show-title="true"`, `data-muted-default="false"`, `data-loop="false"` — all match current behavior exactly.
 
 - [ ] **Step 5: Commit**
 
@@ -861,10 +861,10 @@ Replace with:
 {% endcase %}
 
 {% capture wrapper_style %}
-  --reelup-corner-radius: {{ corner_radius_px }};
+  --awa-sv-corner-radius: {{ corner_radius_px }};
   {% unless block.settings.accent_color == blank %}
-    --reelup-accent-color: {{ block.settings.accent_color }};
-    --reelup-accent-hover-color: {{ block.settings.accent_color | color_darken: 15 }};
+    --awa-sv-accent-color: {{ block.settings.accent_color }};
+    --awa-sv-accent-hover-color: {{ block.settings.accent_color | color_darken: 15 }};
   {% endunless %}
 {% endcapture %}
 
@@ -878,22 +878,22 @@ Replace with:
 Find:
 ```liquid
 {% if visible_count > 0 %}
-  <div class="reelup-carousel" data-reelup-story-group {{ block.shopify_attributes }}>
+  <div class="awa-sv-carousel" data-awa-sv-story-group {{ block.shopify_attributes }}>
 ```
 Replace with:
 ```liquid
 {% if visible_count > 0 %}
   {% unless block.settings.heading == blank %}
-    <h2 class="reelup-widget-heading">{{ block.settings.heading }}</h2>
+    <h2 class="awa-sv-widget-heading">{{ block.settings.heading }}</h2>
   {% endunless %}
-  <div class="reelup-carousel" data-reelup-story-group style="{{ wrapper_style | strip_newlines | strip }}" {{ block.shopify_attributes }}>
+  <div class="awa-sv-carousel" data-awa-sv-story-group style="{{ wrapper_style | strip_newlines | strip }}" {{ block.shopify_attributes }}>
 ```
 
 Find the trigger's attribute list:
 ```liquid
         <div
-          class="reelup-trigger"
-          data-reelup-trigger
+          class="awa-sv-trigger"
+          data-awa-sv-trigger
           data-reel-id="{{ reel.system.id }}"
           data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
           data-poster-url="{{ reel.config.value.posterUrl | escape }}"
@@ -905,8 +905,8 @@ Find the trigger's attribute list:
 Replace with:
 ```liquid
         <div
-          class="reelup-trigger"
-          data-reelup-trigger
+          class="awa-sv-trigger"
+          data-awa-sv-trigger
           data-reel-id="{{ reel.system.id }}"
           data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
           data-poster-url="{{ reel.config.value.posterUrl | escape }}"
@@ -1016,10 +1016,10 @@ Replace with:
 {% endcase %}
 
 {% capture wrapper_style %}
-  --reelup-corner-radius: {{ corner_radius_px }};
+  --awa-sv-corner-radius: {{ corner_radius_px }};
   {% unless block.settings.accent_color == blank %}
-    --reelup-accent-color: {{ block.settings.accent_color }};
-    --reelup-accent-hover-color: {{ block.settings.accent_color | color_darken: 15 }};
+    --awa-sv-accent-color: {{ block.settings.accent_color }};
+    --awa-sv-accent-hover-color: {{ block.settings.accent_color | color_darken: 15 }};
   {% endunless %}
 {% endcapture %}
 
@@ -1033,19 +1033,19 @@ Replace with:
 Find:
 ```liquid
 {% if show_reel %}
-  <div class="reelup-single-video" {{ block.shopify_attributes }}>
+  <div class="awa-sv-single-video" {{ block.shopify_attributes }}>
 ```
 Replace with:
 ```liquid
 {% if show_reel %}
-  <div class="reelup-single-video" style="{{ wrapper_style | strip_newlines | strip }} max-width: {{ block.settings.video_max_width }}px;" {{ block.shopify_attributes }}>
+  <div class="awa-sv-single-video" style="{{ wrapper_style | strip_newlines | strip }} max-width: {{ block.settings.video_max_width }}px;" {{ block.shopify_attributes }}>
 ```
 
 Find the trigger's attribute list:
 ```liquid
     <div
-      class="reelup-trigger"
-      data-reelup-trigger
+      class="awa-sv-trigger"
+      data-awa-sv-trigger
       data-reel-id="{{ reel.system.id }}"
       data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
       data-poster-url="{{ reel.config.value.posterUrl | escape }}"
@@ -1057,8 +1057,8 @@ Find the trigger's attribute list:
 Replace with:
 ```liquid
     <div
-      class="reelup-trigger"
-      data-reelup-trigger
+      class="awa-sv-trigger"
+      data-awa-sv-trigger
       data-reel-id="{{ reel.system.id }}"
       data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
       data-poster-url="{{ reel.config.value.posterUrl | escape }}"
@@ -1083,7 +1083,7 @@ npm run typecheck
 npm run lint
 npm run test
 ```
-Expected: all clean. `max-width: 320px` matches the old hardcoded `single-video.css` value exactly (`.reelup-single-video { max-width: 320px; }` still applies as CSS but the inline style takes precedence at the same value, so no visible change).
+Expected: all clean. `max-width: 320px` matches the old hardcoded `single-video.css` value exactly (`.awa-sv-single-video { max-width: 320px; }` still applies as CSS but the inline style takes precedence at the same value, so no visible change).
 
 - [ ] **Step 5: Commit**
 
@@ -1152,9 +1152,9 @@ Replace with:
 {% assign reel_namespace = 'app--404281098241' %}
 
 {% capture wrapper_style %}
-  --reelup-trigger-size: {{ block.settings.trigger_size }}px;
+  --awa-sv-trigger-size: {{ block.settings.trigger_size }}px;
   {% unless block.settings.accent_color == blank %}
-    --reelup-accent-color: {{ block.settings.accent_color }};
+    --awa-sv-accent-color: {{ block.settings.accent_color }};
   {% endunless %}
 {% endcapture %}
 
@@ -1168,22 +1168,22 @@ Replace with:
 Find:
 ```liquid
 {% if visible_count > 0 %}
-  <div class="reelup-stories" data-reelup-story-group {{ block.shopify_attributes }}>
+  <div class="awa-sv-stories" data-awa-sv-story-group {{ block.shopify_attributes }}>
 ```
 Replace with:
 ```liquid
 {% if visible_count > 0 %}
   {% unless block.settings.heading == blank %}
-    <h2 class="reelup-widget-heading">{{ block.settings.heading }}</h2>
+    <h2 class="awa-sv-widget-heading">{{ block.settings.heading }}</h2>
   {% endunless %}
-  <div class="reelup-stories" data-reelup-story-group style="{{ wrapper_style | strip_newlines | strip }}" {{ block.shopify_attributes }}>
+  <div class="awa-sv-stories" data-awa-sv-story-group style="{{ wrapper_style | strip_newlines | strip }}" {{ block.shopify_attributes }}>
 ```
 
 Find the trigger's attribute list:
 ```liquid
           <div
-            class="reelup-trigger reelup-stories__avatar"
-            data-reelup-trigger
+            class="awa-sv-trigger awa-sv-stories__avatar"
+            data-awa-sv-trigger
             data-reel-id="{{ reel.system.id }}"
             data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
             data-poster-url="{{ reel.config.value.posterUrl | escape }}"
@@ -1195,8 +1195,8 @@ Find the trigger's attribute list:
 Replace with:
 ```liquid
           <div
-            class="reelup-trigger reelup-stories__avatar"
-            data-reelup-trigger
+            class="awa-sv-trigger awa-sv-stories__avatar"
+            data-awa-sv-trigger
             data-reel-id="{{ reel.system.id }}"
             data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
             data-poster-url="{{ reel.config.value.posterUrl | escape }}"
@@ -1238,7 +1238,7 @@ git commit -m "feat(storefront): add customization settings to Insta-style stori
 **Files:**
 - Modify: `extensions/shoppable-video-widgets/blocks/reel-pops.liquid`
 
-**Interfaces:** No `corner_style` (circular) and no `accent_color` (this block's trigger button renders no play-icon span at all — confirmed by reading the file, it's poster-image-only). Adds `position` (maps to Task 3's four CSS modifier classes) and `show_pulse` (maps to Task 3's `.reelup-pop--no-pulse`).
+**Interfaces:** No `corner_style` (circular) and no `accent_color` (this block's trigger button renders no play-icon span at all — confirmed by reading the file, it's poster-image-only). Adds `position` (maps to Task 3's four CSS modifier classes) and `show_pulse` (maps to Task 3's `.awa-sv-pop--no-pulse`).
 
 - [ ] **Step 1: Add the schema settings**
 
@@ -1294,12 +1294,12 @@ Replace with:
 ```liquid
 {% assign reel_namespace = 'app--404281098241' %}
 
-{% assign position_class = 'reelup-pop--' | append: block.settings.position | replace: '_', '-' %}
+{% assign position_class = 'awa-sv-pop--' | append: block.settings.position | replace: '_', '-' %}
 {% unless block.settings.show_pulse %}
-  {% assign position_class = position_class | append: ' reelup-pop--no-pulse' %}
+  {% assign position_class = position_class | append: ' awa-sv-pop--no-pulse' %}
 {% endunless %}
 
-{% capture wrapper_style %}--reelup-trigger-size: {{ block.settings.trigger_size }}px;{% endcapture %}
+{% capture wrapper_style %}--awa-sv-trigger-size: {{ block.settings.trigger_size }}px;{% endcapture %}
 
 {% capture cta_hover_color %}
   {% unless block.settings.cta_color == blank %}{{ block.settings.cta_color | color_lighten: 15 }}{% endunless %}
@@ -1311,19 +1311,19 @@ Replace with:
 Find:
 ```liquid
 {% if show_reel %}
-  <div class="reelup-pop" data-reelup-pop data-reel-id="{{ reel.system.id }}">
+  <div class="awa-sv-pop" data-awa-sv-pop data-reel-id="{{ reel.system.id }}">
 ```
 Replace with:
 ```liquid
 {% if show_reel %}
-  <div class="reelup-pop {{ position_class }}" data-reelup-pop data-reel-id="{{ reel.system.id }}" style="{{ wrapper_style }}">
+  <div class="awa-sv-pop {{ position_class }}" data-awa-sv-pop data-reel-id="{{ reel.system.id }}" style="{{ wrapper_style }}">
 ```
 
 Find the trigger's attribute list:
 ```liquid
     <div
-      class="reelup-trigger reelup-pop__trigger"
-      data-reelup-trigger
+      class="awa-sv-trigger awa-sv-pop__trigger"
+      data-awa-sv-trigger
       data-reel-id="{{ reel.system.id }}"
       data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
       data-poster-url="{{ reel.config.value.posterUrl | escape }}"
@@ -1335,8 +1335,8 @@ Find the trigger's attribute list:
 Replace with:
 ```liquid
     <div
-      class="reelup-trigger reelup-pop__trigger"
-      data-reelup-trigger
+      class="awa-sv-trigger awa-sv-pop__trigger"
+      data-awa-sv-trigger
       data-reel-id="{{ reel.system.id }}"
       data-hls-src="{{ reel.config.value.hlsManifestUrl | escape }}"
       data-poster-url="{{ reel.config.value.posterUrl | escape }}"
@@ -1361,7 +1361,7 @@ npm run typecheck
 npm run lint
 npm run test
 ```
-Expected: all clean. `position_class` at the default renders `reelup-pop--bottom-right` (the `_`→`-` replace turns `bottom_right` into `bottom-right`) — matches Task 3's `.reelup-pop--bottom-right { right: 20px; bottom: 20px; }`, identical to the old hardcoded values. `show_pulse` defaults to `true`, so `reelup-pop--no-pulse` is never appended by default — pulse still plays.
+Expected: all clean. `position_class` at the default renders `awa-sv-pop--bottom-right` (the `_`→`-` replace turns `bottom_right` into `bottom-right`) — matches Task 3's `.awa-sv-pop--bottom-right { right: 20px; bottom: 20px; }`, identical to the old hardcoded values. `show_pulse` defaults to `true`, so `awa-sv-pop--no-pulse` is never appended by default — pulse still plays.
 
 - [ ] **Step 5: Commit**
 
@@ -1409,7 +1409,7 @@ On a single product page, place two blocks that support tagged products (e.g. Pr
 
 - [ ] **Step 6: Reduced-motion and focus-visible spot check**
 
-With `prefers-reduced-motion: reduce` enabled (OS or browser dev tools), confirm the reel-pop's entrance/pulse animation and the trigger's hover-lift transform are suppressed regardless of `accent_color`/`corner_style` values, and that a custom `accent_color` doesn't break the existing focus-visible ring on `.reelup-trigger__button` (added in the prior storefront-polish plan) — the focus ring uses a fixed white/black box-shadow independent of `--reelup-accent-color`, so it should be unaffected either way; this step confirms that's actually true in the browser, not just in the CSS.
+With `prefers-reduced-motion: reduce` enabled (OS or browser dev tools), confirm the reel-pop's entrance/pulse animation and the trigger's hover-lift transform are suppressed regardless of `accent_color`/`corner_style` values, and that a custom `accent_color` doesn't break the existing focus-visible ring on `.awa-sv-trigger__button` (added in the prior storefront-polish plan) — the focus ring uses a fixed white/black box-shadow independent of `--awa-sv-accent-color`, so it should be unaffected either way; this step confirms that's actually true in the browser, not just in the CSS.
 
 - [ ] **Step 7: Commit (only if Steps 1–2 required a fix)**
 

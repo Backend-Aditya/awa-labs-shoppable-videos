@@ -1,45 +1,45 @@
 /* Shoppable video widgets, every inline/floating widget in one sheet.
    They inherit the theme's font and text colour; the merchant's widget
-   settings arrive as --ru-* custom properties on each widget root. Each
+   settings arrive as --awa-sv-* custom properties on each widget root. Each
    widget owns a distinct silhouette (strip, deck, rings, feature, row,
    floating player) on top of the shared pieces below. */
 
-.reelup {
-  --ru-text: currentColor;
+.awa-sv {
+  --awa-sv-text: currentColor;
   /* Accent for things drawn on the page background (arrows, dots, focus
      rings): follows the theme's text colour, so it stays visible on dark
-     themes. Play buttons sit on posters instead and use --ru-play: a
+     themes. Play buttons sit on posters instead and use --awa-sv-play: a
      translucent dark glass disc with a white glyph (the viewer's own play
      button, so widget and viewer match) reads on any image. Both are
      overridden by the brand kit or the widget's accent colour. */
-  --ru-accent: var(--ru-brand-accent, currentColor);
-  --ru-play: var(--ru-brand-accent, rgb(0 0 0 / 0.5));
-  --ru-radius: 10px;
-  --ru-bg: transparent;
-  --ru-cta: var(--ru-brand-cta, #141414);
-  --ru-cta-text: var(--ru-brand-cta-text, #ffffff);
-  --ru-muted: color-mix(in srgb, var(--ru-text) 62%, transparent);
-  --ru-line: color-mix(in srgb, var(--ru-text) 14%, transparent);
-  --ru-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --ru-shadow: none;
-  color: var(--ru-text);
+  --awa-sv-accent: var(--awa-sv-brand-accent, currentColor);
+  --awa-sv-play: var(--awa-sv-brand-accent, rgb(0 0 0 / 0.5));
+  --awa-sv-radius: 10px;
+  --awa-sv-bg: transparent;
+  --awa-sv-cta: var(--awa-sv-brand-cta, #141414);
+  --awa-sv-cta-text: var(--awa-sv-brand-cta-text, #ffffff);
+  --awa-sv-muted: color-mix(in srgb, var(--awa-sv-text) 62%, transparent);
+  --awa-sv-line: color-mix(in srgb, var(--awa-sv-text) 14%, transparent);
+  --awa-sv-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --awa-sv-shadow: none;
+  color: var(--awa-sv-text);
   box-sizing: border-box;
 }
 
-.reelup *,
-.reelup *::before,
-.reelup *::after {
+.awa-sv *,
+.awa-sv *::before,
+.awa-sv *::after {
   box-sizing: inherit;
 }
 
-.reelup [hidden] {
+.awa-sv [hidden] {
   display: none !important;
 }
 
 /* Theme button styles (uppercase, letter-spacing, min-height, shadows)
    must not leak into widget controls. (0,1,1) beats theme element and
    single-class selectors; component rules that set these use two classes. */
-.reelup button {
+.awa-sv button {
   letter-spacing: normal;
   text-transform: none;
   text-shadow: none;
@@ -48,7 +48,7 @@
   min-width: 0;
 }
 
-.reelup-live {
+.awa-sv-live {
   position: absolute !important;
   display: block !important;
   width: 1px;
@@ -62,7 +62,7 @@
 }
 
 /* Theme-editor-only message for a block with nothing to show. */
-.reelup-placeholder {
+.awa-sv-placeholder {
   padding: 16px;
   border: 1px dashed color-mix(in srgb, currentColor 35%, transparent);
   border-radius: 8px;
@@ -71,36 +71,36 @@
   opacity: 0.8;
 }
 
-.reelup-noscript {
+.awa-sv-noscript {
   margin: 6px 0 0;
   padding: 0;
   list-style: none;
   font-size: 12px;
 }
 
-.reelup ul[role="list"] {
+.awa-sv ul[role="list"] {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.reelup--filled {
-  background: var(--ru-bg);
-  border-radius: var(--ru-radius);
+.awa-sv--filled {
+  background: var(--awa-sv-bg);
+  border-radius: var(--awa-sv-radius);
   padding: clamp(16px, 3vw, 28px);
 }
 
-.reelup-shadow--soft { --ru-shadow: 0 2px 10px rgb(0 0 0 / 0.1); }
-.reelup-shadow--bold { --ru-shadow: 0 16px 36px -8px rgb(0 0 0 / 0.35); }
+.awa-sv-shadow--soft { --awa-sv-shadow: 0 2px 10px rgb(0 0 0 / 0.1); }
+.awa-sv-shadow--bold { --awa-sv-shadow: 0 16px 36px -8px rgb(0 0 0 / 0.35); }
 
 @media (max-width: 749px) {
-  .reelup-device--desktop { display: none !important; }
+  .awa-sv-device--desktop { display: none !important; }
 }
 @media (min-width: 750px) {
-  .reelup-device--mobile { display: none !important; }
+  .awa-sv-device--mobile { display: none !important; }
 }
 
-.reelup-visually-hidden {
+.awa-sv-visually-hidden {
   position: absolute !important;
   width: 1px;
   height: 1px;
@@ -112,26 +112,26 @@
   border: 0;
 }
 
-.reelup-heading {
+.awa-sv-heading {
   margin: 0 0 16px;
   font-size: clamp(1.15rem, 1rem + 0.6vw, 1.5rem);
   line-height: 1.2;
   letter-spacing: -0.01em;
-  color: var(--ru-text);
+  color: var(--awa-sv-text);
 }
 
-.reelup-heading--center {
+.awa-sv-heading--center {
   text-align: center;
 }
 
 /* ---------- shared trigger ---------- */
 
-.reelup .reelup-trigger {
+.awa-sv .awa-sv-trigger {
   display: block;
   position: relative;
 }
 
-.reelup .reelup-trigger__button {
+.awa-sv .awa-sv-trigger__button {
   appearance: none;
   position: relative;
   display: block;
@@ -147,13 +147,13 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.reelup .reelup-trigger__button:focus-visible {
-  outline: 2px solid var(--ru-accent);
+.awa-sv .awa-sv-trigger__button:focus-visible {
+  outline: 2px solid var(--awa-sv-accent);
   outline-offset: 3px;
 }
 
-.reelup .reelup-trigger__poster,
-.reelup .reelup-trigger__preview {
+.awa-sv .awa-sv-trigger__poster,
+.awa-sv .awa-sv-trigger__preview {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -162,38 +162,38 @@
   display: block;
 }
 
-.reelup .reelup-trigger__preview {
+.awa-sv .awa-sv-trigger__preview {
   z-index: 1;
   opacity: 0;
-  transition: opacity 0.4s ease, transform 0.6s var(--ru-ease);
+  transition: opacity 0.4s ease, transform 0.6s var(--awa-sv-ease);
 }
 
-.reelup .reelup-trigger__poster {
-  transition: transform 0.6s var(--ru-ease);
+.awa-sv .awa-sv-trigger__poster {
+  transition: transform 0.6s var(--awa-sv-ease);
 }
 
 /* Video cards lean in under the pointer and give a little when pressed,
    so every one reads as something to tap. */
 @media (hover: hover) and (pointer: fine) {
-  .reelup :is(.reelup-strip__poster, .reelup-deck__poster, .reelup-feature__poster):hover :is(.reelup-trigger__poster, .reelup-trigger__preview) {
+  .awa-sv :is(.awa-sv-strip__poster, .awa-sv-deck__poster, .awa-sv-feature__poster):hover :is(.awa-sv-trigger__poster, .awa-sv-trigger__preview) {
     transform: scale(1.045);
   }
 }
 
-.reelup :is(.reelup-strip__poster, .reelup-deck__poster, .reelup-feature__poster, .reelup-atc__thumb) {
-  transition: transform 0.2s var(--ru-ease), box-shadow 0.2s ease;
+.awa-sv :is(.awa-sv-strip__poster, .awa-sv-deck__poster, .awa-sv-feature__poster, .awa-sv-atc__thumb) {
+  transition: transform 0.2s var(--awa-sv-ease), box-shadow 0.2s ease;
 }
 
-.reelup .reelup-trigger__button:active :is(.reelup-strip__poster, .reelup-atc__thumb),
-.reelup :is(.reelup-strip__poster, .reelup-deck__poster, .reelup-feature__poster):active {
+.awa-sv .awa-sv-trigger__button:active :is(.awa-sv-strip__poster, .awa-sv-atc__thumb),
+.awa-sv :is(.awa-sv-strip__poster, .awa-sv-deck__poster, .awa-sv-feature__poster):active {
   transform: scale(0.98);
 }
 
-.reelup .reelup-trigger__preview.is-playing {
+.awa-sv .awa-sv-trigger__preview.is-playing {
   opacity: 1;
 }
 
-.reelup-chip {
+.awa-sv-chip {
   position: absolute;
   inset-inline-start: 8px;
   bottom: 8px;
@@ -216,7 +216,7 @@
 
 /* The play glyph's 24px grid leaves room around the triangle; pull the box
    in so the triangle, not its box, lines up with the chip's padding. */
-.reelup-chip > svg {
+.awa-sv-chip > svg {
   flex-shrink: 0;
   margin-inline: -3px -1px;
 }
@@ -225,15 +225,15 @@
    Product page reels, filmstrip
    ================================================================= */
 
-.reelup-strip {
+.awa-sv-strip {
   margin-block: 24px;
 }
 
-.reelup-strip__viewport {
+.awa-sv-strip__viewport {
   position: relative;
 }
 
-.reelup-strip__track {
+.awa-sv-strip__track {
   display: flex;
   gap: 12px;
   overflow-x: auto;
@@ -244,44 +244,44 @@
   padding: 2px 2px 4px;
 }
 
-.reelup-strip__track::-webkit-scrollbar {
+.awa-sv-strip__track::-webkit-scrollbar {
   display: none;
 }
 
-.reelup-strip__item {
-  flex: 0 0 var(--ru-card-width, 200px);
+.awa-sv-strip__item {
+  flex: 0 0 var(--awa-sv-card-width, 200px);
   max-width: 70vw;
   scroll-snap-align: start;
   min-width: 0;
 }
 
-.reelup-strip--grid .reelup-strip__track {
+.awa-sv-strip--grid .awa-sv-strip__track {
   display: grid;
-  grid-template-columns: repeat(var(--ru-columns, 4), minmax(0, 1fr));
+  grid-template-columns: repeat(var(--awa-sv-columns, 4), minmax(0, 1fr));
   gap: 16px 12px;
   overflow: visible;
 }
 
-.reelup-strip--grid .reelup-strip__item {
+.awa-sv-strip--grid .awa-sv-strip__item {
   max-width: none;
 }
 
 @media (max-width: 749px) {
-  .reelup-strip--grid .reelup-strip__track {
+  .awa-sv-strip--grid .awa-sv-strip__track {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-.reelup-strip__poster {
+.awa-sv-strip__poster {
   aspect-ratio: 9 / 16;
-  border-radius: var(--ru-radius);
+  border-radius: var(--awa-sv-radius);
   overflow: hidden;
   background: #1c1c1c;
-  box-shadow: var(--ru-shadow);
+  box-shadow: var(--awa-sv-shadow);
   isolation: isolate;
 }
 
-.reelup-strip__poster::after {
+.awa-sv-strip__poster::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -291,17 +291,17 @@
 }
 
 /* ---------------------------------------------------------- play badge
-   One play button for every widget: a disc in --ru-play (a translucent
+   One play button for every widget: a disc in --awa-sv-play (a translucent
    dark glass by default, the brand accent when set) with a thin light ring
    and a soft shadow, so it reads on light and dark posters alike. The glyph
    is the shared rounded triangle, optically centred on its 24px grid (its
    centre of mass is the disc's centre), so no widget nudges it sideways.
    Widgets only place and size the disc; the glyph is always 42% of it. */
-.reelup-play {
+.awa-sv-play {
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: var(--ru-play);
+  background: var(--awa-sv-play);
   color: #fff;
   box-shadow:
     inset 0 0 0 1px rgb(255 255 255 / 0.16),
@@ -311,13 +311,13 @@
   pointer-events: none;
 }
 
-.reelup-play > svg {
+.awa-sv-play > svg {
   display: block;
   width: 42%;
   height: 42%;
 }
 
-.reelup-strip__play {
+.awa-sv-strip__play {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -327,22 +327,22 @@
   margin: -22px 0 0 -22px;
   opacity: 0;
   transform: scale(0.85);
-  transition: opacity 0.2s ease, transform 0.25s var(--ru-ease);
+  transition: opacity 0.2s ease, transform 0.25s var(--awa-sv-ease);
 }
 
 @media (hover: hover) {
-  .reelup-strip__poster:hover .reelup-strip__play {
+  .awa-sv-strip__poster:hover .awa-sv-strip__play {
     opacity: 1;
     transform: scale(1);
   }
 }
 
-.reelup-strip__poster:focus-visible .reelup-strip__play {
+.awa-sv-strip__poster:focus-visible .awa-sv-strip__play {
   opacity: 1;
   transform: scale(1);
 }
 
-.reelup-strip__caption {
+.awa-sv-strip__caption {
   margin: 10px 0 0;
   font-size: 14px;
   font-weight: 600;
@@ -353,7 +353,7 @@
   overflow: hidden;
 }
 
-.reelup-strip__product {
+.awa-sv-strip__product {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -364,41 +364,41 @@
   line-height: 1.3;
 }
 
-.reelup-strip__product img {
+.awa-sv-strip__product img {
   width: 28px;
   height: 28px;
   border-radius: 6px;
   object-fit: cover;
   flex-shrink: 0;
-  background: var(--ru-line);
+  background: var(--awa-sv-line);
 }
 
-.reelup-strip__product-text {
+.awa-sv-strip__product-text {
   display: flex;
   flex-direction: column;
   min-width: 0;
 }
 
-.reelup-strip__product-title {
+.awa-sv-strip__product-title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.reelup-strip__product:hover .reelup-strip__product-title {
+.awa-sv-strip__product:hover .awa-sv-strip__product-title {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
-.reelup-strip__product-price {
-  color: var(--ru-muted);
+.awa-sv-strip__product-price {
+  color: var(--awa-sv-muted);
   font-size: 12px;
 }
 
-.reelup-arrow {
+.awa-sv-arrow {
   appearance: none;
   position: absolute;
-  top: calc(var(--ru-card-width, 200px) * 16 / 9 / 2);
+  top: calc(var(--awa-sv-card-width, 200px) * 16 / 9 / 2);
   z-index: 3;
   width: 40px;
   height: 40px;
@@ -412,94 +412,94 @@
   cursor: pointer;
 }
 
-.reelup .reelup-arrow {
+.awa-sv .awa-sv-arrow {
   padding: 0;
   box-shadow: 0 2px 10px rgb(0 0 0 / 0.18);
 }
 
-.reelup-arrow--prev { inset-inline-start: -12px; }
-.reelup-arrow--next { inset-inline-end: -12px; }
+.awa-sv-arrow--prev { inset-inline-start: -12px; }
+.awa-sv-arrow--next { inset-inline-end: -12px; }
 
 /* Chevrons point along the reading direction. */
-html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
-.reelup-arrow:dir(rtl) svg { transform: scaleX(-1); }
+html[dir="rtl"] .awa-sv-arrow svg { transform: scaleX(-1); }
+.awa-sv-arrow:dir(rtl) svg { transform: scaleX(-1); }
 
 /* Stories row: smaller arrows centred on the avatars. */
-.reelup-stories .reelup-arrow {
-  top: calc(var(--ru-avatar, 72px) / 2 + 4px);
+.awa-sv-stories .awa-sv-arrow {
+  top: calc(var(--awa-sv-avatar, 72px) / 2 + 4px);
   width: 32px;
   height: 32px;
   margin-top: -16px;
 }
 
-.reelup-stories .reelup-arrow--prev { inset-inline-start: -6px; }
-.reelup-stories .reelup-arrow--next { inset-inline-end: -6px; }
+.awa-sv-stories .awa-sv-arrow--prev { inset-inline-start: -6px; }
+.awa-sv-stories .awa-sv-arrow--next { inset-inline-end: -6px; }
 
 /* Deck slider: arrows centred on its cards. */
-.reelup-deck--carousel {
-  --ru-card-width: clamp(170px, 22vw, 240px);
+.awa-sv-deck--carousel {
+  --awa-sv-card-width: clamp(170px, 22vw, 240px);
 }
 
 /* Mouse users can also scroll rows directly: a thin scrollbar where a real
    pointer exists (touch keeps the clean, swipeable row). */
 @media (hover: hover) and (pointer: fine) {
-  .reelup .reelup-stories__row,
-  .reelup .reelup-deck__stage,
-  .reelup .reelup-strip__track {
+  .awa-sv .awa-sv-stories__row,
+  .awa-sv .awa-sv-deck__stage,
+  .awa-sv .awa-sv-strip__track {
     scrollbar-width: thin;
     scrollbar-color: color-mix(in srgb, currentColor 30%, transparent) transparent;
   }
-  .reelup .reelup-stories__row::-webkit-scrollbar,
-  .reelup .reelup-deck__stage::-webkit-scrollbar,
-  .reelup .reelup-strip__track::-webkit-scrollbar {
+  .awa-sv .awa-sv-stories__row::-webkit-scrollbar,
+  .awa-sv .awa-sv-deck__stage::-webkit-scrollbar,
+  .awa-sv .awa-sv-strip__track::-webkit-scrollbar {
     display: block;
     height: 6px;
   }
-  .reelup .reelup-stories__row::-webkit-scrollbar-thumb,
-  .reelup .reelup-deck__stage::-webkit-scrollbar-thumb,
-  .reelup .reelup-strip__track::-webkit-scrollbar-thumb {
+  .awa-sv .awa-sv-stories__row::-webkit-scrollbar-thumb,
+  .awa-sv .awa-sv-deck__stage::-webkit-scrollbar-thumb,
+  .awa-sv .awa-sv-strip__track::-webkit-scrollbar-thumb {
     border-radius: 999px;
     background: color-mix(in srgb, currentColor 30%, transparent);
   }
 }
 
-.reelup-arrow:focus-visible {
-  outline: 2px solid var(--ru-accent);
+.awa-sv-arrow:focus-visible {
+  outline: 2px solid var(--awa-sv-accent);
   outline-offset: 2px;
 }
 
 @media (hover: none), (max-width: 749px) {
-  .reelup-arrow { display: none; }
+  .awa-sv-arrow { display: none; }
 }
 
 /* =================================================================
    Stacked carousel, deck
    ================================================================= */
 
-.reelup-deck {
-  --ru-card: clamp(180px, 24vw, 280px);
-  --ru-spread: 62%;
+.awa-sv-deck {
+  --awa-sv-card: clamp(180px, 24vw, 280px);
+  --awa-sv-spread: 62%;
   margin-block: 32px;
   overflow: hidden;
 }
 
 @media (max-width: 749px) {
-  .reelup-deck {
-    --ru-card: 58vw;
-    --ru-spread: 44%;
+  .awa-sv-deck {
+    --awa-sv-card: 58vw;
+    --awa-sv-spread: 44%;
   }
 }
 
-.reelup-deck__poster {
+.awa-sv-deck__poster {
   aspect-ratio: 9 / 16;
-  border-radius: var(--ru-radius);
+  border-radius: var(--awa-sv-radius);
   overflow: hidden;
   background: #1c1c1c;
-  box-shadow: var(--ru-shadow);
+  box-shadow: var(--awa-sv-shadow);
   isolation: isolate;
 }
 
-.reelup-deck__play {
+.awa-sv-deck__play {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -507,10 +507,10 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
   width: 56px;
   height: 56px;
   margin: -28px 0 0 -28px;
-  transition: transform 0.25s var(--ru-ease), opacity 0.25s ease;
+  transition: transform 0.25s var(--awa-sv-ease), opacity 0.25s ease;
 }
 
-.reelup-deck__caption {
+.awa-sv-deck__caption {
   position: absolute;
   inset: auto 0 0;
   z-index: 2;
@@ -524,7 +524,7 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
   transition: opacity 0.25s ease;
 }
 
-.reelup-deck__title {
+.awa-sv-deck__title {
   font-weight: 600;
   font-size: 15px;
   line-height: 1.25;
@@ -534,12 +534,12 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
   overflow: hidden;
 }
 
-.reelup-deck__meta {
+.awa-sv-deck__meta {
   font-size: 12px;
   opacity: 0.8;
 }
 
-.reelup-deck .reelup-chip {
+.awa-sv-deck .awa-sv-chip {
   inset-inline-start: auto;
   inset-inline-end: 10px;
   top: 10px;
@@ -548,7 +548,7 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
 
 /* Stack layout (JS-enhanced). Until reel-trigger.js marks it ready it
    renders as a plain scrolling row, so no-JS and slow-JS both look sane. */
-.reelup-deck__stage {
+.awa-sv-deck__stage {
   display: flex;
   gap: 14px;
   overflow-x: auto;
@@ -557,59 +557,59 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
   padding-bottom: 4px;
 }
 
-.reelup-deck__stage::-webkit-scrollbar {
+.awa-sv-deck__stage::-webkit-scrollbar {
   display: none;
 }
 
-.reelup-deck__card {
-  flex: 0 0 var(--ru-card);
+.awa-sv-deck__card {
+  flex: 0 0 var(--awa-sv-card);
   scroll-snap-align: center;
 }
 
 /* Same height before and after JS takes over, so the switch from row to
    stack causes no layout shift; only positioning changes on .is-ready. */
-.reelup-deck--stack .reelup-deck__stage {
-  height: calc(var(--ru-card) * 16 / 9 + 8px);
+.awa-sv-deck--stack .awa-sv-deck__stage {
+  height: calc(var(--awa-sv-card) * 16 / 9 + 8px + var(--awa-sv-info-h, 0px));
 }
 
-.reelup-deck--stack.is-ready .reelup-deck__stage {
+.awa-sv-deck--stack.is-ready .awa-sv-deck__stage {
   position: relative;
   display: block;
   overflow: visible;
   touch-action: pan-y;
 }
 
-.reelup-deck--stack.is-ready .reelup-deck__card {
+.awa-sv-deck--stack.is-ready .awa-sv-deck__card {
   position: absolute;
   top: 0;
   left: 50%;
-  width: var(--ru-card);
+  width: var(--awa-sv-card);
   transform:
-    translateX(calc(-50% + var(--ru-offset, 0) * var(--ru-spread)))
-    scale(calc(1 - var(--ru-distance, 0) * 0.13));
+    translateX(calc(-50% + var(--awa-sv-offset, 0) * var(--awa-sv-spread)))
+    scale(calc(1 - var(--awa-sv-distance, 0) * 0.13));
   transform-origin: 50% 60%;
-  filter: brightness(calc(1 - var(--ru-distance, 0) * 0.16));
-  transition: transform 0.5s var(--ru-ease), filter 0.5s ease, opacity 0.3s ease;
+  filter: brightness(calc(1 - var(--awa-sv-distance, 0) * 0.16));
+  transition: transform 0.5s var(--awa-sv-ease), filter 0.5s ease, opacity 0.3s ease;
 }
 
-.reelup-deck--stack.is-ready .reelup-deck__card[data-far] {
+.awa-sv-deck--stack.is-ready .awa-sv-deck__card[data-far] {
   opacity: 0;
   pointer-events: none;
 }
 
-.reelup-deck--stack.is-ready .reelup-deck__card:not(.is-active) .reelup-deck__play,
-.reelup-deck--stack.is-ready .reelup-deck__card:not(.is-active) .reelup-deck__caption,
-.reelup-deck--stack.is-ready .reelup-deck__card:not(.is-active) .reelup-chip {
+.awa-sv-deck--stack.is-ready .awa-sv-deck__card:not(.is-active) .awa-sv-deck__play,
+.awa-sv-deck--stack.is-ready .awa-sv-deck__card:not(.is-active) .awa-sv-deck__caption,
+.awa-sv-deck--stack.is-ready .awa-sv-deck__card:not(.is-active) .awa-sv-chip {
   opacity: 0;
 }
 
-.reelup-deck--stack.is-ready .reelup-deck__card:not(.is-active) .reelup-deck__play {
+.awa-sv-deck--stack.is-ready .awa-sv-deck__card:not(.is-active) .awa-sv-deck__play {
   transform: scale(0.6);
 }
 
 /* Space for the nav is reserved from first paint (visibility, not
    display), so it appearing doesn't push the page down. */
-.reelup-deck__nav {
+.awa-sv-deck__nav {
   display: flex;
   visibility: hidden;
   align-items: center;
@@ -618,95 +618,296 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
   margin-top: 18px;
 }
 
-.reelup-deck--stack.is-ready .reelup-deck__nav {
+.awa-sv-deck--stack.is-ready .awa-sv-deck__nav {
   visibility: visible;
 }
 
-.reelup-deck .reelup-deck__status {
+.awa-sv-deck .awa-sv-deck__status {
   display: block;
 }
 
-.reelup-deck__arrow {
+.awa-sv-deck__arrow {
   appearance: none;
   width: 40px;
   height: 40px;
   display: grid;
   place-items: center;
   border-radius: 50%;
-  border: 1px solid color-mix(in srgb, var(--ru-accent) 28%, transparent);
+  border: 1px solid color-mix(in srgb, var(--awa-sv-accent) 28%, transparent);
   background: transparent;
-  color: var(--ru-accent);
+  color: var(--awa-sv-accent);
   cursor: pointer;
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-.reelup-deck__arrow:hover {
-  background: color-mix(in srgb, var(--ru-accent) 12%, transparent);
+.awa-sv-deck__arrow:hover {
+  background: color-mix(in srgb, var(--awa-sv-accent) 12%, transparent);
 }
 
-.reelup .reelup-deck__arrow {
+.awa-sv .awa-sv-deck__arrow {
   padding: 0;
 }
 
-.reelup-deck__arrow:focus-visible {
-  outline: 2px solid var(--ru-accent);
+.awa-sv-deck__arrow:focus-visible {
+  outline: 2px solid var(--awa-sv-accent);
   outline-offset: 2px;
 }
 
-.reelup-deck__dots {
+.awa-sv-deck__dots {
   display: flex;
   gap: 6px;
 }
 
-.reelup-deck__dots span {
+.awa-sv-deck__dots span {
   width: 6px;
   height: 6px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--ru-accent) 25%, transparent);
-  transition: width 0.3s var(--ru-ease), background-color 0.3s ease;
+  background: color-mix(in srgb, var(--awa-sv-accent) 25%, transparent);
+  transition: width 0.3s var(--awa-sv-ease), background-color 0.3s ease;
 }
 
-.reelup-deck__dots span.is-active {
+.awa-sv-deck__dots span.is-active {
   width: 20px;
-  background: var(--ru-accent);
+  background: var(--awa-sv-accent);
 }
 
 /* Slider + grid alternates */
-.reelup-deck--carousel .reelup-deck__card {
+.awa-sv-deck--carousel .awa-sv-deck__card {
   flex-basis: clamp(170px, 22vw, 240px);
   scroll-snap-align: start;
 }
 
-.reelup-deck--grid .reelup-deck__stage {
+.awa-sv-deck--grid .awa-sv-deck__stage {
   display: grid;
-  grid-template-columns: repeat(var(--ru-columns, 4), minmax(0, 1fr));
+  grid-template-columns: repeat(var(--awa-sv-columns, 4), minmax(0, 1fr));
   gap: 16px;
   overflow: visible;
 }
 
 @media (max-width: 749px) {
-  .reelup-deck--grid .reelup-deck__stage {
+  .awa-sv-deck--grid .awa-sv-deck__stage {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-.reelup-deck--carousel .reelup-deck__play,
-.reelup-deck--grid .reelup-deck__play {
+.awa-sv-deck--carousel .awa-sv-deck__play,
+.awa-sv-deck--grid .awa-sv-deck__play {
   width: 44px;
   height: 44px;
   margin: -22px 0 0 -22px;
+}
+
+/* ---------- carousel header: eyebrow, heading, intro ---------- */
+
+.awa-sv-deck__header {
+  max-width: 46rem;
+  margin: 0 auto 20px;
+  padding-inline: 16px;
+  text-align: center;
+}
+
+.awa-sv-deck__header .awa-sv-heading {
+  margin: 0;
+}
+
+.awa-sv-deck__eyebrow {
+  margin: 0 0 10px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--awa-sv-eyebrow, var(--awa-sv-muted));
+}
+
+.awa-sv-deck__subheading {
+  margin: 10px 0 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--awa-sv-muted);
+}
+
+/* ---------- carousel card templates ---------- */
+
+/* "58% OFF" ribbon, notched on its trailing edge. */
+.awa-sv-deck__badge {
+  position: absolute;
+  top: 10px;
+  inset-inline-start: 8px;
+  z-index: 3;
+  padding: 3px 12px 3px 7px;
+  background: var(--awa-sv-card-badge, var(--awa-sv-brand-sale, #c8102e));
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 6px) 50%, 100% 100%, 0 100%);
+  pointer-events: none;
+}
+
+html[dir="rtl"] .awa-sv-deck__badge {
+  padding: 3px 7px 3px 12px;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 6px 50%);
+}
+
+/* The lead product: thumbnail, one-line title, price with compare-at. */
+.awa-sv-deck__product {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  text-align: start;
+}
+
+.awa-sv .awa-sv-deck__thumb {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: #fff;
+}
+
+.awa-sv-deck__product-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.awa-sv-deck__product-title {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.awa-sv-deck__product-price {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 6px;
+  font-size: 12px;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+}
+
+.awa-sv-deck__product-price s {
+  opacity: 0.7;
+}
+
+/* Overlay: a frosted bar over the bottom of the video. */
+.awa-sv-deck__overlay {
+  position: absolute;
+  inset: auto 6px 6px;
+  z-index: 2;
+  display: block;
+  padding: 7px;
+  border: 1px solid rgb(255 255 255 / 0.18);
+  border-radius: min(var(--awa-sv-radius), 10px);
+  background: rgb(24 24 24 / 0.42);
+  -webkit-backdrop-filter: blur(10px) saturate(1.2);
+  backdrop-filter: blur(10px) saturate(1.2);
+  color: #fff;
+  transition: opacity 0.25s ease;
+}
+
+/* Classic / modern / vibrant: the product under the video. */
+.awa-sv .awa-sv-deck__info {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 10px;
+  color: var(--awa-sv-text);
+  cursor: pointer;
+}
+
+.awa-sv-deck__shop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: min(var(--awa-sv-radius), 999px);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.awa-sv-deck--card-modern .awa-sv-deck__poster {
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+}
+
+.awa-sv-deck--card-modern .awa-sv-deck__info {
+  padding: 12px;
+  border: 1px solid var(--awa-sv-line);
+  border-top: 0;
+  border-radius: 0 0 var(--awa-sv-radius) var(--awa-sv-radius);
+}
+
+.awa-sv-deck--card-modern .awa-sv-deck__shop {
+  border: 1.5px solid currentColor;
+}
+
+.awa-sv-deck--card-modern .awa-sv-deck__info:hover .awa-sv-deck__shop {
+  background: color-mix(in srgb, var(--awa-sv-text) 10%, transparent);
+}
+
+.awa-sv-deck--card-vibrant .awa-sv-deck__product-price > span:first-child {
+  color: var(--awa-sv-brand-sale, #b42318);
+  font-weight: 700;
+}
+
+.awa-sv-deck--card-vibrant .awa-sv-deck__shop {
+  border-radius: 999px;
+  background: var(--awa-sv-cta);
+  color: var(--awa-sv-cta-text);
+}
+
+.awa-sv-deck--card-vibrant .awa-sv-deck__info:hover .awa-sv-deck__shop {
+  background: color-mix(in srgb, var(--awa-sv-cta) 85%, #fff);
+}
+
+/* The stack is absolutely positioned, so it reserves the product line's
+   height up front (same height before and after JS, as above). */
+.awa-sv-deck--card-classic { --awa-sv-info-h: 62px; }
+.awa-sv-deck--card-modern { --awa-sv-info-h: 118px; }
+.awa-sv-deck--card-vibrant { --awa-sv-info-h: 108px; }
+
+.awa-sv-deck--stack .awa-sv-deck__info {
+  min-height: var(--awa-sv-info-h);
+}
+
+/* Side cards in the stack tuck behind the front one: their product line
+   would overlap it, so only the front card shows its own. */
+.awa-sv-deck--stack.is-ready .awa-sv-deck__card:not(.is-active) :is(.awa-sv-deck__overlay, .awa-sv-deck__info) {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.awa-sv-deck__info {
+  transition: opacity 0.25s ease;
+}
+
+.awa-sv-deck--stack.is-ready.awa-sv-deck--card-modern .awa-sv-deck__card:not(.is-active) .awa-sv-deck__poster {
+  border-radius: var(--awa-sv-radius);
 }
 
 /* =================================================================
    Stories, ringed avatars
    ================================================================= */
 
-.reelup-stories {
-  --ru-avatar: 72px;
+.awa-sv-stories {
+  --awa-sv-avatar: 72px;
   margin-block: 16px;
 }
 
-.reelup-stories__row {
+.awa-sv-stories__row {
   display: flex;
   gap: 14px;
   overflow-x: auto;
@@ -715,13 +916,13 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
   padding: 4px 2px;
 }
 
-.reelup-stories__row::-webkit-scrollbar {
+.awa-sv-stories__row::-webkit-scrollbar {
   display: none;
 }
 
-.reelup-stories__item {
+.awa-sv-stories__item {
   flex: 0 0 auto;
-  width: calc(var(--ru-avatar) + 10px);
+  width: calc(var(--awa-sv-avatar) + 10px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -729,103 +930,103 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
   scroll-snap-align: start;
 }
 
-.reelup-stories .reelup-trigger__button.reelup-stories__avatar {
-  width: var(--ru-avatar);
-  height: var(--ru-avatar);
+.awa-sv-stories .awa-sv-trigger__button.awa-sv-stories__avatar {
+  width: var(--awa-sv-avatar);
+  height: var(--awa-sv-avatar);
   border-radius: 50%;
 }
 
-.reelup-stories__ring {
+.awa-sv-stories__ring {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: linear-gradient(45deg, var(--ru-ring-start), var(--ru-ring-end));
-  transition: transform 0.3s var(--ru-ease);
+  background: linear-gradient(45deg, var(--awa-sv-ring-start), var(--awa-sv-ring-end));
+  transition: transform 0.3s var(--awa-sv-ease);
 }
 
-.reelup-stories__photo {
+.awa-sv-stories__photo {
   position: absolute;
   inset: 5px;
   border-radius: 50%;
   overflow: hidden;
   background: #e9e9e9;
-  box-shadow: 0 0 0 2px var(--ru-story-gap, #fff);
+  box-shadow: 0 0 0 2px var(--awa-sv-story-gap, #fff);
 }
 
-.reelup-stories__photo .reelup-trigger__poster {
+.awa-sv-stories__photo .awa-sv-trigger__poster {
   border-radius: 50%;
 }
 
-.reelup-stories .reelup-trigger.is-seen .reelup-stories__ring {
-  background: color-mix(in srgb, var(--ru-text) 22%, #fff);
+.awa-sv-stories .awa-sv-trigger.is-seen .awa-sv-stories__ring {
+  background: color-mix(in srgb, var(--awa-sv-text) 22%, #fff);
 }
 
 @media (hover: hover) {
-  .reelup-stories__avatar:hover .reelup-stories__ring {
+  .awa-sv-stories__avatar:hover .awa-sv-stories__ring {
     transform: rotate(45deg) scale(1.04);
   }
 }
 
-.reelup-stories__photo {
-  transition: transform 0.2s var(--ru-ease);
+.awa-sv-stories__photo {
+  transition: transform 0.2s var(--awa-sv-ease);
 }
 
-.reelup-stories__avatar:active .reelup-stories__photo {
+.awa-sv-stories__avatar:active .awa-sv-stories__photo {
   transform: scale(0.94);
 }
 
-.reelup-stories__label {
+.awa-sv-stories__label {
   max-width: 100%;
   font-size: 12px;
   line-height: 1.3;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--ru-text);
+  color: var(--awa-sv-text);
 }
 
 /* =================================================================
    Featured video, split
    ================================================================= */
 
-.reelup-feature {
+.awa-sv-feature {
   margin-block: 32px;
 }
 
-.reelup-feature--split {
+.awa-sv-feature--split {
   display: grid;
-  grid-template-columns: minmax(0, var(--ru-video-width, 340px)) minmax(0, 1fr);
+  grid-template-columns: minmax(0, var(--awa-sv-video-width, 340px)) minmax(0, 1fr);
   gap: clamp(24px, 4vw, 56px);
   align-items: center;
 }
 
 @media (max-width: 749px) {
-  .reelup-feature--split {
+  .awa-sv-feature--split {
     grid-template-columns: minmax(0, 1fr);
   }
-  .reelup-feature--split .reelup-feature__video {
-    max-width: min(var(--ru-video-width, 340px), 78vw);
+  .awa-sv-feature--split .awa-sv-feature__video {
+    max-width: min(var(--awa-sv-video-width, 340px), 78vw);
     margin-inline: auto;
     width: 100%;
   }
 }
 
-.reelup-feature--poster .reelup-feature__video {
+.awa-sv-feature--poster .awa-sv-feature__video {
   width: 100%;
-  max-width: var(--ru-video-width, 340px);
+  max-width: var(--awa-sv-video-width, 340px);
   margin-inline: auto;
 }
 
-.reelup-feature__poster {
+.awa-sv-feature__poster {
   aspect-ratio: 9 / 16;
-  border-radius: var(--ru-radius);
+  border-radius: var(--awa-sv-radius);
   overflow: hidden;
   background: #1c1c1c;
-  box-shadow: var(--ru-shadow);
+  box-shadow: var(--awa-sv-shadow);
   isolation: isolate;
 }
 
-.reelup-feature__play {
+.awa-sv-feature__play {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -833,48 +1034,48 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
   width: 68px;
   height: 68px;
   margin: -34px 0 0 -34px;
-  transition: transform 0.3s var(--ru-ease);
+  transition: transform 0.3s var(--awa-sv-ease);
 }
 
-.reelup-feature__poster:hover .reelup-feature__play {
+.awa-sv-feature__poster:hover .awa-sv-feature__play {
   transform: scale(1.08);
 }
 
-.reelup-feature__body {
+.awa-sv-feature__body {
   min-width: 0;
   max-width: 520px;
 }
 
-.reelup-feature__heading {
+.awa-sv-feature__heading {
   margin: 0;
   font-size: clamp(1.4rem, 1.1rem + 1.2vw, 2.1rem);
   line-height: 1.12;
   letter-spacing: -0.02em;
-  color: var(--ru-text);
+  color: var(--awa-sv-text);
 }
 
-.reelup-feature__subtitle {
+.awa-sv-feature__subtitle {
   margin: 8px 0 0;
-  color: var(--ru-muted);
+  color: var(--awa-sv-muted);
   font-size: 15px;
 }
 
-.reelup-feature__products {
+.awa-sv-feature__products {
   margin-top: 20px;
-  border-top: 1px solid var(--ru-line);
+  border-top: 1px solid var(--awa-sv-line);
 }
 
-.reelup-feature__products .reelup-product {
+.awa-sv-feature__products .awa-sv-product {
   padding-block: 14px;
-  border-bottom: 1px solid var(--ru-line);
+  border-bottom: 1px solid var(--awa-sv-line);
 }
 
-.reelup-feature__status {
+.awa-sv-feature__status {
   margin: 12px 0 0;
   font-size: 14px;
 }
 
-.reelup-feature__status a {
+.awa-sv-feature__status a {
   color: inherit;
   text-underline-offset: 3px;
 }
@@ -883,41 +1084,41 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
    Add-to-cart video, compact row
    ================================================================= */
 
-.reelup-atc {
+.awa-sv-atc {
   margin-block: 12px;
-  --ru-thumb: 56px;
+  --awa-sv-thumb: 56px;
 }
 
-.reelup-atc.reelup--filled {
+.awa-sv-atc.awa-sv--filled {
   padding: 0;
 }
 
-.reelup .reelup-trigger__button.reelup-atc__button {
+.awa-sv .awa-sv-trigger__button.awa-sv-atc__button {
   display: flex;
   align-items: center;
   gap: 14px;
   padding-block: 8px; padding-inline: 8px 14px;
-  border: 1px solid var(--ru-line);
-  border-radius: var(--ru-radius);
-  background: var(--ru-bg);
+  border: 1px solid var(--awa-sv-line);
+  border-radius: var(--awa-sv-radius);
+  background: var(--awa-sv-bg);
   transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
-.reelup .reelup-trigger__button.reelup-atc__button:hover {
-  border-color: color-mix(in srgb, var(--ru-text) 40%, transparent);
+.awa-sv .awa-sv-trigger__button.awa-sv-atc__button:hover {
+  border-color: color-mix(in srgb, var(--awa-sv-text) 40%, transparent);
 }
 
-.reelup-atc__thumb {
+.awa-sv-atc__thumb {
   position: relative;
   flex-shrink: 0;
-  width: var(--ru-thumb);
-  height: var(--ru-thumb);
-  border-radius: min(var(--ru-radius), 8px);
+  width: var(--awa-sv-thumb);
+  height: var(--awa-sv-thumb);
+  border-radius: min(var(--awa-sv-radius), 8px);
   overflow: hidden;
   background: #1c1c1c;
 }
 
-.reelup-atc__play {
+.awa-sv-atc__play {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -927,7 +1128,7 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
   margin: -13px 0 0 -13px;
 }
 
-.reelup-atc__text {
+.awa-sv-atc__text {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -935,33 +1136,33 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
   gap: 2px;
 }
 
-.reelup-atc__label {
+.awa-sv-atc__label {
   font-weight: 600;
   font-size: 15px;
   line-height: 1.3;
 }
 
-.reelup-atc__meta {
+.awa-sv-atc__meta {
   display: flex;
   gap: 8px;
-  color: var(--ru-muted);
+  color: var(--awa-sv-muted);
   font-size: 13px;
   line-height: 1.3;
   overflow: hidden;
   white-space: nowrap;
 }
 
-.reelup-atc__meta > :first-child {
+.awa-sv-atc__meta > :first-child {
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.reelup-atc__length {
+.awa-sv-atc__length {
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
 }
 
-.reelup-atc__length::before {
+.awa-sv-atc__length::before {
   content: "";
   display: inline-block;
   width: 3px;
@@ -972,13 +1173,13 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
   vertical-align: middle;
 }
 
-.reelup-atc__chevron {
+.awa-sv-atc__chevron {
   flex-shrink: 0;
-  color: var(--ru-muted);
-  transition: transform 0.2s var(--ru-ease);
+  color: var(--awa-sv-muted);
+  transition: transform 0.2s var(--awa-sv-ease);
 }
 
-.reelup-atc__button:hover .reelup-atc__chevron {
+.awa-sv-atc__button:hover .awa-sv-atc__chevron {
   transform: translateX(3px);
 }
 
@@ -986,9 +1187,9 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
    Floating video, pop
    ================================================================= */
 
-.reelup-pop {
-  --ru-pop-size: 96px;
-  --ru-pop-border: #fff;
+.awa-sv-pop {
+  --awa-sv-pop-size: 96px;
+  --awa-sv-pop-border: #fff;
   position: fixed;
   /* Above page content and sticky headers (Dawn's header is ~3-4) but
      below theme drawers, modals and cart notifications (typically 100+),
@@ -997,81 +1198,81 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
   display: flex;
   align-items: flex-end;
   gap: 10px;
-  animation: reelup-pop-in 0.45s var(--ru-ease) both;
+  animation: awa-sv-pop-in 0.45s var(--awa-sv-ease) both;
 }
 
-.reelup-pop[hidden] {
+.awa-sv-pop[hidden] {
   display: none;
 }
 
 /* Corners are physical (the merchant picks "bottom right"), so these stay
    left/right rather than logical. Safe-area insets keep it clear of the
    iOS home indicator and notches. */
-.reelup-pop--bottom-right { right: calc(20px + env(safe-area-inset-right)); bottom: calc(20px + env(safe-area-inset-bottom)); flex-direction: row-reverse; }
-.reelup-pop--bottom-left { left: calc(20px + env(safe-area-inset-left)); bottom: calc(20px + env(safe-area-inset-bottom)); }
-.reelup-pop--top-right { right: calc(20px + env(safe-area-inset-right)); top: calc(20px + env(safe-area-inset-top)); flex-direction: row-reverse; align-items: flex-start; }
-.reelup-pop--top-left { left: calc(20px + env(safe-area-inset-left)); top: calc(20px + env(safe-area-inset-top)); align-items: flex-start; }
+.awa-sv-pop--bottom-right { right: calc(20px + env(safe-area-inset-right)); bottom: calc(20px + env(safe-area-inset-bottom)); flex-direction: row-reverse; }
+.awa-sv-pop--bottom-left { left: calc(20px + env(safe-area-inset-left)); bottom: calc(20px + env(safe-area-inset-bottom)); }
+.awa-sv-pop--top-right { right: calc(20px + env(safe-area-inset-right)); top: calc(20px + env(safe-area-inset-top)); flex-direction: row-reverse; align-items: flex-start; }
+.awa-sv-pop--top-left { left: calc(20px + env(safe-area-inset-left)); top: calc(20px + env(safe-area-inset-top)); align-items: flex-start; }
 
 @media (max-width: 749px) {
   /* Bottom-right is raised on phones to clear chat bubbles (Shopify Inbox
      and similar sit in that corner at ~60-70px). */
-  .reelup-pop--bottom-right { right: calc(12px + env(safe-area-inset-right)); bottom: calc(90px + env(safe-area-inset-bottom)); }
-  .reelup-pop--bottom-left { left: calc(12px + env(safe-area-inset-left)); bottom: calc(12px + env(safe-area-inset-bottom)); }
-  .reelup-pop--top-right { right: calc(12px + env(safe-area-inset-right)); top: calc(12px + env(safe-area-inset-top)); }
-  .reelup-pop--top-left { left: calc(12px + env(safe-area-inset-left)); top: calc(12px + env(safe-area-inset-top)); }
+  .awa-sv-pop--bottom-right { right: calc(12px + env(safe-area-inset-right)); bottom: calc(90px + env(safe-area-inset-bottom)); }
+  .awa-sv-pop--bottom-left { left: calc(12px + env(safe-area-inset-left)); bottom: calc(12px + env(safe-area-inset-bottom)); }
+  .awa-sv-pop--top-right { right: calc(12px + env(safe-area-inset-right)); top: calc(12px + env(safe-area-inset-top)); }
+  .awa-sv-pop--top-left { left: calc(12px + env(safe-area-inset-left)); top: calc(12px + env(safe-area-inset-top)); }
   /* The size arrives as an inline custom property, so cap the width on the
      player itself (a var can't be capped by redefining it in terms of
      itself, that's a cycle and the inline value wins anyway). */
-  .reelup .reelup-trigger__button.reelup-pop__player {
-    width: min(var(--ru-pop-size), 84px);
+  .awa-sv .awa-sv-trigger__button.awa-sv-pop__player {
+    width: min(var(--awa-sv-pop-size), 84px);
   }
 }
 
-.reelup-pop__frame {
+.awa-sv-pop__frame {
   position: relative;
 }
 
-.reelup .reelup-trigger__button.reelup-pop__player {
-  width: var(--ru-pop-size);
+.awa-sv .awa-sv-trigger__button.awa-sv-pop__player {
+  width: var(--awa-sv-pop-size);
   overflow: hidden;
   background: #1c1c1c;
-  box-shadow: 0 0 0 2px var(--ru-pop-border), 0 12px 28px rgb(0 0 0 / 0.3);
-  transition: transform 0.25s var(--ru-ease);
+  box-shadow: 0 0 0 2px var(--awa-sv-pop-border), 0 12px 28px rgb(0 0 0 / 0.3);
+  transition: transform 0.25s var(--awa-sv-ease);
 }
 
-.reelup-pop--portrait .reelup-pop__player {
+.awa-sv-pop--portrait .awa-sv-pop__player {
   aspect-ratio: 9 / 16;
   border-radius: 14px;
 }
 
-.reelup-pop--circle .reelup-pop__player {
+.awa-sv-pop--circle .awa-sv-pop__player {
   aspect-ratio: 1;
   border-radius: 50%;
 }
 
-.reelup .reelup-trigger__button.reelup-pop__player:hover {
+.awa-sv .awa-sv-trigger__button.awa-sv-pop__player:hover {
   transform: translateY(-2px) scale(1.03);
 }
 
-.reelup .reelup-trigger__button.reelup-pop__player:active {
+.awa-sv .awa-sv-trigger__button.awa-sv-pop__player:active {
   transform: scale(0.97);
 }
 
-.reelup-pop--pulse .reelup-pop__frame::before {
+.awa-sv-pop--pulse .awa-sv-pop__frame::before {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: 14px;
-  box-shadow: 0 0 0 0 var(--ru-pop-border);
-  animation: reelup-pop-pulse 2s ease-out 0.6s 2;
+  box-shadow: 0 0 0 0 var(--awa-sv-pop-border);
+  animation: awa-sv-pop-pulse 2s ease-out 0.6s 2;
   pointer-events: none;
 }
 
-.reelup-pop--circle.reelup-pop--pulse .reelup-pop__frame::before {
+.awa-sv-pop--circle.awa-sv-pop--pulse .awa-sv-pop__frame::before {
   border-radius: 50%;
 }
 
-.reelup-pop__dismiss {
+.awa-sv-pop__dismiss {
   appearance: none;
   position: absolute;
   top: -8px;
@@ -1090,29 +1291,29 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
 }
 
 /* The visible dot stays small; the tap target is a comfortable 44px. */
-.reelup-pop__dismiss::before {
+.awa-sv-pop__dismiss::before {
   content: "";
   position: absolute;
   inset: -10px;
   border-radius: 50%;
 }
 
-.reelup-pop__dismiss:hover {
+.awa-sv-pop__dismiss:hover {
   background: #000;
 }
 
-.reelup-pop--bottom-left .reelup-pop__dismiss,
-.reelup-pop--top-left .reelup-pop__dismiss {
+.awa-sv-pop--bottom-left .awa-sv-pop__dismiss,
+.awa-sv-pop--top-left .awa-sv-pop__dismiss {
   right: auto;
   left: -8px;
 }
 
-.reelup-pop__dismiss:focus-visible {
+.awa-sv-pop__dismiss:focus-visible {
   outline: 2px solid #fff;
   outline-offset: 2px;
 }
 
-.reelup .reelup-pop__label {
+.awa-sv .awa-sv-pop__label {
   appearance: none;
   border: 0;
   margin-bottom: 8px;
@@ -1129,23 +1330,23 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
   cursor: pointer;
 }
 
-.reelup-pop--top-right .reelup-pop__label,
-.reelup-pop--top-left .reelup-pop__label {
+.awa-sv-pop--top-right .awa-sv-pop__label,
+.awa-sv-pop--top-left .awa-sv-pop__label {
   margin: 8px 0 0;
 }
 
 @media (max-width: 480px) {
-  .reelup-pop__label {
+  .awa-sv-pop__label {
     display: none;
   }
 }
 
-@keyframes reelup-pop-in {
+@keyframes awa-sv-pop-in {
   from { opacity: 0; transform: translateY(16px) scale(0.92); }
 }
 
-@keyframes reelup-pop-pulse {
-  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ru-pop-border) 70%, transparent); }
+@keyframes awa-sv-pop-pulse {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--awa-sv-pop-border) 70%, transparent); }
   100% { box-shadow: 0 0 0 14px transparent; }
 }
 
@@ -1153,36 +1354,36 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
    Product card, shared by the featured video list and the viewers
    ================================================================= */
 
-.reelup-product {
+.awa-sv-product {
   display: flex;
   align-items: center;
   gap: 12px;
   min-width: 0;
 }
 
-.reelup-product__media {
+.awa-sv-product__media {
   flex-shrink: 0;
   display: block;
   width: 56px;
   height: 56px;
   border-radius: 8px;
   overflow: hidden;
-  background: var(--ru-line, #eee);
+  background: var(--awa-sv-line, #eee);
 }
 
-.reelup-feature .reelup-product__media {
+.awa-sv-feature .awa-sv-product__media {
   width: 72px;
   height: 72px;
 }
 
-.reelup-product__media img {
+.awa-sv-product__media img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   display: block;
 }
 
-.reelup-product__info {
+.awa-sv-product__info {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -1190,7 +1391,7 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
   gap: 2px;
 }
 
-.reelup-product__title {
+.awa-sv-product__title {
   color: inherit;
   text-decoration: none;
   font-size: 14px;
@@ -1202,12 +1403,12 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
   overflow: hidden;
 }
 
-.reelup-product__title:hover {
+.awa-sv-product__title:hover {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
-.reelup-product__price {
+.awa-sv-product__price {
   display: flex;
   flex-wrap: wrap;
   gap: 2px 6px;
@@ -1216,22 +1417,22 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
   font-variant-numeric: tabular-nums;
 }
 
-.reelup-product__price:has([data-reelup-compare]:not([hidden])) [data-reelup-price] {
-  color: var(--ru-brand-sale, #b42318);
+.awa-sv-product__price:has([data-awa-sv-compare]:not([hidden])) [data-awa-sv-price] {
+  color: var(--awa-sv-brand-sale, #b42318);
   font-weight: 600;
 }
 
-.reelup-product__compare {
-  color: var(--ru-muted, #767676);
+.awa-sv-product__compare {
+  color: var(--awa-sv-muted, #767676);
   font-size: 12px;
 }
 
 /* "−20%": the brand kit's sale colour, like the sale price beside it. */
-.reelup-product__badge {
+.awa-sv-product__badge {
   align-self: center;
   padding: 0 6px;
   border-radius: 999px;
-  background: var(--ru-brand-sale, #b42318);
+  background: var(--awa-sv-brand-sale, #b42318);
   color: #fff;
   font-size: 11px;
   font-weight: 700;
@@ -1242,7 +1443,7 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
 /* Scoped to our containers (two classes) so theme select/button rules
    don't restyle it; many themes set `select { appearance: none }`, which
    would drop the arrow, so we draw our own neutral chevron. */
-:is(.reelup, .reelup-viewer, .reelup-story) .reelup-product__variant {
+:is(.awa-sv, .awa-sv-viewer, .awa-sv-story) .awa-sv-product__variant {
   -webkit-appearance: none;
   appearance: none;
   margin-top: 4px;
@@ -1256,7 +1457,7 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
   color: inherit;
   padding-block: 3px;
   padding-inline: 8px 24px;
-  border: 1px solid var(--ru-line, #ddd);
+  border: 1px solid var(--awa-sv-line, #ddd);
   border-radius: 6px;
   box-shadow: none;
   background-color: transparent;
@@ -1266,11 +1467,11 @@ html[dir="rtl"] .reelup-arrow svg { transform: scaleX(-1); }
   background-size: 8px 5px;
 }
 
-html[dir="rtl"] :is(.reelup, .reelup-viewer, .reelup-story) .reelup-product__variant {
+html[dir="rtl"] :is(.awa-sv, .awa-sv-viewer, .awa-sv-story) .awa-sv-product__variant {
   background-position: left 8px center;
 }
 
-:is(.reelup, .reelup-viewer, .reelup-story) .reelup-product__add {
+:is(.awa-sv, .awa-sv-viewer, .awa-sv-story) .awa-sv-product__add {
   appearance: none;
   display: inline-flex;
   align-items: center;
@@ -1284,8 +1485,8 @@ html[dir="rtl"] :is(.reelup, .reelup-viewer, .reelup-story) .reelup-product__var
   padding: 0 16px;
   border: 0;
   border-radius: 999px;
-  background: var(--ru-cta, #141414);
-  color: var(--ru-cta-text, #fff);
+  background: var(--awa-sv-cta, #141414);
+  color: var(--awa-sv-cta-text, #fff);
   font: inherit;
   font-size: 13px;
   font-weight: 600;
@@ -1294,58 +1495,58 @@ html[dir="rtl"] :is(.reelup, .reelup-viewer, .reelup-story) .reelup-product__var
   transition: background-color 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
 }
 
-.reelup-product__add:hover:not(:disabled) {
-  background: var(--ru-cta-hover, color-mix(in srgb, var(--ru-cta, #141414) 85%, #fff));
+.awa-sv-product__add:hover:not(:disabled) {
+  background: var(--awa-sv-cta-hover, color-mix(in srgb, var(--awa-sv-cta, #141414) 85%, #fff));
 }
 
-.reelup-product__add:active:not(:disabled) {
+.awa-sv-product__add:active:not(:disabled) {
   transform: scale(0.96);
 }
 
-.reelup-product__add:focus-visible {
-  outline: 2px solid var(--ru-cta, #141414);
+.awa-sv-product__add:focus-visible {
+  outline: 2px solid var(--awa-sv-cta, #141414);
   outline-offset: 2px;
 }
 
-.reelup-product__add:disabled {
+.awa-sv-product__add:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
 /* Adding: the label stays (so the button keeps its width) but turns
    invisible under a spinner. Added: a check mark pops in beside "Added". */
-:is(.reelup, .reelup-viewer, .reelup-story) .reelup-product__add {
+:is(.awa-sv, .awa-sv-viewer, .awa-sv-story) .awa-sv-product__add {
   position: relative;
-  --ru-spinner: var(--ru-cta-text, #fff);
+  --awa-sv-spinner: var(--awa-sv-cta-text, #fff);
 }
 
-:is(.reelup, .reelup-viewer, .reelup-story) .reelup-product__add[data-state="loading"] {
+:is(.awa-sv, .awa-sv-viewer, .awa-sv-story) .awa-sv-product__add[data-state="loading"] {
   /* Beats every hover/variant colour rule for the moment it's adding. */
   color: transparent !important;
   cursor: progress;
 }
 
-.reelup-product__add[data-state="loading"]::after {
+.awa-sv-product__add[data-state="loading"]::after {
   content: "";
   position: absolute;
   inset: 0;
   width: 16px;
   height: 16px;
   margin: auto;
-  border: 2px solid var(--ru-spinner);
+  border: 2px solid var(--awa-sv-spinner);
   border-right-color: transparent;
   border-radius: 50%;
-  animation: reelup-spin 0.7s linear infinite;
+  animation: awa-sv-spin 0.7s linear infinite;
 }
 
 /* Scoped like the hover rule and after it, so the success colour shows
    while the pointer is still on the button that was just clicked. */
-:is(.reelup, .reelup-viewer, .reelup-story) .reelup-product__add[data-state="added"] {
+:is(.awa-sv, .awa-sv-viewer, .awa-sv-story) .awa-sv-product__add[data-state="added"] {
   background: #1f7a4d;
   color: #fff;
 }
 
-.reelup-product__add[data-state="added"]::before {
+.awa-sv-product__add[data-state="added"]::before {
   content: "";
   flex-shrink: 0;
   width: 14px;
@@ -1354,71 +1555,71 @@ html[dir="rtl"] :is(.reelup, .reelup-viewer, .reelup-story) .reelup-product__var
   background: currentColor;
   -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat;
   mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / contain no-repeat;
-  animation: reelup-check 0.35s var(--ru-ease, ease) both;
+  animation: awa-sv-check 0.35s var(--awa-sv-ease, ease) both;
 }
 
-@keyframes reelup-spin {
+@keyframes awa-sv-spin {
   to { transform: rotate(360deg); }
 }
 
-@keyframes reelup-check {
+@keyframes awa-sv-check {
   from { opacity: 0; transform: scale(0.4); }
 }
 
-.reelup-cta--square .reelup-product__add {
+.awa-sv-cta--square .awa-sv-product__add {
   border-radius: 4px;
 }
 
-.reelup-cta--text-link .reelup-product__add {
-  --ru-spinner: var(--ru-cta, #141414);
+.awa-sv-cta--text-link .awa-sv-product__add {
+  --awa-sv-spinner: var(--awa-sv-cta, #141414);
   box-shadow: none;
   background: transparent;
-  color: var(--ru-cta, #141414);
+  color: var(--awa-sv-cta, #141414);
   padding: 0 4px;
   text-decoration: underline;
   text-underline-offset: 4px;
 }
 
-.reelup-cta--text-link .reelup-product__add:hover:not(:disabled) {
+.awa-sv-cta--text-link .awa-sv-product__add:hover:not(:disabled) {
   background: transparent;
-  color: var(--ru-cta-hover, var(--ru-cta, #141414));
+  color: var(--awa-sv-cta-hover, var(--awa-sv-cta, #141414));
 }
 
-.reelup-cta--text-link .reelup-product__add[data-state="added"] {
+.awa-sv-cta--text-link .awa-sv-product__add[data-state="added"] {
   background: transparent;
   color: #1f7a4d;
 }
 
 /* Quantity stepper: when present, the card wraps so quantity and the add
    button share a full-width row under the product details. */
-.reelup-product:has([data-reelup-qty]) {
+.awa-sv-product:has([data-awa-sv-qty]) {
   flex-wrap: wrap;
   row-gap: 10px;
 }
 
-.reelup-product:has([data-reelup-qty]) .reelup-product__info {
+.awa-sv-product:has([data-awa-sv-qty]) .awa-sv-product__info {
   flex: 1 1 calc(100% - 92px);
 }
 
-.reelup-product:has([data-reelup-qty]) .reelup-product__add {
+.awa-sv-product:has([data-awa-sv-qty]) .awa-sv-product__add {
   flex: 1 1 auto;
 }
 
-.reelup-qty {
+.awa-sv-qty {
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
   height: 36px;
-  border: 1px solid var(--ru-line, #ddd);
+  border: 1px solid var(--awa-sv-line, #ddd);
   border-radius: 999px;
   overflow: hidden;
 }
 
-.reelup-cta--square .reelup-qty {
+.awa-sv-cta--square .awa-sv-qty {
   border-radius: 4px;
 }
 
-.reelup-qty__step {
+.awa-sv-qty__step {
   appearance: none;
   width: 32px;
   height: 100%;
@@ -1430,11 +1631,11 @@ html[dir="rtl"] :is(.reelup, .reelup-viewer, .reelup-story) .reelup-product__var
   cursor: pointer;
 }
 
-.reelup-qty__step:hover {
-  background: var(--ru-line, #f1f1f1);
+.awa-sv-qty__step:hover {
+  background: var(--awa-sv-line, #f1f1f1);
 }
 
-.reelup-qty__input {
+.awa-sv-qty__input {
   width: 32px;
   height: 100%;
   padding: 0;
@@ -1448,26 +1649,26 @@ html[dir="rtl"] :is(.reelup, .reelup-viewer, .reelup-story) .reelup-product__var
   -moz-appearance: textfield;
 }
 
-.reelup-qty__input::-webkit-inner-spin-button,
-.reelup-qty__input::-webkit-outer-spin-button {
+.awa-sv-qty__input::-webkit-inner-spin-button,
+.awa-sv-qty__input::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
 
 /* RTL: the add-to-cart row's chevron points the other way. */
-html[dir="rtl"] .reelup-atc__chevron { transform: scaleX(-1); }
-html[dir="rtl"] .reelup-atc__button:hover .reelup-atc__chevron { transform: scaleX(-1) translateX(3px); }
+html[dir="rtl"] .awa-sv-atc__chevron { transform: scaleX(-1); }
+html[dir="rtl"] .awa-sv-atc__button:hover .awa-sv-atc__chevron { transform: scaleX(-1) translateX(3px); }
 
 @media (prefers-reduced-motion: reduce) {
-  .reelup *,
-  .reelup *::before,
-  .reelup *::after,
-  .reelup-pop {
+  .awa-sv *,
+  .awa-sv *::before,
+  .awa-sv *::after,
+  .awa-sv-pop {
     animation: none !important;
     transition: none !important;
   }
-  :is(.reelup-viewer, .reelup-story) .reelup-product__add::before,
-  :is(.reelup-viewer, .reelup-story) .reelup-product__add::after {
+  :is(.awa-sv-viewer, .awa-sv-story) .awa-sv-product__add::before,
+  :is(.awa-sv-viewer, .awa-sv-story) .awa-sv-product__add::after {
     animation: none;
   }
 }

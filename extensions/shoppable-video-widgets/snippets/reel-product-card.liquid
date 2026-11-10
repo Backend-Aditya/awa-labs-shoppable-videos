@@ -1,7 +1,7 @@
 {% doc %}
 One shoppable product row: image, title, price (with compare-at), a variant
 picker when the product has options, and a quick add button. Used inside
-every reel's <template data-reelup-products> (cloned into the video viewer
+every reel's <template data-awa-sv-products> (cloned into the video viewer
 and story drawer by JS) and rendered directly by the featured-video block's
 inline product list. Click/change behaviour is delegated document-wide in
 reel-lightbox.js, so the same markup works in all three places.
@@ -13,6 +13,7 @@ anyway, adding a variant the shopper never chose would be wrong.
 
 @param product {product} - the tagged product
 @param style {object} - the widget's style object (showPrice, showProductImage, showSaleBadge, ctaLabel)
+@param image_size {string} [optional] - 'large' renders a big image (the viewer then lays the row out as a tile)
 
 @example
 {% render 'reel-product-card' for reel.tagged_products.value as product, style: widget_style %}
@@ -49,23 +50,34 @@ anyway, adding a variant the shopper never chose would be wrong.
   endif
 -%}
 {%- if variant -%}
-<div class="reelup-product" data-reelup-product data-product-id="{{ product.id }}">
+<div class="awa-sv-product" data-awa-sv-product data-product-id="{{ product.id }}" data-product-url="{{ product.url }}">
   {%- if show_image and product.featured_image -%}
-    <a class="reelup-product__media" href="{{ product.url }}" data-reelup-product-link tabindex="-1" aria-hidden="true">
-      <img
-        src="{{ product.featured_image | image_url: width: 192 }}"
-        alt=""
-        loading="lazy"
-        width="96"
-        height="96"
-      >
+    <a class="awa-sv-product__media" href="{{ product.url }}" data-awa-sv-product-link tabindex="-1" aria-hidden="true">
+      {%- if image_size == 'large' -%}
+        {%- assign image_ratio = product.featured_image.aspect_ratio | default: 1 -%}
+        <img
+          src="{{ product.featured_image | image_url: width: 640 }}"
+          alt=""
+          loading="lazy"
+          width="320"
+          height="{{ 320 | divided_by: image_ratio | round }}"
+        >
+      {%- else -%}
+        <img
+          src="{{ product.featured_image | image_url: width: 192 }}"
+          alt=""
+          loading="lazy"
+          width="96"
+          height="96"
+        >
+      {%- endif -%}
     </a>
   {%- endif -%}
-  <div class="reelup-product__info">
-    <a class="reelup-product__title" href="{{ product.url }}" data-reelup-product-link>{{ product.title | escape }}</a>
+  <div class="awa-sv-product__info">
+    <a class="awa-sv-product__title" href="{{ product.url }}" data-awa-sv-product-link>{{ product.title | escape }}</a>
     {%- if show_price -%}
-      <span class="reelup-product__price">
-        <span data-reelup-price>
+      <span class="awa-sv-product__price">
+        <span data-awa-sv-price>
           {%- if choose_on_page and product.price_varies -%}
             {%- assign from_price = product.price_min | money_without_trailing_zeros | strip_html -%}
             {{ 'reels.price_from' | t: price: from_price }}
@@ -73,17 +85,17 @@ anyway, adding a variant the shopper never chose would be wrong.
             {{ variant.price | money }}
           {%- endif -%}
         </span>
-        <s class="reelup-product__compare" data-reelup-compare{% unless variant.compare_at_price > variant.price and choose_on_page == false %} hidden{% endunless %}>
+        <s class="awa-sv-product__compare" data-awa-sv-compare{% unless variant.compare_at_price > variant.price and choose_on_page == false %} hidden{% endunless %}>
           {{- variant.compare_at_price | money -}}
         </s>
         {%- if show_badge -%}
           {%- comment -%} Both prices are already read out; the badge is visual. {%- endcomment -%}
-          <span class="reelup-product__badge" data-reelup-badge aria-hidden="true"{% if discount == 0 %} hidden{% endif %}>−{{ discount }}%</span>
+          <span class="awa-sv-product__badge" data-awa-sv-badge aria-hidden="true"{% if discount == 0 %} hidden{% endif %}>−{{ discount }}%</span>
         {%- endif -%}
       </span>
     {%- endif -%}
     {%- unless product.has_only_default_variant or choose_on_page -%}
-      <select class="reelup-product__variant" data-reelup-variant aria-label="{{ 'reels.options_label' | t: product: product.title }}">
+      <select class="awa-sv-product__variant" data-awa-sv-variant aria-label="{{ 'reels.options_label' | t: product: product.title }}">
         {%- for option_variant in product.variants -%}
           <option
             value="{{ option_variant.id }}"
@@ -105,21 +117,21 @@ anyway, adding a variant the shopper never chose would be wrong.
     {%- endunless -%}
   </div>
   {%- if choose_on_page -%}
-    <a class="reelup-product__add reelup-product__choose" href="{{ product.url }}" data-reelup-product-link>
+    <a class="awa-sv-product__add awa-sv-product__choose" href="{{ product.url }}" data-awa-sv-product-link>
       {{- 'reels.choose_options' | t -}}
     </a>
   {%- else -%}
     {%- if style.showQuantity -%}
-      <div class="reelup-qty" data-reelup-qty>
-        <button type="button" class="reelup-qty__step" data-reelup-qty-step="-1" aria-label="{{ 'reels.decrease_quantity' | t }}">&minus;</button>
-        <input class="reelup-qty__input" data-reelup-qty-input type="number" inputmode="numeric" min="1" max="99" value="1" aria-label="{{ 'reels.quantity_label' | t }}">
-        <button type="button" class="reelup-qty__step" data-reelup-qty-step="1" aria-label="{{ 'reels.increase_quantity' | t }}">+</button>
+      <div class="awa-sv-qty" data-awa-sv-qty>
+        <button type="button" class="awa-sv-qty__step" data-awa-sv-qty-step="-1" aria-label="{{ 'reels.decrease_quantity' | t }}">&minus;</button>
+        <input class="awa-sv-qty__input" data-awa-sv-qty-input type="number" inputmode="numeric" min="1" max="99" value="1" aria-label="{{ 'reels.quantity_label' | t }}">
+        <button type="button" class="awa-sv-qty__step" data-awa-sv-qty-step="1" aria-label="{{ 'reels.increase_quantity' | t }}">+</button>
       </div>
     {%- endif -%}
     <button
       type="button"
-      class="reelup-product__add"
-      data-reelup-add-to-cart
+      class="awa-sv-product__add"
+      data-awa-sv-add-to-cart
       data-variant-id="{{ variant.id }}"
       data-add-label="{{ add_label }}"
       data-added-label="{{ 'reels.added_to_cart' | t }}"

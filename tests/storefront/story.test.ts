@@ -13,9 +13,9 @@ const reels = [
 async function mountStories(style: object = { storyDuration: 5 }) {
   await mount(await renderBlock("insta-stories", { reels, widget: makeWidget({ style }) }));
 }
-const avatar = (i: number) => document.querySelectorAll<HTMLButtonElement>("[data-reelup-story-group] .reelup-trigger__button")[i];
+const avatar = (i: number) => document.querySelectorAll<HTMLButtonElement>("[data-awa-sv-story-group] .awa-sv-trigger__button")[i];
 const q = <E extends Element = HTMLElement>(sel: string) => storyViewer()!.querySelector<E>(sel)!;
-const title = () => q("#reelup-story-title").textContent;
+const title = () => q("#awa-sv-story-title").textContent;
 
 beforeEach(() => {
   resetPage();
@@ -32,7 +32,7 @@ describe("story viewer", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(storyViewer()!.open).toBe(true);
     expect(title()).toBe("Two");
-    expect(storyViewer()!.querySelectorAll(".reelup-story__segment")).toHaveLength(3);
+    expect(storyViewer()!.querySelectorAll(".awa-sv-story__segment")).toHaveLength(3);
     expect(hls.attach).toHaveBeenCalledWith(q("video"), expect.stringContaining("/2/manifest"));
   });
 
@@ -53,40 +53,40 @@ describe("story viewer", () => {
   it("tap zones and arrow keys move between stories", async () => {
     await mountStories();
     click(avatar(0));
-    click(q("[data-reelup-story-next]"));
+    click(q("[data-awa-sv-story-next]"));
     expect(title()).toBe("Two");
     fireEvent.keyDown(storyViewer()!, { key: "ArrowRight" });
     expect(title()).toBe("Three");
-    click(q("[data-reelup-story-prev]"));
+    click(q("[data-awa-sv-story-prev]"));
     expect(title()).toBe("Two");
     fireEvent.keyDown(storyViewer()!, { key: "ArrowLeft" });
-    click(q("[data-reelup-story-prev]"));
+    click(q("[data-awa-sv-story-prev]"));
     expect(title()).toBe("One");
   });
 
   it("close button closes and tears down", async () => {
     await mountStories();
     click(avatar(0));
-    click(q("[data-reelup-story-close]"));
+    click(q("[data-awa-sv-story-close]"));
     expect(storyViewer()!.open).toBe(false);
     expect(hls.teardown).toHaveBeenCalled();
-    expect(document.documentElement.classList.contains("reelup-locked")).toBe(false);
+    expect(document.documentElement.classList.contains("awa-sv-locked")).toBe(false);
   });
 
   it("the sticker opens the product drawer, which pauses the story; Escape closes it", async () => {
     await mountStories();
     click(avatar(0));
     await vi.advanceTimersByTimeAsync(0);
-    const sticker = q("[data-reelup-story-shop]");
+    const sticker = q("[data-awa-sv-story-shop]");
     expect(sticker.hidden).toBe(false);
-    expect(sticker.querySelector(".reelup-story__sticker-count")!.textContent).toBe("2");
+    expect(sticker.querySelector(".awa-sv-story__sticker-count")!.textContent).toBe("2");
     click(sticker);
-    expect(q("[data-reelup-story-drawer]").hidden).toBe(false);
-    expect(storyViewer()!.querySelectorAll("[data-reelup-story-list] [data-reelup-product]")).toHaveLength(2);
+    expect(q("[data-awa-sv-story-drawer]").hidden).toBe(false);
+    expect(storyViewer()!.querySelectorAll("[data-awa-sv-story-list] [data-awa-sv-product]")).toHaveLength(2);
     await vi.advanceTimersByTimeAsync(20000);
     expect(title()).toBe("One");
     fireEvent.keyDown(storyViewer()!, { key: "Escape" });
-    expect(q("[data-reelup-story-drawer]").hidden).toBe(true);
+    expect(q("[data-awa-sv-story-drawer]").hidden).toBe(true);
     await vi.advanceTimersByTimeAsync(5000);
     expect(title()).toBe("Two");
   });
@@ -94,23 +94,23 @@ describe("story viewer", () => {
   it("a link-only story's sticker shows the link label", async () => {
     await mountStories();
     click(avatar(1));
-    const sticker = q("[data-reelup-story-shop]");
+    const sticker = q("[data-awa-sv-story-shop]");
     expect(sticker.hidden).toBe(false);
     expect(sticker.dataset.link).toBe("/pages/look");
-    expect(sticker.querySelector(".reelup-story__sticker-label")!.textContent).toBe("See look");
+    expect(sticker.querySelector(".awa-sv-story__sticker-label")!.textContent).toBe("See look");
   });
 
   it("a story with no products or link hides the sticker", async () => {
     await mountStories();
     click(avatar(2));
-    expect(q("[data-reelup-story-shop]").hidden).toBe(true);
+    expect(q("[data-awa-sv-story-shop]").hidden).toBe(true);
   });
 
   it("press-and-hold pauses, release resumes", async () => {
     await mountStories();
     click(avatar(0));
     await vi.advanceTimersByTimeAsync(0);
-    const frame = q(".reelup-story__frame");
+    const frame = q(".awa-sv-story__frame");
     const video = q<HTMLVideoElement>("video");
     fireEvent.pointerDown(frame);
     await vi.advanceTimersByTimeAsync(200);
@@ -144,9 +144,9 @@ describe("buffering", () => {
     await vi.advanceTimersByTimeAsync(0);
     const video = q<HTMLVideoElement>("video");
     video.dispatchEvent(new Event("waiting"));
-    click(q("[data-reelup-story-toggle]"));
+    click(q("[data-awa-sv-story-toggle]"));
     expect(video.paused).toBe(true);
-    click(q("[data-reelup-story-toggle]"));
+    click(q("[data-awa-sv-story-toggle]"));
     expect(video.paused).toBe(false);
     // Still buffering: the clock waits for frames.
     await vi.advanceTimersByTimeAsync(20000);
@@ -156,7 +156,7 @@ describe("buffering", () => {
 
 describe("swipes", () => {
   const swipe = (dx: number, dy: number) => {
-    const frame = q(".reelup-story__frame");
+    const frame = q(".awa-sv-story__frame");
     fireEvent.touchStart(frame, { touches: [{ clientX: 200, clientY: 300 }] });
     fireEvent.touchEnd(frame, { changedTouches: [{ clientX: 200 + dx, clientY: 300 + dy }] });
   };
@@ -184,7 +184,7 @@ describe("swipes", () => {
   it("does not swipe inside the product drawer", async () => {
     await mountStories();
     click(avatar(0));
-    click(q("[data-reelup-story-shop]"));
+    click(q("[data-awa-sv-story-shop]"));
     swipe(0, 200);
     expect(storyViewer()!.open).toBe(true);
   });
@@ -194,25 +194,25 @@ describe("seen state", () => {
   it("marks watched stories in localStorage and greys their rings on the next page view", async () => {
     await mountStories();
     click(avatar(0));
-    click(q("[data-reelup-story-next]"));
-    click(q("[data-reelup-story-next]"));
-    expect(JSON.parse(localStorage.getItem("reelup-seen-stories")!)).toEqual([
+    click(q("[data-awa-sv-story-next]"));
+    click(q("[data-awa-sv-story-next]"));
+    expect(JSON.parse(localStorage.getItem("awa-sv-seen-stories")!)).toEqual([
       "gid://shopify/Metaobject/1",
       "gid://shopify/Metaobject/2",
     ]);
-    const triggers = document.querySelectorAll("[data-reelup-story-group] [data-reelup-trigger]");
+    const triggers = document.querySelectorAll("[data-awa-sv-story-group] [data-awa-sv-trigger]");
     expect(Array.from(triggers).map((t) => t.classList.contains("is-seen"))).toEqual([true, true, false]);
 
-    const seen = localStorage.getItem("reelup-seen-stories");
+    const seen = localStorage.getItem("awa-sv-seen-stories");
     resetPage();
-    localStorage.setItem("reelup-seen-stories", seen!);
+    localStorage.setItem("awa-sv-seen-stories", seen!);
     await mountStories();
-    const again = document.querySelectorAll("[data-reelup-story-group] [data-reelup-trigger]");
+    const again = document.querySelectorAll("[data-awa-sv-story-group] [data-awa-sv-trigger]");
     expect(Array.from(again).map((t) => t.classList.contains("is-seen"))).toEqual([true, true, false]);
   });
 
   it("survives corrupt storage", async () => {
-    localStorage.setItem("reelup-seen-stories", "{not json");
+    localStorage.setItem("awa-sv-seen-stories", "{not json");
     await mountStories();
     click(avatar(0));
     expect(storyViewer()!.open).toBe(true);
@@ -234,7 +234,7 @@ describe("product moments", () => {
     ];
     await mount(await renderBlock("insta-stories", { reels: timed, widget: makeWidget({ style: { storyDuration: 30 } }) }));
     click(avatar(0));
-    const thumb = q(".reelup-story__sticker-thumb");
+    const thumb = q(".awa-sv-story__sticker-thumb");
     const video = q<HTMLVideoElement>("video");
     const at = (time: number) => {
       Object.defineProperty(video, "currentTime", { configurable: true, value: time });
@@ -243,19 +243,19 @@ describe("product moments", () => {
     expect(thumb.style.backgroundImage).toContain("products/1.jpg");
     at(4.5);
     expect(thumb.style.backgroundImage).toContain("products/2.jpg");
-    expect(q("[data-reelup-story-shop]").classList.contains("is-moment")).toBe(true);
-    const rows = storyViewer()!.querySelectorAll("[data-reelup-story-list] [data-reelup-product]");
+    expect(q("[data-awa-sv-story-shop]").classList.contains("is-moment")).toBe(true);
+    const rows = storyViewer()!.querySelectorAll("[data-awa-sv-story-list] [data-awa-sv-product]");
     expect(Array.from(rows).map((r) => r.classList.contains("is-moment"))).toEqual([false, true]);
     at(9.5);
     expect(thumb.style.backgroundImage).toContain("products/1.jpg");
-    expect(q("[data-reelup-story-shop]").classList.contains("is-moment")).toBe(false);
+    expect(q("[data-awa-sv-story-shop]").classList.contains("is-moment")).toBe(false);
   });
 
   it("a link-only story clears the previous story's product count", async () => {
     await mountStories();
     click(avatar(0));
-    expect(q(".reelup-story__sticker-count").textContent).toBe("2");
-    click(q("[data-reelup-story-next]"));
-    expect(q(".reelup-story__sticker-count").textContent).toBe("");
+    expect(q(".awa-sv-story__sticker-count").textContent).toBe("2");
+    click(q("[data-awa-sv-story-next]"));
+    expect(q(".awa-sv-story__sticker-count").textContent).toBe("");
   });
 });

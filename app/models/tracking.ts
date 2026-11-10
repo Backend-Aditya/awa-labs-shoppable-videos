@@ -73,10 +73,10 @@ export const PAGE_TAGS: PageTagMeta[] = [
 // send add_to_cart/AddToCart for every cart add, and a second copy would
 // double-count conversions.
 export const TRACKED_EVENTS = [
-  { name: "reelup_video_view", pascal: "ReelupVideoView", label: "Viewed Shoppable Video", when: "A shopper opens a video" },
-  { name: "reelup_video_complete", pascal: "ReelupVideoComplete", label: "Completed Shoppable Video", when: "They watch 95% of it" },
-  { name: "reelup_product_click", pascal: "ReelupProductClick", label: "Clicked Product in Video", when: "They tap a product in it" },
-  { name: "reelup_add_to_cart", pascal: "ReelupAddToCart", label: "Added to Cart from Video", when: "They add a product from it to the cart" },
+  { name: "awa_sv_video_view", pascal: "AwaSvVideoView", label: "Viewed Shoppable Video", when: "A shopper opens a video" },
+  { name: "awa_sv_video_complete", pascal: "AwaSvVideoComplete", label: "Completed Shoppable Video", when: "They watch 95% of it" },
+  { name: "awa_sv_product_click", pascal: "AwaSvProductClick", label: "Clicked Product in Video", when: "They tap a product in it" },
+  { name: "awa_sv_add_to_cart", pascal: "AwaSvAddToCart", label: "Added to Cart from Video", when: "They add a product from it to the cart" },
 ] as const;
 
 export const EVENT_FIELDS = "reel_id, reel_title, widget, and for cart events product_id, variant_id, quantity, value, currency";

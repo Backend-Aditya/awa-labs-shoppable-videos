@@ -35,7 +35,7 @@ async function mountStrip(tracking: object | null = {}) {
   const html = await renderBlock("product-page-reels", { reels, product: makeProduct({ id: 1 }), widget: makeWidget() });
   await mount(html, ["tracking", "lightbox", "story", "trigger", "pop"], { tracking });
 }
-const play = (i = 0) => click(document.querySelectorAll<HTMLButtonElement>("[data-reelup-trigger] .reelup-trigger__button")[i]);
+const play = (i = 0) => click(document.querySelectorAll<HTMLButtonElement>("[data-awa-sv-trigger] .awa-sv-trigger__button")[i]);
 const published = (name: string) => publish.mock.calls.filter(([n]) => n === name).map(([, data]) => data);
 // Answers /cart/add.js with `response`; everything else as the harness does.
 function cartAddResponds(response: () => Response) {
@@ -59,7 +59,7 @@ describe("Shopify customer events", () => {
   it("publishes a namespaced event with the reel, its title and the widget it came from", async () => {
     await mountStrip();
     play(0);
-    expect(published("reelup_video_view")).toEqual([{ reel_id: "11", reel_title: "First", widget: "product_page_reels" }]);
+    expect(published("awa_sv_video_view")).toEqual([{ reel_id: "11", reel_title: "First", widget: "product_page_reels" }]);
   });
 
   it("can be switched off", async () => {
@@ -72,7 +72,7 @@ describe("Shopify customer events", () => {
     shopifyGlobal({ analytics: false, marketing: false });
     await mountStrip();
     play(0);
-    expect(published("reelup_video_view")).toHaveLength(1);
+    expect(published("awa_sv_video_view")).toHaveLength(1);
   });
 });
 
@@ -86,11 +86,11 @@ describe("connected page tags", () => {
     await mountStrip({ ga4: true, gtm: true, meta: true, tiktok: false, pinterest: true, klaviyo: true });
     play(0);
     const data = { reel_id: "11", reel_title: "First", widget: "product_page_reels" };
-    expect(win.gtag).toHaveBeenCalledWith("event", "reelup_video_view", data);
-    expect(win.dataLayer).toEqual([{ event: "reelup_video_view", reelup: data }]);
-    expect(win.fbq).toHaveBeenCalledWith("trackCustom", "ReelupVideoView", data);
+    expect(win.gtag).toHaveBeenCalledWith("event", "awa_sv_video_view", data);
+    expect(win.dataLayer).toEqual([{ event: "awa_sv_video_view", awa_sv: data }]);
+    expect(win.fbq).toHaveBeenCalledWith("trackCustom", "AwaSvVideoView", data);
     expect((win.ttq as { track: ReturnType<typeof vi.fn> }).track).not.toHaveBeenCalled();
-    expect(win.pintrk).toHaveBeenCalledWith("track", "custom", { ...data, event_name: "reelup_video_view" });
+    expect(win.pintrk).toHaveBeenCalledWith("track", "custom", { ...data, event_name: "awa_sv_video_view" });
     expect((win.klaviyo as { push: ReturnType<typeof vi.fn> }).push).toHaveBeenCalledWith(["track", "Viewed Shoppable Video", data]);
   });
 
@@ -113,7 +113,7 @@ describe("connected page tags", () => {
     expect(win.gtag).not.toHaveBeenCalled();
     (win.Shopify as Record<string, unknown>).customerPrivacy = { analyticsProcessingAllowed: () => true, marketingAllowed: () => false };
     answer();
-    expect(win.gtag).toHaveBeenCalledWith("event", "reelup_video_view", expect.objectContaining({ reel_id: "11" }));
+    expect(win.gtag).toHaveBeenCalledWith("event", "awa_sv_video_view", expect.objectContaining({ reel_id: "11" }));
   });
 
   it("send nothing to third parties when consent can't be read", async () => {
@@ -122,7 +122,7 @@ describe("connected page tags", () => {
     await mountStrip({ ga4: true });
     play(0);
     expect(win.gtag).not.toHaveBeenCalled();
-    expect(published("reelup_video_view")).toHaveLength(1);
+    expect(published("awa_sv_video_view")).toHaveLength(1);
   });
 
   it("a broken tag never breaks the widget", async () => {
@@ -145,8 +145,8 @@ describe("Microsoft Clarity", () => {
     expect(claritySrc()).toBe("https://www.clarity.ms/tag/abc123xyz");
     play(0);
     const queue = (win.clarity as unknown as { q: unknown[][] }).q.map((args) => Array.from(args as ArrayLike<unknown>));
-    expect(queue).toContainEqual(["event", "reelup_video_view"]);
-    expect(queue).toContainEqual(["set", "reelup_reel", "First"]);
+    expect(queue).toContainEqual(["event", "awa_sv_video_view"]);
+    expect(queue).toContainEqual(["set", "awa_sv_reel", "First"]);
   });
 
   it("is not installed without analytics consent, with a malformed id, or when the store already runs it", async () => {
@@ -166,7 +166,7 @@ describe("Microsoft Clarity", () => {
     await mountStrip({ clarityId: "abc123xyz" });
     expect(claritySrc()).toBeUndefined();
     play(0);
-    expect(existing).toHaveBeenCalledWith("event", "reelup_video_view");
+    expect(existing).toHaveBeenCalledWith("event", "awa_sv_video_view");
   });
 
   it("starts once the shopper accepts in the cookie banner, and is told when they withdraw", async () => {
@@ -188,12 +188,12 @@ describe("shopper metrics", () => {
     await mountStrip();
     play(0);
     cartAddResponds(() => new Response(JSON.stringify({ items: [{ id: 100, product_id: 1, price: 2500, final_line_price: 2500 }] }), { status: 200 }));
-    click(viewer()!.querySelector("[data-reelup-add-to-cart]"));
+    click(viewer()!.querySelector("[data-awa-sv-add-to-cart]"));
     await flush();
     expect(appEvents("add_to_cart")).toEqual([
       { shopDomain: "test.myshopify.com", reelId: "gid://shopify/Metaobject/11", eventType: "add_to_cart", source: "product_page_reels", productId: "1" },
     ]);
-    expect(published("reelup_add_to_cart")).toEqual([
+    expect(published("awa_sv_add_to_cart")).toEqual([
       { reel_id: "11", reel_title: "First", widget: "product_page_reels", product_id: "1", variant_id: "100", quantity: 1, value: 25, currency: "USD" },
     ]);
   });
@@ -202,10 +202,10 @@ describe("shopper metrics", () => {
     await mountStrip();
     play(0);
     cartAddResponds(() => new Response(JSON.stringify({ description: "Sold out" }), { status: 422 }));
-    click(viewer()!.querySelector("[data-reelup-add-to-cart]"));
+    click(viewer()!.querySelector("[data-awa-sv-add-to-cart]"));
     await flush();
     expect(appEvents("add_to_cart")).toEqual([]);
-    expect(published("reelup_add_to_cart")).toEqual([]);
+    expect(published("awa_sv_add_to_cart")).toEqual([]);
   });
 
   function drive(video: HTMLVideoElement, duration: number) {
@@ -228,12 +228,12 @@ describe("shopper metrics", () => {
     at(40);
     for (let t = 40; t <= 44; t += 0.5) at(t);
     expect(appEvents("watch")).toEqual([]);
-    click(viewer()!.querySelector("[data-reelup-next]"));
+    click(viewer()!.querySelector("[data-awa-sv-next]"));
     expect(appEvents("watch")).toEqual([
       { shopDomain: "test.myshopify.com", reelId: "gid://shopify/Metaobject/11", eventType: "watch", seconds: 14 },
     ]);
     // Closing reports the next reel's time; nothing below a second.
-    click(viewer()!.querySelector("[data-reelup-close]"));
+    click(viewer()!.querySelector("[data-awa-sv-close]"));
     expect(appEvents("watch")).toHaveLength(1);
   });
 
@@ -246,10 +246,10 @@ describe("shopper metrics", () => {
     expect(appEvents("complete")).toHaveLength(0);
     at(19);
     expect(appEvents("complete")).toHaveLength(1);
-    expect(published("reelup_video_complete")).toEqual([{ reel_id: "11", reel_title: "First", widget: "product_page_reels" }]);
+    expect(published("awa_sv_video_complete")).toEqual([{ reel_id: "11", reel_title: "First", widget: "product_page_reels" }]);
     at(19.5);
     video.dispatchEvent(new Event("ended"));
-    click(viewer()!.querySelector("[data-reelup-close]"));
+    click(viewer()!.querySelector("[data-awa-sv-close]"));
     play(0);
     const again = drive(viewer()!.querySelector("video")!, 20);
     again(19.9);
@@ -259,13 +259,13 @@ describe("shopper metrics", () => {
   it("the story viewer reports completion and watch time too", async () => {
     const html = await renderBlock("insta-stories", { reels, widget: makeWidget({ style: { storyDuration: 60 } }) });
     await mount(html, ["tracking", "lightbox", "story", "trigger", "pop"], { tracking: {} });
-    click(document.querySelector("[data-reelup-story-group] .reelup-trigger__button"));
-    const dialog = document.getElementById("reelup-story-viewer")!;
+    click(document.querySelector("[data-awa-sv-story-group] .awa-sv-trigger__button"));
+    const dialog = document.getElementById("awa-sv-story-viewer")!;
     const at = drive(dialog.querySelector("video")!, 10);
     for (let i = 0; i <= 24; i++) at(i * 0.4); // to 9.6 s of 10
     expect(appEvents("complete")).toHaveLength(1);
-    expect(published("reelup_video_complete")[0]).toMatchObject({ reel_id: "11", widget: "stories" });
-    click(dialog.querySelector("[data-reelup-story-close]"));
+    expect(published("awa_sv_video_complete")[0]).toMatchObject({ reel_id: "11", widget: "stories" });
+    click(dialog.querySelector("[data-awa-sv-story-close]"));
     expect(appEvents("watch")).toEqual([
       { shopDomain: "test.myshopify.com", reelId: "gid://shopify/Metaobject/11", eventType: "watch", seconds: 10 },
     ]);
