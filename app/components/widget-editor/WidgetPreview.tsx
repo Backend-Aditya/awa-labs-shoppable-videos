@@ -842,21 +842,45 @@ function ViewerPreview({
         ) : (
           <>
         <div className={styles.viewerPanelHead}>
-          <span>Shop this video</span>
+          <span className={styles.viewerPanelText}>
+            <span>Shop this video</span>
+            {details && <span className={styles.viewerPanelSub}>Tap a product to see its details</span>}
+          </span>
           {tap && <span className={styles.subdued}>{reel.products.length} ›</span>}
         </div>
+        {!tap && large && (
+          <div className={styles.viewerTiles}>
+            {reel.products.slice(0, 4).map((product) => (
+              <div key={product.id} className={styles.viewerTile}>
+                <span
+                  className={styles.viewerTileImage}
+                  style={{ backgroundImage: product.imageUrl ? `url("${product.imageUrl}")` : undefined }}
+                />
+                <span className={styles.oneLine}>{product.title}</span>
+                {style.showPrice && (
+                  <span className={styles.priceRow}>
+                    <span className={product.compareAtPrice ? styles.salePrice : styles.subdued}>{product.price}</span>
+                    {product.compareAtPrice && <s className={styles.subdued}>{product.compareAtPrice}</s>}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  className={styles.viewerTileShop}
+                  data-variant={style.ctaStyle ?? "pill"}
+                  aria-label={`Shop now: ${product.title}`}
+                  onClick={() => details && setDetail(product)}
+                >
+                  Shop now
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         {!tap &&
-          reel.products.slice(0, large ? 1 : 2).map((product) => (
+          !large &&
+          reel.products.slice(0, 2).map((product) => (
             <div key={product.id} className={styles.viewerProduct}>
-              {style.showProductImage &&
-                (large ? (
-                  <span
-                    className={styles.viewerTileImage}
-                    style={{ backgroundImage: product.imageUrl ? `url("${product.imageUrl}")` : undefined }}
-                  />
-                ) : (
-                  <ProductThumb product={product} size={44} />
-                ))}
+              {style.showProductImage && <ProductThumb product={product} size={44} />}
               <span className={styles.filmProductText}>
                 {details ? (
                   <button type="button" className={styles.viewerProductLink} onClick={() => setDetail(product)}>
@@ -950,6 +974,14 @@ function DetailsPreview({ product, style, onBack }: { product: PreviewProduct; s
             <Skeleton w="70%" h={6} />
           </span>
         )}
+        <span className={styles.detailsDesc}>
+          <span className={styles.detailsDescHead}>You may also like</span>
+          <span className={styles.recsRow}>
+            {[0, 1, 2].map((i) => (
+              <span key={i} className={styles.recTile} />
+            ))}
+          </span>
+        </span>
       </div>
     </div>
   );

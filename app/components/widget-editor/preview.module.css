@@ -1122,17 +1122,54 @@
   background: #e8e2dc center / cover no-repeat;
 }
 
-.viewerPanel[data-large] .viewerProduct {
-  flex-wrap: wrap;
+.viewerTiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 8px;
 }
 
-.viewerPanel[data-large] .viewerProduct > .filmProductText {
-  flex: 1 1 100%;
+.viewerTile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  font-size: 11px;
 }
 
-.viewerPanel[data-large] .viewerProduct > :last-child {
-  flex: 1 1 auto;
-  text-align: center;
+.viewerTileShop {
+  margin-top: 2px;
+  padding: 5px 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--pv-cta);
+  color: var(--pv-cta-text);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.viewerTileShop[data-variant="square"] {
+  border-radius: 3px;
+}
+
+.viewerTileShop[data-variant="text-link"] {
+  background: none;
+  color: var(--pv-cta);
+  text-align: start;
+  text-decoration: underline;
+}
+
+.viewerPanelText {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.viewerPanelSub {
+  font-size: 10px;
+  font-weight: 400;
+  opacity: 0.6;
 }
 
 .viewerProductLink {

@@ -300,31 +300,15 @@ describe("buffering and transitions", () => {
 });
 
 describe("product panel", () => {
-  it("peeks on desktop; tap reveal starts closed and the head toggles it", async () => {
+  it("no accordion on desktop: the list stays open, even with tap reveal, and the head doesn't collapse it", async () => {
     await mountStrip({ tagRevealMode: "tap" });
-    click(triggerButton(0));
-    const panel = q("[data-awa-sv-panel]");
-    const head = q("[data-awa-sv-panel-toggle]");
-    expect(panel.dataset.state).toBe("closed");
-    expect(head.getAttribute("aria-expanded")).toBe("false");
-    click(head);
-    expect(panel.dataset.state).toBe("open");
-    click(head);
-    expect(panel.dataset.state).toBe("closed");
-  });
-
-  it("desktop peek: the chevron collapses the list and expands it again", async () => {
-    await mountStrip();
     click(triggerButton(0));
     const panel = q("[data-awa-sv-panel]");
     const head = q("[data-awa-sv-panel-toggle]");
     expect(panel.dataset.state).toBe("peek");
     expect(head.getAttribute("aria-expanded")).toBe("true");
     click(head);
-    expect(panel.dataset.state).toBe("closed");
-    expect(head.getAttribute("aria-expanded")).toBe("false");
-    click(head);
-    expect(panel.dataset.state).toBe("open");
+    expect(panel.dataset.state).toBe("peek");
     expect(head.getAttribute("aria-expanded")).toBe("true");
   });
 

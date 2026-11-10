@@ -49,6 +49,7 @@
     "description_label": "Description",
     "view_details": "Voir tous les détails",
     "back_to_products": "Retour aux produits",
-    "product_details_label": "Détails du produit"
+    "product_details_label": "Détails du produit",
+    "panel_hint": "Touchez un produit pour voir ses détails"
   }
 }

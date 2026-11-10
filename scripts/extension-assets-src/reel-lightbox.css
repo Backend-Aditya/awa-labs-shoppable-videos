@@ -641,6 +641,10 @@ html[dir="rtl"] .awa-sv-story {
    instead of re-centering it. */
 .awa-sv-viewer__side {
   flex: 0 0 360px;
+  /* Never wider than its basis: the product grid's intrinsic width would
+     otherwise push it out. */
+  min-width: 0;
+  max-width: 360px;
   height: min(88vh, 860px);
   height: min(88dvh, 860px);
   display: flex;
@@ -995,54 +999,132 @@ html[dir="rtl"] .awa-sv-story {
   scrollbar-color: #d4d4d4 transparent;
 }
 
-/* ---------- big product images (widget setting) ---------- */
+/* ---------- product tiles (widget setting: large images) ---------- */
 
-/* Each product becomes a tile: a large image across the panel, then its
-   name, price and options, then a full-width add button. */
-.awa-sv-products--large .awa-sv-viewer__list .awa-sv-product {
-  flex-wrap: wrap;
-  row-gap: 10px;
-  padding: 16px 0;
+/* Two products per row: image, name, price and a "Shop now" link that
+   opens the product's details (variant choice and add to cart live there). */
+.awa-sv-products--large .awa-sv-viewer__list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 18px 12px;
+  padding-block: 16px;
 }
 
-.awa-sv-products--large .awa-sv-viewer__list .awa-sv-product__media {
-  flex: 0 0 100%;
+.awa-sv-viewer__list .awa-sv-product--tile,
+.awa-sv-viewer__list .awa-sv-product--tile:last-child {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+
+.awa-sv-viewer__list .awa-sv-product--tile .awa-sv-product__media {
   width: 100%;
   height: auto;
   aspect-ratio: 1;
-  border-radius: 12px;
+  border-radius: 10px;
   background: #f4f4f4;
 }
 
-.awa-sv-products--large .awa-sv-viewer__list .awa-sv-product__media img {
+.awa-sv-viewer__list .awa-sv-product--tile .awa-sv-product__media img {
   object-fit: cover;
   transition: transform 0.5s var(--rv-ease);
 }
 
-.awa-sv-products--large .awa-sv-viewer__list .awa-sv-product__media:hover img {
-  transform: scale(1.03);
+.awa-sv-viewer__list .awa-sv-product--tile:hover .awa-sv-product__media img {
+  transform: scale(1.04);
 }
 
-.awa-sv-products--large .awa-sv-viewer__list .awa-sv-product__title {
-  font-size: 15px;
+.awa-sv-product--tile .awa-sv-product__info {
+  flex: 1;
 }
 
-.awa-sv-products--large .awa-sv-viewer__list .awa-sv-product__price {
-  font-size: 14px;
+.awa-sv-product--tile .awa-sv-product__title {
+  font-size: 13px;
+  line-height: 1.35;
 }
 
-.awa-sv-products--large .awa-sv-viewer__list .awa-sv-product__info {
-  flex: 1 1 100%;
+.awa-sv-product--tile .awa-sv-product__price {
+  font-size: 13px;
 }
 
-.awa-sv-products--large .awa-sv-viewer__list .awa-sv-product__add {
-  flex: 1 1 auto;
-  min-height: 44px;
+.awa-sv-viewer .awa-sv-product__shop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--awa-sv-cta, #141414);
+  color: var(--awa-sv-cta-text, #fff);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 0.15s ease;
 }
 
-.awa-sv-products--large .awa-sv-viewer__list .awa-sv-product.is-moment {
-  margin-inline: -10px;
-  padding-inline: 10px;
+.awa-sv-viewer .awa-sv-product__shop:hover {
+  background: var(--awa-sv-cta-hover, color-mix(in srgb, var(--awa-sv-cta, #141414) 85%, #fff));
+}
+
+.awa-sv-cta--square .awa-sv-product__shop {
+  border-radius: 4px;
+}
+
+.awa-sv-cta--text-link .awa-sv-product__shop {
+  min-height: 0;
+  justify-content: flex-start;
+  padding: 0;
+  background: transparent;
+  color: var(--awa-sv-cta, #141414);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.awa-sv-viewer__list .awa-sv-product--tile.is-moment {
+  margin: -6px;
+  padding: 6px;
+}
+
+/* ---------- panel header: heading + subheading ---------- */
+
+.awa-sv-viewer__panel-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.awa-sv-viewer__panel-sub {
+  font-size: 12px;
+  font-weight: 450;
+  color: #6b6b6b;
+}
+
+.awa-sv-viewer__panel-sub[hidden] {
+  display: none;
+}
+
+/* No accordion on desktop: the list is always open there. */
+@media (min-width: 750px) {
+  .awa-sv-viewer__panel-head {
+    cursor: default;
+  }
+  .awa-sv-viewer__chevron {
+    display: none;
+  }
+}
+
+/* Same space on both sides even while a scrollbar is showing. */
+.awa-sv-viewer__panel,
+.awa-sv-viewer__list {
+  scrollbar-gutter: stable both-edges;
 }
 
 /* ---------- product details (in-viewer product page) ---------- */
@@ -1059,6 +1141,7 @@ html[dir="rtl"] .awa-sv-story {
 @media (min-width: 1081px) {
   .awa-sv-viewer__side:has(> .awa-sv-viewer__panel.is-detail) {
     flex-basis: 420px;
+    max-width: 420px;
   }
 }
 
@@ -1314,39 +1397,124 @@ html[dir="rtl"] .awa-sv-pdp__back svg {
   border-color: #141414;
 }
 
-.awa-sv-pdp__desc {
+.awa-sv-pdp__desc,
+.awa-sv-pdp__related {
   margin: 4px -18px 0;
+  padding-top: 16px;
   border-top: 1px solid #efefef;
 }
 
-.awa-sv-pdp__desc > summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 18px;
-  font-size: 14px;
+.awa-sv-pdp__section-title {
+  margin: 0 18px 10px;
+  font-size: 15px;
   font-weight: 650;
-  list-style: none;
-  cursor: pointer;
 }
 
-.awa-sv-pdp__desc > summary::-webkit-details-marker {
+/* ---------- related products slider ---------- */
+
+.awa-sv-pdp__related[hidden] {
   display: none;
 }
 
-.awa-sv-pdp__chev {
-  display: grid;
-  transition: transform 0.2s var(--rv-ease);
+.awa-sv-pdp__related-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-inline-end: 18px;
 }
 
-.awa-sv-pdp__desc[open] .awa-sv-pdp__chev {
-  transform: rotate(180deg);
+.awa-sv-pdp__related-head .awa-sv-pdp__section-title {
+  margin-bottom: 0;
+}
+
+.awa-sv-pdp__arrows {
+  display: flex;
+  gap: 6px;
+}
+
+.awa-sv-pdp__related-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 0 18px 4px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 18px;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+
+.awa-sv-pdp__related-row::-webkit-scrollbar {
+  display: none;
+}
+
+.awa-sv-rec--tile {
+  flex: 0 0 calc((100% - 12px) / 2.3);
+}
+
+.awa-sv-rec__price.is-sale {
+  color: var(--awa-sv-brand-sale, #b42318);
+  font-weight: 600;
+}
+
+.awa-sv-rec__price s {
+  color: #8a8a8a;
+  font-weight: 400;
+}
+
+.awa-sv-rec__shop {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---------- slider arrows (gallery + related) ---------- */
+
+.awa-sv-viewer .awa-sv-pdp__arrow {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #e2e2e2;
+  border-radius: 50%;
+  background: #fff;
+  color: #141414;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.awa-sv-viewer .awa-sv-pdp__arrow:hover {
+  border-color: #141414;
+}
+
+.awa-sv-pdp__arrow--prev,
+.awa-sv-pdp__arrow--next {
+  position: absolute;
+  top: calc(50% - 16px);
+  z-index: 2;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.14);
+}
+
+.awa-sv-pdp__arrow--prev {
+  inset-inline-start: 10px;
+}
+
+.awa-sv-pdp__arrow--next {
+  inset-inline-end: 10px;
+}
+
+html[dir="rtl"] .awa-sv-pdp__arrow svg {
+  transform: scaleX(-1);
 }
 
 /* The merchant's own description markup: readable defaults for the
    paragraphs, lists, tables and images it commonly contains. */
 .awa-sv-pdp__rte {
-  padding: 0 18px 8px;
+  padding: 0 18px 16px;
   font-size: 14px;
   line-height: 1.6;
   color: #3a3a3a;
@@ -1415,6 +1583,7 @@ html[dir="rtl"] .awa-sv-pdp__back svg {
 @media (max-width: 1080px) and (min-width: 750px) {
   .awa-sv-viewer__side {
     flex-basis: 300px;
+    max-width: 300px;
   }
   .awa-sv-viewer__player {
     max-width: calc(100vw - 440px);

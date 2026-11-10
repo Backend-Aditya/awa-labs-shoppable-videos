@@ -49,6 +49,7 @@
     "description_label": "Beschrijving",
     "view_details": "Alle details bekijken",
     "back_to_products": "Terug naar producten",
-    "product_details_label": "Productdetails"
+    "product_details_label": "Productdetails",
+    "panel_hint": "Tik op een product om de details te zien"
   }
 }
