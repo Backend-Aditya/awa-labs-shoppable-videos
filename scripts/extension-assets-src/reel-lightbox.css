@@ -1114,6 +1114,13 @@ html[dir="rtl"] .awa-sv-story {
 /* The header is a <button> (it toggles the mobile sheet), so theme button
    rules (fixed heights, padding, uppercase, line-height) must not reach it:
    two classes beat theme element and single-class selectors. */
+/* The panel is a height-capped flex column: once its content outgrows the
+   cap, flex items shrink, and without this the header (and the strips
+   around the list) would be squashed. Only the list or the panel scrolls. */
+.awa-sv-viewer__panel > :is(.awa-sv-viewer__panel-head, .awa-sv-viewer__recs, .awa-sv-viewer__link, .awa-sv-viewer__cart, .awa-sv-pdp) {
+  flex-shrink: 0;
+}
+
 .awa-sv-viewer .awa-sv-viewer__panel-head {
   height: auto;
   min-height: 0;
