@@ -121,6 +121,15 @@ pulls in the viewer runtime when the app embed is off.
     {%- if widget_style.badgeColor != blank %}--awa-sv-card-badge: {{ widget_style.badgeColor | escape }};{% endif -%}
     {%- if widget_style.ctaColor != blank %}--awa-sv-cta: {{ widget_style.ctaColor | escape }};{% endif -%}
     {%- if widget_style.ctaTextColor != blank %}--awa-sv-cta-text: {{ widget_style.ctaTextColor | escape }};{% endif -%}
+    {%- comment -%} Sizing and spacing: only what the merchant set; the rest keeps the responsive defaults. {%- endcomment -%}
+    {%- if widget_style.triggerSize %}--awa-sv-card-w: {{ widget_style.triggerSize | times: 1 }}px;{% endif -%}
+    {%- if widget_style.eyebrowSize %}--awa-sv-eyebrow-size: {{ widget_style.eyebrowSize | times: 1 }}px;{% endif -%}
+    {%- if widget_style.headingSize %}--awa-sv-heading-size: {{ widget_style.headingSize | times: 1 }}px;{% endif -%}
+    {%- if widget_style.subheadingSize %}--awa-sv-sub-size: {{ widget_style.subheadingSize | times: 1 }}px;{% endif -%}
+    {%- if widget_style.cardTextSize %}--awa-sv-card-text: {{ widget_style.cardTextSize | times: 1 }}px;{% endif -%}
+    {%- if widget_style.cardGap != nil %}--awa-sv-gap: {{ widget_style.cardGap | times: 1 }}px;{% endif -%}
+    {%- if widget_style.sectionPaddingY != nil %}--awa-sv-pad-y: {{ widget_style.sectionPaddingY | times: 1 }}px;{% endif -%}
+    {%- if widget_style.sectionPaddingX != nil %}--awa-sv-pad-x: {{ widget_style.sectionPaddingX | times: 1 }}px;{% endif -%}
   {%- endcapture -%}
   <section
     class="awa-sv awa-sv-deck awa-sv-deck--{{ layout }} awa-sv-deck--card-{{ card_template }} awa-sv-shadow--{{ widget_style.shadowPreset | default: 'bold' | escape }} awa-sv-device--{{ widget.deviceVisibility | default: 'all' | escape }}{% if widget_style.backgroundColor != blank %} awa-sv--filled{% endif %}"
@@ -237,7 +246,7 @@ pulls in the viewer runtime when the app embed is off.
               {%- endif -%}
             {%- endcapture -%}
             <li class="awa-sv-deck__card" data-awa-sv-deck-card>
-              {%- render 'reel-trigger', reel: reel, style: widget_style, source: 'carousel', inner: card, muted_default: true, autoplay_default: true, details_default: true, image_size_default: 'large' -%}
+              {%- render 'reel-trigger', reel: reel, style: widget_style, source: 'carousel', inner: card, muted_default: true, autoplay_default: true, details_default: true, image_size_default: 'large', corners_default: 'square' -%}
             </li>
           {%- endif -%}
         {%- endfor -%}

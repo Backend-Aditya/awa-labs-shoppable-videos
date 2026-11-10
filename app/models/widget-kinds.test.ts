@@ -36,6 +36,24 @@ describe("sanitizeStyle", () => {
     expect(resolveStyle("CAROUSEL", {})).toMatchObject({ cardTemplate: "title", productDetails: true, productImageSize: "large" });
   });
 
+  it("carousel sizing and spacing clamp to their ranges; corners are square or rounded", () => {
+    expect(
+      sanitizeStyle("CAROUSEL", {
+        headingSize: 200,
+        subheadingSize: 2,
+        cardGap: 0,
+        sectionPaddingY: 40.4,
+        sectionPaddingX: "x",
+        triggerSize: 9999,
+        popupCorners: "square",
+      }),
+    ).toEqual({ headingSize: 64, subheadingSize: 11, cardGap: 0, sectionPaddingY: 40, triggerSize: 340, popupCorners: "square" });
+    expect(sanitizeStyle("CAROUSEL", { popupCorners: "oval" })).toEqual({});
+    // Unset sizes stay unset (the storefront's responsive defaults).
+    expect(resolveStyle("CAROUSEL", {}).headingSize).toBeUndefined();
+    expect(resolveStyle("CAROUSEL", {}).popupCorners).toBe("square");
+  });
+
   it("keeps only fields the kind uses", () => {
     const style = sanitizeStyle("REEL_POPS", { popShape: "circle", layoutMode: "grid", heading: "Hi" });
     expect(style).toEqual({ popShape: "circle" });

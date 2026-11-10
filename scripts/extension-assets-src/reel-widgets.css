@@ -479,13 +479,39 @@ html[dir="rtl"] .awa-sv-arrow svg { transform: scaleX(-1); }
 .awa-sv-deck {
   --awa-sv-card: clamp(180px, 24vw, 280px);
   --awa-sv-spread: 62%;
-  margin-block: 32px;
+  margin-block: var(--awa-sv-pad-y, 32px);
   overflow: hidden;
+}
+
+/* Merchant-set card width (stack and slider); kept within the screen. */
+.awa-sv-deck[style*="--awa-sv-card-w"] {
+  --awa-sv-card: min(var(--awa-sv-card-w), 62vw);
 }
 
 /* The slider and grid keep clear of the screen edges on both sides. */
 .awa-sv-deck:not(.awa-sv--filled):is(.awa-sv-deck--carousel, .awa-sv-deck--grid) {
-  padding-inline: clamp(16px, 4vw, 48px);
+  padding-inline: var(--awa-sv-pad-x, clamp(16px, 4vw, 48px));
+}
+
+.awa-sv-deck:not(.awa-sv--filled).awa-sv-deck--stack {
+  padding-inline: var(--awa-sv-pad-x, 0px);
+}
+
+/* With a background, the spacing is inside it. */
+.awa-sv-deck.awa-sv--filled {
+  padding-block: var(--awa-sv-pad-y, clamp(16px, 3vw, 28px));
+  padding-inline: var(--awa-sv-pad-x, clamp(16px, 3vw, 28px));
+}
+
+.awa-sv-deck[style*="--awa-sv-pad-y"].awa-sv--filled {
+  margin-block: 0;
+}
+
+@media (max-width: 749px) {
+  .awa-sv-deck:not(.awa-sv--filled):is(.awa-sv-deck--carousel, .awa-sv-deck--grid),
+  .awa-sv-deck.awa-sv--filled {
+    padding-inline: min(var(--awa-sv-pad-x, 16px), 20px);
+  }
 }
 
 @media (max-width: 749px) {
@@ -531,7 +557,7 @@ html[dir="rtl"] .awa-sv-arrow svg { transform: scaleX(-1); }
 
 .awa-sv-deck__title {
   font-weight: 600;
-  font-size: 15px;
+  font-size: calc(var(--awa-sv-card-text, 13px) + 2px);
   line-height: 1.25;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -540,7 +566,7 @@ html[dir="rtl"] .awa-sv-arrow svg { transform: scaleX(-1); }
 }
 
 .awa-sv-deck__meta {
-  font-size: 12px;
+  font-size: calc(var(--awa-sv-card-text, 13px) - 1px);
   opacity: 0.8;
 }
 
@@ -555,7 +581,7 @@ html[dir="rtl"] .awa-sv-arrow svg { transform: scaleX(-1); }
    renders as a plain scrolling row, so no-JS and slow-JS both look sane. */
 .awa-sv-deck__stage {
   display: flex;
-  gap: 14px;
+  gap: var(--awa-sv-gap, 14px);
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
@@ -678,14 +704,14 @@ html[dir="rtl"] .awa-sv-arrow svg { transform: scaleX(-1); }
 
 /* Slider + grid alternates */
 .awa-sv-deck--carousel .awa-sv-deck__card {
-  flex-basis: clamp(170px, 22vw, 240px);
+  flex-basis: min(var(--awa-sv-card-w, clamp(170px, 22vw, 240px)), 70vw);
   scroll-snap-align: start;
 }
 
 .awa-sv-deck--grid .awa-sv-deck__stage {
   display: grid;
   grid-template-columns: repeat(var(--awa-sv-columns, 4), minmax(0, 1fr));
-  gap: 16px;
+  gap: var(--awa-sv-gap, 16px);
   overflow: visible;
 }
 
@@ -713,11 +739,12 @@ html[dir="rtl"] .awa-sv-arrow svg { transform: scaleX(-1); }
 
 .awa-sv-deck__header .awa-sv-heading {
   margin: 0;
+  font-size: min(var(--awa-sv-heading-size, clamp(1.15rem, 1rem + 0.6vw, 1.5rem)), 9vw);
 }
 
 .awa-sv-deck__eyebrow {
   margin: 0 0 10px;
-  font-size: 11px;
+  font-size: var(--awa-sv-eyebrow-size, 11px);
   font-weight: 600;
   line-height: 1.4;
   letter-spacing: 0.22em;
@@ -727,7 +754,7 @@ html[dir="rtl"] .awa-sv-arrow svg { transform: scaleX(-1); }
 
 .awa-sv-deck__subheading {
   margin: 10px 0 0;
-  font-size: 14px;
+  font-size: var(--awa-sv-sub-size, 14px);
   line-height: 1.55;
   color: var(--awa-sv-muted);
 }
@@ -784,7 +811,7 @@ html[dir="rtl"] .awa-sv-deck__badge {
 
 .awa-sv-deck__product-title {
   overflow: hidden;
-  font-size: 13px;
+  font-size: var(--awa-sv-card-text, 13px);
   font-weight: 600;
   line-height: 1.3;
   white-space: nowrap;
@@ -795,7 +822,7 @@ html[dir="rtl"] .awa-sv-deck__badge {
   display: flex;
   flex-wrap: wrap;
   gap: 0 6px;
-  font-size: 12px;
+  font-size: calc(var(--awa-sv-card-text, 13px) - 1px);
   line-height: 1.35;
   font-variant-numeric: tabular-nums;
 }
@@ -837,7 +864,7 @@ html[dir="rtl"] .awa-sv-deck__badge {
   min-height: 36px;
   padding: 0 14px;
   border-radius: min(var(--awa-sv-radius), 999px);
-  font-size: 13px;
+  font-size: var(--awa-sv-card-text, 13px);
   font-weight: 600;
   white-space: nowrap;
   transition: background-color 0.15s ease, color 0.15s ease;

@@ -468,3 +468,30 @@ describe("viewer: large product tiles and product details", () => {
     expect(screen.getByText("Product 1.0")).toBeInTheDocument();
   });
 });
+
+describe("carousel sizing and popup corners", () => {
+  it("sizes and spacing reach the mock as scaled variables; unset ones fall back", () => {
+    const { container } = renderPreview("CAROUSEL", {
+      layoutMode: "carousel",
+      eyebrow: "E",
+      headingSize: 40,
+      cardGap: 20,
+      sectionPaddingY: 60,
+      sectionPaddingX: 20,
+      triggerSize: 300,
+    });
+    const section = container.querySelector<HTMLElement>(".section")!;
+    expect(section.style.getPropertyValue("--pv-heading-size")).toBe("30px");
+    expect(section.style.getPropertyValue("--pv-gap")).toBe("15px");
+    expect(section.style.getPropertyValue("--pv-card-w")).toBe("180px");
+    expect(section.style.paddingBlock).toBe("30px");
+    expect(section.style.paddingInline).toBe("10px");
+    expect(section.style.getPropertyValue("--pv-sub-size")).toBe("");
+  });
+
+  it("the viewer mock follows the popup corners setting", async () => {
+    const { container } = renderPreview("CAROUSEL", { popupCorners: "square" });
+    await userEvent.click(screen.getByRole("radio", { name: "Video viewer" }));
+    expect(container.querySelector(".viewer")).toHaveAttribute("data-corners", "square");
+  });
+});

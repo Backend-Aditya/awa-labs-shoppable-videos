@@ -82,6 +82,17 @@ export interface WidgetStyleConfig {
   productImageSize?: "compact" | "large";
   productDetails?: boolean;
   showDescription?: boolean;
+  // Popup corners: square panel and player, or the rounded originals.
+  popupCorners?: "square" | "rounded";
+  // Sizing and spacing (px). Unset = the storefront's built-in responsive
+  // defaults, so existing widgets don't change until the merchant adjusts.
+  eyebrowSize?: number;
+  headingSize?: number;
+  subheadingSize?: number;
+  cardTextSize?: number;
+  cardGap?: number;
+  sectionPaddingY?: number;
+  sectionPaddingX?: number;
 }
 
 export type StyleFieldKey = keyof WidgetStyleConfig;
@@ -256,6 +267,15 @@ export const WIDGET_KIND_META: Record<Exclude<WidgetKind, "GRID">, WidgetKindMet
       "productImageSize",
       "productDetails",
       "showDescription",
+      "popupCorners",
+      "triggerSize",
+      "eyebrowSize",
+      "headingSize",
+      "subheadingSize",
+      "cardTextSize",
+      "cardGap",
+      "sectionPaddingY",
+      "sectionPaddingX",
     ],
     defaults: {
       ...PRODUCT_TAG_DEFAULTS,
@@ -269,6 +289,7 @@ export const WIDGET_KIND_META: Record<Exclude<WidgetKind, "GRID">, WidgetKindMet
       productImageSize: "large",
       productDetails: true,
       showDescription: true,
+      popupCorners: "square",
       layoutMode: "stack",
       columns: 4,
       cornerStyle: "soft",
@@ -281,9 +302,9 @@ export const WIDGET_KIND_META: Record<Exclude<WidgetKind, "GRID">, WidgetKindMet
       autoplayOnScroll: true,
       mutedDefault: true,
     },
-    sizeLabel: "",
-    sizeMin: 0,
-    sizeMax: 0,
+    sizeLabel: "Card width",
+    sizeMin: 140,
+    sizeMax: 340,
     accentLabel: "Accent (arrows, dots, eyebrow)",
   },
   STORIES: {
@@ -489,6 +510,7 @@ const ENUMS: Partial<Record<StyleFieldKey, readonly string[]>> = {
   afterAdd: ["stay", "cart", "checkout"],
   cardTemplate: ["title", "classic", "modern", "vibrant", "overlay"],
   productImageSize: ["compact", "large"],
+  popupCorners: ["square", "rounded"],
 };
 
 const COLORS: StyleFieldKey[] = [
@@ -530,7 +552,26 @@ const NUMBER_RANGES: Partial<Record<StyleFieldKey, [number, number]>> = {
   columns: [2, 6],
   storyDuration: [3, 60],
   popDelay: [0, 30],
+  eyebrowSize: [9, 20],
+  headingSize: [14, 64],
+  subheadingSize: [11, 28],
+  cardTextSize: [10, 20],
+  cardGap: [0, 48],
+  sectionPaddingY: [0, 160],
+  sectionPaddingX: [0, 120],
 };
+
+// Sizing/spacing sliders for the carousel: label, unit range and the value
+// the slider shows while unset (the storefront's own default at desktop).
+export const SIZING_FIELDS: { key: StyleFieldKey; label: string; min: number; max: number; auto: number }[] = [
+  { key: "eyebrowSize", label: "Eyebrow text", min: 9, max: 20, auto: 11 },
+  { key: "headingSize", label: "Heading text", min: 14, max: 64, auto: 24 },
+  { key: "subheadingSize", label: "Subheading text", min: 11, max: 28, auto: 14 },
+  { key: "cardTextSize", label: "Card text", min: 10, max: 20, auto: 13 },
+  { key: "cardGap", label: "Space between videos", min: 0, max: 48, auto: 14 },
+  { key: "sectionPaddingY", label: "Space above and below", min: 0, max: 160, auto: 32 },
+  { key: "sectionPaddingX", label: "Space at the sides", min: 0, max: 120, auto: 40 },
+];
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
 

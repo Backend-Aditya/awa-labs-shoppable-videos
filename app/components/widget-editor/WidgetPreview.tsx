@@ -502,10 +502,22 @@ function Deck({
   const requestedMode = style.layoutMode ?? "stack";
   const mode = requestedMode === "stack" && reels.length < 3 ? "carousel" : requestedMode;
   const template = style.cardTemplate ?? "title";
+  const px = (value: number | undefined, scale = 0.75) => (value === undefined ? undefined : `${Math.round(value * scale)}px`);
+  const sectionStyle = {
+    background: "var(--pv-bg)",
+    paddingBlock: px(style.sectionPaddingY, 0.5),
+    paddingInline: px(style.sectionPaddingX, 0.5),
+    "--pv-eyebrow-size": px(style.eyebrowSize),
+    "--pv-heading-size": px(style.headingSize),
+    "--pv-sub-size": px(style.subheadingSize),
+    "--pv-card-text": px(style.cardTextSize),
+    "--pv-gap": px(style.cardGap),
+    "--pv-card-w": px(style.triggerSize, 0.6),
+  } as CSSProperties;
 
   if (mode === "grid" || mode === "carousel") {
     return (
-      <div className={styles.section} style={{ background: "var(--pv-bg)" }}>
+      <div className={styles.section} style={sectionStyle}>
         <DeckHeader style={style} />
         <div className={mode === "grid" ? styles.deckGrid : styles.deckSlider}>
           {reels.map((reel, i) => (
@@ -521,7 +533,7 @@ function Deck({
 
   const spread = device === "mobile" ? 46 : 58;
   return (
-    <div className={styles.section} style={{ background: "var(--pv-bg)" }}>
+    <div className={styles.section} style={sectionStyle}>
       <DeckHeader style={style} />
       <div className={styles.deck} style={{ height: 300 + (INFO_HEIGHT[template] ?? 0) }}>
         {reels.map((reel, i) => {
@@ -795,7 +807,7 @@ function ViewerPreview({
   const details = style.productDetails === true;
   const shownDetail = details ? detail : null;
   return (
-    <div className={styles.viewer} data-device={device} data-theme={theme}>
+    <div className={styles.viewer} data-device={device} data-theme={theme} data-corners={style.popupCorners ?? "rounded"}>
       <div className={styles.viewerPlayer}>
         <Poster reel={reel} index={index} playing />
         {count > 1 && (
