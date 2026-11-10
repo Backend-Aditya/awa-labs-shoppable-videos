@@ -296,19 +296,19 @@ Liquid at render time, no runtime API call.
 {% endfor %}
 
 {% if visible_reels.size > 0 %}
-  <div class="reelup-product-reels" {{ block.shopify_attributes }}>
+  <div class="awa-sv-product-reels" {{ block.shopify_attributes }}>
     {% for reel in visible_reels %}
       <div
-        class="reelup-reel"
-        style="--reelup-aspect-ratio: 9 / 16;"
-        data-reelup-reel
+        class="awa-sv-reel"
+        style="--awa-sv-aspect-ratio: 9 / 16;"
+        data-awa-sv-reel
         data-hls-src="{{ reel.config.value.hlsManifestUrl }}"
         data-poster="{{ reel.config.value.posterUrl }}"
       >
-        <div class="reelup-reel__frame">
+        <div class="awa-sv-reel__frame">
           {% if reel.config.value.posterUrl != blank %}
             <img
-              class="reelup-reel__poster"
+              class="awa-sv-reel__poster"
               src="{{ reel.config.value.posterUrl }}"
               alt="{{ reel.title.value | escape }}"
               loading="lazy"
@@ -318,13 +318,13 @@ Liquid at render time, no runtime API call.
           {% endif %}
           <button
             type="button"
-            class="reelup-reel__play"
+            class="awa-sv-reel__play"
             aria-label="{{ 'reels.play_label' | t }}"
           >
-            <span class="reelup-reel__play-icon" aria-hidden="true"></span>
+            <span class="awa-sv-reel__play-icon" aria-hidden="true"></span>
           </button>
           <video
-            class="reelup-reel__video"
+            class="awa-sv-reel__video"
             playsinline
             muted
             loop
@@ -337,29 +337,29 @@ Liquid at render time, no runtime API call.
 {% endif %}
 
 {% stylesheet %}
-.reelup-product-reels {
+.awa-sv-product-reels {
   display: flex;
   gap: 12px;
   overflow-x: auto;
   padding-block: 12px;
 }
 
-.reelup-reel {
+.awa-sv-reel {
   flex: 0 0 auto;
   width: 200px;
 }
 
-.reelup-reel__frame {
+.awa-sv-reel__frame {
   position: relative;
   width: 100%;
-  aspect-ratio: var(--reelup-aspect-ratio);
+  aspect-ratio: var(--awa-sv-aspect-ratio);
   background: #111;
   border-radius: 12px;
   overflow: hidden;
 }
 
-.reelup-reel__poster,
-.reelup-reel__video {
+.awa-sv-reel__poster,
+.awa-sv-reel__video {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -367,20 +367,20 @@ Liquid at render time, no runtime API call.
   object-fit: cover;
 }
 
-.reelup-reel__video {
+.awa-sv-reel__video {
   display: none;
 }
 
-.reelup-reel[data-playing] .reelup-reel__poster,
-.reelup-reel[data-playing] .reelup-reel__play {
+.awa-sv-reel[data-playing] .awa-sv-reel__poster,
+.awa-sv-reel[data-playing] .awa-sv-reel__play {
   display: none;
 }
 
-.reelup-reel[data-playing] .reelup-reel__video {
+.awa-sv-reel[data-playing] .awa-sv-reel__video {
   display: block;
 }
 
-.reelup-reel__play {
+.awa-sv-reel__play {
   position: absolute;
   inset: 0;
   margin: auto;
@@ -395,7 +395,7 @@ Liquid at render time, no runtime API call.
   justify-content: center;
 }
 
-.reelup-reel__play-icon {
+.awa-sv-reel__play-icon {
   width: 0;
   height: 0;
   border-style: solid;
@@ -416,7 +416,7 @@ Liquid at render time, no runtime API call.
 {% endschema %}
 ```
 
-Note: this task deliberately ships with NO `{% javascript %}`/script tag yet — the play button renders but does nothing until Task 3 wires up the player. This keeps this task's markup/CSS independently reviewable before the JS lands. The reserved `aspect-ratio` on `.reelup-reel__frame` guarantees zero layout shift regardless of when the video/poster loads, matching the CLS constraint from the original performance roadmap.
+Note: this task deliberately ships with NO `{% javascript %}`/script tag yet — the play button renders but does nothing until Task 3 wires up the player. This keeps this task's markup/CSS independently reviewable before the JS lands. The reserved `aspect-ratio` on `.awa-sv-reel__frame` guarantees zero layout shift regardless of when the video/poster loads, matching the CLS constraint from the original performance roadmap.
 
 - [ ] **Step 5: Update locale strings**
 
@@ -501,7 +501,7 @@ Create `extensions/shoppable-video-widgets/assets/product-page-reels.js`:
   }
 
   function loadHlsJsIfNeeded() {
-    if (window.Hls || document.querySelector("script[data-reelup-hlsjs]")) {
+    if (window.Hls || document.querySelector("script[data-awa-sv-hlsjs]")) {
       return Promise.resolve();
     }
 
@@ -513,7 +513,7 @@ Create `extensions/shoppable-video-widgets/assets/product-page-reels.js`:
             "hls.min.js",
           )
         : "";
-      script.dataset.reelupHlsjs = "true";
+      script.dataset.awaSvHlsjs = "true";
       script.onload = function () {
         resolve();
       };
@@ -525,11 +525,11 @@ Create `extensions/shoppable-video-widgets/assets/product-page-reels.js`:
   }
 
   function activateReel(reelEl) {
-    if (reelEl.dataset.reelupActivated) return;
-    reelEl.dataset.reelupActivated = "true";
+    if (reelEl.dataset.awaSvActivated) return;
+    reelEl.dataset.awaSvActivated = "true";
 
-    var video = reelEl.querySelector(".reelup-reel__video");
-    var playButton = reelEl.querySelector(".reelup-reel__play");
+    var video = reelEl.querySelector(".awa-sv-reel__video");
+    var playButton = reelEl.querySelector(".awa-sv-reel__play");
     var hlsSrc = reelEl.dataset.hlsSrc;
 
     if (!video || !hlsSrc) return;
@@ -554,7 +554,7 @@ Create `extensions/shoppable-video-widgets/assets/product-page-reels.js`:
   }
 
   function observeReels() {
-    var reelEls = document.querySelectorAll("[data-reelup-reel]");
+    var reelEls = document.querySelectorAll("[data-awa-sv-reel]");
     if (reelEls.length === 0) return;
 
     if (!window.IntersectionObserver) {

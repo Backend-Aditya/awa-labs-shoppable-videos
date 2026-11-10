@@ -9,6 +9,33 @@ describe("sanitizeStyle", () => {
     expect(resolveStyle("CAROUSEL", {})).toMatchObject({ showSaleBadge: false, afterAdd: "stay" });
   });
 
+  it("carousel card templates, header text and popup options", () => {
+    expect(
+      sanitizeStyle("CAROUSEL", {
+        cardTemplate: "overlay",
+        eyebrow: "  Shoppable reels ",
+        subheading: "x".repeat(200),
+        showCardBadge: true,
+        badgeColor: "#C8102E",
+        productImageSize: "large",
+        productDetails: false,
+      }),
+    ).toEqual({
+      cardTemplate: "overlay",
+      eyebrow: "Shoppable reels",
+      subheading: "x".repeat(160),
+      showCardBadge: true,
+      badgeColor: "#c8102e",
+      productImageSize: "large",
+      productDetails: false,
+    });
+    expect(sanitizeStyle("CAROUSEL", { cardTemplate: "fancy", productImageSize: "huge", badgeColor: "red" })).toEqual({});
+    // Only the carousel has them.
+    expect(sanitizeStyle("PRODUCT_PAGE_REELS", { cardTemplate: "overlay", productDetails: true })).toEqual({});
+    // Existing carousels keep their card look; the popup gets the new defaults.
+    expect(resolveStyle("CAROUSEL", {})).toMatchObject({ cardTemplate: "title", productDetails: true, productImageSize: "large" });
+  });
+
   it("keeps only fields the kind uses", () => {
     const style = sanitizeStyle("REEL_POPS", { popShape: "circle", layoutMode: "grid", heading: "Hi" });
     expect(style).toEqual({ popShape: "circle" });

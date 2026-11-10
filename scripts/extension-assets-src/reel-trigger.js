@@ -1,11 +1,11 @@
 // Wires every non-story trigger to the video viewer, plus the layout
 // behaviour of the inline widgets: scroll arrows (filmstrip, stories row,
-// slider), the stacked deck, muted scroll/hover previews, and ?reelup=
+// slider), the stacked deck, muted scroll/hover previews, and ?awa-sv=
 // deep links. Re-runs on theme-editor section reloads, which swap in
 // fresh unbound markup without a page load.
 (() => {
   // Loaded by the embed and possibly again by a block loader.
-  if (window.ReelupTrigger) return;
+  if (window.AwaSvTrigger) return;
 
   const hoverCapable = window.matchMedia?.("(hover: hover) and (pointer: fine)").matches ?? false;
   const reducedMotion = () => window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
@@ -22,8 +22,8 @@
   // hls.js (~400 KB) is fetched the first time a shopper shows intent,
   // pointer over / focus on / touch of any trigger, never on page load.
   const onIntent = (event) => {
-    if (!event.target.closest?.("[data-reelup-trigger], [data-reelup-pop]")) return;
-    window.ReelupHls?.prefetch?.();
+    if (!event.target.closest?.("[data-awa-sv-trigger], [data-awa-sv-pop]")) return;
+    window.AwaSvHls?.prefetch?.();
     ["pointerover", "focusin", "touchstart"].forEach((type) => document.removeEventListener(type, onIntent, true));
   };
   ["pointerover", "focusin", "touchstart"].forEach((type) =>
@@ -36,16 +36,16 @@
   let queueReconcile = () => {};
 
   const bindTriggers = () => {
-    document.querySelectorAll("[data-reelup-trigger]").forEach((trigger) => {
-      if (trigger.closest("[data-reelup-story-group]") || trigger.dataset.reelupBound) return;
-      trigger.dataset.reelupBound = "true";
-      const button = trigger.querySelector(".reelup-trigger__button");
+    document.querySelectorAll("[data-awa-sv-trigger]").forEach((trigger) => {
+      if (trigger.closest("[data-awa-sv-story-group]") || trigger.dataset.awaSvBound) return;
+      trigger.dataset.awaSvBound = "true";
+      const button = trigger.querySelector(".awa-sv-trigger__button");
       if (!button) return;
 
       const open = () => {
-        const groupEl = trigger.closest("[data-reelup-group]");
-        const group = groupEl ? Array.from(groupEl.querySelectorAll("[data-reelup-trigger]")) : null;
-        window.ReelupLightbox?.open(trigger, group);
+        const groupEl = trigger.closest("[data-awa-sv-group]");
+        const group = groupEl ? Array.from(groupEl.querySelectorAll("[data-awa-sv-trigger]")) : null;
+        window.AwaSvLightbox?.open(trigger, group);
       };
 
       // "Hover" play trigger: hovering plays the muted inline preview (on
@@ -61,13 +61,16 @@
         });
       }
       button.addEventListener("click", open);
+      // Extra pointer targets for the same reel (a carousel card's product
+      // line under the video); the button stays the keyboard stop.
+      trigger.querySelectorAll("[data-awa-sv-open]").forEach((el) => el.addEventListener("click", open));
     });
   };
 
   /* --------------------------------------------- scroll arrows (strip) */
 
-  // Any horizontally scrolling row marked [data-reelup-strip] with
-  // [data-reelup-strip-prev/next] buttons beside it (inside its parent):
+  // Any horizontally scrolling row marked [data-awa-sv-strip] with
+  // [data-awa-sv-strip-prev/next] buttons beside it (inside its parent):
   // the filmstrip, the stories row and the deck's slider/no-JS row.
   const strips = new Map(); // track -> ResizeObserver | resize listener
 
@@ -82,12 +85,12 @@
 
   const bindStrips = () => {
     pruneStrips();
-    document.querySelectorAll("[data-reelup-strip]").forEach((track) => {
-      if (track.dataset.reelupStripBound) return;
-      track.dataset.reelupStripBound = "true";
+    document.querySelectorAll("[data-awa-sv-strip]").forEach((track) => {
+      if (track.dataset.awaSvStripBound) return;
+      track.dataset.awaSvStripBound = "true";
       const viewport = track.parentElement;
-      const prev = viewport.querySelector("[data-reelup-strip-prev]");
-      const next = viewport.querySelector("[data-reelup-strip-next]");
+      const prev = viewport.querySelector("[data-awa-sv-strip-prev]");
+      const next = viewport.querySelector("[data-awa-sv-strip-next]");
       if (!prev || !next) return;
 
       // RTL: scrollLeft runs 0 → negative, so compare magnitudes and flip
@@ -121,29 +124,29 @@
   /* ------------------------------------------------------------ deck */
 
   const bindDecks = () => {
-    document.querySelectorAll("[data-reelup-deck]").forEach((deck) => {
-      if (deck.dataset.reelupDeckBound) return;
-      deck.dataset.reelupDeckBound = "true";
+    document.querySelectorAll("[data-awa-sv-deck]").forEach((deck) => {
+      if (deck.dataset.awaSvDeckBound) return;
+      deck.dataset.awaSvDeckBound = "true";
 
-      const stage = deck.querySelector(".reelup-deck__stage");
-      const cards = Array.from(deck.querySelectorAll("[data-reelup-deck-card]"));
-      const dots = Array.from(deck.querySelectorAll("[data-reelup-deck-dots] span"));
-      const status = deck.querySelector("[data-reelup-deck-status]");
+      const stage = deck.querySelector(".awa-sv-deck__stage");
+      const cards = Array.from(deck.querySelectorAll("[data-awa-sv-deck-card]"));
+      const dots = Array.from(deck.querySelectorAll("[data-awa-sv-deck-dots] span"));
+      const status = deck.querySelector("[data-awa-sv-deck-status]");
       const statusFormat = deck.dataset.statusFormat || "__CURRENT__ / __TOTAL__";
       if (cards.length < 2) return;
 
       let active = Math.min(1, cards.length - 1);
       let announced = false;
 
-      const buttonOf = (card) => card?.querySelector(".reelup-trigger__button");
+      const buttonOf = (card) => card?.querySelector(".awa-sv-trigger__button");
 
       const render = (announceChange) => {
         const sign = isRtl(deck) ? -1 : 1;
         cards.forEach((card, i) => {
           const offset = i - active;
           const distance = Math.abs(offset);
-          card.style.setProperty("--ru-offset", String(offset * sign));
-          card.style.setProperty("--ru-distance", String(Math.min(distance, 3)));
+          card.style.setProperty("--awa-sv-offset", String(offset * sign));
+          card.style.setProperty("--awa-sv-distance", String(Math.min(distance, 3)));
           card.style.zIndex = String(20 - distance);
           card.classList.toggle("is-active", offset === 0);
           card.toggleAttribute("data-far", distance > 2);
@@ -157,12 +160,12 @@
         // Announce only real changes, never the initial render.
         if (status && (announceChange || announced)) {
           announced = true;
-          const title = cards[active].querySelector("[data-reelup-trigger]")?.dataset.title ?? "";
+          const title = cards[active].querySelector("[data-awa-sv-trigger]")?.dataset.title ?? "";
           const position = statusFormat.replace("__CURRENT__", String(active + 1)).replace("__TOTAL__", String(cards.length));
           const text = `${position}${title ? `: ${title}` : ""}`;
           if (status.textContent !== text) status.textContent = text;
         }
-        document.dispatchEvent(new CustomEvent("reelup:deck-change"));
+        document.dispatchEvent(new CustomEvent("awa-sv:deck-change"));
       };
 
       const goTo = (i, { focus = false } = {}) => {
@@ -173,7 +176,7 @@
         if (focus) buttonOf(cards[active])?.focus({ preventScroll: true });
       };
       // Used to sync the deck to the last reel viewed in the viewer.
-      deck.reelupDeckGoTo = (card) => {
+      deck.awaSvDeckGoTo = (card) => {
         const i = cards.indexOf(card);
         if (i >= 0) goTo(i);
       };
@@ -183,7 +186,7 @@
       stage.addEventListener(
         "click",
         (event) => {
-          const card = event.target.closest("[data-reelup-deck-card]");
+          const card = event.target.closest("[data-awa-sv-deck-card]");
           if (!card || card.classList.contains("is-active")) return;
           event.preventDefault();
           event.stopPropagation();
@@ -192,14 +195,14 @@
         true,
       );
 
-      deck.querySelector("[data-reelup-deck-prev]")?.addEventListener("click", () => goTo(active - 1));
-      deck.querySelector("[data-reelup-deck-next]")?.addEventListener("click", () => goTo(active + 1));
+      deck.querySelector("[data-awa-sv-deck-prev]")?.addEventListener("click", () => goTo(active - 1));
+      deck.querySelector("[data-awa-sv-deck-next]")?.addEventListener("click", () => goTo(active + 1));
       deck.addEventListener("keydown", (event) => {
         if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
         const forward = (event.key === "ArrowRight") !== isRtl(deck);
         // Focus on a card follows the card that comes forward; focus on the
         // arrow buttons stays put.
-        const onCard = Boolean(event.target.closest?.("[data-reelup-deck-card]"));
+        const onCard = Boolean(event.target.closest?.("[data-awa-sv-deck-card]"));
         event.preventDefault();
         goTo(active + (forward ? 1 : -1), { focus: onCard });
       });
@@ -240,10 +243,10 @@
 
   // After the viewer closes, bring the last viewed reel to the front of
   // its deck (the viewer then focuses its button).
-  document.addEventListener("reelup:viewer-closed", (event) => {
+  document.addEventListener("awa-sv:viewer-closed", (event) => {
     const trigger = event.detail?.trigger;
-    const card = trigger?.closest?.("[data-reelup-deck-card]");
-    card?.closest("[data-reelup-deck]")?.reelupDeckGoTo?.(card);
+    const card = trigger?.closest?.("[data-awa-sv-deck-card]");
+    card?.closest("[data-awa-sv-deck]")?.awaSvDeckGoTo?.(card);
   });
 
   /* ------------------------------------------------- scroll previews */
@@ -268,7 +271,7 @@
     if (!entry) return;
     running.delete(trigger);
     clearTimeout(entry.timer);
-    window.ReelupHls?.teardown(entry.video);
+    window.AwaSvHls?.teardown(entry.video);
     entry.video.remove();
   };
 
@@ -279,7 +282,7 @@
     clearTimeout(entry.timer);
     finished.add(trigger);
     entry.video.pause();
-    window.ReelupHls?.stopLoading?.(entry.video);
+    window.AwaSvHls?.stopLoading?.(entry.video);
     queueReconcile();
   };
 
@@ -291,10 +294,10 @@
   };
 
   const startPreview = (trigger, hover) => {
-    const button = trigger.querySelector(".reelup-trigger__button");
-    if (!button || running.has(trigger) || !window.ReelupHls || !trigger.dataset.hlsSrc) return;
+    const button = trigger.querySelector(".awa-sv-trigger__button");
+    if (!button || running.has(trigger) || !window.AwaSvHls || !trigger.dataset.hlsSrc) return;
     const video = document.createElement("video");
-    video.className = "reelup-trigger__preview";
+    video.className = "awa-sv-trigger__preview";
     video.muted = true;
     video.loop = true;
     video.playsInline = true;
@@ -309,10 +312,10 @@
       },
       { once: true },
     );
-    const poster = button.querySelector(".reelup-trigger__poster");
+    const poster = button.querySelector(".awa-sv-trigger__poster");
     button.insertBefore(video, poster ? poster.nextSibling : button.firstChild);
     running.set(trigger, entry);
-    window.ReelupHls.attach(video, trigger.dataset.hlsSrc, { preview: true })
+    window.AwaSvHls.attach(video, trigger.dataset.hlsSrc, { preview: true })
       .then(() => (running.get(trigger) === entry ? video.play() : undefined))
       .catch(() => {
         if (running.get(trigger) === entry) stopPreview(trigger);
@@ -325,10 +328,10 @@
   };
 
   const eligible = (t) =>
-    t.isConnected && !t.closest("[hidden]") && !t.closest(".is-ready [data-reelup-deck-card]:not(.is-active)");
+    t.isConnected && !t.closest("[hidden]") && !t.closest(".is-ready [data-awa-sv-deck-card]:not(.is-active)");
 
   const reconcile = () => {
-    const viewerOpen = document.querySelector("dialog.reelup-viewer[open], dialog.reelup-story[open]");
+    const viewerOpen = document.querySelector("dialog.awa-sv-viewer[open], dialog.awa-sv-story[open]");
     if (document.hidden) return;
     const hoverWanted = viewerOpen ? [] : [...hovered].filter(eligible);
     const scrollWanted =
@@ -413,21 +416,21 @@
     // Forget triggers removed by a theme-editor reload.
     for (const t of [...visible]) if (!t.isConnected) visible.delete(t);
     for (const t of [...hovered]) if (!t.isConnected) hovered.delete(t);
-    document.querySelectorAll("[data-reelup-trigger]").forEach((trigger) => {
-      if (trigger.dataset.reelupPreviewBound || !trigger.dataset.hlsSrc) return;
+    document.querySelectorAll("[data-awa-sv-trigger]").forEach((trigger) => {
+      if (trigger.dataset.awaSvPreviewBound || !trigger.dataset.hlsSrc) return;
       // Hover triggers are observed too, so a finished frame is dropped
       // when they scroll away.
       if (trigger.dataset.autoplayScroll !== "true" && trigger.dataset.playTrigger !== "hover") return;
-      trigger.dataset.reelupPreviewBound = "true";
+      trigger.dataset.awaSvPreviewBound = "true";
       previewObserver.observe(trigger);
     });
   };
 
   // Viewers pause every preview while open; decks change which card is in
   // front. Both just ask for a fresh reconcile.
-  document.addEventListener("reelup:viewer-change", queueReconcile);
-  document.addEventListener("reelup:deck-change", queueReconcile);
-  document.addEventListener("reelup:layout-change", queueReconcile);
+  document.addEventListener("awa-sv:viewer-change", queueReconcile);
+  document.addEventListener("awa-sv:deck-change", queueReconcile);
+  document.addEventListener("awa-sv:layout-change", queueReconcile);
   window.addEventListener("scroll", queueReconcile, { passive: true });
 
   const bindAll = () => {
@@ -438,33 +441,33 @@
     queueReconcile();
   };
 
-  // Shared links carry ?reelup=<id>; open that reel once, after binding,
+  // Shared links carry ?awa-sv=<id>; open that reel once, after binding,
   // then drop the parameter so reloads/back navigation don't reopen it.
   const openFromUrl = () => {
     const params = new URLSearchParams(window.location.search);
-    const id = params.get("reelup");
+    const id = params.get("awa-sv");
     if (!id || !/^\d+$/.test(id)) return;
-    const trigger = Array.from(document.querySelectorAll("[data-reelup-trigger]")).find(
+    const trigger = Array.from(document.querySelectorAll("[data-awa-sv-trigger]")).find(
       (t) => String(t.dataset.reelId ?? "").split("/").pop() === id,
     );
     if (!trigger) return;
     trigger.scrollIntoView({ block: "center" });
-    if (trigger.closest("[data-reelup-story-group]")) {
-      trigger.querySelector(".reelup-trigger__button")?.click();
+    if (trigger.closest("[data-awa-sv-story-group]")) {
+      trigger.querySelector(".awa-sv-trigger__button")?.click();
     } else {
-      const groupEl = trigger.closest("[data-reelup-group]");
-      window.ReelupLightbox?.open(trigger, groupEl ? Array.from(groupEl.querySelectorAll("[data-reelup-trigger]")) : null);
+      const groupEl = trigger.closest("[data-awa-sv-group]");
+      window.AwaSvLightbox?.open(trigger, groupEl ? Array.from(groupEl.querySelectorAll("[data-awa-sv-trigger]")) : null);
     }
     try {
       const url = new URL(window.location.href);
-      url.searchParams.delete("reelup");
+      url.searchParams.delete("awa-sv");
       window.history.replaceState(window.history.state, "", url.toString());
     } catch {
       // Sandboxed frames can refuse replaceState; harmless.
     }
   };
 
-  window.ReelupTrigger = { bind: bindAll };
+  window.AwaSvTrigger = { bind: bindAll };
   bindAll();
   // Story triggers are bound by reel-story.js, which loads before this file.
   openFromUrl();

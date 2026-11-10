@@ -43,6 +43,12 @@
     "playback_error": "Deze video kan niet worden afgespeeld.",
     "retry_label": "Opnieuw proberen",
     "seek_label": "Videovoortgang",
-    "editor_placeholder": "Shopbare video's: nog niets om te tonen. Publiceer deze widget en voeg video's toe in de app onder Widgets (controleer ook de targeting). Alleen zichtbaar in de thema-editor."
+    "editor_placeholder": "Shopbare video's: nog niets om te tonen. Publiceer deze widget en voeg video's toe in de app onder Widgets (controleer ook de targeting). Alleen zichtbaar in de thema-editor.",
+    "percent_off": "{{ percent }}% KORTING",
+    "shop_now": "Nu shoppen",
+    "description_label": "Beschrijving",
+    "view_details": "Alle details bekijken",
+    "back_to_products": "Terug naar producten",
+    "product_details_label": "Productdetails"
   }
 }

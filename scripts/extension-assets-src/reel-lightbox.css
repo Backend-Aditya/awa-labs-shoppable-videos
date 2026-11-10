@@ -1,24 +1,24 @@
-/* Video viewer (#reelup-lightbox) and story viewer (#reelup-story-viewer).
+/* Video viewer (#awa-sv-lightbox) and story viewer (#awa-sv-story-viewer).
    Dark, full-bleed, and deliberately theme-independent: the video is the
    content here, so the chrome stays neutral and only the merchant's
    add-to-cart colour comes through. Product card styles live in
    reel-widgets.css and are shared with the featured-video block. */
 
-html.reelup-locked {
+html.awa-sv-locked {
   overflow: hidden;
   /* Keep the page from jumping sideways when its scrollbar disappears. */
   scrollbar-gutter: stable;
 }
 
-.reelup-viewer,
-.reelup-story {
+.awa-sv-viewer,
+.awa-sv-story {
   --rv-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  --ru-cta: var(--ru-brand-cta, #141414);
-  --ru-cta-text: var(--ru-brand-cta-text, #ffffff);
-  --ru-text: #141414;
-  --ru-muted: #6b6b6b;
-  --ru-line: #e8e8e8;
-  --ru-origin: left;
+  --awa-sv-cta: var(--awa-sv-brand-cta, #141414);
+  --awa-sv-cta-text: var(--awa-sv-brand-cta-text, #ffffff);
+  --awa-sv-text: #141414;
+  --awa-sv-muted: #6b6b6b;
+  --awa-sv-line: #e8e8e8;
+  --awa-sv-origin: left;
   position: fixed;
   inset: 0;
   width: 100vw;
@@ -42,34 +42,34 @@ html.reelup-locked {
   transition: opacity 0.2s ease, display 0.2s allow-discrete, overlay 0.2s allow-discrete;
 }
 
-.reelup-viewer:not([open]),
-.reelup-story:not([open]) {
+.awa-sv-viewer:not([open]),
+.awa-sv-story:not([open]) {
   opacity: 0;
   pointer-events: none;
 }
 
-.reelup-viewer *,
-.reelup-story * {
+.awa-sv-viewer *,
+.awa-sv-story * {
   box-sizing: border-box;
 }
 
 /* Right-to-left storefronts: progress fills from the inline start. */
-html[dir="rtl"] .reelup-viewer,
-html[dir="rtl"] .reelup-story {
-  --ru-origin: right;
+html[dir="rtl"] .awa-sv-viewer,
+html[dir="rtl"] .awa-sv-story {
+  --awa-sv-origin: right;
 }
 
-.reelup-viewer:dir(rtl),
-.reelup-story:dir(rtl) {
-  --ru-origin: right;
+.awa-sv-viewer:dir(rtl),
+.awa-sv-story:dir(rtl) {
+  --awa-sv-origin: right;
 }
 
 /* Theme button/link styles (Dawn's .button, uppercase/letter-spaced
    buttons, min-heights, shadows) must not leak into the viewer chrome.
    Specificity (0,1,1) beats theme element selectors; component rules
    below that set these properties use two classes. */
-.reelup-viewer button,
-.reelup-story button {
+.awa-sv-viewer button,
+.awa-sv-story button {
   letter-spacing: normal;
   text-transform: none;
   text-shadow: none;
@@ -82,7 +82,7 @@ html[dir="rtl"] .reelup-story {
 
 /* Permanent, visually hidden live region. display is forced because
    themes like Dawn hide div:empty, which would mute the region. */
-.reelup-live {
+.awa-sv-live {
   position: absolute !important;
   display: block !important;
   width: 1px;
@@ -95,81 +95,81 @@ html[dir="rtl"] .reelup-story {
   border: 0;
 }
 
-.reelup-viewer::backdrop {
+.awa-sv-viewer::backdrop {
   background: rgb(8 8 8 / 0.9);
   -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }
 
-.reelup-story::backdrop {
+.awa-sv-story::backdrop {
   background: #050505;
 }
 
-.reelup-viewer::backdrop,
-.reelup-story::backdrop {
+.awa-sv-viewer::backdrop,
+.awa-sv-story::backdrop {
   transition: opacity 0.2s ease, display 0.2s allow-discrete, overlay 0.2s allow-discrete;
 }
 
-.reelup-viewer:not([open])::backdrop,
-.reelup-story:not([open])::backdrop {
+.awa-sv-viewer:not([open])::backdrop,
+.awa-sv-story:not([open])::backdrop {
   opacity: 0;
 }
 
 @starting-style {
-  .reelup-viewer[open],
-  .reelup-story[open],
-  .reelup-viewer[open]::backdrop,
-  .reelup-story[open]::backdrop {
+  .awa-sv-viewer[open],
+  .awa-sv-story[open],
+  .awa-sv-viewer[open]::backdrop,
+  .awa-sv-story[open]::backdrop {
     opacity: 0;
   }
 }
 
-.reelup-viewer[open] .reelup-viewer__stage {
-  animation: reelup-rise 0.4s var(--rv-ease) both;
+.awa-sv-viewer[open] .awa-sv-viewer__stage {
+  animation: awa-sv-rise 0.4s var(--rv-ease) both;
 }
 
-.reelup-story[open] .reelup-story__frame {
-  animation: reelup-zoom 0.38s var(--rv-ease) both;
+.awa-sv-story[open] .awa-sv-story__frame {
+  animation: awa-sv-zoom 0.38s var(--rv-ease) both;
 }
 
-@keyframes reelup-fade {
+@keyframes awa-sv-fade {
   from { opacity: 0; }
 }
 
-@keyframes reelup-rise {
+@keyframes awa-sv-rise {
   from { opacity: 0; transform: translateY(18px) scale(0.98); }
 }
 
-@keyframes reelup-zoom {
+@keyframes awa-sv-zoom {
   from { opacity: 0; transform: scale(0.94); }
 }
 
 /* Moving to the next/previous reel: the new one slides in from where it
    came from, its products fade in. */
-.reelup-viewer[data-enter="next"] :is(.reelup-viewer__video, .reelup-viewer__title) {
-  animation: reelup-enter-next 0.42s var(--rv-ease) both;
+.awa-sv-viewer[data-enter="next"] :is(.awa-sv-viewer__video, .awa-sv-viewer__title) {
+  animation: awa-sv-enter-next 0.42s var(--rv-ease) both;
 }
 
-.reelup-viewer[data-enter="prev"] :is(.reelup-viewer__video, .reelup-viewer__title) {
-  animation: reelup-enter-prev 0.42s var(--rv-ease) both;
+.awa-sv-viewer[data-enter="prev"] :is(.awa-sv-viewer__video, .awa-sv-viewer__title) {
+  animation: awa-sv-enter-prev 0.42s var(--rv-ease) both;
 }
 
-.reelup-viewer[data-enter] :is(.reelup-viewer__list, .reelup-viewer__count) {
-  animation: reelup-fade 0.3s ease both;
+.awa-sv-viewer[data-enter] :is(.awa-sv-viewer__list, .awa-sv-viewer__count) {
+  animation: awa-sv-fade 0.3s ease both;
 }
 
-@keyframes reelup-enter-next {
+@keyframes awa-sv-enter-next {
   from { opacity: 0.3; transform: translateY(7%); }
 }
 
-@keyframes reelup-enter-prev {
+@keyframes awa-sv-enter-prev {
   from { opacity: 0.3; transform: translateY(-7%); }
 }
 
 /* ---------- buffering spinner (both viewers) ---------- */
 
-.reelup-viewer .reelup-spinner,
-.reelup-story .reelup-spinner {
+.awa-sv-viewer .awa-sv-spinner,
+.awa-sv-story .awa-sv-spinner {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -187,21 +187,21 @@ html[dir="rtl"] .reelup-story {
 }
 
 /* Spins only while shown, so a hidden spinner costs nothing. */
-.reelup-viewer .is-buffering > .reelup-spinner,
-.reelup-story .is-buffering > .reelup-spinner {
+.awa-sv-viewer .is-buffering > .awa-sv-spinner,
+.awa-sv-story .is-buffering > .awa-sv-spinner {
   opacity: 1;
   visibility: visible;
   transition: opacity 0.2s ease;
-  animation: reelup-spin 0.8s linear infinite;
+  animation: awa-sv-spin 0.8s linear infinite;
 }
 
-@keyframes reelup-spin {
+@keyframes awa-sv-spin {
   to { transform: rotate(360deg); }
 }
 
 /* ---------- shared icon buttons ---------- */
 
-.reelup-viewer__icon {
+.awa-sv-viewer__icon {
   appearance: none;
   width: 36px;
   height: 36px;
@@ -219,78 +219,78 @@ html[dir="rtl"] .reelup-story {
   transition: background-color 0.15s ease, transform 0.15s ease;
 }
 
-.reelup-viewer__icon:hover {
+.awa-sv-viewer__icon:hover {
   background: rgb(0 0 0 / 0.6);
 }
 
-.reelup-viewer__icon:active {
+.awa-sv-viewer__icon:active {
   transform: scale(0.92);
 }
 
 /* Fingers need a bigger target than a mouse. */
 @media (pointer: coarse) {
-  .reelup-viewer__icon {
+  .awa-sv-viewer__icon {
     width: 40px;
     height: 40px;
   }
 }
 
-.reelup-viewer__icon--light {
+.awa-sv-viewer__icon--light {
   background: #f1f1f1;
   color: #141414;
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
 
-.reelup-viewer__icon--light:hover {
+.awa-sv-viewer__icon--light:hover {
   background: #e4e4e4;
 }
 
-.reelup-viewer button:focus-visible,
-.reelup-viewer a:focus-visible,
-.reelup-viewer select:focus-visible,
-.reelup-story button:focus-visible,
-.reelup-story a:focus-visible,
-.reelup-story select:focus-visible {
+.awa-sv-viewer button:focus-visible,
+.awa-sv-viewer a:focus-visible,
+.awa-sv-viewer select:focus-visible,
+.awa-sv-story button:focus-visible,
+.awa-sv-story a:focus-visible,
+.awa-sv-story select:focus-visible {
   outline: 2px solid #fff;
   outline-offset: 2px;
 }
 
-.reelup-viewer__panel button:focus-visible,
-.reelup-viewer__panel a:focus-visible,
-.reelup-viewer__panel select:focus-visible,
-.reelup-story__drawer button:focus-visible,
-.reelup-story__drawer a:focus-visible,
-.reelup-story__drawer select:focus-visible {
+.awa-sv-viewer__panel button:focus-visible,
+.awa-sv-viewer__panel a:focus-visible,
+.awa-sv-viewer__panel select:focus-visible,
+.awa-sv-story__drawer button:focus-visible,
+.awa-sv-story__drawer a:focus-visible,
+.awa-sv-story__drawer select:focus-visible {
   outline-color: #141414;
 }
 
 /* ---------- light viewer (brand kit) ---------- */
 
-.reelup-viewer--light::backdrop {
+.awa-sv-viewer--light::backdrop {
   background: rgb(243 242 239 / 0.94);
 }
 
-.reelup-story.reelup-viewer--light::backdrop {
+.awa-sv-story.awa-sv-viewer--light::backdrop {
   background: #f3f2ef;
 }
 
-.reelup-viewer--light .reelup-viewer__navbtn {
+.awa-sv-viewer--light .awa-sv-viewer__navbtn {
   background: rgb(0 0 0 / 0.06);
   color: #141414;
 }
 
-.reelup-viewer--light .reelup-viewer__navbtn:hover:not(:disabled) {
+.awa-sv-viewer--light .awa-sv-viewer__navbtn:hover:not(:disabled) {
   background: rgb(0 0 0 / 0.12);
 }
 
-.reelup-viewer--light .reelup-viewer__player,
-.reelup-viewer--light .reelup-viewer__panel {
+.awa-sv-viewer--light .awa-sv-viewer__player,
+.awa-sv-viewer--light .awa-sv-viewer__panel {
   box-shadow: 0 24px 60px rgb(0 0 0 / 0.14);
 }
 
 @media (max-width: 749px) {
-  .reelup-viewer--light::backdrop {
+  .awa-sv-viewer--light::backdrop {
     background: #000;
   }
 }
@@ -299,7 +299,7 @@ html[dir="rtl"] .reelup-story {
    Video viewer
    ================================================================= */
 
-.reelup-viewer__stage {
+.awa-sv-viewer__stage {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -310,7 +310,7 @@ html[dir="rtl"] .reelup-story {
   padding-inline: 24px 96px;
 }
 
-.reelup-viewer__player {
+.awa-sv-viewer__player {
   position: relative;
   flex: 0 0 auto;
   height: min(88vh, 860px);
@@ -323,11 +323,11 @@ html[dir="rtl"] .reelup-story {
   box-shadow: 0 30px 80px rgb(0 0 0 / 0.5);
 }
 
-.reelup-viewer:not(.has-products) .reelup-viewer__player {
+.awa-sv-viewer:not(.has-products) .awa-sv-viewer__player {
   max-width: calc(100vw - 160px);
 }
 
-.reelup-viewer__video {
+.awa-sv-viewer__video {
   display: block;
   width: 100%;
   height: 100%;
@@ -338,8 +338,8 @@ html[dir="rtl"] .reelup-story {
 
 /* Two classes: Dawn's `div:empty { display: none }` (0,1,1) would
    otherwise remove these empty overlay divs. */
-.reelup-viewer .reelup-viewer__shade,
-.reelup-story .reelup-story__shade {
+.awa-sv-viewer .awa-sv-viewer__shade,
+.awa-sv-story .awa-sv-story__shade {
   display: block;
   position: absolute;
   inset: 0;
@@ -349,7 +349,7 @@ html[dir="rtl"] .reelup-story {
     linear-gradient(transparent 70%, rgb(0 0 0 / 0.55));
 }
 
-.reelup-viewer__progress {
+.awa-sv-viewer__progress {
   position: absolute;
   top: 0;
   left: 0;
@@ -363,38 +363,38 @@ html[dir="rtl"] .reelup-story {
 }
 
 /* A taller invisible hit area so the thin strip is easy to grab. */
-.reelup-viewer__progress::before {
+.awa-sv-viewer__progress::before {
   content: "";
   position: absolute;
   inset: 0 0 -12px;
 }
 
-.reelup-viewer__progress:hover,
-.reelup-viewer__progress:focus-visible,
-.reelup-viewer__player.is-seeking .reelup-viewer__progress {
+.awa-sv-viewer__progress:hover,
+.awa-sv-viewer__progress:focus-visible,
+.awa-sv-viewer__player.is-seeking .awa-sv-viewer__progress {
   height: 6px;
 }
 
-.reelup-viewer__progress:focus-visible {
+.awa-sv-viewer__progress:focus-visible {
   outline: 2px solid #fff;
   outline-offset: 2px;
 }
 
-.reelup-viewer__progress span {
+.awa-sv-viewer__progress span {
   display: block;
   height: 100%;
   background: #fff;
   transform: scaleX(0);
-  transform-origin: var(--ru-origin, left);
+  transform-origin: var(--awa-sv-origin, left);
   transition: transform 0.25s linear;
   pointer-events: none;
 }
 
-.reelup-viewer__player.is-seeking .reelup-viewer__progress span {
+.awa-sv-viewer__player.is-seeking .awa-sv-viewer__progress span {
   transition: none;
 }
 
-.reelup-viewer__top {
+.awa-sv-viewer__top {
   position: absolute;
   top: 14px;
   inset-inline: 14px;
@@ -403,7 +403,7 @@ html[dir="rtl"] .reelup-story {
   gap: 8px;
 }
 
-.reelup-viewer__count {
+.awa-sv-viewer__count {
   margin-inline-end: auto;
   padding: 4px 10px;
   border-radius: 999px;
@@ -415,14 +415,14 @@ html[dir="rtl"] .reelup-story {
   font-variant-numeric: tabular-nums;
 }
 
-.reelup-viewer__count[hidden] + .reelup-viewer__icon,
-.reelup-viewer__count[hidden] + .reelup-viewer__icon[hidden] + .reelup-viewer__icon {
+.awa-sv-viewer__count[hidden] + .awa-sv-viewer__icon,
+.awa-sv-viewer__count[hidden] + .awa-sv-viewer__icon[hidden] + .awa-sv-viewer__icon {
   margin-inline-start: auto;
 }
 
 /* ---------- playback error ---------- */
 
-.reelup-viewer__error {
+.awa-sv-viewer__error {
   position: absolute;
   inset: 0;
   z-index: 3;
@@ -441,25 +441,25 @@ html[dir="rtl"] .reelup-story {
   pointer-events: none;
 }
 
-.reelup-viewer__error button {
+.awa-sv-viewer__error button {
   pointer-events: auto;
 }
 
-.reelup-viewer__error[hidden] {
+.awa-sv-viewer__error[hidden] {
   display: none;
 }
 
-.reelup-viewer__error p {
+.awa-sv-viewer__error p {
   max-width: 24ch;
   margin: 0;
   line-height: 1.4;
 }
 
-.reelup-viewer__error > svg {
+.awa-sv-viewer__error > svg {
   opacity: 0.85;
 }
 
-.reelup-viewer .reelup-viewer__error button {
+.awa-sv-viewer .awa-sv-viewer__error button {
   appearance: none;
   display: inline-flex;
   align-items: center;
@@ -476,11 +476,11 @@ html[dir="rtl"] .reelup-story {
   transition: transform 0.15s ease;
 }
 
-.reelup-viewer .reelup-viewer__error button:active {
+.awa-sv-viewer .awa-sv-viewer__error button:active {
   transform: scale(0.96);
 }
 
-.reelup-viewer__toggle {
+.awa-sv-viewer__toggle {
   appearance: none;
   position: absolute;
   top: 50%;
@@ -507,14 +507,14 @@ html[dir="rtl"] .reelup-story {
   pointer-events: none;
 }
 
-.reelup-viewer__player.is-paused .reelup-viewer__toggle,
-.reelup-viewer__toggle:focus-visible {
+.awa-sv-viewer__player.is-paused .awa-sv-viewer__toggle,
+.awa-sv-viewer__toggle:focus-visible {
   opacity: 1;
   transform: scale(1);
   pointer-events: auto;
 }
 
-.reelup-viewer__title {
+.awa-sv-viewer__title {
   position: absolute;
   inset-inline: 18px;
   bottom: 18px;
@@ -537,11 +537,11 @@ html[dir="rtl"] .reelup-story {
 /* ---------- product moments ---------- */
 
 /* The product on screen right now, in the caption's place. */
-.reelup-viewer__player.has-moment .reelup-viewer__title {
+.awa-sv-viewer__player.has-moment .awa-sv-viewer__title {
   opacity: 0;
 }
 
-.reelup-viewer .reelup-moment {
+.awa-sv-viewer .awa-sv-moment {
   appearance: none;
   position: absolute;
   inset-inline: 14px;
@@ -559,14 +559,14 @@ html[dir="rtl"] .reelup-story {
   text-align: start;
   box-shadow: 0 10px 28px rgb(0 0 0 / 0.28);
   cursor: pointer;
-  animation: reelup-moment-in 0.4s var(--rv-ease) both;
+  animation: awa-sv-moment-in 0.4s var(--rv-ease) both;
 }
 
-.reelup-viewer .reelup-moment[hidden] {
+.awa-sv-viewer .awa-sv-moment[hidden] {
   display: none;
 }
 
-.reelup-moment__thumb {
+.awa-sv-moment__thumb {
   flex-shrink: 0;
   width: 44px;
   height: 44px;
@@ -574,11 +574,11 @@ html[dir="rtl"] .reelup-story {
   background: #eee center / cover no-repeat;
 }
 
-.reelup-moment__thumb[hidden] {
+.awa-sv-moment__thumb[hidden] {
   display: none;
 }
 
-.reelup-moment__text {
+.awa-sv-moment__text {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -586,7 +586,7 @@ html[dir="rtl"] .reelup-story {
   gap: 1px;
 }
 
-.reelup-moment__title {
+.awa-sv-moment__title {
   overflow: hidden;
   font-size: 13px;
   font-weight: 650;
@@ -595,39 +595,39 @@ html[dir="rtl"] .reelup-story {
   white-space: nowrap;
 }
 
-.reelup-moment__price {
+.awa-sv-moment__price {
   color: #6b6b6b;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
 
-.reelup-moment__cta {
+.awa-sv-moment__cta {
   flex-shrink: 0;
   padding: 0 16px;
   border-radius: 999px;
-  background: var(--ru-cta, #141414);
-  color: var(--ru-cta-text, #fff);
+  background: var(--awa-sv-cta, #141414);
+  color: var(--awa-sv-cta-text, #fff);
   font-size: 13px;
   font-weight: 650;
   line-height: 34px;
 }
 
-.reelup-cta--square .reelup-moment__cta {
+.awa-sv-cta--square .awa-sv-moment__cta {
   border-radius: 6px;
 }
 
-@keyframes reelup-moment-in {
+@keyframes awa-sv-moment-in {
   from { opacity: 0; transform: translateY(12px) scale(0.97); }
 }
 
 /* Its row in the product list lights up while it's on screen. */
-.reelup-viewer__list .reelup-product,
-.reelup-story__list .reelup-product {
+.awa-sv-viewer__list .awa-sv-product,
+.awa-sv-story__list .awa-sv-product {
   transition: background-color 0.3s ease;
 }
 
-.reelup-viewer__list .reelup-product.is-moment,
-.reelup-story__list .reelup-product.is-moment {
+.awa-sv-viewer__list .awa-sv-product.is-moment,
+.awa-sv-story__list .awa-sv-product.is-moment {
   margin-inline: -10px;
   padding-inline: 10px;
   border-radius: 12px;
@@ -639,7 +639,7 @@ html[dir="rtl"] .reelup-story {
 /* Column the same height as the player, with the panel pinned to its top,
    so collapsing the list keeps the header level with the top of the video
    instead of re-centering it. */
-.reelup-viewer__side {
+.awa-sv-viewer__side {
   flex: 0 0 360px;
   height: min(88vh, 860px);
   height: min(88dvh, 860px);
@@ -648,11 +648,11 @@ html[dir="rtl"] .reelup-story {
   min-height: 0;
 }
 
-.reelup-viewer__side:not(:has(> .reelup-viewer__panel:not([hidden]))) {
+.awa-sv-viewer__side:not(:has(> .awa-sv-viewer__panel:not([hidden]))) {
   display: none;
 }
 
-.reelup-viewer__panel {
+.awa-sv-viewer__panel {
   flex: 0 1 auto;
   min-height: 0;
   max-height: 100%;
@@ -665,11 +665,11 @@ html[dir="rtl"] .reelup-story {
   box-shadow: 0 30px 80px rgb(0 0 0 / 0.35);
 }
 
-.reelup-viewer__panel[hidden] {
+.awa-sv-viewer__panel[hidden] {
   display: none;
 }
 
-.reelup-viewer__panel-head {
+.awa-sv-viewer__panel-head {
   appearance: none;
   display: flex;
   align-items: center;
@@ -690,11 +690,11 @@ html[dir="rtl"] .reelup-story {
   cursor: pointer;
 }
 
-.reelup-viewer__panel-title {
+.awa-sv-viewer__panel-title {
   flex: 1;
 }
 
-.reelup-viewer__panel-count {
+.awa-sv-viewer__panel-count {
   min-width: 22px;
   padding: 0 7px;
   border-radius: 999px;
@@ -704,63 +704,63 @@ html[dir="rtl"] .reelup-story {
   text-align: center;
 }
 
-.reelup-viewer__panel-count:empty {
+.awa-sv-viewer__panel-count:empty {
   display: none;
 }
 
-.reelup-viewer__chevron {
+.awa-sv-viewer__chevron {
   display: grid;
   transition: transform 0.25s var(--rv-ease);
 }
 
-.reelup-viewer__panel-head[aria-expanded="true"] .reelup-viewer__chevron {
+.awa-sv-viewer__panel-head[aria-expanded="true"] .awa-sv-viewer__chevron {
   transform: rotate(180deg);
 }
 
-.reelup-viewer__panel:has(.reelup-viewer__recs:not([hidden])) {
+.awa-sv-viewer__panel:has(.awa-sv-viewer__recs:not([hidden])) {
   overflow-y: auto;
 }
 
-.reelup-viewer__panel:has(.reelup-viewer__recs:not([hidden])) .reelup-viewer__list {
+.awa-sv-viewer__panel:has(.awa-sv-viewer__recs:not([hidden])) .awa-sv-viewer__list {
   flex: none;
   overflow: visible;
 }
 
-.reelup-viewer__list {
+.awa-sv-viewer__list {
   flex: 1;
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 4px 18px;
 }
 
-.reelup-viewer__list .reelup-product,
-.reelup-story__list .reelup-product {
+.awa-sv-viewer__list .awa-sv-product,
+.awa-sv-story__list .awa-sv-product {
   padding: 14px 0;
   border-bottom: 1px solid #f1f1f1;
   align-items: flex-start;
 }
 
-.reelup-viewer__list .reelup-product:last-child,
-.reelup-story__list .reelup-product:last-child {
+.awa-sv-viewer__list .awa-sv-product:last-child,
+.awa-sv-story__list .awa-sv-product:last-child {
   border-bottom: 0;
 }
 
-.reelup-viewer__list .reelup-product__add,
-.reelup-story__list .reelup-product__add {
+.awa-sv-viewer__list .awa-sv-product__add,
+.awa-sv-story__list .awa-sv-product__add {
   align-self: center;
 }
 
-.reelup-viewer__panel[data-state="closed"] .reelup-viewer__list {
+.awa-sv-viewer__panel[data-state="closed"] .awa-sv-viewer__list {
   display: none;
 }
 
-.reelup-viewer__panel[data-state="closed"] .reelup-viewer__panel-head {
+.awa-sv-viewer__panel[data-state="closed"] .awa-sv-viewer__panel-head {
   border-bottom: 0;
 }
 
 /* Pinned to the bottom of the panel so the confirmation is seen even when
    recommendations make the panel scroll. */
-.reelup-viewer__cart {
+.awa-sv-viewer__cart {
   position: sticky;
   bottom: 0;
   z-index: 1;
@@ -777,27 +777,27 @@ html[dir="rtl"] .reelup-story {
   font-weight: 600;
 }
 
-.reelup-viewer__cart[hidden] {
+.awa-sv-viewer__cart[hidden] {
   display: none;
 }
 
-.reelup-viewer__cart a {
+.awa-sv-viewer__cart a {
   color: inherit;
   text-underline-offset: 3px;
 }
 
-.reelup-viewer__cart[data-failed] {
+.awa-sv-viewer__cart[data-failed] {
   background: #fdf3f2;
   color: #8e1f0b;
 }
 
-.reelup-viewer__cart[data-failed] a {
+.awa-sv-viewer__cart[data-failed] a {
   display: none;
 }
 
 /* ---------- per-video link button ---------- */
 
-.reelup-viewer__link {
+.awa-sv-viewer__link {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -813,39 +813,39 @@ html[dir="rtl"] .reelup-story {
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.reelup-viewer__link:hover {
+.awa-sv-viewer__link:hover {
   background: #141414;
   color: #fff;
 }
 
-.reelup-viewer__link[hidden] {
+.awa-sv-viewer__link[hidden] {
   display: none;
 }
 
-.reelup-viewer__panel-head[hidden] {
+.awa-sv-viewer__panel-head[hidden] {
   display: none;
 }
 
 /* ---------- you may also like ---------- */
 
-.reelup-viewer__recs {
+.awa-sv-viewer__recs {
   padding: 14px 0 16px;
   border-top: 1px solid #efefef;
 }
 
-.reelup-viewer__recs[hidden],
-.reelup-viewer__panel[data-state="closed"] .reelup-viewer__recs {
+.awa-sv-viewer__recs[hidden],
+.awa-sv-viewer__panel[data-state="closed"] .awa-sv-viewer__recs {
   display: none;
 }
 
-.reelup-viewer__recs-title {
+.awa-sv-viewer__recs-title {
   margin: 0 18px 10px;
   font-size: 13px;
   font-weight: 650;
   color: #141414;
 }
 
-.reelup-viewer__recs-row {
+.awa-sv-viewer__recs-row {
   display: flex;
   gap: 10px;
   overflow-x: auto;
@@ -855,11 +855,11 @@ html[dir="rtl"] .reelup-story {
   padding: 0 18px;
 }
 
-.reelup-viewer__recs-row::-webkit-scrollbar {
+.awa-sv-viewer__recs-row::-webkit-scrollbar {
   display: none;
 }
 
-.reelup-rec {
+.awa-sv-rec {
   flex: 0 0 112px;
   display: flex;
   flex-direction: column;
@@ -869,7 +869,7 @@ html[dir="rtl"] .reelup-story {
   scroll-snap-align: start;
 }
 
-.reelup-rec__media {
+.awa-sv-rec__media {
   display: block;
   aspect-ratio: 1;
   border-radius: 10px;
@@ -877,7 +877,7 @@ html[dir="rtl"] .reelup-story {
   background: #f1f1f1;
 }
 
-.reelup-rec__media img {
+.awa-sv-rec__media img {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -885,11 +885,11 @@ html[dir="rtl"] .reelup-story {
   transition: transform 0.4s var(--rv-ease);
 }
 
-.reelup-rec:hover .reelup-rec__media img {
+.awa-sv-rec:hover .awa-sv-rec__media img {
   transform: scale(1.05);
 }
 
-.reelup-rec__title {
+.awa-sv-rec__title {
   font-size: 12px;
   font-weight: 550;
   line-height: 1.3;
@@ -899,7 +899,7 @@ html[dir="rtl"] .reelup-story {
   overflow: hidden;
 }
 
-.reelup-rec__price {
+.awa-sv-rec__price {
   font-size: 12px;
   color: #6b6b6b;
   font-variant-numeric: tabular-nums;
@@ -907,7 +907,7 @@ html[dir="rtl"] .reelup-story {
 
 /* ---------- toast ---------- */
 
-.reelup-toast {
+.awa-sv-toast {
   position: absolute;
   left: 50%;
   bottom: 72px;
@@ -924,11 +924,11 @@ html[dir="rtl"] .reelup-story {
   pointer-events: none;
 }
 
-.reelup-toast.is-visible {
-  animation: reelup-toast 2.2s var(--rv-ease) both;
+.awa-sv-toast.is-visible {
+  animation: awa-sv-toast 2.2s var(--rv-ease) both;
 }
 
-@keyframes reelup-toast {
+@keyframes awa-sv-toast {
   0% { opacity: 0; transform: translate(-50%, 8px); }
   12%, 80% { opacity: 1; transform: translate(-50%, 0); }
   100% { opacity: 0; transform: translate(-50%, 0); }
@@ -936,7 +936,7 @@ html[dir="rtl"] .reelup-story {
 
 /* ---------- group navigation ---------- */
 
-.reelup-viewer__nav {
+.awa-sv-viewer__nav {
   position: absolute;
   top: 50%;
   inset-inline-end: 28px;
@@ -946,11 +946,11 @@ html[dir="rtl"] .reelup-story {
   transform: translateY(-50%);
 }
 
-.reelup-viewer__nav[hidden] {
+.awa-sv-viewer__nav[hidden] {
   display: none;
 }
 
-.reelup-viewer__navbtn {
+.awa-sv-viewer__navbtn {
   appearance: none;
   width: 44px;
   height: 44px;
@@ -965,16 +965,16 @@ html[dir="rtl"] .reelup-story {
   transition: background-color 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
 }
 
-.reelup-viewer__navbtn:hover:not(:disabled) {
+.awa-sv-viewer__navbtn:hover:not(:disabled) {
   background: rgb(255 255 255 / 0.24);
 }
 
-.reelup-viewer__navbtn:disabled {
+.awa-sv-viewer__navbtn:disabled {
   opacity: 0.3;
   cursor: default;
 }
 
-.reelup-viewer__navbtn:active:not(:disabled) {
+.awa-sv-viewer__navbtn:active:not(:disabled) {
   transform: scale(0.92);
 }
 
@@ -982,26 +982,441 @@ html[dir="rtl"] .reelup-story {
 
 /* Fixed width so "Add to cart" → "Added" → "Sold out" never reflows the
    product name beside it. */
-.reelup-viewer .reelup-product__add,
-.reelup-story .reelup-product__add {
+.awa-sv-viewer .awa-sv-product__add,
+.awa-sv-story .awa-sv-product__add {
   min-height: 38px;
   min-width: 7.5em;
 }
 
-.reelup-viewer__panel,
-.reelup-viewer__list,
-.reelup-story__list {
+.awa-sv-viewer__panel,
+.awa-sv-viewer__list,
+.awa-sv-story__list {
   scrollbar-width: thin;
   scrollbar-color: #d4d4d4 transparent;
+}
+
+/* ---------- big product images (widget setting) ---------- */
+
+/* Each product becomes a tile: a large image across the panel, then its
+   name, price and options, then a full-width add button. */
+.awa-sv-products--large .awa-sv-viewer__list .awa-sv-product {
+  flex-wrap: wrap;
+  row-gap: 10px;
+  padding: 16px 0;
+}
+
+.awa-sv-products--large .awa-sv-viewer__list .awa-sv-product__media {
+  flex: 0 0 100%;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  background: #f4f4f4;
+}
+
+.awa-sv-products--large .awa-sv-viewer__list .awa-sv-product__media img {
+  object-fit: cover;
+  transition: transform 0.5s var(--rv-ease);
+}
+
+.awa-sv-products--large .awa-sv-viewer__list .awa-sv-product__media:hover img {
+  transform: scale(1.03);
+}
+
+.awa-sv-products--large .awa-sv-viewer__list .awa-sv-product__title {
+  font-size: 15px;
+}
+
+.awa-sv-products--large .awa-sv-viewer__list .awa-sv-product__price {
+  font-size: 14px;
+}
+
+.awa-sv-products--large .awa-sv-viewer__list .awa-sv-product__info {
+  flex: 1 1 100%;
+}
+
+.awa-sv-products--large .awa-sv-viewer__list .awa-sv-product__add {
+  flex: 1 1 auto;
+  min-height: 44px;
+}
+
+.awa-sv-products--large .awa-sv-viewer__list .awa-sv-product.is-moment {
+  margin-inline: -10px;
+  padding-inline: 10px;
+}
+
+/* ---------- product details (in-viewer product page) ---------- */
+
+.awa-sv-pdp[hidden] {
+  display: none;
+}
+
+.awa-sv-viewer__panel.is-detail {
+  flex: 1 1 auto;
+  overflow-y: auto;
+}
+
+@media (min-width: 1081px) {
+  .awa-sv-viewer__side:has(> .awa-sv-viewer__panel.is-detail) {
+    flex-basis: 420px;
+  }
+}
+
+@media (max-width: 749px) {
+  .awa-sv-viewer__panel.is-detail {
+    max-height: 86vh;
+    max-height: 86dvh;
+  }
+}
+
+.awa-sv-viewer__panel.is-detail :is(.awa-sv-viewer__panel-head, .awa-sv-viewer__list, .awa-sv-viewer__recs, .awa-sv-viewer__link) {
+  display: none;
+}
+
+.awa-sv-pdp {
+  color: #141414;
+  animation: awa-sv-pdp-in 0.3s var(--rv-ease) both;
+}
+
+@keyframes awa-sv-pdp-in {
+  from { opacity: 0; transform: translateX(14px); }
+}
+
+.awa-sv-pdp__loading {
+  display: grid;
+  place-items: center;
+  min-height: 320px;
+}
+
+.awa-sv-pdp__spinner {
+  width: 30px;
+  height: 30px;
+  border: 3px solid #e8e8e8;
+  border-top-color: #141414;
+  border-radius: 50%;
+  animation: awa-sv-spin 0.8s linear infinite;
+}
+
+.awa-sv-pdp__media {
+  position: relative;
+  min-height: 56px;
+}
+
+.awa-sv-pdp__back {
+  appearance: none;
+  position: absolute;
+  top: 10px;
+  inset-inline-start: 10px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.92);
+  color: #141414;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.16);
+  cursor: pointer;
+}
+
+html[dir="rtl"] .awa-sv-pdp__back svg {
+  transform: scaleX(-1);
+}
+
+.awa-sv-pdp__gallery {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  background: #f4f4f4;
+}
+
+.awa-sv-pdp__gallery::-webkit-scrollbar {
+  display: none;
+}
+
+.awa-sv-pdp__gallery img {
+  flex: 0 0 82%;
+  width: 82%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  scroll-snap-align: start;
+  background: #f4f4f4;
+}
+
+.awa-sv-pdp__gallery img:only-child {
+  flex-basis: 100%;
+  width: 100%;
+}
+
+.awa-sv-pdp__gallery:focus-visible {
+  outline: 2px solid #141414;
+  outline-offset: -2px;
+}
+
+.awa-sv-pdp__bar {
+  position: relative;
+  height: 2px;
+  background: #ececec;
+}
+
+.awa-sv-pdp__bar > span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: #141414;
+  transition: inset-inline-start 0.1s linear;
+}
+
+.awa-sv-pdp__body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 18px 18px;
+}
+
+.awa-sv-pdp__title {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  outline: none;
+}
+
+.awa-sv-pdp__price {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin: -6px 0 0;
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.awa-sv-pdp__price.is-sale > span:first-child {
+  color: var(--awa-sv-brand-sale, #b42318);
+}
+
+.awa-sv-pdp__price s {
+  color: #8a8a8a;
+  font-size: 15px;
+  font-weight: 450;
+}
+
+.awa-sv-pdp__price s[hidden],
+.awa-sv-pdp__badge[hidden] {
+  display: none;
+}
+
+.awa-sv-pdp__badge {
+  align-self: center;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--awa-sv-brand-sale, #b42318);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.awa-sv-pdp__option {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.awa-sv-pdp__option-name {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.awa-sv-pdp__values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.awa-sv-viewer .awa-sv-pdp__value {
+  appearance: none;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid #d6d6d6;
+  border-radius: 4px;
+  background: #fff;
+  color: #141414;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.awa-sv-viewer .awa-sv-pdp__value:hover {
+  border-color: #141414;
+}
+
+.awa-sv-viewer .awa-sv-pdp__value[aria-pressed="true"] {
+  border-color: #141414;
+  box-shadow: inset 0 0 0 1px #141414;
+  font-weight: 600;
+}
+
+.awa-sv-viewer .awa-sv-pdp__value.is-unavailable {
+  color: #9a9a9a;
+  text-decoration: line-through;
+}
+
+.awa-sv-pdp__actions {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.awa-sv-viewer .awa-sv-pdp__add {
+  flex: 1;
+  gap: 8px;
+  min-height: 48px;
+}
+
+.awa-sv-pdp__add svg {
+  flex: none;
+}
+
+.awa-sv-pdp__add[data-state="loading"] svg,
+.awa-sv-pdp__add[data-state="added"] svg {
+  display: none;
+}
+
+.awa-sv-pdp__actions .awa-sv-qty {
+  height: auto;
+}
+
+.awa-sv-pdp__cart {
+  display: grid;
+  place-items: center;
+  flex: 0 0 48px;
+  border: 1px solid #d6d6d6;
+  border-radius: 4px;
+  color: #141414;
+  transition: border-color 0.15s ease;
+}
+
+.awa-sv-cta--pill .awa-sv-pdp__cart {
+  border-radius: 999px;
+}
+
+.awa-sv-pdp__cart:hover {
+  border-color: #141414;
+}
+
+.awa-sv-pdp__desc {
+  margin: 4px -18px 0;
+  border-top: 1px solid #efefef;
+}
+
+.awa-sv-pdp__desc > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  font-size: 14px;
+  font-weight: 650;
+  list-style: none;
+  cursor: pointer;
+}
+
+.awa-sv-pdp__desc > summary::-webkit-details-marker {
+  display: none;
+}
+
+.awa-sv-pdp__chev {
+  display: grid;
+  transition: transform 0.2s var(--rv-ease);
+}
+
+.awa-sv-pdp__desc[open] .awa-sv-pdp__chev {
+  transform: rotate(180deg);
+}
+
+/* The merchant's own description markup: readable defaults for the
+   paragraphs, lists, tables and images it commonly contains. */
+.awa-sv-pdp__rte {
+  padding: 0 18px 8px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #3a3a3a;
+  overflow-wrap: anywhere;
+}
+
+.awa-sv-pdp__rte > :first-child {
+  margin-top: 0;
+}
+
+.awa-sv-pdp__rte :is(p, ul, ol) {
+  margin: 0 0 12px;
+}
+
+.awa-sv-pdp__rte img,
+.awa-sv-pdp__rte iframe,
+.awa-sv-pdp__rte video {
+  max-width: 100%;
+  height: auto;
+}
+
+.awa-sv-pdp__rte table {
+  width: 100%;
+  margin: 0 0 12px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.awa-sv-pdp__rte :is(td, th) {
+  padding: 9px 10px;
+  border-bottom: 1px solid #e4e0d8;
+  text-align: start;
+  vertical-align: top;
+}
+
+.awa-sv-pdp__rte tr:nth-child(odd) {
+  background: #f3f0ea;
+}
+
+.awa-sv-pdp__rte td:last-child:not(:first-child) {
+  text-align: end;
+  color: #6b6b6b;
+}
+
+.awa-sv-pdp__rte a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+
+.awa-sv-pdp__full {
+  align-self: flex-start;
+  color: #141414;
+  font-size: 13px;
+  font-weight: 600;
+  text-underline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .awa-sv-pdp {
+    animation: none;
+  }
 }
 
 /* ---------- mid-size: panel under nothing, narrower ---------- */
 
 @media (max-width: 1080px) and (min-width: 750px) {
-  .reelup-viewer__side {
+  .awa-sv-viewer__side {
     flex-basis: 300px;
   }
-  .reelup-viewer__player {
+  .awa-sv-viewer__player {
     max-width: calc(100vw - 440px);
   }
 }
@@ -1009,23 +1424,23 @@ html[dir="rtl"] .reelup-story {
 /* ---------- mobile: full-bleed player, products as a bottom sheet ---------- */
 
 @media (max-width: 749px) {
-  .reelup-viewer::backdrop {
+  .awa-sv-viewer::backdrop {
     background: #000;
   }
 
   /* The bottom sheet positions itself; the desktop column steps aside. */
-  .reelup-viewer__side {
+  .awa-sv-viewer__side {
     display: contents;
   }
 
-  .reelup-viewer__stage {
+  .awa-sv-viewer__stage {
     display: block;
     padding: 0;
     position: relative;
   }
 
-  .reelup-viewer__player,
-  .reelup-viewer:not(.has-products) .reelup-viewer__player {
+  .awa-sv-viewer__player,
+  .awa-sv-viewer:not(.has-products) .awa-sv-viewer__player {
     width: 100%;
     height: 100%;
     max-width: none;
@@ -1034,24 +1449,24 @@ html[dir="rtl"] .reelup-story {
     box-shadow: none;
   }
 
-  .reelup-viewer__top {
+  .awa-sv-viewer__top {
     top: calc(12px + env(safe-area-inset-top));
   }
 
-  .reelup-viewer__title {
+  .awa-sv-viewer__title {
     bottom: calc(96px + env(safe-area-inset-bottom));
   }
 
-  .reelup-viewer.has-products .reelup-viewer__title {
+  .awa-sv-viewer.has-products .awa-sv-viewer__title {
     bottom: calc(150px + env(safe-area-inset-bottom));
   }
 
-  .reelup-viewer .reelup-moment {
+  .awa-sv-viewer .awa-sv-moment {
     inset-inline: 12px;
     bottom: calc(150px + env(safe-area-inset-bottom));
   }
 
-  .reelup-viewer__panel {
+  .awa-sv-viewer__panel {
     position: absolute;
     inset-inline: 8px;
     bottom: calc(8px + env(safe-area-inset-bottom));
@@ -1061,48 +1476,48 @@ html[dir="rtl"] .reelup-story {
     transition: max-height 0.35s var(--rv-ease);
   }
 
-  .reelup-viewer__panel-head {
+  .awa-sv-viewer__panel-head {
     padding: 12px 14px;
     font-size: 14px;
   }
 
-  .reelup-viewer__list {
+  .awa-sv-viewer__list {
     padding: 0 14px;
   }
 
-  .reelup-viewer__panel[data-state="peek"] .reelup-viewer__list {
+  .awa-sv-viewer__panel[data-state="peek"] .awa-sv-viewer__list {
     max-height: 92px;
     overflow: hidden;
     -webkit-mask-image: linear-gradient(#000 70%, transparent);
     mask-image: linear-gradient(#000 70%, transparent);
   }
 
-  .reelup-viewer__panel[data-state="peek"] .reelup-viewer__recs {
+  .awa-sv-viewer__panel[data-state="peek"] .awa-sv-viewer__recs {
     display: none;
   }
 
-  .reelup-viewer__panel[data-state="peek"],
-  .reelup-viewer__panel[data-state="closed"] {
+  .awa-sv-viewer__panel[data-state="peek"],
+  .awa-sv-viewer__panel[data-state="closed"] {
     overflow: hidden;
   }
 
-  .reelup-viewer__panel[data-state="open"] {
+  .awa-sv-viewer__panel[data-state="open"] {
     overflow-y: auto;
   }
 
-  .reelup-viewer__panel[data-state="open"] .reelup-viewer__list {
+  .awa-sv-viewer__panel[data-state="open"] .awa-sv-viewer__list {
     flex: none;
     overflow: visible;
   }
 
-  .reelup-viewer__panel[data-state="peek"] .reelup-viewer__list .reelup-product:first-child {
+  .awa-sv-viewer__panel[data-state="peek"] .awa-sv-viewer__list .awa-sv-product:first-child {
     padding-top: 10px;
   }
 
   /* Swipe replaces the buttons visually, but screen-reader and keyboard
      users still need them: visually hidden, still focusable, and shown
      again while focused. */
-  .reelup-viewer__nav:not([hidden]) {
+  .awa-sv-viewer__nav:not([hidden]) {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -1111,7 +1526,7 @@ html[dir="rtl"] .reelup-story {
     white-space: nowrap;
   }
 
-  .reelup-viewer__nav:not([hidden]):focus-within {
+  .awa-sv-viewer__nav:not([hidden]):focus-within {
     width: auto;
     height: auto;
     overflow: visible;
@@ -1124,12 +1539,12 @@ html[dir="rtl"] .reelup-story {
    Story viewer
    ================================================================= */
 
-.reelup-story[open] {
+.awa-sv-story[open] {
   display: grid;
   place-items: center;
 }
 
-.reelup-story__frame {
+.awa-sv-story__frame {
   position: relative;
   height: min(92vh, 880px);
   height: min(92dvh, 880px);
@@ -1144,7 +1559,7 @@ html[dir="rtl"] .reelup-story {
 }
 
 @media (max-width: 749px) {
-  .reelup-story__frame {
+  .awa-sv-story__frame {
     width: 100vw;
     height: 100vh;
     height: 100dvh;
@@ -1153,7 +1568,7 @@ html[dir="rtl"] .reelup-story {
   }
 }
 
-.reelup-story__video {
+.awa-sv-story__video {
   display: block;
   width: 100%;
   height: 100%;
@@ -1161,7 +1576,7 @@ html[dir="rtl"] .reelup-story {
   background: #000;
 }
 
-.reelup-story__progress {
+.awa-sv-story__progress {
   position: absolute;
   top: calc(10px + env(safe-area-inset-top));
   inset-inline: 10px;
@@ -1170,7 +1585,7 @@ html[dir="rtl"] .reelup-story {
   gap: 4px;
 }
 
-.reelup-story__segment {
+.awa-sv-story__segment {
   flex: 1;
   height: 3px;
   border-radius: 999px;
@@ -1178,16 +1593,16 @@ html[dir="rtl"] .reelup-story {
   overflow: hidden;
 }
 
-.reelup-story__segment-fill {
+.awa-sv-story__segment-fill {
   display: block;
   width: 100%;
   height: 100%;
   background: #fff;
   transform: scaleX(0);
-  transform-origin: var(--ru-origin, left);
+  transform-origin: var(--awa-sv-origin, left);
 }
 
-.reelup-story__header {
+.awa-sv-story__header {
   position: absolute;
   top: calc(22px + env(safe-area-inset-top));
   inset-inline: 12px;
@@ -1197,7 +1612,7 @@ html[dir="rtl"] .reelup-story {
   gap: 8px;
 }
 
-.reelup-story__avatar {
+.awa-sv-story__avatar {
   width: 32px;
   height: 32px;
   flex-shrink: 0;
@@ -1206,7 +1621,7 @@ html[dir="rtl"] .reelup-story {
   box-shadow: 0 0 0 2px rgb(255 255 255 / 0.85);
 }
 
-.reelup-story__title {
+.awa-sv-story__title {
   flex: 1;
   min-width: 0;
   margin: 0;
@@ -1219,7 +1634,7 @@ html[dir="rtl"] .reelup-story {
   text-shadow: 0 1px 6px rgb(0 0 0 / 0.4);
 }
 
-.reelup-story__tap {
+.awa-sv-story__tap {
   appearance: none;
   position: absolute;
   top: 0;
@@ -1232,14 +1647,14 @@ html[dir="rtl"] .reelup-story {
 }
 
 /* "Previous" sits at the inline start (the right edge in RTL). */
-.reelup-story__tap--prev { inset-inline-start: 0; width: 30%; }
-.reelup-story__tap--next { inset-inline-end: 0; width: 70%; }
+.awa-sv-story__tap--prev { inset-inline-start: 0; width: 30%; }
+.awa-sv-story__tap--next { inset-inline-end: 0; width: 70%; }
 
-.reelup-story__tap:focus-visible {
+.awa-sv-story__tap:focus-visible {
   outline-offset: -4px !important;
 }
 
-.reelup-story .reelup-story__sticker {
+.awa-sv-story .awa-sv-story__sticker {
   appearance: none;
   position: absolute;
   left: 50%;
@@ -1261,29 +1676,29 @@ html[dir="rtl"] .reelup-story {
   box-shadow: 0 10px 30px rgb(0 0 0 / 0.35);
   transform: translateX(-50%);
   cursor: pointer;
-  animation: reelup-sticker 0.5s var(--rv-ease) 0.3s both;
+  animation: awa-sv-sticker 0.5s var(--rv-ease) 0.3s both;
 }
 
-.reelup-story__sticker[hidden] {
+.awa-sv-story__sticker[hidden] {
   display: none;
 }
 
-.reelup-story__sticker-thumb {
+.awa-sv-story__sticker-thumb {
   width: 36px;
   height: 36px;
   border-radius: 50%;
   background: #eee center / cover no-repeat;
 }
 
-.reelup-story__sticker-thumb[hidden] {
+.awa-sv-story__sticker-thumb[hidden] {
   display: none;
 }
 
-.reelup-story .reelup-story__sticker:has(.reelup-story__sticker-thumb[hidden]) {
+.awa-sv-story .awa-sv-story__sticker:has(.awa-sv-story__sticker-thumb[hidden]) {
   padding-inline-start: 16px;
 }
 
-.reelup-story__sticker-count {
+.awa-sv-story__sticker-count {
   min-width: 22px;
   padding: 0 6px;
   border-radius: 999px;
@@ -1294,24 +1709,24 @@ html[dir="rtl"] .reelup-story {
   text-align: center;
 }
 
-.reelup-story__sticker-count:empty {
+.awa-sv-story__sticker-count:empty {
   display: none;
 }
 
-@keyframes reelup-sticker {
+@keyframes awa-sv-sticker {
   from { opacity: 0; transform: translate(-50%, 12px); }
 }
 
 /* A product moment swaps the sticker's thumbnail to the product on screen. */
-.reelup-story .reelup-story__sticker.is-moment .reelup-story__sticker-thumb {
-  animation: reelup-thumb-in 0.45s var(--rv-ease) both;
+.awa-sv-story .awa-sv-story__sticker.is-moment .awa-sv-story__sticker-thumb {
+  animation: awa-sv-thumb-in 0.45s var(--rv-ease) both;
 }
 
-@keyframes reelup-thumb-in {
+@keyframes awa-sv-thumb-in {
   from { transform: scale(0.6); }
 }
 
-.reelup-story__drawer {
+.awa-sv-story__drawer {
   position: absolute;
   left: 0;
   right: 0;
@@ -1324,18 +1739,18 @@ html[dir="rtl"] .reelup-story {
   background: #fff;
   color: #141414;
   padding-bottom: env(safe-area-inset-bottom);
-  animation: reelup-sheet 0.35s var(--rv-ease) both;
+  animation: awa-sv-sheet 0.35s var(--rv-ease) both;
 }
 
-.reelup-story__drawer[hidden] {
+.awa-sv-story__drawer[hidden] {
   display: none;
 }
 
-@keyframes reelup-sheet {
+@keyframes awa-sv-sheet {
   from { transform: translateY(100%); }
 }
 
-.reelup-story__drawer-head {
+.awa-sv-story__drawer-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1345,43 +1760,43 @@ html[dir="rtl"] .reelup-story {
   font-weight: 650;
 }
 
-.reelup-story__list {
+.awa-sv-story__list {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 0 18px 8px;
 }
 
-.reelup-story.is-shopping .reelup-story__sticker {
+.awa-sv-story.is-shopping .awa-sv-story__sticker {
   visibility: hidden;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .reelup-viewer,
-  .reelup-story,
-  .reelup-viewer::backdrop,
-  .reelup-story::backdrop {
+  .awa-sv-viewer,
+  .awa-sv-story,
+  .awa-sv-viewer::backdrop,
+  .awa-sv-story::backdrop {
     transition: none;
   }
-  .reelup-viewer[open] .reelup-viewer__stage,
-  .reelup-story[open] .reelup-story__frame,
-  .reelup-viewer[data-enter] *,
-  .reelup-viewer .reelup-moment,
-  .reelup-story .reelup-story__sticker.is-moment .reelup-story__sticker-thumb,
-  .reelup-story__sticker,
-  .reelup-story__drawer {
+  .awa-sv-viewer[open] .awa-sv-viewer__stage,
+  .awa-sv-story[open] .awa-sv-story__frame,
+  .awa-sv-viewer[data-enter] *,
+  .awa-sv-viewer .awa-sv-moment,
+  .awa-sv-story .awa-sv-story__sticker.is-moment .awa-sv-story__sticker-thumb,
+  .awa-sv-story__sticker,
+  .awa-sv-story__drawer {
     animation: none;
   }
-  .reelup-viewer *,
-  .reelup-story * {
+  .awa-sv-viewer *,
+  .awa-sv-story * {
     transition: none !important;
   }
   /* Buffering still has to read as "loading": a slow pulse, not a spin. */
-  .reelup-viewer .is-buffering > .reelup-spinner,
-  .reelup-story .is-buffering > .reelup-spinner {
-    animation: reelup-pulse 1.6s ease-in-out infinite;
+  .awa-sv-viewer .is-buffering > .awa-sv-spinner,
+  .awa-sv-story .is-buffering > .awa-sv-spinner {
+    animation: awa-sv-pulse 1.6s ease-in-out infinite;
   }
 }
 
-@keyframes reelup-pulse {
+@keyframes awa-sv-pulse {
   50% { opacity: 0.4; }
 }

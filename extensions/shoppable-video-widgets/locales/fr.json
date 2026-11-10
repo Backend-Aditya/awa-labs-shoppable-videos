@@ -43,6 +43,12 @@
     "playback_error": "Impossible de lire cette vidéo.",
     "retry_label": "Réessayer",
     "seek_label": "Progression de la vidéo",
-    "editor_placeholder": "Vidéos shoppables : rien à afficher pour l'instant. Publiez ce widget et ajoutez des vidéos dans l'app, sous Widgets (vérifiez aussi son ciblage). Visible uniquement dans l'éditeur de thème."
+    "editor_placeholder": "Vidéos shoppables : rien à afficher pour l'instant. Publiez ce widget et ajoutez des vidéos dans l'app, sous Widgets (vérifiez aussi son ciblage). Visible uniquement dans l'éditeur de thème.",
+    "percent_off": "-{{ percent }} %",
+    "shop_now": "Acheter",
+    "description_label": "Description",
+    "view_details": "Voir tous les détails",
+    "back_to_products": "Retour aux produits",
+    "product_details_label": "Détails du produit"
   }
 }

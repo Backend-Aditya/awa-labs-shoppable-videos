@@ -53,7 +53,7 @@ describe("customPixelCode", () => {
   it("Meta: inits the pixel and sends custom events in Meta's naming", () => {
     const code = customPixelCode("meta", "1234567890123456");
     expect(code).toContain('fbq("init", "1234567890123456");');
-    expect(code).toContain('"reelup_add_to_cart": "ReelupAddToCart"');
+    expect(code).toContain('"awa_sv_add_to_cart": "AwaSvAddToCart"');
     expect(code).toContain('fbq("trackCustom", names[name], event.customData)');
     expect(code).not.toContain("PageView");
   });

@@ -1,5 +1,5 @@
 // Shopper events beyond the app's own analytics. Each event the widgets
-// report (window.ReelupTracking.track) goes:
+// report (window.AwaSvTracking.track) goes:
 // - to Shopify customer events (Shopify.analytics.publish), on by default.
 //   Shopify applies the visitor's consent to every pixel subscribed there,
 //   including the custom pixel the app's Integrations page hands out for
@@ -14,11 +14,11 @@
 //
 // Nothing here may break the widgets: every third-party call is guarded.
 (() => {
-  if (window.ReelupTracking) return;
+  if (window.AwaSvTracking) return;
 
   const readSettings = () => {
     try {
-      const config = JSON.parse(document.querySelector("script[data-reelup-config]")?.textContent ?? "{}");
+      const config = JSON.parse(document.querySelector("script[data-awa-sv-config]")?.textContent ?? "{}");
       return config.tracking && typeof config.tracking === "object" ? config.tracking : {};
     } catch {
       return {};
@@ -33,10 +33,10 @@
   // Shopify's own channels already send those for every cart add, and a
   // second copy would double-count conversions.
   const EVENTS = {
-    video_view: ["reelup_video_view", "ReelupVideoView", "Viewed Shoppable Video"],
-    video_complete: ["reelup_video_complete", "ReelupVideoComplete", "Completed Shoppable Video"],
-    product_click: ["reelup_product_click", "ReelupProductClick", "Clicked Product in Video"],
-    add_to_cart: ["reelup_add_to_cart", "ReelupAddToCart", "Added to Cart from Video"],
+    video_view: ["awa_sv_video_view", "AwaSvVideoView", "Viewed Shoppable Video"],
+    video_complete: ["awa_sv_video_complete", "AwaSvVideoComplete", "Completed Shoppable Video"],
+    product_click: ["awa_sv_product_click", "AwaSvProductClick", "Clicked Product in Video"],
+    add_to_cart: ["awa_sv_add_to_cart", "AwaSvAddToCart", "Added to Cart from Video"],
   };
 
   const DESTINATIONS = {
@@ -45,7 +45,7 @@
       consent: "analytics",
       send: ([name], data) => {
         window.dataLayer = window.dataLayer || [];
-        window.dataLayer.push({ event: name, reelup: data });
+        window.dataLayer.push({ event: name, awa_sv: data });
       },
     },
     clarity: {
@@ -53,9 +53,9 @@
       send: ([name], data) => {
         if (typeof window.clarity !== "function") return;
         window.clarity("event", name);
-        if (data.reel_title || data.reel_id) window.clarity("set", "reelup_reel", data.reel_title || data.reel_id);
+        if (data.reel_title || data.reel_id) window.clarity("set", "awa_sv_reel", data.reel_title || data.reel_id);
         // Keeps the recording of a session that shopped from a video.
-        if (name === "reelup_add_to_cart") window.clarity("upgrade", name);
+        if (name === "awa_sv_add_to_cart") window.clarity("upgrade", name);
       },
     },
     meta: { consent: "marketing", send: ([, pascal], data) => window.fbq?.("trackCustom", pascal, data) },
@@ -172,5 +172,5 @@
     applyConsent();
   }
 
-  window.ReelupTracking = { track };
+  window.AwaSvTracking = { track };
 })();

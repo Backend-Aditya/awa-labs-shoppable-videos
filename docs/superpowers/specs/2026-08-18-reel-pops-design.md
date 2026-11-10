@@ -56,12 +56,12 @@ logic accounts for pages that aren't product pages at all:
 
 ### Reusing the existing lightbox — no new JS for playback
 
-The bubble renders using the *exact same* `data-reelup-trigger` data
+The bubble renders using the *exact same* `data-awa-sv-trigger` data
 contract (`data-hls-src`/`data-poster-url`/`data-title`/`data-close-
-label`/`data-shop-label` + a sibling `<template data-reelup-products>`)
+label`/`data-shop-label` + a sibling `<template data-awa-sv-products>`)
 every other block already produces. That means the *already-shipped*
 `reel-trigger.js` (used unchanged by Product page reels, Single video,
-Stacked carousel) binds the bubble's click to `window.ReelupLightbox
+Stacked carousel) binds the bubble's click to `window.AwaSvLightbox
 .open(trigger)` with zero new code — the block just needs to load
 `reel-hls.js` + `reel-lightbox.js` + `reel-trigger.js` alongside its own
 two new files below. Clicking the bubble opens the same full-screen
@@ -76,13 +76,13 @@ blocks.
 - **`assets/reel-pop.css`** — fixed bottom-right positioning, the
   circular-avatar override for the trigger button (same ancestor-
   specificity pattern proven in sub-project 2's Stories fix —
-  `.reelup-pop .reelup-trigger__button`, not a same-specificity bare
+  `.awa-sv-pop .awa-sv-trigger__button`, not a same-specificity bare
   class, so it isn't fragile to `<link>` tag ordering across blocks), a
   subtle scale/fade entrance animation (guarded by `@media
   (prefers-reduced-motion: reduce)`), and the dismiss button's styling.
 - **`assets/reel-pop.js`** — the only genuinely new behavior: reads a
   `sessionStorage` key scoped to the featured reel's id
-  (`reelup-pop-dismissed-<reel.id>`, so changing which reel is featured
+  (`awa-sv-pop-dismissed-<reel.id>`, so changing which reel is featured
   un-hides the bubble for shoppers who'd dismissed the previous one),
   hides the bubble immediately on load if that key is set, and wires the
   dismiss button to hide the bubble + set the key (wrapped in a

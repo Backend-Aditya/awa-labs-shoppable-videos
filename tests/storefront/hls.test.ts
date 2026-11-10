@@ -8,7 +8,7 @@ type Bridge = {
   stopLoading: (video: HTMLVideoElement) => void;
   supportsNativeHls: (video: HTMLVideoElement) => boolean;
 };
-const bridge = () => (window as unknown as { ReelupHls: Bridge }).ReelupHls;
+const bridge = () => (window as unknown as { AwaSvHls: Bridge }).AwaSvHls;
 
 class FakeHls {
   static instances: FakeHls[] = [];
@@ -42,7 +42,7 @@ const tick = async () => {
 async function load({ native = false } = {}) {
   vi.spyOn(HTMLMediaElement.prototype, "canPlayType").mockReturnValue(native ? "maybe" : "");
   (window as unknown as { Hls: typeof FakeHls }).Hls = FakeHls;
-  delete (window as unknown as { ReelupHls?: unknown }).ReelupHls;
+  delete (window as unknown as { AwaSvHls?: unknown }).AwaSvHls;
   await mount("", ["hls"]);
 }
 
@@ -128,7 +128,7 @@ describe("reel-hls", () => {
     await load();
     const { video, hls, attaching } = await attached();
     const onError = vi.fn();
-    video.addEventListener("reelup:playback-error", onError);
+    video.addEventListener("awa-sv:playback-error", onError);
     hls.emit("parsed", { levels: [] });
     await attaching;
     hls.startLoad.mockClear();
@@ -144,7 +144,7 @@ describe("reel-hls", () => {
     await load();
     const { video, hls, attaching } = await attached();
     const onError = vi.fn();
-    video.addEventListener("reelup:playback-error", onError);
+    video.addEventListener("awa-sv:playback-error", onError);
     hls.emit("parsed", { levels: [] });
     await attaching;
     hls.emit("error", { fatal: false, type: "mediaError" });

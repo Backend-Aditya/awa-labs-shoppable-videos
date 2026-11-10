@@ -43,6 +43,12 @@
     "playback_error": "This video couldn't be played.",
     "retry_label": "Try again",
     "seek_label": "Video progress",
-    "editor_placeholder": "Shoppable videos: nothing to show here yet. Publish this widget and add videos in the app under Widgets (check its page targeting too). Only visible in the theme editor."
+    "editor_placeholder": "Shoppable videos: nothing to show here yet. Publish this widget and add videos in the app under Widgets (check its page targeting too). Only visible in the theme editor.",
+    "percent_off": "{{ percent }}% OFF",
+    "shop_now": "Shop now",
+    "description_label": "Description",
+    "view_details": "View full details",
+    "back_to_products": "Back to products",
+    "product_details_label": "Product details"
   }
 }

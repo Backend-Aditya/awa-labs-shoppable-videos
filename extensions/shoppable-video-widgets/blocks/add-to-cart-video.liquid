@@ -74,45 +74,45 @@ pulls in the viewer runtime when the app embed is off.
   {%- render 'reel-config' -%}
   {%- render 'reel-video-schema', reel: reel -%}
   {%- capture wrapper_style -%}
-    --ru-radius: {{ radius }};
-    --ru-thumb: {{ widget_style.triggerSize | default: 56 | times: 1 }}px;
-    {%- if widget_style.accentColor != blank %}--ru-accent: {{ widget_style.accentColor | escape }}; --ru-play: {{ widget_style.accentColor | escape }};{% endif -%}
-    {%- if widget_style.backgroundColor != blank %}--ru-bg: {{ widget_style.backgroundColor | escape }};{% endif -%}
-    {%- if widget_style.textColor != blank %}--ru-text: {{ widget_style.textColor | escape }};{% endif -%}
+    --awa-sv-radius: {{ radius }};
+    --awa-sv-thumb: {{ widget_style.triggerSize | default: 56 | times: 1 }}px;
+    {%- if widget_style.accentColor != blank %}--awa-sv-accent: {{ widget_style.accentColor | escape }}; --awa-sv-play: {{ widget_style.accentColor | escape }};{% endif -%}
+    {%- if widget_style.backgroundColor != blank %}--awa-sv-bg: {{ widget_style.backgroundColor | escape }};{% endif -%}
+    {%- if widget_style.textColor != blank %}--awa-sv-text: {{ widget_style.textColor | escape }};{% endif -%}
   {%- endcapture -%}
   {%- capture row -%}
-    <button type="button" class="reelup-trigger__button reelup-atc__button">
-      <span class="reelup-atc__thumb">
+    <button type="button" class="awa-sv-trigger__button awa-sv-atc__button">
+      <span class="awa-sv-atc__thumb">
         {%- if reel.config.value.posterUrl != blank -%}
           {%- render 'reel-poster', url: reel.config.value.posterUrl, height: 200, width_attr: 192, height_attr: 192 -%}
         {%- endif -%}
-        <span class="reelup-atc__play reelup-play" aria-hidden="true">
+        <span class="awa-sv-atc__play awa-sv-play" aria-hidden="true">
           {%- render 'reel-icon', name: 'play', size: 9 -%}
         </span>
       </span>
-      <span class="reelup-atc__text">
-        <span class="reelup-atc__label">{{ label }}</span>
-        <span class="reelup-atc__meta">
+      <span class="awa-sv-atc__text">
+        <span class="awa-sv-atc__label">{{ label }}</span>
+        <span class="awa-sv-atc__meta">
           {%- if reel.title.value != blank -%}<span>{{ reel.title.value | escape }}</span>{%- endif -%}
           {%- if show_duration and reel.config.value.durationSeconds > 0 -%}
             {%- assign total = reel.config.value.durationSeconds | round -%}
             {%- assign seconds = total | modulo: 60 -%}
-            <span class="reelup-atc__length"><span class="reelup-visually-hidden">{{ 'reels.duration_label' | t }} </span>{{ total | divided_by: 60 }}:{% if seconds < 10 %}0{% endif %}{{ seconds }}</span>
+            <span class="awa-sv-atc__length"><span class="awa-sv-visually-hidden">{{ 'reels.duration_label' | t }} </span>{{ total | divided_by: 60 }}:{% if seconds < 10 %}0{% endif %}{{ seconds }}</span>
           {%- endif -%}
         </span>
       </span>
-      {%- render 'reel-icon', name: 'chevron-right', size: 16, class: 'reelup-atc__chevron' -%}
+      {%- render 'reel-icon', name: 'chevron-right', size: 16, class: 'awa-sv-atc__chevron' -%}
     </button>
   {%- endcapture -%}
   <div
-    class="reelup reelup-atc reelup-device--{{ widget.deviceVisibility | default: 'all' | escape }}{% if widget_style.backgroundColor != blank %} reelup--filled{% endif %}"
+    class="awa-sv awa-sv-atc awa-sv-device--{{ widget.deviceVisibility | default: 'all' | escape }}{% if widget_style.backgroundColor != blank %} awa-sv--filled{% endif %}"
     style="{{ wrapper_style | strip_newlines }}"
     {{ block.shopify_attributes }}
   >
     {%- render 'reel-trigger', reel: reel, style: widget_style, source: 'add_to_cart_video', inner: row, muted_default: false -%}
   </div>
 {%- elsif request.design_mode -%}
-  <div class="reelup reelup-placeholder" {{ block.shopify_attributes }}>{{ 'reels.editor_placeholder' | t }}</div>
+  <div class="awa-sv awa-sv-placeholder" {{ block.shopify_attributes }}>{{ 'reels.editor_placeholder' | t }}</div>
 {%- endif -%}
 
 {% schema %}

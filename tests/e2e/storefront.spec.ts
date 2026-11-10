@@ -16,12 +16,12 @@ async function mockShop(page: Page) {
   return { adds };
 }
 
-const viewer = (page: Page) => page.locator("dialog#reelup-lightbox");
+const viewer = (page: Page) => page.locator("dialog#awa-sv-lightbox");
 const stripTrigger = (page: Page, title: string) => page.getByRole("button", { name: `Play video: ${title}` }).first();
 
 // Headless Chromium has no native HLS and the harness has no real Stream
 // manifests, so the HLS bridge is replaced with one that plays a local
-// WebM. reel-hls.js returns early when window.ReelupHls already exists, so
+// WebM. reel-hls.js returns early when window.AwaSvHls already exists, so
 // the rest of the runtime is exercised unchanged. (hls.js integration is
 // covered by tests/storefront/hls.test.ts.) Tests tagged @real-hls keep
 // the real bridge, i.e. the playback-error path.
@@ -32,7 +32,7 @@ async function playableVideo(page: Page) {
       video.removeAttribute("src");
       video.load();
     };
-    (window as unknown as { ReelupHls: unknown }).ReelupHls = {
+    (window as unknown as { AwaSvHls: unknown }).AwaSvHls = {
       attach: async (video: HTMLVideoElement) => {
         video.src = "/media/sample.webm";
       },
@@ -54,16 +54,16 @@ test("open the viewer from the filmstrip and move next / previous", async ({ pag
   await stripTrigger(page, "Morning routine").click();
   const dialog = viewer(page);
   await expect(dialog).toBeVisible();
-  await expect(dialog.locator("#reelup-viewer-title")).toHaveText("Morning routine");
-  await expect(dialog.locator("[data-reelup-count]")).toHaveText("1 of 3");
+  await expect(dialog.locator("#awa-sv-viewer-title")).toHaveText("Morning routine");
+  await expect(dialog.locator("[data-awa-sv-count]")).toHaveText("1 of 3");
 
-  await dialog.locator("[data-reelup-next]").click();
-  await expect(dialog.locator("#reelup-viewer-title")).toHaveText("Styling tips");
+  await dialog.locator("[data-awa-sv-next]").click();
+  await expect(dialog.locator("#awa-sv-viewer-title")).toHaveText("Styling tips");
   await page.keyboard.press("ArrowDown");
-  await expect(dialog.locator("#reelup-viewer-title")).toHaveText("Unboxing");
-  await expect(dialog.locator("[data-reelup-next]")).toBeDisabled();
-  await dialog.locator("[data-reelup-prev]").click();
-  await expect(dialog.locator("[data-reelup-count]")).toHaveText("2 of 3");
+  await expect(dialog.locator("#awa-sv-viewer-title")).toHaveText("Unboxing");
+  await expect(dialog.locator("[data-awa-sv-next]")).toBeDisabled();
+  await dialog.locator("[data-awa-sv-prev]").click();
+  await expect(dialog.locator("[data-awa-sv-count]")).toHaveText("2 of 3");
 });
 
 test("drag along the progress strip to seek; scroll over the video to change reels", async ({ page }) => {
@@ -86,36 +86,36 @@ test("drag along the progress strip to seek; scroll over the video to change ree
   expect(ratio).toBeLessThan(0.9);
   // Seeking didn't toggle playback or close anything.
   await expect(dialog).toBeVisible();
-  await expect(dialog.locator("#reelup-viewer-title")).toHaveText("Morning routine");
+  await expect(dialog.locator("#awa-sv-viewer-title")).toHaveText("Morning routine");
 
-  const player = (await dialog.locator("[data-reelup-player]").boundingBox())!;
+  const player = (await dialog.locator("[data-awa-sv-player]").boundingBox())!;
   await page.mouse.move(player.x + player.width / 2, player.y + player.height / 2);
   await page.mouse.wheel(0, 120);
-  await expect(dialog.locator("#reelup-viewer-title")).toHaveText("Styling tips");
+  await expect(dialog.locator("#awa-sv-viewer-title")).toHaveText("Styling tips");
 });
 
 test("add to cart from the viewer posts the reel attribution", async ({ page }) => {
   const { adds } = await mockShop(page);
   await stripTrigger(page, "Morning routine").click();
-  const product = viewer(page).locator('[data-reelup-list] [data-reelup-product][data-product-id="7"]');
-  await product.locator("[data-reelup-variant]").selectOption("702");
-  await expect(product.locator("[data-reelup-price]")).toHaveText("$52.00");
-  await product.locator('[data-reelup-qty-step="1"]').click();
-  await product.locator("[data-reelup-add-to-cart]").click();
+  const product = viewer(page).locator('[data-awa-sv-list] [data-awa-sv-product][data-product-id="7"]');
+  await product.locator("[data-awa-sv-variant]").selectOption("702");
+  await expect(product.locator("[data-awa-sv-price]")).toHaveText("$52.00");
+  await product.locator('[data-awa-sv-qty-step="1"]').click();
+  await product.locator("[data-awa-sv-add-to-cart]").click();
 
-  await expect(viewer(page).locator("[data-reelup-cart-status]")).toBeVisible();
-  await expect(viewer(page).locator(".reelup-cart-message")).toHaveText("Added to your cart");
+  await expect(viewer(page).locator("[data-awa-sv-cart-status]")).toBeVisible();
+  await expect(viewer(page).locator(".awa-sv-cart-message")).toHaveText("Added to your cart");
   expect(adds).toHaveLength(1);
-  expect(adds[0]).toMatchObject({ items: [{ id: 702, quantity: 2, properties: { _reelup_reel_id: "gid://shopify/Metaobject/1" } }] });
+  expect(adds[0]).toMatchObject({ items: [{ id: 702, quantity: 2, properties: { _awa_sv_reel_id: "gid://shopify/Metaobject/1" } }] });
 });
 
 test("a sold-out variant disables the add button", async ({ page }) => {
   await mockShop(page);
   await stripTrigger(page, "Morning routine").click();
-  const product = viewer(page).locator('[data-reelup-list] [data-reelup-product][data-product-id="7"]');
-  await product.locator("[data-reelup-variant]").selectOption("703");
-  await expect(product.locator("[data-reelup-add-to-cart]")).toBeDisabled();
-  await expect(product.locator("[data-reelup-add-to-cart]")).toHaveText("Sold out");
+  const product = viewer(page).locator('[data-awa-sv-list] [data-awa-sv-product][data-product-id="7"]');
+  await product.locator("[data-awa-sv-variant]").selectOption("703");
+  await expect(product.locator("[data-awa-sv-add-to-cart]")).toBeDisabled();
+  await expect(product.locator("[data-awa-sv-add-to-cart]")).toHaveText("Sold out");
 });
 
 test("Escape closes the viewer and focus returns to the trigger", async ({ page }) => {
@@ -126,7 +126,7 @@ test("Escape closes the viewer and focus returns to the trigger", async ({ page 
   await page.keyboard.press("Escape");
   await expect(viewer(page)).toBeHidden();
   await expect(trigger).toBeFocused();
-  await expect(page.locator("html")).not.toHaveClass(/reelup-locked/);
+  await expect(page.locator("html")).not.toHaveClass(/awa-sv-locked/);
 });
 
 test.describe("mobile", () => {
@@ -135,14 +135,14 @@ test.describe("mobile", () => {
   test("the product panel is a bottom sheet: peek → open → peek", async ({ page }) => {
     await mockShop(page);
     await stripTrigger(page, "Morning routine").click();
-    const panel = viewer(page).locator("[data-reelup-panel]");
-    const head = viewer(page).locator("[data-reelup-panel-toggle]");
+    const panel = viewer(page).locator("[data-awa-sv-panel]");
+    const head = viewer(page).locator("[data-awa-sv-panel-toggle]");
     await expect(panel).toHaveAttribute("data-state", "peek");
     await expect(head).toHaveAttribute("aria-expanded", "false");
     await head.click();
     await expect(panel).toHaveAttribute("data-state", "open");
     await expect(head).toHaveAttribute("aria-expanded", "true");
-    await expect(panel.locator("[data-reelup-add-to-cart]").first()).toBeInViewport();
+    await expect(panel.locator("[data-awa-sv-add-to-cart]").first()).toBeInViewport();
     await head.click();
     await expect(panel).toHaveAttribute("data-state", "peek");
   });
@@ -150,8 +150,8 @@ test.describe("mobile", () => {
   test("stories: swipe sideways to move, swipe down to close", async ({ page }) => {
     await mockShop(page);
     await page.getByRole("button", { name: "Play video: Story one" }).click();
-    const story = page.locator("dialog#reelup-story-viewer");
-    await expect(story.locator("#reelup-story-title")).toHaveText("Story one");
+    const story = page.locator("dialog#awa-sv-story-viewer");
+    await expect(story.locator("#awa-sv-story-title")).toHaveText("Story one");
     // Real touch input (Playwright's touchscreen only taps).
     const cdp = await page.context().newCDPSession(page);
     const swipe = async (from: [number, number], to: [number, number]) => {
@@ -163,7 +163,7 @@ test.describe("mobile", () => {
       await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
     };
     await swipe([300, 420], [110, 430]);
-    await expect(story.locator("#reelup-story-title")).toHaveText("Story two");
+    await expect(story.locator("#awa-sv-story-title")).toHaveText("Story two");
     await swipe([200, 300], [205, 560]);
     await expect(story).toBeHidden();
   });
@@ -172,35 +172,35 @@ test.describe("mobile", () => {
 test("the story viewer advances on its own and closes after the last story", async ({ page }) => {
   await mockShop(page);
   await page.getByRole("button", { name: "Play video: Story one" }).click();
-  const story = page.locator("dialog#reelup-story-viewer");
+  const story = page.locator("dialog#awa-sv-story-viewer");
   await expect(story).toBeVisible();
-  await expect(story.locator("#reelup-story-title")).toHaveText("Story one");
-  await expect(story.locator(".reelup-story__segment")).toHaveCount(2);
+  await expect(story.locator("#awa-sv-story-title")).toHaveText("Story one");
+  await expect(story.locator(".awa-sv-story__segment")).toHaveCount(2);
   // storyDuration is 2s in the harness.
-  await expect(story.locator("#reelup-story-title")).toHaveText("Story two", { timeout: 6_000 });
+  await expect(story.locator("#awa-sv-story-title")).toHaveText("Story two", { timeout: 6_000 });
   await expect(story).toBeHidden({ timeout: 6_000 });
-  await expect(page.locator('[data-reelup-story-group] [data-reelup-trigger].is-seen')).toHaveCount(2);
+  await expect(page.locator('[data-awa-sv-story-group] [data-awa-sv-trigger].is-seen')).toHaveCount(2);
 });
 
 test("the story close button closes immediately", async ({ page }) => {
   await mockShop(page);
   await page.getByRole("button", { name: "Play video: Story one" }).click();
-  const story = page.locator("dialog#reelup-story-viewer");
-  await story.locator("[data-reelup-story-close]").click();
+  const story = page.locator("dialog#awa-sv-story-viewer");
+  await story.locator("[data-awa-sv-story-close]").click();
   await expect(story).toBeHidden();
 });
 
-test("?reelup= deep link opens that reel on load", async ({ page }) => {
+test("?awa-sv= deep link opens that reel on load", async ({ page }) => {
   await mockShop(page);
-  await page.goto("/products/linen-shirt?reelup=3");
+  await page.goto("/products/linen-shirt?awa-sv=3");
   await expect(viewer(page)).toBeVisible();
-  await expect(viewer(page).locator("#reelup-viewer-title")).toHaveText("Unboxing");
+  await expect(viewer(page).locator("#awa-sv-viewer-title")).toHaveText("Unboxing");
 });
 
 test("@real-hls a video that cannot play shows the error with a retry", async ({ page }) => {
   await mockShop(page);
   await stripTrigger(page, "Morning routine").click();
-  const error = viewer(page).locator("[data-reelup-error]");
+  const error = viewer(page).locator("[data-awa-sv-error]");
   await expect(error).toBeVisible();
   await expect(error.getByRole("button")).toBeVisible();
 });
@@ -214,9 +214,9 @@ test.describe("mobile, video fails to play", () => {
   test("@real-hls products stay reachable", async ({ page }) => {
     await mockShop(page);
     await stripTrigger(page, "Morning routine").click();
-    await expect(viewer(page).locator("[data-reelup-error]")).toBeVisible();
-    await viewer(page).locator("[data-reelup-panel-toggle]").click({ timeout: 3_000 });
-    await expect(viewer(page).locator("[data-reelup-panel]")).toHaveAttribute("data-state", "open");
+    await expect(viewer(page).locator("[data-awa-sv-error]")).toBeVisible();
+    await viewer(page).locator("[data-awa-sv-panel-toggle]").click({ timeout: 3_000 });
+    await expect(viewer(page).locator("[data-awa-sv-panel]")).toHaveAttribute("data-state", "open");
   });
 });
 

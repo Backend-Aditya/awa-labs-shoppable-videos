@@ -156,7 +156,7 @@ export default function ReelsLibrary() {
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("reelup-library-view");
+      const saved = localStorage.getItem("awa-sv-library-view");
       if (saved === "list" || saved === "grid") setView(saved);
     } catch {
       // ignore
@@ -195,7 +195,7 @@ export default function ReelsLibrary() {
   const setViewMode = (mode: "grid" | "list") => {
     setView(mode);
     try {
-      localStorage.setItem("reelup-library-view", mode);
+      localStorage.setItem("awa-sv-library-view", mode);
     } catch {
       // ignore
     }

@@ -43,6 +43,12 @@
     "playback_error": "No se pudo reproducir este video.",
     "retry_label": "Reintentar",
     "seek_label": "Progreso del vídeo",
-    "editor_placeholder": "Videos comprables: todavía no hay nada que mostrar. Publica este widget y agrega videos en la app, en Widgets (revisa también su segmentación). Solo visible en el editor de temas."
+    "editor_placeholder": "Videos comprables: todavía no hay nada que mostrar. Publica este widget y agrega videos en la app, en Widgets (revisa también su segmentación). Solo visible en el editor de temas.",
+    "percent_off": "{{ percent }}% DTO.",
+    "shop_now": "Comprar ahora",
+    "description_label": "Descripción",
+    "view_details": "Ver todos los detalles",
+    "back_to_products": "Volver a los productos",
+    "product_details_label": "Detalles del producto"
   }
 }

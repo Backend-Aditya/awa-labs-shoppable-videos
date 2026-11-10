@@ -16,7 +16,7 @@ afterEach(() => {
   delete (document as unknown as Record<string, unknown>).currentScript;
 });
 
-const injectedScripts = () => Array.from(document.head.querySelectorAll<HTMLScriptElement>("script[data-reelup-loader]"));
+const injectedScripts = () => Array.from(document.head.querySelectorAll<HTMLScriptElement>("script[data-awa-sv-loader]"));
 const injected = () => injectedScripts().map((s) => [s.src, s.async]);
 const strip = () => renderBlock("product-page-reels", { reels: [makeReel()] });
 
@@ -43,8 +43,8 @@ describe("reel-loader", () => {
   });
 
   it("stands down when the runtime is already on the page", async () => {
-    (window as unknown as Record<string, unknown>).ReelupLightbox = {};
-    (window as unknown as Record<string, unknown>).ReelupTracking = {};
+    (window as unknown as Record<string, unknown>).AwaSvLightbox = {};
+    (window as unknown as Record<string, unknown>).AwaSvTracking = {};
     await mount(await strip(), ["loader"]);
     expect(injected()).toEqual([]);
   });
@@ -75,7 +75,7 @@ describe("reel-loader", () => {
 
   it("holds a tap made while the runtime downloads and replays it once it has run", async () => {
     await mount(await strip(), ["loader"]);
-    const button = document.querySelector<HTMLButtonElement>(".reelup-trigger__button")!;
+    const button = document.querySelector<HTMLButtonElement>(".awa-sv-trigger__button")!;
     const opened = vi.fn();
     button.addEventListener("click", opened);
     button.click();
@@ -90,7 +90,7 @@ describe("reel-loader", () => {
 
   it("releases taps even if the runtime fails to download", async () => {
     await mount(await strip(), ["loader"]);
-    const button = document.querySelector<HTMLButtonElement>(".reelup-trigger__button")!;
+    const button = document.querySelector<HTMLButtonElement>(".awa-sv-trigger__button")!;
     const opened = vi.fn();
     button.addEventListener("click", opened);
     injectedScripts().at(-1)!.dispatchEvent(new Event("error"));

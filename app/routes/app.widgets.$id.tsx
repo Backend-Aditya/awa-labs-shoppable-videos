@@ -13,6 +13,7 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 import { getOrCreateShop } from "../models/shop.server";
 import { createWidget, deleteWidget, getWidget, listWidgetsForShop, saveWidgetSettings, updateWidget } from "../models/widget.server";
 import {
+  CARD_TEMPLATES,
   PAGE_TYPE_OPTIONS,
   getKindMeta,
   resolveStyle,
@@ -615,6 +616,15 @@ function ContentTab({
 
       {showText && (
         <Card title="Text">
+          {has("eyebrow") && (
+            <TextInput
+              label="Eyebrow"
+              value={state.style.eyebrow ?? ""}
+              placeholder="e.g. Shoppable reels"
+              hint="A small label above the heading. Leave empty to hide it."
+              onChange={(eyebrow) => setStyle({ eyebrow })}
+            />
+          )}
           {has("heading") && (
             <TextInput
               label="Heading"
@@ -622,6 +632,16 @@ function ContentTab({
               placeholder="No heading"
               hint="Leave empty to hide the heading."
               onChange={(heading) => setStyle({ heading })}
+            />
+          )}
+          {has("subheading") && (
+            <TextInput
+              label="Subheading"
+              value={state.style.subheading ?? ""}
+              placeholder="e.g. Tap any reel to watch, then shop the pieces in it."
+              hint="One line under the heading. Leave empty to hide it."
+              maxLength={160}
+              onChange={(subheading) => setStyle({ subheading })}
             />
           )}
           {has("watchLabel") && (
@@ -813,6 +833,24 @@ const LOOKS: Look[] = [
     swatch: { bg: "#efebe4", pill: "#1d1d1b", radius: 0 },
   },
   {
+    name: "Showcase",
+    style: {
+      cornerStyle: "rounded",
+      shadowPreset: "none",
+      ctaStyle: "square",
+      accentColor: "#c9a86a",
+      ctaColor: "#4a2b3a",
+      ctaTextColor: "#ffffff",
+      backgroundColor: "#161412",
+      textColor: "#f3efe8",
+      cardTemplate: "overlay",
+      showPlayIcon: false,
+      showCardBadge: true,
+      layoutMode: "carousel",
+    },
+    swatch: { bg: "#161412", pill: "#c9a86a", radius: 4 },
+  },
+  {
     name: "Vivid",
     style: { cornerStyle: "soft", shadowPreset: "bold", ctaStyle: "pill", accentColor: "#5b3df5", ctaColor: "#5b3df5", ctaTextColor: "#ffffff", backgroundColor: "" },
     swatch: { bg: "#ebe7ff", pill: "#5b3df5", radius: 999 },
@@ -844,6 +882,49 @@ const ICON_STACK = (
   </svg>
 );
 
+// Mini drawings of each carousel card template, matching the storefront's
+// .awa-sv-deck--card-* layouts: where the product sits, and its button.
+function TemplateSchematic({ template }: { template: NonNullable<WidgetStyleConfig["cardTemplate"]> }) {
+  const below = template === "classic" || template === "modern" || template === "vibrant";
+  const cardH = below ? 34 : 50;
+  return (
+    <svg className={styles.templateArt} viewBox="0 0 88 60" aria-hidden="true">
+      {[4, 31, 58].map((x) => (
+        <g key={x}>
+          <rect x={x} y="4" width="26" height={cardH} rx="3" fill="currentColor" opacity=".18" />
+          {template === "title" && <rect x={x + 3} y={cardH - 6} width="16" height="4" rx="1" fill="currentColor" opacity=".55" />}
+          {template === "overlay" && (
+            <>
+              <rect x={x + 2} y={cardH - 10} width="22" height="10" rx="2" fill="currentColor" opacity=".45" />
+              <rect x={x + 4} y={cardH - 8} width="6" height="6" rx="1" fill="#fff" />
+            </>
+          )}
+          {below && (
+            <>
+              {template !== "modern" && <rect x={x} y={cardH + 7} width="6" height="6" rx="1" fill="currentColor" opacity=".4" />}
+              <rect x={template === "modern" ? x : x + 8} y={cardH + 7} width={template === "modern" ? 20 : 14} height="3" rx="1" fill="currentColor" opacity=".55" />
+              <rect x={template === "modern" ? x : x + 8} y={cardH + 12} width="10" height="2" rx="1" fill="currentColor" opacity=".35" />
+              {template !== "classic" && (
+                <rect
+                  x={x}
+                  y={cardH + 17}
+                  width="26"
+                  height="6"
+                  rx={template === "vibrant" ? 3 : 1}
+                  fill={template === "vibrant" ? "currentColor" : "none"}
+                  stroke="currentColor"
+                  strokeWidth={template === "vibrant" ? 0 : 0.8}
+                  opacity=".7"
+                />
+              )}
+            </>
+          )}
+        </g>
+      ))}
+    </svg>
+  );
+}
+
 function DesignTab({
   meta,
   style,
@@ -864,10 +945,45 @@ function DesignTab({
     setStyle(patch as Partial<WidgetStyleConfig>);
   };
   const showLooks = has("cornerStyle") || has("ctaStyle");
-  const showCardDetails = has("showCaption") || has("showDuration") || has("showProductPreview");
+  const showCardDetails =
+    has("showCaption") || has("showDuration") || has("showProductPreview") || has("showPlayIcon") || has("showCardBadge");
+  const template = style.cardTemplate ?? "title";
 
   return (
     <>
+      {has("cardTemplate") && (
+        <Card title="Card template" description="How each video card shows its product in your store.">
+          <div /* eslint-disable-line jsx-a11y/interactive-supports-focus -- roving tabindex: the chosen child is the tab stop */
+            className={styles.templates}
+            role="radiogroup"
+            aria-label="Card template"
+            onKeyDown={(e) =>
+              handleRovingKeys(
+                e,
+                CARD_TEMPLATES.map((t) => t.value),
+                template,
+                (cardTemplate) => setStyle({ cardTemplate }),
+              )
+            }
+          >
+            {CARD_TEMPLATES.map((t) => (
+              <button
+                key={t.value}
+                type="button"
+                role="radio"
+                aria-checked={template === t.value}
+                tabIndex={template === t.value ? 0 : -1}
+                className={styles.template}
+                onClick={() => setStyle({ cardTemplate: t.value })}
+              >
+                <TemplateSchematic template={t.value} />
+                <span className={styles.lookName}>{t.label}</span>
+              </button>
+            ))}
+          </div>
+        </Card>
+      )}
+
       {showLooks && (
         <Card title="Looks" description="A starting point. Fine-tune anything below.">
           <div className={styles.looks}>
@@ -1047,7 +1163,7 @@ function DesignTab({
 
       {showCardDetails && (
         <Card title="Details">
-          {has("showCaption") && (
+          {has("showCaption") && (!has("cardTemplate") || template === "title") && (
             <Toggle
               label={meta.kind === "STORIES" ? "Show names under avatars" : "Show video titles"}
               checked={style.showCaption ?? true}
@@ -1056,6 +1172,27 @@ function DesignTab({
           )}
           {has("showDuration") && (
             <Toggle label="Show video length" checked={style.showDuration ?? true} onChange={(showDuration) => setStyle({ showDuration })} />
+          )}
+          {has("showPlayIcon") && (
+            <Toggle label="Play button on cards" checked={style.showPlayIcon ?? true} onChange={(showPlayIcon) => setStyle({ showPlayIcon })} />
+          )}
+          {has("showCardBadge") && (
+            <Toggle
+              label="Discount badge on cards"
+              description="A “58% OFF” ribbon when the card's product has a compare-at price."
+              checked={style.showCardBadge ?? false}
+              onChange={(showCardBadge) => setStyle({ showCardBadge })}
+            />
+          )}
+          {has("badgeColor") && style.showCardBadge && (
+            <ColorInput
+              label="Badge color"
+              value={style.badgeColor ?? ""}
+              allowEmpty
+              emptyLabel="Sale color"
+              fallback="#c8102e"
+              onChange={(badgeColor) => setStyle({ badgeColor })}
+            />
           )}
           {has("showProductPreview") && (
             <Toggle
@@ -1094,6 +1231,22 @@ function ShoppingTab({
   return (
     <>
       <Card title="Product list" description="Shown beside the video when a shopper opens it.">
+        {has("productImageSize") && style.showProductImage !== false && (
+          <Segmented
+            label="Product image"
+            value={style.productImageSize ?? "compact"}
+            onChange={(productImageSize) => setStyle({ productImageSize })}
+            options={[
+              { value: "large", label: "Large" },
+              { value: "compact", label: "Thumbnail" },
+            ]}
+            hint={
+              (style.productImageSize ?? "compact") === "large"
+                ? "Each product as a tile with a big image, like a product grid."
+                : "A compact row with a small image beside the name."
+            }
+          />
+        )}
         {has("showProductImage") && (
           <Toggle label="Product images" checked={style.showProductImage ?? true} onChange={(showProductImage) => setStyle({ showProductImage })} />
         )}
@@ -1142,6 +1295,25 @@ function ShoppingTab({
           />
         )}
       </Card>
+
+      {has("productDetails") && (
+        <Card title="Product details" description="The full product page, opened inside the video popup.">
+          <Toggle
+            label="Open products inside the video"
+            description="Tapping a product shows its photos, price, options, add to cart and description next to the video, so shoppers never leave it."
+            checked={style.productDetails ?? true}
+            onChange={(productDetails) => setStyle({ productDetails })}
+          />
+          {has("showDescription") && style.productDetails !== false && (
+            <Toggle
+              label="Product description"
+              description="Your product's description, with its tables and images."
+              checked={style.showDescription ?? true}
+              onChange={(showDescription) => setStyle({ showDescription })}
+            />
+          )}
+        </Card>
+      )}
 
       <Card title="Add to cart button">
         <Segmented

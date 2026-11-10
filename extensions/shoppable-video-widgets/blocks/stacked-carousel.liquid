@@ -72,6 +72,29 @@ pulls in the viewer runtime when the app embed is off.
     assign show_caption = false
   endif
 
+  # How each card presents its lead product (see WidgetStyleConfig.cardTemplate).
+  assign card_template = widget_style.cardTemplate | default: 'title'
+  assign card_below = false
+  case card_template
+    when 'classic', 'modern', 'vibrant'
+      assign card_below = true
+    when 'overlay'
+    else
+      assign card_template = 'title'
+  endcase
+  assign show_play = true
+  if widget_style.showPlayIcon == false
+    assign show_play = false
+  endif
+  assign show_price = true
+  if widget_style.showPrice == false
+    assign show_price = false
+  endif
+  assign show_card_badge = false
+  if widget_style.showCardBadge == true
+    assign show_card_badge = true
+  endif
+
   case widget_style.cornerStyle
     when 'sharp'
       assign radius = '0px'
@@ -90,27 +113,40 @@ pulls in the viewer runtime when the app embed is off.
 {%- if visible_count > 0 -%}
   {%- render 'reel-config' -%}
   {%- capture wrapper_style -%}
-    --ru-radius: {{ radius }};
-    --ru-columns: {{ widget_style.columns | default: 4 | times: 1 }};
-    {%- if widget_style.accentColor != blank %}--ru-accent: {{ widget_style.accentColor | escape }}; --ru-play: {{ widget_style.accentColor | escape }};{% endif -%}
-    {%- if widget_style.backgroundColor != blank %}--ru-bg: {{ widget_style.backgroundColor | escape }};{% endif -%}
-    {%- if widget_style.textColor != blank %}--ru-text: {{ widget_style.textColor | escape }};{% endif -%}
+    --awa-sv-radius: {{ radius }};
+    --awa-sv-columns: {{ widget_style.columns | default: 4 | times: 1 }};
+    {%- if widget_style.accentColor != blank %}--awa-sv-accent: {{ widget_style.accentColor | escape }}; --awa-sv-play: {{ widget_style.accentColor | escape }}; --awa-sv-eyebrow: {{ widget_style.accentColor | escape }};{% endif -%}
+    {%- if widget_style.backgroundColor != blank %}--awa-sv-bg: {{ widget_style.backgroundColor | escape }};{% endif -%}
+    {%- if widget_style.textColor != blank %}--awa-sv-text: {{ widget_style.textColor | escape }};{% endif -%}
+    {%- if widget_style.badgeColor != blank %}--awa-sv-card-badge: {{ widget_style.badgeColor | escape }};{% endif -%}
+    {%- if widget_style.ctaColor != blank %}--awa-sv-cta: {{ widget_style.ctaColor | escape }};{% endif -%}
+    {%- if widget_style.ctaTextColor != blank %}--awa-sv-cta-text: {{ widget_style.ctaTextColor | escape }};{% endif -%}
   {%- endcapture -%}
   <section
-    class="reelup reelup-deck reelup-deck--{{ layout }} reelup-shadow--{{ widget_style.shadowPreset | default: 'bold' | escape }} reelup-device--{{ widget.deviceVisibility | default: 'all' | escape }}{% if widget_style.backgroundColor != blank %} reelup--filled{% endif %}"
+    class="awa-sv awa-sv-deck awa-sv-deck--{{ layout }} awa-sv-deck--card-{{ card_template }} awa-sv-shadow--{{ widget_style.shadowPreset | default: 'bold' | escape }} awa-sv-device--{{ widget.deviceVisibility | default: 'all' | escape }}{% if widget_style.backgroundColor != blank %} awa-sv--filled{% endif %}"
     style="{{ wrapper_style | strip_newlines }}"
     {% if layout == 'stack' -%}
-      data-reelup-deck aria-roledescription="{{ 'reels.carousel_label' | t }}"
+      data-awa-sv-deck aria-roledescription="{{ 'reels.carousel_label' | t }}"
       data-status-format="{{ 'reels.position_label' | t: current: '__CURRENT__', total: '__TOTAL__' }}"
     {%- endif %}
     aria-label="{{ deck_label }}"
     {{ block.shopify_attributes }}
   >
-    {%- if widget_style.heading != blank -%}
-      <h2 class="reelup-heading reelup-heading--center">{{ widget_style.heading | escape }}</h2>
+    {%- if widget_style.eyebrow != blank or widget_style.heading != blank or widget_style.subheading != blank -%}
+      <header class="awa-sv-deck__header">
+        {%- if widget_style.eyebrow != blank -%}
+          <p class="awa-sv-deck__eyebrow">{{ widget_style.eyebrow | escape }}</p>
+        {%- endif -%}
+        {%- if widget_style.heading != blank -%}
+          <h2 class="awa-sv-heading awa-sv-heading--center">{{ widget_style.heading | escape }}</h2>
+        {%- endif -%}
+        {%- if widget_style.subheading != blank -%}
+          <p class="awa-sv-deck__subheading">{{ widget_style.subheading | escape }}</p>
+        {%- endif -%}
+      </header>
     {%- endif -%}
-    <div class="reelup-deck__viewport reelup-strip__viewport">
-      <ul class="reelup-deck__stage" data-reelup-group {% if layout == 'carousel' %}data-reelup-strip{% endif %} role="list">
+    <div class="awa-sv-deck__viewport awa-sv-strip__viewport">
+      <ul class="awa-sv-deck__stage" data-awa-sv-group {% if layout == 'carousel' %}data-awa-sv-strip{% endif %} role="list">
         {%- assign rendered = 0 -%}
         {%- for reel in reels -%}
           {%- if reel.published.value and reel.config.value.hlsManifestUrl != blank -%}
@@ -131,58 +167,107 @@ pulls in the viewer runtime when the app embed is off.
               endif
             -%}
             {%- render 'reel-video-schema', reel: reel -%}
+            {%- liquid
+              assign lead = reel.tagged_products.value | first
+              assign lead_variant = lead.selected_or_first_available_variant
+              assign card_discount = 0
+              if show_card_badge and lead_variant.compare_at_price > lead_variant.price
+                assign half = lead_variant.compare_at_price | divided_by: 2
+                assign card_discount = lead_variant.compare_at_price | minus: lead_variant.price | times: 100 | plus: half | divided_by: lead_variant.compare_at_price
+              endif
+            -%}
+            {%- capture lead_line -%}
+              {%- if lead -%}
+                <span class="awa-sv-deck__product">
+                  {%- if lead.featured_image and card_template != 'modern' -%}
+                    <img class="awa-sv-deck__thumb" src="{{ lead.featured_image | image_url: width: 96 }}" alt="" loading="lazy" width="48" height="48">
+                  {%- endif -%}
+                  <span class="awa-sv-deck__product-text">
+                    <span class="awa-sv-deck__product-title">{{ lead.title | escape }}</span>
+                    {%- if show_price and lead_variant -%}
+                      <span class="awa-sv-deck__product-price">
+                        <span>{{ lead_variant.price | money }}</span>
+                        {%- if lead_variant.compare_at_price > lead_variant.price -%}<s>{{ lead_variant.compare_at_price | money }}</s>{%- endif -%}
+                      </span>
+                    {%- endif -%}
+                  </span>
+                </span>
+              {%- elsif reel.title.value != blank -%}
+                <span class="awa-sv-deck__product"><span class="awa-sv-deck__product-text"><span class="awa-sv-deck__product-title">{{ reel.title.value | escape }}</span></span></span>
+              {%- endif -%}
+            {%- endcapture -%}
             {%- capture card -%}
-              <button type="button" class="reelup-trigger__button reelup-deck__poster" aria-label="{{ play_label }}">
+              <button type="button" class="awa-sv-trigger__button awa-sv-deck__poster" aria-label="{{ play_label }}">
                 {%- if reel.config.value.posterUrl != blank -%}
                   {%- render 'reel-poster', url: reel.config.value.posterUrl, height: 800, width_attr: 480, height_attr: 854, srcset_heights: '480,800,1200', sizes: 'min(280px, 58vw)', eager: first, priority: first -%}
                 {%- endif -%}
-                <span class="reelup-deck__play reelup-play" aria-hidden="true">
-                  {%- render 'reel-icon', name: 'play', size: 18 -%}
-                </span>
-                {%- if show_caption -%}
-                  <span class="reelup-deck__caption">
-                    {%- if reel.title.value != blank -%}<span class="reelup-deck__title">{{ reel.title.value | escape }}</span>{%- endif -%}
+                {%- if card_discount > 0 -%}
+                  <span class="awa-sv-deck__badge">{{ 'reels.percent_off' | t: percent: card_discount }}</span>
+                {%- endif -%}
+                {%- if show_play -%}
+                  <span class="awa-sv-deck__play awa-sv-play" aria-hidden="true">
+                    {%- render 'reel-icon', name: 'play', size: 18 -%}
+                  </span>
+                {%- endif -%}
+                {%- if card_template == 'title' and show_caption -%}
+                  <span class="awa-sv-deck__caption">
+                    {%- if reel.title.value != blank -%}<span class="awa-sv-deck__title">{{ reel.title.value | escape }}</span>{%- endif -%}
                     {%- assign product_count = reel.tagged_products.value.size | default: 0 -%}
                     {%- if product_count > 0 -%}
-                      <span class="reelup-deck__meta">{{ 'reels.products_count' | t: count: product_count }}</span>
+                      <span class="awa-sv-deck__meta">{{ 'reels.products_count' | t: count: product_count }}</span>
                     {%- endif -%}
                   </span>
+                {%- elsif card_template == 'overlay' and lead_line != blank -%}
+                  <span class="awa-sv-deck__overlay">{{ lead_line }}</span>
                 {%- endif -%}
                 {%- if widget_style.showDuration -%}{%- render 'reel-duration', reel: reel -%}{%- endif -%}
               </button>
+              {%- if card_below -%}
+                {%- comment -%}
+                  Under the video: the same reel, so a click anywhere here opens it
+                  too (reel-trigger.js, data-awa-sv-open). The poster button above
+                  is the keyboard stop; this repeats it for pointers.
+                {%- endcomment -%}
+                <div class="awa-sv-deck__info" data-awa-sv-open>
+                  {{- lead_line -}}
+                  {%- if card_template != 'classic' -%}
+                    <span class="awa-sv-deck__shop" aria-hidden="true">{{ 'reels.shop_now' | t }}</span>
+                  {%- endif -%}
+                </div>
+              {%- endif -%}
             {%- endcapture -%}
-            <li class="reelup-deck__card" data-reelup-deck-card>
-              {%- render 'reel-trigger', reel: reel, style: widget_style, source: 'carousel', inner: card, muted_default: true, autoplay_default: true -%}
+            <li class="awa-sv-deck__card" data-awa-sv-deck-card>
+              {%- render 'reel-trigger', reel: reel, style: widget_style, source: 'carousel', inner: card, muted_default: true, autoplay_default: true, details_default: true, image_size_default: 'large' -%}
             </li>
           {%- endif -%}
         {%- endfor -%}
       </ul>
       {%- if layout == 'carousel' and visible_count > 1 -%}
-        <button type="button" class="reelup-arrow reelup-arrow--prev" data-reelup-strip-prev aria-label="{{ 'reels.scroll_back_label' | t }}" hidden>
+        <button type="button" class="awa-sv-arrow awa-sv-arrow--prev" data-awa-sv-strip-prev aria-label="{{ 'reels.scroll_back_label' | t }}" hidden>
           {%- render 'reel-icon', name: 'chevron-left', size: 16 -%}
         </button>
-        <button type="button" class="reelup-arrow reelup-arrow--next" data-reelup-strip-next aria-label="{{ 'reels.scroll_forward_label' | t }}" hidden>
+        <button type="button" class="awa-sv-arrow awa-sv-arrow--next" data-awa-sv-strip-next aria-label="{{ 'reels.scroll_forward_label' | t }}" hidden>
           {%- render 'reel-icon', name: 'chevron-right', size: 16 -%}
         </button>
       {%- endif -%}
     </div>
     {%- if layout == 'stack' -%}
-      <div class="reelup-deck__nav">
-        <button type="button" class="reelup-deck__arrow" data-reelup-deck-prev aria-label="{{ 'reels.previous_label' | t }}">
+      <div class="awa-sv-deck__nav">
+        <button type="button" class="awa-sv-deck__arrow" data-awa-sv-deck-prev aria-label="{{ 'reels.previous_label' | t }}">
           {%- render 'reel-icon', name: 'chevron-left', size: 16 -%}
         </button>
-        <div class="reelup-deck__dots" data-reelup-deck-dots aria-hidden="true">
+        <div class="awa-sv-deck__dots" data-awa-sv-deck-dots aria-hidden="true">
           {%- for i in (1..visible_count) -%}<span></span>{%- endfor -%}
         </div>
-        <button type="button" class="reelup-deck__arrow" data-reelup-deck-next aria-label="{{ 'reels.next_label' | t }}">
+        <button type="button" class="awa-sv-deck__arrow" data-awa-sv-deck-next aria-label="{{ 'reels.next_label' | t }}">
           {%- render 'reel-icon', name: 'chevron-right', size: 16 -%}
         </button>
       </div>
-      <p class="reelup-visually-hidden reelup-deck__status" aria-live="polite" aria-atomic="true" data-reelup-deck-status></p>
+      <p class="awa-sv-visually-hidden awa-sv-deck__status" aria-live="polite" aria-atomic="true" data-awa-sv-deck-status></p>
     {%- endif -%}
   </section>
 {%- elsif request.design_mode -%}
-  <div class="reelup reelup-placeholder" {{ block.shopify_attributes }}>{{ 'reels.editor_placeholder' | t }}</div>
+  <div class="awa-sv awa-sv-placeholder" {{ block.shopify_attributes }}>{{ 'reels.editor_placeholder' | t }}</div>
 {%- endif -%}
 
 {% schema %}

@@ -107,7 +107,7 @@ export interface OrderPaidWebhookPayload {
   }[];
 }
 
-const ATTRIBUTION_PROPERTY_NAME = "_reelup_reel_id";
+const ATTRIBUTION_PROPERTY_NAME = "_awa_sv_reel_id";
 
 // Pure, no I/O, takes the webhook payload and returns only the line items
 // that were actually added via a reel (i.e. carry the hidden property

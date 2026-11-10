@@ -65,6 +65,23 @@ export interface WidgetStyleConfig {
   // What a successful add to cart leads to: keep watching, the cart (the
   // theme's drawer when it has one, else the cart page), or checkout.
   afterAdd?: "stay" | "cart" | "checkout";
+  // Section header around the heading (stacked carousel).
+  eyebrow?: string;
+  subheading?: string;
+  // How each carousel card presents its lead product: "title" is the
+  // original look (video title over the poster); "overlay" puts the product
+  // on a frosted bar over the video; classic/modern/vibrant put it under
+  // the video with no button, an outline button or a filled one.
+  cardTemplate?: "title" | "classic" | "modern" | "vibrant" | "overlay";
+  showPlayIcon?: boolean;
+  // A "58% OFF" ribbon on cards whose lead product has a compare-at price.
+  showCardBadge?: boolean;
+  badgeColor?: string;
+  // Viewer: product rows with a thumbnail (compact) or a big image (large),
+  // and whether tapping a product opens its full details inside the viewer.
+  productImageSize?: "compact" | "large";
+  productDetails?: boolean;
+  showDescription?: boolean;
 }
 
 export type StyleFieldKey = keyof WidgetStyleConfig;
@@ -154,6 +171,14 @@ const PRODUCT_TAG_FIELDS: StyleFieldKey[] = [
   "afterAdd",
 ];
 
+export const CARD_TEMPLATES: { value: NonNullable<WidgetStyleConfig["cardTemplate"]>; label: string }[] = [
+  { value: "title", label: "Only video title" },
+  { value: "classic", label: "Classic" },
+  { value: "modern", label: "Modern" },
+  { value: "vibrant", label: "Vibrant" },
+  { value: "overlay", label: "Overlay" },
+];
+
 export const WIDGET_KIND_META: Record<Exclude<WidgetKind, "GRID">, WidgetKindMeta> = {
   PRODUCT_PAGE_REELS: {
     kind: "PRODUCT_PAGE_REELS",
@@ -210,7 +235,10 @@ export const WIDGET_KIND_META: Record<Exclude<WidgetKind, "GRID">, WidgetKindMet
     icon: "layout-columns-3",
     reelSelection: "list",
     fields: [
+      "eyebrow",
       "heading",
+      "subheading",
+      "cardTemplate",
       "layoutMode",
       "columns",
       "cornerStyle",
@@ -220,12 +248,27 @@ export const WIDGET_KIND_META: Record<Exclude<WidgetKind, "GRID">, WidgetKindMet
       "textColor",
       "showCaption",
       "showDuration",
+      "showPlayIcon",
+      "showCardBadge",
+      "badgeColor",
       "autoplayOnScroll",
       ...PRODUCT_TAG_FIELDS,
+      "productImageSize",
+      "productDetails",
+      "showDescription",
     ],
     defaults: {
       ...PRODUCT_TAG_DEFAULTS,
+      eyebrow: "",
       heading: "Shop the looks",
+      subheading: "",
+      cardTemplate: "title",
+      showPlayIcon: true,
+      showCardBadge: false,
+      badgeColor: "",
+      productImageSize: "large",
+      productDetails: true,
+      showDescription: true,
       layoutMode: "stack",
       columns: 4,
       cornerStyle: "soft",
@@ -241,7 +284,7 @@ export const WIDGET_KIND_META: Record<Exclude<WidgetKind, "GRID">, WidgetKindMet
     sizeLabel: "",
     sizeMin: 0,
     sizeMax: 0,
-    accentLabel: "Arrows and dots",
+    accentLabel: "Accent (arrows, dots, eyebrow)",
   },
   STORIES: {
     kind: "STORIES",
@@ -444,6 +487,8 @@ const ENUMS: Partial<Record<StyleFieldKey, readonly string[]>> = {
   ctaStyle: ["pill", "square", "text-link"],
   tagRevealMode: ["always", "tap"],
   afterAdd: ["stay", "cart", "checkout"],
+  cardTemplate: ["title", "classic", "modern", "vibrant", "overlay"],
+  productImageSize: ["compact", "large"],
 };
 
 const COLORS: StyleFieldKey[] = [
@@ -453,9 +498,12 @@ const COLORS: StyleFieldKey[] = [
   "ctaTextColor",
   "backgroundColor",
   "textColor",
+  "badgeColor",
 ];
 
-const TEXTS: StyleFieldKey[] = ["heading", "watchLabel", "bubbleLabel", "ctaLabel"];
+const TEXTS: StyleFieldKey[] = ["heading", "watchLabel", "bubbleLabel", "ctaLabel", "eyebrow"];
+// Longer free text: a one-sentence intro under the heading.
+const LONG_TEXTS: StyleFieldKey[] = ["subheading"];
 
 const BOOLS: StyleFieldKey[] = [
   "showPrice",
@@ -472,6 +520,10 @@ const BOOLS: StyleFieldKey[] = [
   "showShare",
   "showRecommendations",
   "showSaleBadge",
+  "showPlayIcon",
+  "showCardBadge",
+  "productDetails",
+  "showDescription",
 ];
 
 const NUMBER_RANGES: Partial<Record<StyleFieldKey, [number, number]>> = {
@@ -501,6 +553,8 @@ export function sanitizeStyle(kind: string, input: unknown): WidgetStyleConfig {
       else if (typeof value === "string" && HEX_COLOR.test(value)) out[key] = value.toLowerCase();
     } else if (TEXTS.includes(key)) {
       if (typeof value === "string") out[key] = value.trim().slice(0, 80);
+    } else if (LONG_TEXTS.includes(key)) {
+      if (typeof value === "string") out[key] = value.trim().slice(0, 160);
     } else if (BOOLS.includes(key)) {
       if (typeof value === "boolean") out[key] = value;
     } else if (ENUMS[key]) {

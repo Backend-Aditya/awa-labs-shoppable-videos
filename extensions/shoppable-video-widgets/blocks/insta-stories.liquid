@@ -72,22 +72,22 @@ pulls in the viewer runtime when the app embed is off.
 {%- if visible_count > 0 -%}
   {%- render 'reel-config' -%}
   {%- capture wrapper_style -%}
-    --ru-avatar: {{ widget_style.triggerSize | default: 72 | times: 1 }}px;
-    --ru-ring-start: {{ ring_start | escape }};
-    --ru-ring-end: {{ ring_end | escape }};
-    {%- if widget_style.textColor != blank %}--ru-text: {{ widget_style.textColor | escape }};{% endif -%}
+    --awa-sv-avatar: {{ widget_style.triggerSize | default: 72 | times: 1 }}px;
+    --awa-sv-ring-start: {{ ring_start | escape }};
+    --awa-sv-ring-end: {{ ring_end | escape }};
+    {%- if widget_style.textColor != blank %}--awa-sv-text: {{ widget_style.textColor | escape }};{% endif -%}
   {%- endcapture -%}
   <section
-    class="reelup reelup-stories reelup-device--{{ widget.deviceVisibility | default: 'all' | escape }}"
+    class="awa-sv awa-sv-stories awa-sv-device--{{ widget.deviceVisibility | default: 'all' | escape }}"
     style="{{ wrapper_style | strip_newlines }}"
     {% if widget_style.heading != blank %}aria-label="{{ widget_style.heading | escape }}"{% endif %}
     {{ block.shopify_attributes }}
   >
     {%- if widget_style.heading != blank -%}
-      <h2 class="reelup-heading">{{ widget_style.heading | escape }}</h2>
+      <h2 class="awa-sv-heading">{{ widget_style.heading | escape }}</h2>
     {%- endif -%}
-    <div class="reelup-strip__viewport reelup-stories__viewport">
-      <ul class="reelup-stories__row" data-reelup-story-group data-reelup-strip role="list">
+    <div class="awa-sv-strip__viewport awa-sv-stories__viewport">
+      <ul class="awa-sv-stories__row" data-awa-sv-story-group data-awa-sv-strip role="list">
         {%- for reel in reels -%}
           {%- if reel.published.value and reel.config.value.hlsManifestUrl != blank -%}
             {%- liquid
@@ -98,36 +98,36 @@ pulls in the viewer runtime when the app embed is off.
             -%}
             {%- render 'reel-video-schema', reel: reel -%}
             {%- capture avatar -%}
-              <button type="button" class="reelup-trigger__button reelup-stories__avatar" aria-label="{{ play_label }}">
-                <span class="reelup-stories__ring" aria-hidden="true"></span>
-                <span class="reelup-stories__photo">
+              <button type="button" class="awa-sv-trigger__button awa-sv-stories__avatar" aria-label="{{ play_label }}">
+                <span class="awa-sv-stories__ring" aria-hidden="true"></span>
+                <span class="awa-sv-stories__photo">
                   {%- if reel.config.value.posterUrl != blank -%}
                     {%- render 'reel-poster', url: reel.config.value.posterUrl, height: 200, width_attr: 160, height_attr: 160 -%}
                   {%- endif -%}
                 </span>
               </button>
             {%- endcapture -%}
-            <li class="reelup-stories__item">
+            <li class="awa-sv-stories__item">
               {%- render 'reel-trigger', reel: reel, style: widget_style, source: 'stories', inner: avatar, muted_default: true -%}
               {%- if show_caption and reel.title.value != blank -%}
-                <span class="reelup-stories__label" aria-hidden="true">{{ reel.title.value | escape }}</span>
+                <span class="awa-sv-stories__label" aria-hidden="true">{{ reel.title.value | escape }}</span>
               {%- endif -%}
             </li>
           {%- endif -%}
         {%- endfor -%}
       </ul>
       {%- if visible_count > 1 -%}
-        <button type="button" class="reelup-arrow reelup-arrow--prev" data-reelup-strip-prev aria-label="{{ 'reels.scroll_back_label' | t }}" hidden>
+        <button type="button" class="awa-sv-arrow awa-sv-arrow--prev" data-awa-sv-strip-prev aria-label="{{ 'reels.scroll_back_label' | t }}" hidden>
           {%- render 'reel-icon', name: 'chevron-left', size: 14 -%}
         </button>
-        <button type="button" class="reelup-arrow reelup-arrow--next" data-reelup-strip-next aria-label="{{ 'reels.scroll_forward_label' | t }}" hidden>
+        <button type="button" class="awa-sv-arrow awa-sv-arrow--next" data-awa-sv-strip-next aria-label="{{ 'reels.scroll_forward_label' | t }}" hidden>
           {%- render 'reel-icon', name: 'chevron-right', size: 14 -%}
         </button>
       {%- endif -%}
     </div>
   </section>
 {%- elsif request.design_mode -%}
-  <div class="reelup reelup-placeholder" {{ block.shopify_attributes }}>{{ 'reels.editor_placeholder' | t }}</div>
+  <div class="awa-sv awa-sv-placeholder" {{ block.shopify_attributes }}>{{ 'reels.editor_placeholder' | t }}</div>
 {%- endif -%}
 
 {% schema %}

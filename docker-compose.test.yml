@@ -16,13 +16,13 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: reelup_test
+      POSTGRES_DB: awa_sv_test
     ports:
       - "${TEST_DB_PORT:-5432}:5432"
     tmpfs:
       - /var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d reelup_test"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d awa_sv_test"]
       interval: 2s
       timeout: 3s
       retries: 30

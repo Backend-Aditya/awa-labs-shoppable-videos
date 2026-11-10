@@ -11,9 +11,9 @@ const SECTION_BLOCKS = ["product-page-reels", "stacked-carousel", "insta-stories
 const reels = [makeReel({ id: 1 }), makeReel({ id: 2 }), makeReel({ id: 3 })];
 
 describe.each(SECTION_BLOCKS)("%s without the app embed", (block) => {
-  it("renders the shared [data-reelup-config] when visible", async () => {
+  it("renders the shared [data-awa-sv-config] when visible", async () => {
     const { $ } = await renderDom(block, blockContext(block, { reels }));
-    const config = JSON.parse($("[data-reelup-config]")!.textContent!);
+    const config = JSON.parse($("[data-awa-sv-config]")!.textContent!);
     expect(config).toMatchObject({ cartAddUrl: "/cart/add.js", moneyFormat: "${{amount}}" });
     expect(Object.values(config.labels).join()).not.toContain("translation missing");
   });
@@ -32,7 +32,7 @@ describe("collection-page targeting", () => {
       const widget = makeWidget({ targetRule: { type: "collections", handles: ["summer"] } });
       const ctx = { ...blockContext(block, { reels, widget, product: null, template: "collection" }), collection: { handle: "summer" } };
       const { $ } = await renderDom(block, ctx);
-      expect($("[data-reelup-trigger]")).not.toBeNull();
+      expect($("[data-awa-sv-trigger]")).not.toBeNull();
     },
   );
 });
