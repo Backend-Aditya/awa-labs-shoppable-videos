@@ -13,7 +13,9 @@ anyway, adding a variant the shopper never chose would be wrong.
 
 @param product {product} - the tagged product
 @param style {object} - the widget's style object (showPrice, showProductImage, showSaleBadge, ctaLabel)
-@param image_size {string} [optional] - 'large' renders a big image (the viewer then lays the row out as a tile)
+@param image_size {string} [optional] - 'large' renders a tile for the viewer's two-column grid: image, title,
+  price and a "Shop now" link (no variant picker or add button; options and add to cart live in the
+  product details view it opens)
 
 @example
 {% render 'reel-product-card' for reel.tagged_products.value as product, style: widget_style %}
@@ -49,18 +51,20 @@ anyway, adding a variant the shopper never chose would be wrong.
     assign discount = variant.compare_at_price | minus: variant.price | times: 100 | plus: half | divided_by: variant.compare_at_price
   endif
 -%}
+{%- assign tile = false -%}
+{%- if image_size == 'large' -%}{%- assign tile = true -%}{%- endif -%}
 {%- if variant -%}
-<div class="awa-sv-product" data-awa-sv-product data-product-id="{{ product.id }}" data-product-url="{{ product.url }}">
+<div class="awa-sv-product{% if tile %} awa-sv-product--tile{% endif %}" data-awa-sv-product data-product-id="{{ product.id }}" data-product-url="{{ product.url }}">
   {%- if show_image and product.featured_image -%}
     <a class="awa-sv-product__media" href="{{ product.url }}" data-awa-sv-product-link tabindex="-1" aria-hidden="true">
       {%- if image_size == 'large' -%}
         {%- assign image_ratio = product.featured_image.aspect_ratio | default: 1 -%}
         <img
-          src="{{ product.featured_image | image_url: width: 640 }}"
+          src="{{ product.featured_image | image_url: width: 400 }}"
           alt=""
           loading="lazy"
-          width="320"
-          height="{{ 320 | divided_by: image_ratio | round }}"
+          width="200"
+          height="{{ 200 | divided_by: image_ratio | round }}"
         >
       {%- else -%}
         <img
@@ -94,7 +98,7 @@ anyway, adding a variant the shopper never chose would be wrong.
         {%- endif -%}
       </span>
     {%- endif -%}
-    {%- unless product.has_only_default_variant or choose_on_page -%}
+    {%- unless product.has_only_default_variant or choose_on_page or tile -%}
       <select class="awa-sv-product__variant" data-awa-sv-variant aria-label="{{ 'reels.options_label' | t: product: product.title }}">
         {%- for option_variant in product.variants -%}
           <option
@@ -116,7 +120,25 @@ anyway, adding a variant the shopper never chose would be wrong.
       </select>
     {%- endunless -%}
   </div>
-  {%- if choose_on_page -%}
+  {%- if tile -%}
+    {%- comment -%}
+      Opens the product's details inside the viewer (reel-lightbox.js) when the widget turns
+      that on, otherwise its page. Carries the add button's labels for the details view.
+    {%- endcomment -%}
+    <a
+      class="awa-sv-product__shop"
+      href="{{ product.url }}"
+      data-awa-sv-product-link
+      data-awa-sv-shop
+      data-variant-id="{{ variant.id }}"
+      data-add-label="{{ add_label }}"
+      data-added-label="{{ 'reels.added_to_cart' | t }}"
+      data-sold-out-label="{{ 'reels.sold_out' | t }}"
+      aria-label="{{ 'reels.shop_now' | t }}: {{ product.title | escape }}"
+    >
+      {{- 'reels.shop_now' | t -}}
+    </a>
+  {%- elsif choose_on_page -%}
     <a class="awa-sv-product__add awa-sv-product__choose" href="{{ product.url }}" data-awa-sv-product-link>
       {{- 'reels.choose_options' | t -}}
     </a>

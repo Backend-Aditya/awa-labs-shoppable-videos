@@ -49,6 +49,7 @@
     "description_label": "商品説明",
     "view_details": "詳細をすべて見る",
     "back_to_products": "商品一覧に戻る",
-    "product_details_label": "商品の詳細"
+    "product_details_label": "商品の詳細",
+    "panel_hint": "商品をタップすると詳細が表示されます"
   }
 }

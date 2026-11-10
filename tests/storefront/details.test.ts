@@ -1,6 +1,6 @@
 // The in-viewer product page (reel-lightbox.js "product details"): opened
 // from the stacked carousel's viewer, fed by Shopify's /products/<handle>.js.
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { makeProduct, makeReel, makeWidget } from "../support/storefront-fixtures.mjs";
 import { click, defaultRoutes, fetchBody, fetchCalls, fetchMock, flush, json, mount, renderBlock, resetPage, viewer } from "./harness";
 
@@ -133,5 +133,63 @@ describe("product details inside the viewer", () => {
     await mountCarousel({ showDescription: false });
     await openFirstProduct();
     expect(q("[data-awa-sv-pdp]").querySelector(".awa-sv-pdp__desc")).toBeNull();
+  });
+
+  it("Shop now on a tile opens the details; the description is a plain section, not an accordion", async () => {
+    await mountCarousel();
+    openReel();
+    await flush();
+    expect(q("[data-awa-sv-list] select")).toBeNull();
+    expect(q("[data-awa-sv-list] [data-awa-sv-add-to-cart]")).toBeNull();
+    click(q("[data-awa-sv-list] [data-awa-sv-shop]"));
+    await flush();
+    expect(q("[data-awa-sv-panel]").classList.contains("is-detail")).toBe(true);
+    expect(q("[data-awa-sv-pdp]").querySelector("details, summary")).toBeNull();
+    expect(q(".awa-sv-pdp__desc .awa-sv-pdp__section-title").textContent).toBe("Description");
+  });
+
+  it("related products slide under the details and open in place", async () => {
+    const related = [
+      { id: 1, title: "Itself", url: "/products/antilia-chair", price: 100, featured_image: null },
+      { id: 55, title: "Side table", url: "/products/side-table", price: 4999, compare_at_price: 9999, featured_image: "https://cdn.test/t.jpg?v=2" },
+    ];
+    fetchMock.mockImplementation(async (url) => {
+      const u = String(url);
+      if (u === "/products/antilia-chair.js") return json(ajaxChair);
+      if (u === "/products/side-table.js") return json({ ...ajaxChair, id: 55, title: "Side table", description: "" });
+      if (u.startsWith("/recommendations")) return json({ products: related });
+      return defaultRoutes(u);
+    });
+    await mountCarousel();
+    await openFirstProduct();
+    await flush();
+    const section = q("[data-awa-sv-related]");
+    expect(section.hidden).toBe(false);
+    const tiles = section.querySelectorAll<HTMLAnchorElement>(".awa-sv-rec");
+    expect(tiles).toHaveLength(1);
+    expect(tiles[0].querySelector(".awa-sv-rec__title")!.textContent).toBe("Side table");
+    expect(tiles[0].querySelector(".awa-sv-rec__price s")!.textContent).toBe("$99.99");
+    expect(tiles[0].querySelector("img")!.getAttribute("src")).toBe("https://cdn.test/t.jpg?v=2&width=360");
+
+    const row = q("[data-awa-sv-related-row]");
+    row.scrollBy = vi.fn();
+    click(section.querySelector('[data-awa-sv-slide="1"]'));
+    expect(row.scrollBy).toHaveBeenCalledWith(expect.objectContaining({ behavior: "smooth" }));
+
+    click(tiles[0]);
+    await flush();
+    expect(q(".awa-sv-pdp__title").textContent).toBe("Side table");
+    // Keeps the merchant's labels from the product it came from.
+    expect(q(".awa-sv-pdp__add").dataset.addLabel).toBe("Add to cart");
+  });
+
+  it("gallery arrows move the photos", async () => {
+    await mountCarousel();
+    await openFirstProduct();
+    const gallery = q("[data-awa-sv-pdp-gallery]");
+    gallery.scrollBy = vi.fn();
+    click(q(".awa-sv-pdp__arrow--next"));
+    click(q(".awa-sv-pdp__arrow--prev"));
+    expect(gallery.scrollBy).toHaveBeenCalledTimes(2);
   });
 });

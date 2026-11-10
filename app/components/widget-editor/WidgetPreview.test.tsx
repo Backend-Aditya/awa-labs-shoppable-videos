@@ -404,11 +404,17 @@ describe("carousel card templates", () => {
 describe("viewer: large product tiles and product details", () => {
   const openViewer = () => userEvent.click(screen.getByRole("radio", { name: "Video viewer" }));
 
-  it("large images show one big tile; thumbnails show compact rows", async () => {
-    const { container } = renderPreview("CAROUSEL", { productImageSize: "large" });
+  it("large images show two tiles per row with Shop now; thumbnails show compact rows", async () => {
+    const { container } = renderPreview("CAROUSEL", { productImageSize: "large", showPrice: true }, [
+      { ...reel(1), products: [{ id: "a", title: "Chair", imageUrl: "https://cdn.test/a.jpg", price: "$10.00", compareAtPrice: "$20.00" }, ...reel(1).products] },
+    ]);
     await openViewer();
     expect(container.querySelector(".viewerPanel")).toHaveAttribute("data-large", "true");
-    expect(container.querySelectorAll(".viewerTileImage")).toHaveLength(1);
+    expect(container.querySelectorAll(".viewerTile")).toHaveLength(3);
+    expect(container.querySelector<HTMLElement>(".viewerTileImage")!.style.backgroundImage).toContain("https://cdn.test/a.jpg");
+    expect(screen.getAllByRole("button", { name: /^Shop now:/ })).toHaveLength(3);
+    expect(container.querySelector(".viewerTiles .cta")).toBeNull();
+    expect(screen.getByText("Tap a product to see its details")).toBeInTheDocument();
     const compact = renderPreview("CAROUSEL", { productImageSize: "compact" });
     await userEvent.click(within(compact.container).getByRole("radio", { name: "Video viewer" }));
     expect(compact.container.querySelector(".viewerPanel")).not.toHaveAttribute("data-large");
@@ -420,11 +426,12 @@ describe("viewer: large product tiles and product details", () => {
       { ...reel(1), products: [{ id: "x", title: "Chair", imageUrl: "https://cdn.test/c.jpg", price: "$10.00", compareAtPrice: "$20.00" }] },
     ]);
     await openViewer();
-    await userEvent.click(screen.getByRole("button", { name: "Chair" }));
+    await userEvent.click(screen.getByRole("button", { name: "Shop now: Chair" }));
     expect(container.querySelector(".details")).not.toBeNull();
     expect(container.querySelector<HTMLElement>(".detailsImage")!.style.backgroundImage).toContain("https://cdn.test/c.jpg");
     expect(screen.getByText("$20.00")).toBeInTheDocument();
     expect(screen.getByText("Description")).toBeInTheDocument();
+    expect(screen.getByText("You may also like")).toBeInTheDocument();
     const maple = screen.getByRole("button", { name: "Maple" });
     await userEvent.click(maple);
     expect(maple).toHaveAttribute("aria-pressed", "true");
@@ -436,13 +443,26 @@ describe("viewer: large product tiles and product details", () => {
   it("details without price or description", async () => {
     const { container } = renderPreview("CAROUSEL", { productDetails: true, showDescription: false, showPrice: false });
     await openViewer();
-    await userEvent.click(screen.getByRole("button", { name: "Product 1.0" }));
-    expect(container.querySelector(".detailsDesc")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Shop now: Product 1.0" }));
+    expect(container.querySelector(".detailsDesc .skeleton")).toBeNull();
     expect(container.querySelector(".details .priceRow")).toBeNull();
   });
 
-  it("with details off, product names are plain text", async () => {
-    renderPreview("CAROUSEL", { productDetails: false });
+  it("compact rows: product names open details when it's on", async () => {
+    const { container } = renderPreview("CAROUSEL", { productDetails: true, productImageSize: "compact" });
+    await openViewer();
+    await userEvent.click(screen.getByRole("button", { name: "Product 1.0" }));
+    expect(container.querySelector(".details")).not.toBeNull();
+  });
+
+  it("with details off, Shop now stays put and compact names are plain text", async () => {
+    const tiles = renderPreview("CAROUSEL", { productDetails: false, productImageSize: "large" });
+    await userEvent.click(within(tiles.container).getByRole("radio", { name: "Video viewer" }));
+    await userEvent.click(within(tiles.container).getAllByRole("button", { name: /^Shop now:/ })[0]);
+    expect(tiles.container.querySelector(".details")).toBeNull();
+    expect(within(tiles.container).queryByText("Tap a product to see its details")).toBeNull();
+    tiles.unmount();
+    renderPreview("CAROUSEL", { productDetails: false, productImageSize: "compact" });
     await openViewer();
     expect(screen.queryByRole("button", { name: "Product 1.0" })).toBeNull();
     expect(screen.getByText("Product 1.0")).toBeInTheDocument();

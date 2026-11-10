@@ -65,6 +65,8 @@
     viewDetails: "View full details",
     backToProducts: "Back to products",
     productDetails: "Product details",
+    panelHint: "Tap a product to see its details",
+    shopNow: "Shop now",
     soldOut: "Sold out",
     addToCart: "Add to cart",
     added: "Added",
@@ -835,14 +837,20 @@
         <button type="button" class="awa-sv-pdp__back" data-awa-sv-pdp-back aria-label="${E(labels.backToProducts)}">${ICONS.back}</button>
         ${
           images.length
-            ? `<div class="awa-sv-pdp__gallery" data-awa-sv-pdp-gallery tabindex="0" role="group" aria-label="${E(product.title)}">
+            ? `<div class="awa-sv-pdp__gallery" data-awa-sv-pdp-gallery data-awa-sv-slider tabindex="0" role="group" aria-label="${E(product.title)}">
                 ${images
                   .map(
                     (src, i) => `<img src="${E(sizedImage(src, 900))}" srcset="${E(sizedImage(src, 480))} 480w, ${E(sizedImage(src, 900))} 900w" sizes="(max-width: 749px) 80vw, 300px" alt="${E(alts.get(imageKey(src)) || (i === 0 ? product.title : ""))}" ${i > 1 ? 'loading="lazy"' : ""} data-key="${E(imageKey(src))}">`,
                   )
                   .join("")}
               </div>
-              ${images.length > 1 ? `<div class="awa-sv-pdp__bar" aria-hidden="true"><span data-awa-sv-pdp-bar></span></div>` : ""}`
+              ${
+                images.length > 1
+                  ? `<button type="button" class="awa-sv-pdp__arrow awa-sv-pdp__arrow--prev" data-awa-sv-slide="-1" aria-label="${E(labels.previous)}">${ICONS.left}</button>
+                     <button type="button" class="awa-sv-pdp__arrow awa-sv-pdp__arrow--next" data-awa-sv-slide="1" aria-label="${E(labels.next)}">${ICONS.right}</button>
+                     <div class="awa-sv-pdp__bar" aria-hidden="true"><span data-awa-sv-pdp-bar></span></div>`
+                  : ""
+              }`
             : ""
         }
       </div>
@@ -888,12 +896,22 @@
         </div>
         ${
           descriptionHtml
-            ? `<details class="awa-sv-pdp__desc" open>
-                <summary>${E(labels.description)}<span class="awa-sv-pdp__chev" aria-hidden="true">${ICONS.down}</span></summary>
+            ? `<section class="awa-sv-pdp__desc">
+                <h4 class="awa-sv-pdp__section-title">${E(labels.description)}</h4>
                 <div class="awa-sv-pdp__rte">${descriptionHtml}</div>
-              </details>`
+              </section>`
             : ""
         }
+        <section class="awa-sv-pdp__related" data-awa-sv-related hidden>
+          <div class="awa-sv-pdp__related-head">
+            <h4 class="awa-sv-pdp__section-title">${E(labels.youMayLike)}</h4>
+            <span class="awa-sv-pdp__arrows">
+              <button type="button" class="awa-sv-pdp__arrow" data-awa-sv-slide="-1" aria-label="${E(labels.previous)}">${ICONS.left}</button>
+              <button type="button" class="awa-sv-pdp__arrow" data-awa-sv-slide="1" aria-label="${E(labels.next)}">${ICONS.right}</button>
+            </span>
+          </div>
+          <div class="awa-sv-pdp__related-row" data-awa-sv-slider data-awa-sv-related-row></div>
+        </section>
         <a class="awa-sv-pdp__full" href="${E(url)}" data-awa-sv-product-link data-awa-sv-full-page>${E(labels.viewDetails)}</a>
       </div>
     `;
@@ -981,7 +999,7 @@
     if (!panel || !pdp || !url) return;
     const token = ++detailSeq;
     const trigger = dialog.awaSvTrigger;
-    const add = card?.querySelector("[data-awa-sv-add-to-cart]");
+    const add = card?.querySelector("[data-awa-sv-add-to-cart], [data-awa-sv-shop]");
     dialog.awaSvDetailsFrom = card ?? null;
     panel.classList.add("is-detail");
     pdp.hidden = false;
@@ -998,23 +1016,66 @@
       return;
     }
     if (token !== detailSeq || !panel.classList.contains("is-detail")) return;
-    const rendered = renderDetails(pdp, product, {
+    // A related product opened from inside the details has no row of its
+    // own: it keeps the labels and badge choice of the one before it.
+    const previous = dialog.awaSvDetailsOptions ?? {};
+    const options = {
       url,
-      addLabel: add?.dataset.addLabel || labels.addToCart,
-      addedLabel: add?.dataset.addedLabel || labels.added,
-      soldOutLabel: add?.dataset.soldOutLabel || labels.soldOut,
+      addLabel: add?.dataset.addLabel || previous.addLabel || labels.addToCart,
+      addedLabel: add?.dataset.addedLabel || previous.addedLabel || labels.added,
+      soldOutLabel: add?.dataset.soldOutLabel || previous.soldOutLabel || labels.soldOut,
       variantId: add?.dataset.variantId,
-      showBadge: Boolean(card ? card.querySelector("[data-awa-sv-badge]") : false),
+      showBadge: card ? Boolean(card.querySelector("[data-awa-sv-badge]")) : Boolean(previous.showBadge),
       showDescription: trigger?.dataset.showDescription !== "false",
       showQuantity: trigger?.dataset.showQuantity === "true",
-    });
+    };
+    dialog.awaSvDetailsOptions = options;
+    const rendered = renderDetails(pdp, product, options);
     pdp.removeAttribute("aria-busy");
     if (!rendered) {
       window.AwaSvViewer.navigate(url);
       return;
     }
     pdp.querySelector(".awa-sv-pdp__title")?.focus({ preventScroll: true });
+    renderRelated(pdp, product.id, () => token === detailSeq && panel.classList.contains("is-detail"));
   };
+
+  // "You may also like" under the details: Shopify's related products for
+  // this one, as a slider; tapping one opens its details in place.
+  const renderRelated = async (pdp, productId, isCurrent) => {
+    const section = pdp.querySelector("[data-awa-sv-related]");
+    const row = pdp.querySelector("[data-awa-sv-related-row]");
+    if (!section || !row) return;
+    const products = (await fetchRecommendations(String(productId))).filter((p) => String(p.id) !== String(productId)).slice(0, 8);
+    if (!isCurrent() || products.length === 0) return;
+    row.innerHTML = products
+      .map((p) => {
+        const href = safeLink(p.url) || "#";
+        const rawImage = typeof p.featured_image === "string" ? p.featured_image : "";
+        const onSale = p.compare_at_price > p.price;
+        return `<a class="awa-sv-rec awa-sv-rec--tile" href="${escapeHtml(href)}" data-awa-sv-product-link>
+          <span class="awa-sv-rec__media">${rawImage ? `<img src="${escapeHtml(sizedImage(rawImage, 360))}" alt="" loading="lazy" width="180" height="180">` : ""}</span>
+          <span class="awa-sv-rec__title">${escapeHtml(p.title)}</span>
+          <span class="awa-sv-rec__price${onSale ? " is-sale" : ""}">${escapeHtml(formatMoney(p.price))}${onSale ? ` <s>${escapeHtml(formatMoney(p.compare_at_price))}</s>` : ""}</span>
+          <span class="awa-sv-rec__shop">${escapeHtml(labels.shopNow)}</span>
+        </a>`;
+      })
+      .join("");
+    section.hidden = false;
+  };
+
+  // Prev/next buttons for any horizontal slider in the details view: the
+  // nearest [data-awa-sv-slider] in the same section moves by most of a view.
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest?.("[data-awa-sv-slide]");
+    if (!button) return;
+    const scope = button.closest(".awa-sv-pdp__media, .awa-sv-pdp__related");
+    const slider = scope?.querySelector("[data-awa-sv-slider]");
+    if (!slider) return;
+    const step = slider.clientWidth * 0.8 * Number(button.dataset.awaSvSlide) * (isRtl(slider) ? -1 : 1);
+    if (slider.scrollBy) slider.scrollBy({ left: step, behavior: "smooth" });
+    else slider.scrollLeft += step;
+  });
 
   const closeDetails = (dialog, restoreFocus = false) => {
     detailSeq += 1;
@@ -1039,10 +1100,13 @@
     if (!link || link.hasAttribute("data-awa-sv-full-page") || event.defaultPrevented) return;
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.button > 0) return;
     const dialog = link.closest("#awa-sv-lightbox");
-    if (dialog.awaSvTrigger?.dataset.productDetails !== "true" || link.closest("[data-awa-sv-pdp]")) return;
-    const card = link.closest("[data-awa-sv-product]");
+    if (dialog.awaSvTrigger?.dataset.productDetails !== "true") return;
+    const isRec = link.classList.contains("awa-sv-rec");
+    // Inside the details only the related products open in place.
+    if (link.closest("[data-awa-sv-pdp]") && !isRec) return;
+    const card = isRec ? null : link.closest("[data-awa-sv-product]");
     let url = card?.dataset.productUrl;
-    if (!url && link.classList.contains("awa-sv-rec")) {
+    if (!url && isRec) {
       try {
         const href = new URL(link.href, window.location.href);
         if (href.origin === window.location.origin) url = href.pathname;
@@ -1090,6 +1154,8 @@
     share: icon('<path d="M12 3v12m-4-8 4-4 4 4M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7"/>'),
     bag: icon('<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18m-5 4a4 4 0 0 1-8 0"/>', 18),
     cart: icon('<circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>', 20),
+    left: icon('<path d="m15 18-6-6 6-6"/>', 18),
+    right: icon('<path d="m9 18 6-6-6-6"/>', 18),
     back: icon('<path d="m12 19-7-7 7-7M19 12H5"/>', 18),
     retry: icon('<path d="M3 12a9 9 0 1 0 2.64-6.36L3 8.27"/><path d="M3 3v5.27h5.27"/>', 16),
     alert: icon('<circle cx="12" cy="12" r="10"/><path d="M12 7.5v5m0 4h.01"/>', 32),
@@ -1153,7 +1219,10 @@
         <aside class="awa-sv-viewer__panel" data-awa-sv-panel hidden>
           <button type="button" class="awa-sv-viewer__panel-head" data-awa-sv-panel-toggle aria-expanded="true">
             ${ICONS.bag}
-            <span class="awa-sv-viewer__panel-title">${L.shop}</span>
+            <span class="awa-sv-viewer__panel-text">
+              <span class="awa-sv-viewer__panel-title">${L.shop}</span>
+              <span class="awa-sv-viewer__panel-sub" data-awa-sv-panel-sub>${L.panelHint}</span>
+            </span>
             <span class="awa-sv-viewer__panel-count" data-awa-sv-panel-count></span>
             <span class="awa-sv-viewer__chevron" aria-hidden="true">${ICONS.up}</span>
           </button>
@@ -1326,7 +1395,9 @@
       const hasProducts = Boolean(dialog.querySelector("[data-awa-sv-list] [data-awa-sv-product]"));
       linkEl.inert = collapsed && hasProducts;
     };
-    const setPanelState = (state) => {
+    const setPanelState = (requested) => {
+      // Only the mobile sheet collapses; on desktop the list is always shown.
+      const state = requested === "closed" && !isMobile() ? "peek" : requested;
       panel.dataset.state = state;
       panelToggle.setAttribute("aria-expanded", String(state === "open" || (state === "peek" && !isMobile())));
       syncPeekInert();
@@ -1335,6 +1406,7 @@
       if (dialog.open) setPanelState(panel.dataset.state || initialPanelState);
     });
     panelToggle.addEventListener("click", () => {
+      if (!isMobile()) return;
       const open = panel.dataset.state === "open" || (panel.dataset.state === "peek" && !isMobile());
       // Collapsing returns a mobile sheet to its peek, but desktop shows
       // "peek" fully expanded, so there it has to close.
@@ -1383,7 +1455,7 @@
       }
       if (panel.dataset.state === "closed" || (panel.dataset.state === "peek" && isMobile())) setPanelState("open");
       card.scrollIntoView({ block: "nearest" });
-      card.querySelector("[data-awa-sv-add-to-cart], .awa-sv-product__add")?.focus({ preventScroll: true });
+      card.querySelector("[data-awa-sv-add-to-cart], .awa-sv-product__add, .awa-sv-product__shop")?.focus({ preventScroll: true });
     });
     dialog.setMoments = (trigger) => {
       moments = productMoments(trigger, dialog.querySelector("[data-awa-sv-list]"));
@@ -1535,6 +1607,7 @@
     dialog.querySelector("[data-awa-sv-panel-count]").textContent = productCount > 1 ? String(productCount) : "";
     initialPanelState = trigger.dataset.tagRevealMode === "tap" ? "closed" : "peek";
     dialog.setPanelState(initialPanelState);
+    dialog.querySelector("[data-awa-sv-panel-sub]").hidden = trigger.dataset.productDetails !== "true" || productCount === 0;
     dialog.setMoments(trigger);
     cartStatus.hidden = true;
     dialog.querySelector("[data-awa-sv-share]").hidden = trigger.dataset.showShare === "false";

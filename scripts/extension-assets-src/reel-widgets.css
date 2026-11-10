@@ -483,6 +483,11 @@ html[dir="rtl"] .awa-sv-arrow svg { transform: scaleX(-1); }
   overflow: hidden;
 }
 
+/* The slider and grid keep clear of the screen edges on both sides. */
+.awa-sv-deck:not(.awa-sv--filled):is(.awa-sv-deck--carousel, .awa-sv-deck--grid) {
+  padding-inline: clamp(16px, 4vw, 48px);
+}
+
 @media (max-width: 749px) {
   .awa-sv-deck {
     --awa-sv-card: 58vw;

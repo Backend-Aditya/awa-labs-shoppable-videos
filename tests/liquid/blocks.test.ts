@@ -110,7 +110,24 @@ describe("stacked-carousel card templates", () => {
     const tpl = $("template[data-awa-sv-products]") as HTMLTemplateElement;
     const card = tpl.content.querySelector("[data-awa-sv-product]")!;
     expect(card.getAttribute("data-product-url")).toBe("/products/product-7");
-    expect(card.querySelector("img")!.getAttribute("width")).toBe("320");
+    expect(card.querySelector("img")!.getAttribute("width")).toBe("200");
+  });
+
+  it("large images make each product a tile: no variant picker or add button, a Shop now link", async () => {
+    const multi = makeProduct({ id: 9, variants: [{ id: 901, title: "Black" }, { id: 902, title: "Teak" }] });
+    const { $ } = await render({ productImageSize: "large", ctaLabel: "Buy it" }, [multi]);
+    const card = ($("template[data-awa-sv-products]") as HTMLTemplateElement).content.querySelector("[data-awa-sv-product]")!;
+    expect(card.classList.contains("awa-sv-product--tile")).toBe(true);
+    expect(card.querySelector("select")).toBeNull();
+    expect(card.querySelector("[data-awa-sv-add-to-cart]")).toBeNull();
+    const shop = card.querySelector("[data-awa-sv-shop]")!;
+    expect(shop.textContent!.trim()).toBe("Shop now");
+    expect(shop.getAttribute("href")).toBe("/products/product-9");
+    expect(shop.getAttribute("data-add-label")).toBe("Buy it");
+    const compact = await render({ productImageSize: "compact" }, [multi]);
+    const row = (compact.$("template[data-awa-sv-products]") as HTMLTemplateElement).content.querySelector("[data-awa-sv-product]")!;
+    expect(row.querySelector("select")).not.toBeNull();
+    expect(row.querySelector("[data-awa-sv-add-to-cart]")).not.toBeNull();
   });
 });
 
