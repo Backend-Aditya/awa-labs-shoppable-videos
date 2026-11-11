@@ -2203,3 +2203,62 @@ html[dir="rtl"] .awa-sv-pdp__arrow svg {
 @keyframes awa-sv-pulse {
   50% { opacity: 0.4; }
 }
+
+/* =================================================================
+   Phones: the player fills the whole screen and the shop sheet is docked
+   to the bottom edge. Last in the file so it wins over the layout rules
+   above. The viewer is pinned to the screen's four edges rather than sized
+   with 100vh/100dvh: in-app browsers, iOS toolbars and theme dialog styles
+   all report those differently, which left a black band under the video.
+   ================================================================= */
+@media (max-width: 749px) {
+  dialog.awa-sv-viewer {
+    position: fixed;
+    inset: 0;
+    width: auto;
+    height: auto;
+    min-height: 0;
+    max-width: none;
+    max-height: none;
+    margin: 0;
+  }
+
+  .awa-sv-viewer .awa-sv-viewer__stage {
+    position: absolute;
+    inset: 0;
+    width: auto;
+    height: auto;
+    padding: 0;
+  }
+
+  .awa-sv-viewer .awa-sv-viewer__player,
+  .awa-sv-viewer:not(.has-products) .awa-sv-viewer__player {
+    position: absolute;
+    inset: 0;
+    width: auto;
+    height: auto;
+    max-width: none;
+    aspect-ratio: auto;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .awa-sv-viewer .awa-sv-viewer__video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  /* Docked: full width, flush with the bottom, clear of the home bar. */
+  .awa-sv-viewer .awa-sv-viewer__panel {
+    inset-inline: 0;
+    bottom: 0;
+    border-radius: 16px 16px 0 0;
+    padding-bottom: env(safe-area-inset-bottom);
+    box-shadow: 0 -8px 30px rgb(0 0 0 / 0.25);
+  }
+
+  .awa-sv-viewer--square .awa-sv-viewer__panel {
+    border-radius: 0;
+  }
+}
