@@ -4,6 +4,14 @@
    add-to-cart colour comes through. Product card styles live in
    reel-widgets.css and are shared with the featured-video block. */
 
+.awa-sv-viewer, .awa-sv-story {
+  /* The bottom safe area (home indicator), capped. Some themes and apps
+     rewrite or inflate env(safe-area-inset-bottom) (e.g. to include iOS
+     26 Safari's floating toolbar, ~90px), which lifted everything pinned to
+     the bottom far off the edge. The home indicator needs ~16px at most. */
+  --awa-sv-safe-bottom: min(env(safe-area-inset-bottom, 0px), 16px);
+}
+
 html.awa-sv-locked {
   overflow: hidden;
   /* Keep the page from jumping sideways when its scrollbar disappears. */
@@ -1105,7 +1113,7 @@ html[dir="rtl"] .awa-sv-viewer--nav-sides .awa-sv-viewer__navbtn svg {
 
   /* The sheet sits on the video: room for it above the bottom edge. */
   .awa-sv-viewer.awa-sv-products--large.has-products .awa-sv-viewer__title {
-    bottom: calc(176px + env(safe-area-inset-bottom));
+    bottom: calc(176px + var(--awa-sv-safe-bottom));
   }
 }
 
@@ -1857,22 +1865,22 @@ html[dir="rtl"] .awa-sv-pdp__arrow svg {
   }
 
   .awa-sv-viewer__title {
-    bottom: calc(96px + env(safe-area-inset-bottom));
+    bottom: calc(96px + var(--awa-sv-safe-bottom));
   }
 
   .awa-sv-viewer.has-products .awa-sv-viewer__title {
-    bottom: calc(150px + env(safe-area-inset-bottom));
+    bottom: calc(150px + var(--awa-sv-safe-bottom));
   }
 
   .awa-sv-viewer .awa-sv-moment {
     inset-inline: 12px;
-    bottom: calc(150px + env(safe-area-inset-bottom));
+    bottom: calc(150px + var(--awa-sv-safe-bottom));
   }
 
   .awa-sv-viewer__panel {
     position: absolute;
     inset-inline: 8px;
-    bottom: calc(8px + env(safe-area-inset-bottom));
+    bottom: calc(8px + var(--awa-sv-safe-bottom));
     max-height: 62vh;
     max-height: 62dvh;
     border-radius: 16px;
@@ -2061,7 +2069,7 @@ html[dir="rtl"] .awa-sv-pdp__arrow svg {
   appearance: none;
   position: absolute;
   left: 50%;
-  bottom: calc(22px + env(safe-area-inset-bottom));
+  bottom: calc(22px + var(--awa-sv-safe-bottom));
   z-index: 3;
   display: inline-flex;
   align-items: center;
@@ -2141,7 +2149,7 @@ html[dir="rtl"] .awa-sv-pdp__arrow svg {
   border-radius: 20px 20px 0 0;
   background: #fff;
   color: #141414;
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-bottom: var(--awa-sv-safe-bottom);
   animation: awa-sv-sheet 0.35s var(--rv-ease) both;
 }
 
@@ -2254,7 +2262,7 @@ html[dir="rtl"] .awa-sv-pdp__arrow svg {
     inset-inline: 0;
     bottom: 0;
     border-radius: 16px 16px 0 0;
-    padding-bottom: env(safe-area-inset-bottom);
+    padding-bottom: var(--awa-sv-safe-bottom);
     box-shadow: 0 -8px 30px rgb(0 0 0 / 0.25);
   }
 
@@ -2275,7 +2283,7 @@ html[dir="rtl"] .awa-sv-pdp__arrow svg {
     background: transparent;
     box-shadow: none;
     /* Clear of the home bar, but no further: one gap, not two stacked. */
-    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    padding-bottom: max(12px, var(--awa-sv-safe-bottom));
   }
 
   /* Nothing but the strip while closed: a video's link button, the cart
@@ -2332,10 +2340,10 @@ html[dir="rtl"] .awa-sv-pdp__arrow svg {
 
   /* The title and the "product on screen" pop-up sit just above the strip. */
   .awa-sv-viewer.awa-sv-products--large.has-products .awa-sv-viewer__title {
-    bottom: calc(150px + env(safe-area-inset-bottom));
+    bottom: calc(150px + var(--awa-sv-safe-bottom));
   }
 
   .awa-sv-viewer.awa-sv-products--large.has-products .awa-sv-moment {
-    bottom: calc(150px + env(safe-area-inset-bottom));
+    bottom: calc(150px + var(--awa-sv-safe-bottom));
   }
 }

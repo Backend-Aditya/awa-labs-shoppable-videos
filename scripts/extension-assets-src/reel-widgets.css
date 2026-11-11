@@ -4,6 +4,14 @@
    widget owns a distinct silhouette (strip, deck, rings, feature, row,
    floating player) on top of the shared pieces below. */
 
+.awa-sv-pop {
+  /* The bottom safe area (home indicator), capped. Some themes and apps
+     rewrite or inflate env(safe-area-inset-bottom) (e.g. to include iOS
+     26 Safari's floating toolbar, ~90px), which lifted everything pinned to
+     the bottom far off the edge. The home indicator needs ~16px at most. */
+  --awa-sv-safe-bottom: min(env(safe-area-inset-bottom, 0px), 16px);
+}
+
 .awa-sv {
   --awa-sv-text: currentColor;
   /* Accent for things drawn on the page background (arrows, dots, focus
@@ -1341,16 +1349,16 @@ html[dir="rtl"] .awa-sv-card__badge {
 /* Corners are physical (the merchant picks "bottom right"), so these stay
    left/right rather than logical. Safe-area insets keep it clear of the
    iOS home indicator and notches. */
-.awa-sv-pop--bottom-right { right: calc(20px + env(safe-area-inset-right)); bottom: calc(20px + env(safe-area-inset-bottom)); flex-direction: row-reverse; }
-.awa-sv-pop--bottom-left { left: calc(20px + env(safe-area-inset-left)); bottom: calc(20px + env(safe-area-inset-bottom)); }
+.awa-sv-pop--bottom-right { right: calc(20px + env(safe-area-inset-right)); bottom: calc(20px + var(--awa-sv-safe-bottom)); flex-direction: row-reverse; }
+.awa-sv-pop--bottom-left { left: calc(20px + env(safe-area-inset-left)); bottom: calc(20px + var(--awa-sv-safe-bottom)); }
 .awa-sv-pop--top-right { right: calc(20px + env(safe-area-inset-right)); top: calc(20px + env(safe-area-inset-top)); flex-direction: row-reverse; align-items: flex-start; }
 .awa-sv-pop--top-left { left: calc(20px + env(safe-area-inset-left)); top: calc(20px + env(safe-area-inset-top)); align-items: flex-start; }
 
 @media (max-width: 749px) {
   /* Bottom-right is raised on phones to clear chat bubbles (Shopify Inbox
      and similar sit in that corner at ~60-70px). */
-  .awa-sv-pop--bottom-right { right: calc(12px + env(safe-area-inset-right)); bottom: calc(90px + env(safe-area-inset-bottom)); }
-  .awa-sv-pop--bottom-left { left: calc(12px + env(safe-area-inset-left)); bottom: calc(12px + env(safe-area-inset-bottom)); }
+  .awa-sv-pop--bottom-right { right: calc(12px + env(safe-area-inset-right)); bottom: calc(90px + var(--awa-sv-safe-bottom)); }
+  .awa-sv-pop--bottom-left { left: calc(12px + env(safe-area-inset-left)); bottom: calc(12px + var(--awa-sv-safe-bottom)); }
   .awa-sv-pop--top-right { right: calc(12px + env(safe-area-inset-right)); top: calc(12px + env(safe-area-inset-top)); }
   .awa-sv-pop--top-left { left: calc(12px + env(safe-area-inset-left)); top: calc(12px + env(safe-area-inset-top)); }
   /* The size arrives as an inline custom property, so cap the width on the
