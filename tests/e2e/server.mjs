@@ -68,7 +68,12 @@ async function renderPage() {
   const render = (block, input) => engine.renderFile(block, blockContext(block, { product: shirt, ...input }));
   const [embed, strip, stories, atc] = await Promise.all([
     render("shoppable-videos", { widget: makeWidget({ published: false }) }),
-    render("product-page-reels", { reels: stripReels, widget: makeWidget({ style: { heading: "See it in action", showQuantity: true } }) }),
+    // Compact product rows (variant picker + add button): the flows below
+    // exercise them, so this page opts out of the default big tiles.
+    render("product-page-reels", {
+      reels: stripReels,
+      widget: makeWidget({ style: { heading: "See it in action", showQuantity: true, productImageSize: "compact", productDetails: false } }),
+    }),
     render("insta-stories", { reels: storyReels, widget: makeWidget({ style: { heading: "Stories", storyDuration: 2 } }) }),
     render("add-to-cart-video", { reel: stripReels[1], widget: makeWidget() }),
   ]);

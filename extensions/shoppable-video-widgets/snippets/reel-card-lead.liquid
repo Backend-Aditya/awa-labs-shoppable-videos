@@ -1,0 +1,33 @@
+{% doc %}
+A video card's lead product line for the card templates (overlay bar, or
+under the video in classic / modern / vibrant): thumbnail, title, price and
+compare-at price. A reel with no tagged products shows its title instead.
+Shared by the stacked carousel and the product page reels.
+
+@param reel {metaobject} - the reel
+@param template {string} - the card template ('modern' has no thumbnail)
+@param show_price {boolean} - whether to show prices
+
+@example
+{% render 'reel-card-lead', reel: reel, template: card_template, show_price: show_price %}
+{% enddoc %}
+{%- assign lead = reel.tagged_products.value | first -%}
+{%- assign lead_variant = lead.selected_or_first_available_variant -%}
+{%- if lead -%}
+  <span class="awa-sv-card__product">
+    {%- if lead.featured_image and template != 'modern' -%}
+      <img class="awa-sv-card__thumb" src="{{ lead.featured_image | image_url: width: 96 }}" alt="" loading="lazy" width="48" height="48">
+    {%- endif -%}
+    <span class="awa-sv-card__product-text">
+      <span class="awa-sv-card__product-title">{{ lead.title | escape }}</span>
+      {%- if show_price and lead_variant -%}
+        <span class="awa-sv-card__product-price">
+          <span>{{ lead_variant.price | money }}</span>
+          {%- if lead_variant.compare_at_price > lead_variant.price -%}<s>{{ lead_variant.compare_at_price | money }}</s>{%- endif -%}
+        </span>
+      {%- endif -%}
+    </span>
+  </span>
+{%- elsif reel.title.value != blank -%}
+  <span class="awa-sv-card__product"><span class="awa-sv-card__product-text"><span class="awa-sv-card__product-title">{{ reel.title.value | escape }}</span></span></span>
+{%- endif -%}

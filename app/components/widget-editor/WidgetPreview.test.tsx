@@ -1,7 +1,7 @@
 // The admin's live preview. Class names come from preview.module.css; the
 // components project runs CSS modules with non-scoped names, so `.deck` here
 // is `styles.deck` in the component.
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { formatDuration, WidgetPreview } from "./WidgetPreview";
@@ -278,6 +278,8 @@ describe("WidgetPreview, viewer mode", () => {
       showTitleOverlay: true,
       ctaLabel: "",
       ctaStyle: "square",
+      // Compact rows (with add button and quantity), not the default tiles.
+      productImageSize: "compact",
     });
     await openViewer();
     expect(screen.getByRole("radio", { name: "Video viewer" })).toHaveAttribute("aria-checked", "true");
@@ -495,3 +497,77 @@ describe("carousel sizing and popup corners", () => {
     expect(container.querySelector(".viewer")).toHaveAttribute("data-corners", "square");
   });
 });
+
+describe("controlled device and mode, editing highlight", () => {
+  it("follows the editor's device and mode and reports switches back", async () => {
+    const onDeviceChange = vi.fn();
+    const onModeChange = vi.fn();
+    const { container } = render(
+      <WidgetPreview
+        kind="CAROUSEL"
+        style={defaults("CAROUSEL")}
+        reels={reels(4)}
+        device="mobile"
+        mode="viewer"
+        onDeviceChange={onDeviceChange}
+        onModeChange={onModeChange}
+      />,
+    );
+    expect(container.querySelector(".viewport")).toHaveAttribute("data-device", "mobile");
+    expect(container.querySelector(".viewer")).not.toBeNull();
+    await userEvent.click(screen.getByRole("radio", { name: "Desktop" }));
+    await userEvent.click(screen.getByRole("radio", { name: "On page" }));
+    expect(onDeviceChange).toHaveBeenCalledWith("desktop");
+    expect(onModeChange).toHaveBeenCalledWith("page");
+  });
+
+  it("outlines the part being edited on the page, not in the viewer", () => {
+    const { container, rerender } = render(
+      <WidgetPreview kind="CAROUSEL" style={{ ...defaults("CAROUSEL"), eyebrow: "E" }} reels={reels(4)} highlight="header" />,
+    );
+    expect(container.querySelector(".viewport")).toHaveAttribute("data-highlight", "header");
+    expect(container.querySelector('[data-hl="header"]')).not.toBeNull();
+    rerender(<WidgetPreview kind="CAROUSEL" style={defaults("CAROUSEL")} reels={reels(4)} highlight="header" mode="viewer" />);
+    expect(container.querySelector(".viewport")).not.toHaveAttribute("data-highlight");
+  });
+
+  it("uses phone sizes on mobile and desktop sizes otherwise", () => {
+    const style = { ...defaults("PRODUCT_PAGE_REELS"), headingSize: 40, headingSizeMobile: 20, cardGap: 20, columnsMobile: 1, layoutMode: "grid" as const };
+    const desktop = render(<WidgetPreview kind="PRODUCT_PAGE_REELS" style={style} reels={reels(3)} device="desktop" />);
+    const d = desktop.container.querySelector<HTMLElement>(".section")!;
+    expect(d.style.getPropertyValue("--pv-heading-size")).toBe("30px");
+    expect(d.style.getPropertyValue("--pv-columns")).toBe("4");
+    desktop.unmount();
+    const phone = render(<WidgetPreview kind="PRODUCT_PAGE_REELS" style={style} reels={reels(3)} device="mobile" />);
+    const m = phone.container.querySelector<HTMLElement>(".section")!;
+    expect(m.style.getPropertyValue("--pv-heading-size")).toBe("15px");
+    // No phone gap set: the desktop value carries over.
+    expect(m.style.getPropertyValue("--pv-gap")).toBe("15px");
+    expect(m.style.getPropertyValue("--pv-columns")).toBe("1");
+  });
+});
+
+describe("product page reels: card templates in the preview", () => {
+  it("title template keeps the filmstrip look, with the discount ribbon when on", () => {
+    const sale = { ...reel(1), products: [{ ...reel(1).products[0], discountPercent: 30, compareAtPrice: "$20.00" }] };
+    const { container } = renderPreview("PRODUCT_PAGE_REELS", { cardTemplate: "title", showCardBadge: true, eyebrow: "Reels", headerAlign: undefined }, [sale]);
+    expect(container.querySelector(".filmPosterWrap")).not.toBeNull();
+    expect(container.querySelector(".cardBadge")!.textContent).toBe("30% OFF");
+    expect(container.querySelector(".deckHeader")).toHaveAttribute("data-align", "start");
+  });
+
+  it("other templates use the shared card face and product line", () => {
+    const { container } = renderPreview("PRODUCT_PAGE_REELS", { cardTemplate: "vibrant" }, reels(3));
+    expect(container.querySelector(".filmPosterWrap")).toBeNull();
+    expect(container.querySelectorAll(".cardFace")).toHaveLength(3);
+    expect(container.querySelectorAll('.cardInfo[data-template="vibrant"]')).toHaveLength(3);
+  });
+
+  it("large tiles show the sale badge when it's on", async () => {
+    const sale = { ...reel(1), products: [{ ...reel(1).products[0], discountPercent: 25, compareAtPrice: "$40.00" }] };
+    renderPreview("PRODUCT_PAGE_REELS", { productImageSize: "large", showSaleBadge: true }, [sale]);
+    await userEvent.click(screen.getByRole("radio", { name: "Video viewer" }));
+    expect(screen.getByText("−25%")).toBeInTheDocument();
+  });
+});
+

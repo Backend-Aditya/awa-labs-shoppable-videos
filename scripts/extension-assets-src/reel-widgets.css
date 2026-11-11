@@ -235,7 +235,7 @@
 
 .awa-sv-strip__track {
   display: flex;
-  gap: 12px;
+  gap: var(--awa-sv-_gap, 12px);
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scroll-snap-type: x mandatory;
@@ -258,7 +258,7 @@
 .awa-sv-strip--grid .awa-sv-strip__track {
   display: grid;
   grid-template-columns: repeat(var(--awa-sv-columns, 4), minmax(0, 1fr));
-  gap: 16px 12px;
+  gap: 16px var(--awa-sv-_gap, 12px);
   overflow: visible;
 }
 
@@ -268,7 +268,7 @@
 
 @media (max-width: 749px) {
   .awa-sv-strip--grid .awa-sv-strip__track {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--awa-sv-columns-m, 2), minmax(0, 1fr));
   }
 }
 
@@ -279,6 +279,19 @@
   background: #1c1c1c;
   box-shadow: var(--awa-sv-shadow);
   isolation: isolate;
+}
+
+.awa-sv-cards--overlay .awa-sv-strip__poster::after {
+  display: none;
+}
+
+/* The product bar takes the bottom of the poster: the length chip moves
+   to the top corner opposite the discount ribbon. */
+.awa-sv-strip.awa-sv-cards--overlay .awa-sv-chip {
+  inset-inline-start: auto;
+  inset-inline-end: 8px;
+  top: 8px;
+  bottom: auto;
 }
 
 .awa-sv-strip__poster::after {
@@ -479,40 +492,86 @@ html[dir="rtl"] .awa-sv-arrow svg { transform: scaleX(-1); }
 .awa-sv-deck {
   --awa-sv-card: clamp(180px, 24vw, 280px);
   --awa-sv-spread: 62%;
-  margin-block: var(--awa-sv-pad-y, 32px);
   overflow: hidden;
 }
 
-/* Merchant-set card width (stack and slider); kept within the screen. */
-.awa-sv-deck[style*="--awa-sv-card-w"] {
-  --awa-sv-card: min(var(--awa-sv-card-w), 62vw);
+/* =================================================================
+   Showcase sizing: stacked carousel + product page reels
+   Merchant sizes arrive as --awa-sv-<x> (desktop) and --awa-sv-<x>-m
+   (phones, under 750px). Everything reads the resolved --awa-sv-_<x>
+   values below: the phone value when set, otherwise a scaled-down desktop
+   value, otherwise the built-in default.
+   ================================================================= */
+
+.awa-sv-showcase {
+  --awa-sv-_eyebrow: var(--awa-sv-eyebrow-size, 11px);
+  --awa-sv-_heading: var(--awa-sv-heading-size, clamp(28px, 1.4rem + 1.6vw, 42px));
+  --awa-sv-_sub: var(--awa-sv-sub-size, 15px);
+  --awa-sv-_card-text: var(--awa-sv-card-text, 13px);
+  --awa-sv-_gap: var(--awa-sv-gap, 14px);
+  --awa-sv-_pad-y: var(--awa-sv-pad-y, 32px);
+  --awa-sv-_pad-x: var(--awa-sv-pad-x, clamp(16px, 4vw, 48px));
+  margin-block: var(--awa-sv-_pad-y);
+  padding-inline: var(--awa-sv-_pad-x);
 }
 
-/* The slider and grid keep clear of the screen edges on both sides. */
-.awa-sv-deck:not(.awa-sv--filled):is(.awa-sv-deck--carousel, .awa-sv-deck--grid) {
-  padding-inline: var(--awa-sv-pad-x, clamp(16px, 4vw, 48px));
+/* The product page row and the stacked deck sit flush with the theme's
+   own container unless the merchant adds side space. */
+.awa-sv-showcase:is(.awa-sv-strip, .awa-sv-deck--stack) {
+  --awa-sv-_pad-x: var(--awa-sv-pad-x, 0px);
 }
 
-.awa-sv-deck:not(.awa-sv--filled).awa-sv-deck--stack {
-  padding-inline: var(--awa-sv-pad-x, 0px);
+.awa-sv-strip.awa-sv-showcase {
+  --awa-sv-_pad-y: var(--awa-sv-pad-y, 24px);
 }
 
-/* With a background, the spacing is inside it, and the section is a
-   sharp-cornered band (the Corners setting shapes the cards, not this). */
-.awa-sv-deck.awa-sv--filled {
+/* With a background colour the section is a sharp-cornered band and the
+   spacing sits inside it. (The Corners setting shapes the cards only.) */
+.awa-sv-showcase.awa-sv--filled {
+  --awa-sv-_pad-x: var(--awa-sv-pad-x, clamp(16px, 3vw, 28px));
   border-radius: 0;
-  padding-block: var(--awa-sv-pad-y, clamp(16px, 3vw, 28px));
-  padding-inline: var(--awa-sv-pad-x, clamp(16px, 3vw, 28px));
-}
-
-.awa-sv-deck[style*="--awa-sv-pad-y"].awa-sv--filled {
   margin-block: 0;
+  padding-block: var(--awa-sv-_pad-y);
 }
 
 @media (max-width: 749px) {
-  .awa-sv-deck:not(.awa-sv--filled):is(.awa-sv-deck--carousel, .awa-sv-deck--grid),
-  .awa-sv-deck.awa-sv--filled {
-    padding-inline: min(var(--awa-sv-pad-x, 16px), 20px);
+  .awa-sv-showcase,
+  .awa-sv-showcase:is(.awa-sv-strip, .awa-sv-deck--stack),
+  .awa-sv-strip.awa-sv-showcase,
+  .awa-sv-showcase.awa-sv--filled {
+    --awa-sv-_eyebrow: var(--awa-sv-eyebrow-size-m, 10px);
+    --awa-sv-_heading: var(--awa-sv-heading-size-m, min(var(--awa-sv-heading-size, 28px), 8vw));
+    --awa-sv-_sub: var(--awa-sv-sub-size-m, min(var(--awa-sv-sub-size, 14px), 16px));
+    --awa-sv-_card-text: var(--awa-sv-card-text-m, min(var(--awa-sv-card-text, 12px), 14px));
+    --awa-sv-_gap: var(--awa-sv-gap-m, 10px);
+    --awa-sv-_pad-y: var(--awa-sv-pad-y-m, min(var(--awa-sv-pad-y, 24px), 48px));
+  }
+  .awa-sv-showcase {
+    --awa-sv-_pad-x: var(--awa-sv-pad-x-m, 16px);
+  }
+  .awa-sv-showcase:is(.awa-sv-strip, .awa-sv-deck--stack) {
+    --awa-sv-_pad-x: var(--awa-sv-pad-x-m, 0px);
+  }
+  .awa-sv-showcase.awa-sv--filled {
+    --awa-sv-_pad-x: var(--awa-sv-pad-x-m, 16px);
+  }
+}
+
+/* Merchant-set card width (stack and slider), kept within the screen; the
+   phone width wins under 750px. */
+.awa-sv-deck[style*="--awa-sv-card-w:"] {
+  --awa-sv-card: min(var(--awa-sv-card-w), 62vw);
+}
+
+@media (max-width: 749px) {
+  .awa-sv-deck[style*="--awa-sv-card-w-m"] {
+    --awa-sv-card: min(var(--awa-sv-card-w-m), 80vw);
+  }
+  .awa-sv-deck--carousel .awa-sv-deck__card {
+    flex-basis: min(var(--awa-sv-card-w-m, var(--awa-sv-card-w, 58vw)), 80vw);
+  }
+  .awa-sv-strip__item {
+    flex-basis: var(--awa-sv-card-w-m, var(--awa-sv-card-width, 200px));
   }
 }
 
@@ -559,7 +618,7 @@ html[dir="rtl"] .awa-sv-arrow svg { transform: scaleX(-1); }
 
 .awa-sv-deck__title {
   font-weight: 600;
-  font-size: calc(var(--awa-sv-card-text, 13px) + 2px);
+  font-size: calc(var(--awa-sv-_card-text, 13px) + 2px);
   line-height: 1.25;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -568,7 +627,7 @@ html[dir="rtl"] .awa-sv-arrow svg { transform: scaleX(-1); }
 }
 
 .awa-sv-deck__meta {
-  font-size: calc(var(--awa-sv-card-text, 13px) - 1px);
+  font-size: calc(var(--awa-sv-_card-text, 13px) - 1px);
   opacity: 0.8;
 }
 
@@ -583,7 +642,7 @@ html[dir="rtl"] .awa-sv-arrow svg { transform: scaleX(-1); }
    renders as a plain scrolling row, so no-JS and slow-JS both look sane. */
 .awa-sv-deck__stage {
   display: flex;
-  gap: var(--awa-sv-gap, 14px);
+  gap: var(--awa-sv-_gap, 14px);
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   scrollbar-width: none;
@@ -713,13 +772,13 @@ html[dir="rtl"] .awa-sv-arrow svg { transform: scaleX(-1); }
 .awa-sv-deck--grid .awa-sv-deck__stage {
   display: grid;
   grid-template-columns: repeat(var(--awa-sv-columns, 4), minmax(0, 1fr));
-  gap: var(--awa-sv-gap, 16px);
+  gap: var(--awa-sv-_gap, 16px);
   overflow: visible;
 }
 
 @media (max-width: 749px) {
   .awa-sv-deck--grid .awa-sv-deck__stage {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(var(--awa-sv-columns-m, 2), minmax(0, 1fr));
   }
 }
 
@@ -732,25 +791,61 @@ html[dir="rtl"] .awa-sv-arrow svg { transform: scaleX(-1); }
 
 /* ---------- carousel header: eyebrow, heading, intro ---------- */
 
-.awa-sv-deck__header {
+.awa-sv-header {
   max-width: 52rem;
   margin: 0 auto clamp(24px, 3vw, 36px);
   padding-inline: 16px;
   text-align: center;
 }
 
+/* Left-aligned header (product page reels' default): flush with the row. */
+.awa-sv-header--start {
+  max-width: none;
+  margin-inline: 0;
+  padding-inline: 0;
+  text-align: start;
+}
+
+/* Optional link under the header ("View all", set in the theme editor). */
+.awa-sv-header__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  color: var(--awa-sv-eyebrow, currentColor);
+  font-size: var(--awa-sv-_sub, 15px);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 5px;
+  text-decoration-thickness: 1px;
+  transition: gap 0.2s var(--awa-sv-ease);
+}
+
+.awa-sv-header__link:hover {
+  gap: 10px;
+}
+
+.awa-sv-header__link:focus-visible {
+  outline: 2px solid var(--awa-sv-accent);
+  outline-offset: 3px;
+}
+
+html[dir="rtl"] .awa-sv-header__link svg {
+  transform: scaleX(-1);
+}
+
 /* A display-size heading in the theme's heading font, regular weight. */
-.awa-sv-deck__header .awa-sv-heading {
+.awa-sv-header .awa-sv-heading {
   margin: 0;
-  font-size: min(var(--awa-sv-heading-size, clamp(28px, 1.4rem + 1.6vw, 42px)), 9vw);
+  font-size: var(--awa-sv-_heading, clamp(28px, 1.4rem + 1.6vw, 42px));
   font-weight: 400;
   line-height: 1.15;
   letter-spacing: -0.005em;
 }
 
-.awa-sv-deck__eyebrow {
+.awa-sv-header__eyebrow {
   margin: 0 0 14px;
-  font-size: var(--awa-sv-eyebrow-size, 11px);
+  font-size: var(--awa-sv-_eyebrow, 11px);
   font-weight: 600;
   line-height: 1.4;
   letter-spacing: 0.22em;
@@ -758,9 +853,9 @@ html[dir="rtl"] .awa-sv-arrow svg { transform: scaleX(-1); }
   color: var(--awa-sv-eyebrow, var(--awa-sv-muted));
 }
 
-.awa-sv-deck__subheading {
+.awa-sv-header__text {
   margin: 14px 0 0;
-  font-size: var(--awa-sv-sub-size, 15px);
+  font-size: var(--awa-sv-_sub, 15px);
   line-height: 1.55;
   color: var(--awa-sv-muted);
 }
@@ -768,7 +863,7 @@ html[dir="rtl"] .awa-sv-arrow svg { transform: scaleX(-1); }
 /* ---------- carousel card templates ---------- */
 
 /* "58% OFF" ribbon, notched on its trailing edge. */
-.awa-sv-deck__badge {
+.awa-sv-card__badge {
   position: absolute;
   top: 10px;
   inset-inline-start: 8px;
@@ -785,13 +880,13 @@ html[dir="rtl"] .awa-sv-arrow svg { transform: scaleX(-1); }
   pointer-events: none;
 }
 
-html[dir="rtl"] .awa-sv-deck__badge {
+html[dir="rtl"] .awa-sv-card__badge {
   padding: 3px 7px 3px 12px;
   clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 6px 50%);
 }
 
 /* The lead product: thumbnail, one-line title, price with compare-at. */
-.awa-sv-deck__product {
+.awa-sv-card__product {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -799,7 +894,7 @@ html[dir="rtl"] .awa-sv-deck__badge {
   text-align: start;
 }
 
-.awa-sv .awa-sv-deck__thumb {
+.awa-sv .awa-sv-card__thumb {
   flex: none;
   width: 40px;
   height: 40px;
@@ -808,37 +903,37 @@ html[dir="rtl"] .awa-sv-deck__badge {
   background: #fff;
 }
 
-.awa-sv-deck__product-text {
+.awa-sv-card__product-text {
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.awa-sv-deck__product-title {
+.awa-sv-card__product-title {
   overflow: hidden;
-  font-size: var(--awa-sv-card-text, 13px);
+  font-size: var(--awa-sv-_card-text, 13px);
   font-weight: 600;
   line-height: 1.3;
   white-space: nowrap;
   text-overflow: ellipsis;
 }
 
-.awa-sv-deck__product-price {
+.awa-sv-card__product-price {
   display: flex;
   flex-wrap: wrap;
   gap: 0 6px;
-  font-size: calc(var(--awa-sv-card-text, 13px) - 1px);
+  font-size: calc(var(--awa-sv-_card-text, 13px) - 1px);
   line-height: 1.35;
   font-variant-numeric: tabular-nums;
 }
 
-.awa-sv-deck__product-price s {
+.awa-sv-card__product-price s {
   opacity: 0.7;
 }
 
 /* Overlay: a frosted bar over the bottom of the video. */
-.awa-sv-deck__overlay {
+.awa-sv-card__overlay {
   position: absolute;
   inset: auto 6px 6px;
   z-index: 2;
@@ -854,7 +949,7 @@ html[dir="rtl"] .awa-sv-deck__badge {
 }
 
 /* Classic / modern / vibrant: the product under the video. */
-.awa-sv .awa-sv-deck__info {
+.awa-sv .awa-sv-card__info {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -863,76 +958,76 @@ html[dir="rtl"] .awa-sv-deck__badge {
   cursor: pointer;
 }
 
-.awa-sv-deck__shop {
+.awa-sv-card__shop {
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 36px;
   padding: 0 14px;
   border-radius: min(var(--awa-sv-radius), 999px);
-  font-size: var(--awa-sv-card-text, 13px);
+  font-size: var(--awa-sv-_card-text, 13px);
   font-weight: 600;
   white-space: nowrap;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
-.awa-sv-deck--card-modern .awa-sv-deck__poster {
+.awa-sv-cards--modern :is(.awa-sv-deck__poster, .awa-sv-strip__poster) {
   border-end-start-radius: 0;
   border-end-end-radius: 0;
 }
 
-.awa-sv-deck--card-modern .awa-sv-deck__info {
+.awa-sv-cards--modern .awa-sv-card__info {
   padding: 12px;
   border: 1px solid var(--awa-sv-line);
   border-top: 0;
   border-radius: 0 0 var(--awa-sv-radius) var(--awa-sv-radius);
 }
 
-.awa-sv-deck--card-modern .awa-sv-deck__shop {
+.awa-sv-cards--modern .awa-sv-card__shop {
   border: 1.5px solid currentColor;
 }
 
-.awa-sv-deck--card-modern .awa-sv-deck__info:hover .awa-sv-deck__shop {
+.awa-sv-cards--modern .awa-sv-card__info:hover .awa-sv-card__shop {
   background: color-mix(in srgb, var(--awa-sv-text) 10%, transparent);
 }
 
-.awa-sv-deck--card-vibrant .awa-sv-deck__product-price > span:first-child {
+.awa-sv-cards--vibrant .awa-sv-card__product-price > span:first-child {
   color: var(--awa-sv-brand-sale, #b42318);
   font-weight: 700;
 }
 
-.awa-sv-deck--card-vibrant .awa-sv-deck__shop {
+.awa-sv-cards--vibrant .awa-sv-card__shop {
   border-radius: 999px;
   background: var(--awa-sv-cta);
   color: var(--awa-sv-cta-text);
 }
 
-.awa-sv-deck--card-vibrant .awa-sv-deck__info:hover .awa-sv-deck__shop {
+.awa-sv-cards--vibrant .awa-sv-card__info:hover .awa-sv-card__shop {
   background: color-mix(in srgb, var(--awa-sv-cta) 85%, #fff);
 }
 
 /* The stack is absolutely positioned, so it reserves the product line's
    height up front (same height before and after JS, as above). */
-.awa-sv-deck--card-classic { --awa-sv-info-h: 62px; }
-.awa-sv-deck--card-modern { --awa-sv-info-h: 118px; }
-.awa-sv-deck--card-vibrant { --awa-sv-info-h: 108px; }
+.awa-sv-cards--classic { --awa-sv-info-h: 62px; }
+.awa-sv-cards--modern { --awa-sv-info-h: 118px; }
+.awa-sv-cards--vibrant { --awa-sv-info-h: 108px; }
 
-.awa-sv-deck--stack .awa-sv-deck__info {
+.awa-sv-deck--stack .awa-sv-card__info {
   min-height: var(--awa-sv-info-h);
 }
 
 /* Side cards in the stack tuck behind the front one: their product line
    would overlap it, so only the front card shows its own. */
-.awa-sv-deck--stack.is-ready .awa-sv-deck__card:not(.is-active) :is(.awa-sv-deck__overlay, .awa-sv-deck__info) {
+.awa-sv-deck--stack.is-ready .awa-sv-deck__card:not(.is-active) :is(.awa-sv-card__overlay, .awa-sv-card__info) {
   opacity: 0;
   pointer-events: none;
 }
 
-.awa-sv-deck__info {
+.awa-sv-card__info {
   transition: opacity 0.25s ease;
 }
 
-.awa-sv-deck--stack.is-ready.awa-sv-deck--card-modern .awa-sv-deck__card:not(.is-active) .awa-sv-deck__poster {
+.awa-sv-deck--stack.is-ready.awa-sv-cards--modern .awa-sv-deck__card:not(.is-active) .awa-sv-deck__poster {
   border-radius: var(--awa-sv-radius);
 }
 

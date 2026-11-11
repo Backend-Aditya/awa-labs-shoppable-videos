@@ -11,21 +11,32 @@ export function Field({
   label,
   hint,
   htmlFor,
+  aside,
   children,
 }: {
   label: string;
   hint?: ReactNode;
   htmlFor?: string;
+  // Shown at the end of the label row (e.g. an "Auto" tag or a reset button).
+  aside?: ReactNode;
   children: ReactNode;
 }) {
+  const labelEl = htmlFor ? (
+    <label className={styles.label} htmlFor={htmlFor}>
+      {label}
+    </label>
+  ) : (
+    <span className={styles.label}>{label}</span>
+  );
   return (
     <div className={styles.field}>
-      {htmlFor ? (
-        <label className={styles.label} htmlFor={htmlFor}>
-          {label}
-        </label>
+      {aside ? (
+        <div className={styles.labelRow}>
+          {labelEl}
+          {aside}
+        </div>
       ) : (
-        <span className={styles.label}>{label}</span>
+        labelEl
       )}
       {children}
       {hint && <p className={styles.hint}>{hint}</p>}
@@ -93,36 +104,43 @@ export function Segmented<T extends string>({
   options,
   onChange,
   hint,
+  hideLabel = false,
 }: {
   label: string;
   value: T;
   options: { value: T; label: string; icon?: ReactNode }[];
   onChange: (value: T) => void;
   hint?: ReactNode;
+  // Keeps the label for assistive tech only (the group still has its name).
+  hideLabel?: boolean;
 }) {
+  const group = (
+    <div /* eslint-disable-line jsx-a11y/interactive-supports-focus -- roving tabindex: the chosen child is the tab stop */
+      className={styles.segmented}
+      role="radiogroup"
+      aria-label={label}
+      onKeyDown={(e) => handleRovingKeys(e, options.map((o) => o.value), value, onChange)}
+    >
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          role="radio"
+          aria-checked={option.value === value}
+          tabIndex={option.value === value ? 0 : -1}
+          className={styles.segment}
+          onClick={() => onChange(option.value)}
+        >
+          {option.icon}
+          <span>{option.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+  if (hideLabel) return group;
   return (
     <Field label={label} hint={hint}>
-      <div /* eslint-disable-line jsx-a11y/interactive-supports-focus -- roving tabindex: the chosen child is the tab stop */
-        className={styles.segmented}
-        role="radiogroup"
-        aria-label={label}
-        onKeyDown={(e) => handleRovingKeys(e, options.map((o) => o.value), value, onChange)}
-      >
-        {options.map((option) => (
-          <button
-            key={option.value}
-            type="button"
-            role="radio"
-            aria-checked={option.value === value}
-            tabIndex={option.value === value ? 0 : -1}
-            className={styles.segment}
-            onClick={() => onChange(option.value)}
-          >
-            {option.icon}
-            <span>{option.label}</span>
-          </button>
-        ))}
-      </div>
+      {group}
     </Field>
   );
 }
@@ -161,6 +179,9 @@ export function Toggle({
   );
 }
 
+// `auto` marks a value the merchant hasn't set (the slider shows the
+// storefront's own default); `onReset` adds a button that clears a set value
+// back to automatic.
 export function Slider({
   label,
   value,
@@ -168,6 +189,8 @@ export function Slider({
   max,
   step = 1,
   unit = "px",
+  auto = false,
+  onReset,
   onChange,
 }: {
   label: string;
@@ -176,12 +199,22 @@ export function Slider({
   max: number;
   step?: number;
   unit?: string;
+  auto?: boolean;
+  onReset?: () => void;
   onChange: (value: number) => void;
 }) {
   const id = useId();
+  const showReset = Boolean(onReset) && !auto;
+  const aside = auto ? (
+    <span className={styles.autoTag}>Auto</span>
+  ) : showReset ? (
+    <button type="button" className={styles.resetButton} onClick={onReset} aria-label={`Reset ${label.toLowerCase()} to automatic`}>
+      Reset
+    </button>
+  ) : undefined;
   return (
-    <Field label={label} htmlFor={id}>
-      <div className={styles.sliderRow}>
+    <Field label={label} htmlFor={id} aside={aside}>
+      <div className={styles.sliderRow} data-auto={auto || undefined}>
         <input
           id={id}
           className={styles.range}
@@ -382,5 +415,50 @@ export function ChipToggleGroup({
         })}
       </div>
     </Field>
+  );
+}
+
+// A collapsible settings group: icon, title and a one-line summary of the
+// current choices in its header, so a closed section still says what it's
+// set to. Controlled, so the editor can follow which part is being edited
+// (the preview highlights it).
+export function Section({
+  title,
+  summary,
+  icon,
+  open,
+  onToggle,
+  children,
+}: {
+  title: string;
+  summary?: ReactNode;
+  icon?: ReactNode;
+  open: boolean;
+  onToggle: () => void;
+  children: ReactNode;
+}) {
+  const id = useId();
+  return (
+    <section className={styles.section} data-open={open || undefined}>
+      <h2 className={styles.sectionHeading}>
+        <button type="button" className={styles.sectionToggle} aria-expanded={open} aria-controls={id} onClick={onToggle}>
+          {icon && (
+            <span className={styles.sectionIcon} aria-hidden="true">
+              {icon}
+            </span>
+          )}
+          <span className={styles.sectionText}>
+            <span className={styles.sectionTitle}>{title}</span>
+            {summary && !open && <span className={styles.sectionSummary}>{summary}</span>}
+          </span>
+          <svg className={styles.sectionChevron} width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+            <path d="M5.72 8.47a.75.75 0 0 1 1.06 0L10 11.69l3.22-3.22a.75.75 0 1 1 1.06 1.06l-3.75 3.75a.75.75 0 0 1-1.06 0L5.72 9.53a.75.75 0 0 1 0-1.06Z" />
+          </svg>
+        </button>
+      </h2>
+      <div className={styles.sectionBody} id={id} hidden={!open}>
+        {children}
+      </div>
+    </section>
   );
 }

@@ -266,7 +266,8 @@ describe("add to cart", () => {
 describe("sale badge and after-add actions", () => {
   async function mountStrip(style: object) {
     const reel = makeReel({ id: 11, title: "First", products: [multiVariantProduct(7)] });
-    await mount(await renderBlock("product-page-reels", { reels: [reel], widget: makeWidget({ style }) }));
+    // Compact rows (variant picker + add button), not the default tiles.
+    await mount(await renderBlock("product-page-reels", { reels: [reel], widget: makeWidget({ style: { productImageSize: "compact", productDetails: false, ...style } }) }));
     click(document.querySelector("[data-awa-sv-trigger] .awa-sv-trigger__button"));
     return viewer()!;
   }

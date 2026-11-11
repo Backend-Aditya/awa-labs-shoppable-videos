@@ -13,9 +13,7 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 import { getOrCreateShop } from "../models/shop.server";
 import { createWidget, deleteWidget, getWidget, isSingleLiveKind, listWidgetsForShop, saveWidgetSettings, updateWidget } from "../models/widget.server";
 import {
-  CARD_TEMPLATES,
   PAGE_TYPE_OPTIONS,
-  SIZING_FIELDS,
   getKindMeta,
   resolveStyle,
   sanitizeStyle,
@@ -49,7 +47,15 @@ import { useEditorGuards } from "../components/useEditorGuards";
 import { useThemeStatus } from "../components/useThemeStatus";
 import { blockHandleFor, themeEditorUrl } from "../components/themeEditor";
 import { WidgetPreview, formatDuration } from "../components/widget-editor/WidgetPreview";
-import type { PreviewReel } from "../components/widget-editor/WidgetPreview";
+import {
+  ICON_FILMSTRIP,
+  ICON_GRID,
+  ICON_STACK,
+  LOOKS,
+  ShowcaseDesignTab,
+} from "../components/widget-editor/ShowcaseDesign";
+import type { Look } from "../components/widget-editor/ShowcaseDesign";
+import type { Device, Mode, PreviewHighlight, PreviewReel } from "../components/widget-editor/WidgetPreview";
 import styles from "../components/widget-editor/editor.module.css";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
@@ -265,6 +271,18 @@ export default function WidgetEditor() {
   const baseline = useMemo(() => stateFromWidget(widget), [widget]);
   const [state, setState] = useState<EditorState>(baseline);
   const [tab, setTab] = useState<TabId>("content");
+  // The preview's device and mode live here so the Design tab's
+  // desktop/mobile size switch and the preview stay in step, and the
+  // Shopping tab shows the video viewer it configures.
+  const [previewDevice, setPreviewDevice] = useState<Device>("desktop");
+  const [previewMode, setPreviewMode] = useState<Mode>("page");
+  const [highlight, setHighlight] = useState<PreviewHighlight | null>(null);
+  const openTab = (next: TabId) => {
+    setTab(next);
+    setHighlight(null);
+    if (next === "viewer") setPreviewMode("viewer");
+    else if (next === "design" || next === "content") setPreviewMode("page");
+  };
 
   // Fresh loader data (after a save or an external change) becomes the new
   // baseline. Keyed on updatedAt so typing isn't clobbered by unrelated
@@ -393,7 +411,7 @@ export default function WidgetEditor() {
             className={styles.tabs}
             role="tablist"
             aria-label="Widget settings"
-            onKeyDown={(e) => handleRovingKeys(e, TABS.map((t) => t.id), tab, setTab)}
+            onKeyDown={(e) => handleRovingKeys(e, TABS.map((t) => t.id), tab, openTab)}
           >
             {TABS.map((t) => (
               <button
@@ -405,7 +423,7 @@ export default function WidgetEditor() {
                 aria-controls={`panel-${t.id}`}
                 tabIndex={tab === t.id ? 0 : -1}
                 className={styles.tab}
-                onClick={() => setTab(t.id)}
+                onClick={() => openTab(t.id)}
               >
                 {t.label}
               </button>
@@ -416,7 +434,20 @@ export default function WidgetEditor() {
             {tab === "content" && (
               <ContentTab meta={meta} state={state} reels={reels} update={update} setStyle={setStyle} />
             )}
-            {tab === "design" && <DesignTab meta={meta} style={state.style} setStyle={setStyle} brand={brand} />}
+            {tab === "design" &&
+              (meta.fields.includes("cardTemplate") ? (
+                <ShowcaseDesignTab
+                  meta={meta}
+                  style={state.style}
+                  setStyle={setStyle}
+                  brand={brand}
+                  device={previewDevice}
+                  setDevice={setPreviewDevice}
+                  onFocusArea={setHighlight}
+                />
+              ) : (
+                <DesignTab meta={meta} style={state.style} setStyle={setStyle} brand={brand} />
+              ))}
             {tab === "viewer" && <ShoppingTab meta={meta} style={state.style} setStyle={setStyle} brand={brand} />}
             {tab === "visibility" && (
               <VisibilityTab meta={meta} state={state} update={update} apiKey={apiKey} />
@@ -425,7 +456,17 @@ export default function WidgetEditor() {
         </div>
 
         <div className={styles.previewColumn}>
-          <WidgetPreview kind={widget.type as WidgetKind} style={state.style} reels={previewReels} brand={brand} />
+          <WidgetPreview
+            kind={widget.type as WidgetKind}
+            style={state.style}
+            reels={previewReels}
+            brand={brand}
+            device={previewDevice}
+            onDeviceChange={setPreviewDevice}
+            mode={previewMode}
+            onModeChange={setPreviewMode}
+            highlight={highlight}
+          />
         </div>
       </div>
 
@@ -563,7 +604,10 @@ function ContentTab({
   setStyle: (patch: Partial<WidgetStyleConfig>) => void;
 }) {
   const has = (key: StyleFieldKey) => meta.fields.includes(key);
-  const showText = has("heading") || has("watchLabel") || has("bubbleLabel");
+  // The video-row widgets edit their header text in Design › Header,
+  // next to its sizes and alignment.
+  const headerInDesign = has("cardTemplate");
+  const showText = (has("heading") && !headerInDesign) || has("watchLabel") || has("bubbleLabel");
   const [query, setQuery] = useState("");
   const featured = reels.find((r) => r.id === state.featuredReelId);
 
@@ -618,7 +662,7 @@ function ContentTab({
 
       {showText && (
         <Card title="Text">
-          {has("eyebrow") && (
+          {has("eyebrow") && !headerInDesign && (
             <TextInput
               label="Eyebrow"
               value={state.style.eyebrow ?? ""}
@@ -627,7 +671,7 @@ function ContentTab({
               onChange={(eyebrow) => setStyle({ eyebrow })}
             />
           )}
-          {has("heading") && (
+          {has("heading") && !headerInDesign && (
             <TextInput
               label="Heading"
               value={state.style.heading ?? ""}
@@ -636,7 +680,7 @@ function ContentTab({
               onChange={(heading) => setStyle({ heading })}
             />
           )}
-          {has("subheading") && (
+          {has("subheading") && !headerInDesign && (
             <TextInput
               label="Subheading"
               value={state.style.subheading ?? ""}
@@ -817,116 +861,6 @@ function WarningIcon() {
 
 /* -------------------------------------------------------------- design */
 
-interface Look {
-  name: string;
-  style: WidgetStyleConfig;
-  swatch: { bg: string; pill: string; radius: number };
-}
-
-const LOOKS: Look[] = [
-  {
-    name: "Brand",
-    style: { cornerStyle: "rounded", shadowPreset: "none", ctaStyle: "pill", accentColor: "", ctaColor: "", ctaTextColor: "", backgroundColor: "" },
-    swatch: { bg: "#f4f4f4", pill: "#141414", radius: 999 },
-  },
-  {
-    name: "Editorial",
-    style: { cornerStyle: "sharp", shadowPreset: "none", ctaStyle: "text-link", accentColor: "#1d1d1b", ctaColor: "#1d1d1b", ctaTextColor: "#ffffff", backgroundColor: "#efebe4" },
-    swatch: { bg: "#efebe4", pill: "#1d1d1b", radius: 0 },
-  },
-  {
-    name: "Showcase",
-    style: {
-      cornerStyle: "rounded",
-      shadowPreset: "none",
-      ctaStyle: "square",
-      accentColor: "#c9a86a",
-      ctaColor: "#4a2b3a",
-      ctaTextColor: "#ffffff",
-      backgroundColor: "#161412",
-      textColor: "#f3efe8",
-      cardTemplate: "overlay",
-      showPlayIcon: false,
-      showCardBadge: true,
-      layoutMode: "carousel",
-    },
-    swatch: { bg: "#161412", pill: "#c9a86a", radius: 4 },
-  },
-  {
-    name: "Vivid",
-    style: { cornerStyle: "soft", shadowPreset: "bold", ctaStyle: "pill", accentColor: "#5b3df5", ctaColor: "#5b3df5", ctaTextColor: "#ffffff", backgroundColor: "" },
-    swatch: { bg: "#ebe7ff", pill: "#5b3df5", radius: 999 },
-  },
-];
-
-const ICON_FILMSTRIP = (
-  <svg width="36" height="22" viewBox="0 0 36 22" aria-hidden="true">
-    <rect x="1" y="2" width="9" height="16" rx="2" fill="currentColor" />
-    <rect x="13" y="2" width="9" height="16" rx="2" fill="currentColor" opacity=".55" />
-    <rect x="25" y="2" width="9" height="16" rx="2" fill="currentColor" opacity=".3" />
-  </svg>
-);
-const ICON_GRID = (
-  <svg width="36" height="22" viewBox="0 0 36 22" aria-hidden="true">
-    {[0, 1, 2, 3].map((i) => (
-      <rect key={i} x={2 + i * 8.5} y="2" width="7" height="8" rx="1.5" fill="currentColor" />
-    ))}
-    {[0, 1, 2, 3].map((i) => (
-      <rect key={i} x={2 + i * 8.5} y="12" width="7" height="8" rx="1.5" fill="currentColor" opacity=".55" />
-    ))}
-  </svg>
-);
-const ICON_STACK = (
-  <svg width="36" height="22" viewBox="0 0 36 22" aria-hidden="true">
-    <rect x="4" y="5" width="8" height="13" rx="2" fill="currentColor" opacity=".3" />
-    <rect x="24" y="5" width="8" height="13" rx="2" fill="currentColor" opacity=".3" />
-    <rect x="12" y="1" width="12" height="20" rx="2" fill="currentColor" />
-  </svg>
-);
-
-// Mini drawings of each carousel card template, matching the storefront's
-// .awa-sv-deck--card-* layouts: where the product sits, and its button.
-function TemplateSchematic({ template }: { template: NonNullable<WidgetStyleConfig["cardTemplate"]> }) {
-  const below = template === "classic" || template === "modern" || template === "vibrant";
-  const cardH = below ? 34 : 50;
-  return (
-    <svg className={styles.templateArt} viewBox="0 0 88 60" aria-hidden="true">
-      {[4, 31, 58].map((x) => (
-        <g key={x}>
-          <rect x={x} y="4" width="26" height={cardH} rx="3" fill="currentColor" opacity=".18" />
-          {template === "title" && <rect x={x + 3} y={cardH - 6} width="16" height="4" rx="1" fill="currentColor" opacity=".55" />}
-          {template === "overlay" && (
-            <>
-              <rect x={x + 2} y={cardH - 10} width="22" height="10" rx="2" fill="currentColor" opacity=".45" />
-              <rect x={x + 4} y={cardH - 8} width="6" height="6" rx="1" fill="#fff" />
-            </>
-          )}
-          {below && (
-            <>
-              {template !== "modern" && <rect x={x} y={cardH + 7} width="6" height="6" rx="1" fill="currentColor" opacity=".4" />}
-              <rect x={template === "modern" ? x : x + 8} y={cardH + 7} width={template === "modern" ? 20 : 14} height="3" rx="1" fill="currentColor" opacity=".55" />
-              <rect x={template === "modern" ? x : x + 8} y={cardH + 12} width="10" height="2" rx="1" fill="currentColor" opacity=".35" />
-              {template !== "classic" && (
-                <rect
-                  x={x}
-                  y={cardH + 17}
-                  width="26"
-                  height="6"
-                  rx={template === "vibrant" ? 3 : 1}
-                  fill={template === "vibrant" ? "currentColor" : "none"}
-                  stroke="currentColor"
-                  strokeWidth={template === "vibrant" ? 0 : 0.8}
-                  opacity=".7"
-                />
-              )}
-            </>
-          )}
-        </g>
-      ))}
-    </svg>
-  );
-}
-
 function DesignTab({
   meta,
   style,
@@ -953,39 +887,6 @@ function DesignTab({
 
   return (
     <>
-      {has("cardTemplate") && (
-        <Card title="Card template" description="How each video card shows its product in your store.">
-          <div /* eslint-disable-line jsx-a11y/interactive-supports-focus -- roving tabindex: the chosen child is the tab stop */
-            className={styles.templates}
-            role="radiogroup"
-            aria-label="Card template"
-            onKeyDown={(e) =>
-              handleRovingKeys(
-                e,
-                CARD_TEMPLATES.map((t) => t.value),
-                template,
-                (cardTemplate) => setStyle({ cardTemplate }),
-              )
-            }
-          >
-            {CARD_TEMPLATES.map((t) => (
-              <button
-                key={t.value}
-                type="button"
-                role="radio"
-                aria-checked={template === t.value}
-                tabIndex={template === t.value ? 0 : -1}
-                className={styles.template}
-                onClick={() => setStyle({ cardTemplate: t.value })}
-              >
-                <TemplateSchematic template={t.value} />
-                <span className={styles.lookName}>{t.label}</span>
-              </button>
-            ))}
-          </div>
-        </Card>
-      )}
-
       {showLooks && (
         <Card title="Looks" description="A starting point. Fine-tune anything below.">
           <div className={styles.looks}>
@@ -1160,39 +1061,6 @@ function DesignTab({
               onChange={(textColor) => setStyle({ textColor })}
             />
           )}
-        </Card>
-      )}
-
-      {has("headingSize") && (
-        <Card title="Sizing & spacing" description="Text sizes, card width and the space around your videos. Phones scale these down to fit.">
-          {(style.layoutMode ?? "stack") !== "grid" && (
-            <Slider
-              label="Card width"
-              min={meta.sizeMin}
-              max={meta.sizeMax}
-              value={style.triggerSize ?? 240}
-              onChange={(triggerSize) => setStyle({ triggerSize })}
-            />
-          )}
-          {SIZING_FIELDS.map((field) => (
-            <Slider
-              key={field.key}
-              label={field.label}
-              min={field.min}
-              max={field.max}
-              value={(style[field.key] as number | undefined) ?? field.auto}
-              onChange={(value) => setStyle({ [field.key]: value } as Partial<WidgetStyleConfig>)}
-            />
-          ))}
-          <button
-            type="button"
-            className={styles.linkButton}
-            onClick={() =>
-              setStyle(Object.fromEntries([["triggerSize", undefined], ...SIZING_FIELDS.map((f) => [f.key, undefined])]) as Partial<WidgetStyleConfig>)
-            }
-          >
-            Reset to automatic sizes
-          </button>
         </Card>
       )}
 

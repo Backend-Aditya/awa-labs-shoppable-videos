@@ -32,7 +32,8 @@ function shopifyGlobal({ analytics = true, marketing = true, withApi = true } = 
 }
 
 async function mountStrip(tracking: object | null = {}) {
-  const html = await renderBlock("product-page-reels", { reels, product: makeProduct({ id: 1 }), widget: makeWidget() });
+  // Compact rows (variant picker + add button), not the default tiles.
+  const html = await renderBlock("product-page-reels", { reels, product: makeProduct({ id: 1 }), widget: makeWidget({ style: { productImageSize: "compact", productDetails: false } }) });
   await mount(html, ["tracking", "lightbox", "story", "trigger", "pop"], { tracking });
 }
 const play = (i = 0) => click(document.querySelectorAll<HTMLButtonElement>("[data-awa-sv-trigger] .awa-sv-trigger__button")[i]);
