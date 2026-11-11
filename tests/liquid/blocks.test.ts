@@ -428,7 +428,15 @@ describe("phone sizes", () => {
       expect(style).toContain(part);
     }
     expect(style).not.toContain("--awa-sv-sub-size-m");
+    expect(style).toContain("--awa-sv-grid-columns-m: 1;");
     expect($("section")!.className).toContain("awa-sv-showcase");
+  });
+  it.each(["product-page-reels", "stacked-carousel"] as const)("%s: half a card more on phones in a row, whole columns in a grid", async (block) => {
+    const { $ } = await renderDom(block, blockContext(block, { reels: reels(3), widget: makeWidget({ style: { columns: 5, columnsMobile: 1.5 } }) }));
+    const style = $("section")!.getAttribute("style")!;
+    expect(style).toContain("--awa-sv-columns: 5");
+    expect(style).toContain("--awa-sv-columns-m: 1.5;");
+    expect(style).toContain("--awa-sv-grid-columns-m: 1;");
   });
 });
 
