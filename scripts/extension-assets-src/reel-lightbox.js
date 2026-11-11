@@ -1405,8 +1405,11 @@
     // sheet is expanded, no tabbing into invisible controls.
     const syncPeekInert = () => {
       const collapsed = panel.dataset.state === "peek" && isMobile();
+      // Product tiles peek as a swipeable strip, every card reachable; rows
+      // peek as the first row only.
+      const strip = dialog.classList.contains("awa-sv-products--large");
       dialog.querySelectorAll("[data-awa-sv-list] [data-awa-sv-product]").forEach((row, i) => {
-        row.inert = collapsed && i > 0;
+        row.inert = collapsed && !strip && i > 0;
       });
       const linkEl = dialog.querySelector("[data-awa-sv-link]");
       const hasProducts = Boolean(dialog.querySelector("[data-awa-sv-list] [data-awa-sv-product]"));

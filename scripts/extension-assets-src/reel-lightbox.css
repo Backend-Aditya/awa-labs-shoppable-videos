@@ -992,34 +992,37 @@ html[dir="rtl"] .awa-sv-story {
 /* ---------- side arrows (default navigation) ---------- */
 
 /* Previous/next sit either side of the video and products, vertically
-   centred, instead of the stacked pair at the screen's edge. */
-.awa-sv-viewer--nav-sides .awa-sv-viewer__stage {
-  padding-inline: 96px;
-}
+   centred, instead of the stacked pair at the screen's edge. Desktop and
+   tablet only: phones get the full-bleed player and swipe sideways. */
+@media (min-width: 750px) {
+  .awa-sv-viewer--nav-sides .awa-sv-viewer__stage {
+    padding-inline: 96px;
+  }
 
-.awa-sv-viewer--nav-sides .awa-sv-viewer__nav {
-  inset-inline: 24px;
-  flex-direction: row;
-  justify-content: space-between;
-  pointer-events: none;
-}
+  .awa-sv-viewer--nav-sides .awa-sv-viewer__nav {
+    inset-inline: 24px;
+    flex-direction: row;
+    justify-content: space-between;
+    pointer-events: none;
+  }
 
-.awa-sv-viewer--nav-sides .awa-sv-viewer__navbtn {
-  width: 48px;
-  height: 48px;
-  pointer-events: auto;
-  background: rgb(255 255 255 / 0.14);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
+  .awa-sv-viewer--nav-sides .awa-sv-viewer__navbtn {
+    width: 48px;
+    height: 48px;
+    pointer-events: auto;
+    background: rgb(255 255 255 / 0.14);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+
+  .awa-sv-viewer--nav-sides .awa-sv-viewer__navbtn:disabled {
+    opacity: 0;
+    pointer-events: none;
+  }
 }
 
 html[dir="rtl"] .awa-sv-viewer--nav-sides .awa-sv-viewer__navbtn svg {
   transform: scaleX(-1);
-}
-
-.awa-sv-viewer--nav-sides .awa-sv-viewer__navbtn:disabled {
-  opacity: 0;
-  pointer-events: none;
 }
 
 @media (max-width: 1080px) and (min-width: 750px) {
@@ -1028,6 +1031,81 @@ html[dir="rtl"] .awa-sv-viewer--nav-sides .awa-sv-viewer__navbtn svg {
   }
   .awa-sv-viewer--nav-sides .awa-sv-viewer__nav {
     inset-inline: 12px;
+  }
+}
+
+/* ---------- phones: product tiles as a swipeable strip in the sheet ---------- */
+
+/* The bottom sheet's closed ("peek") state shows the products as a row of
+   compact cards you swipe through, instead of the top slice of the big
+   tiles. Opening the sheet shows the full two-column grid. */
+@media (max-width: 749px) {
+  .awa-sv-products--large .awa-sv-viewer__panel[data-state="peek"] .awa-sv-viewer__list {
+    display: flex;
+    gap: 10px;
+    max-height: none;
+    padding: 10px 14px 12px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: 14px;
+    scrollbar-width: none;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  .awa-sv-products--large .awa-sv-viewer__panel[data-state="peek"] .awa-sv-viewer__list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .awa-sv-products--large .awa-sv-viewer__panel[data-state="peek"] .awa-sv-product--tile {
+    flex: 0 0 82%;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    border: 1px solid #eee;
+    border-radius: 12px;
+    scroll-snap-align: start;
+  }
+
+  .awa-sv-products--large .awa-sv-viewer__panel[data-state="peek"] .awa-sv-product--tile:only-child {
+    flex-basis: 100%;
+  }
+
+  .awa-sv-products--large .awa-sv-viewer__panel[data-state="peek"] .awa-sv-product--tile .awa-sv-product__media {
+    flex: none;
+    width: 56px;
+    aspect-ratio: 1;
+    border-radius: 8px;
+  }
+
+  .awa-sv-products--large .awa-sv-viewer__panel[data-state="peek"] .awa-sv-product--tile .awa-sv-product__info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .awa-sv-products--large .awa-sv-viewer__panel[data-state="peek"] .awa-sv-product--tile .awa-sv-product__title {
+    display: block;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .awa-sv-products--large .awa-sv-viewer__panel[data-state="peek"] .awa-sv-product--tile .awa-sv-product__shop {
+    flex: none;
+    min-height: 34px;
+    padding: 0 12px;
+    font-size: 12px;
+  }
+
+  .awa-sv-viewer--square .awa-sv-viewer__panel[data-state="peek"] .awa-sv-product--tile {
+    border-radius: 0;
+  }
+
+  /* The sheet sits on the video: room for it above the bottom edge. */
+  .awa-sv-viewer.awa-sv-products--large.has-products .awa-sv-viewer__title {
+    bottom: calc(176px + env(safe-area-inset-bottom));
   }
 }
 

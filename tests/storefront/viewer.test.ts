@@ -653,3 +653,15 @@ describe("navigation and title settings", () => {
     expect(q("#awa-sv-viewer-title").hidden).toBe(true);
   });
 });
+
+describe("mobile sheet with product tiles", () => {
+  it("peeks as a swipeable strip: every tile stays reachable, unlike compact rows", async () => {
+    media.mobile = true;
+    await mount(await renderBlock("product-page-reels", { reels, product: products[0], widget: makeWidget({ style: { productImageSize: "large" } }) }));
+    click(triggerButton(0));
+    expect(q("[data-awa-sv-panel]").dataset.state).toBe("peek");
+    const tiles = viewer()!.querySelectorAll<HTMLElement>("[data-awa-sv-list] [data-awa-sv-product]");
+    expect(tiles.length).toBe(2);
+    expect([...tiles].every((t) => !t.inert)).toBe(true);
+  });
+});
