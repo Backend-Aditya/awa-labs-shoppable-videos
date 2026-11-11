@@ -46,6 +46,16 @@ if (found.length === 0) {
   process.exit(1);
 }
 
+// Block schemas also name the app's metaobject types for their "Widget"
+// picker setting ("metaobject_type": "app--<id>--<kind>_widget"); those
+// must carry the same app id.
+const TYPE_PATTERN = /"metaobject_type":\s*"(app--\d+)--[a-z_]+"/g;
+for (const file of files) {
+  for (const match of readFileSync(file, "utf8").matchAll(TYPE_PATTERN)) {
+    found.push({ file: `${path.relative(root, file)} (metaobject_type)`, namespace: match[1] });
+  }
+}
+
 const distinctValues = new Set(found.map((f) => f.namespace));
 if (distinctValues.size > 1) {
   console.error("check-reel-namespace: the reel_namespace literal is out of sync across files:\n");

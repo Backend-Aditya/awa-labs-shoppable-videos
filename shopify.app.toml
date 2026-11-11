@@ -40,6 +40,129 @@ name = "Tagged products"
 type = "list.product_reference"
 description = "Mirrors config.productIds as native product references so Liquid can resolve full product data (title, price, image) without a runtime API call"
 
+# One entry per widget, so a theme block's "Widget" setting (a metaobject
+# picker) can choose which of several widgets of the same kind it shows.
+# Written by the app on every widget save; merchants only read them.
+[metaobjects.app.product_page_reels_widget]
+name = "Product page reels widget"
+description = "One product page reels widget: its settings and videos, picked in the theme editor block"
+display_name_field = "name"
+
+  [metaobjects.app.product_page_reels_widget.access]
+  admin = "merchant_read"
+  storefront = "public_read"
+
+[metaobjects.app.product_page_reels_widget.fields.name]
+name = "Name"
+type = "single_line_text_field"
+required = true
+
+[metaobjects.app.product_page_reels_widget.fields.config]
+name = "Config"
+type = "json"
+required = true
+description = "published, targetRule, style, deviceVisibility, pageTypes (same shape as the shop-level widget metafield)"
+
+[metaobjects.app.product_page_reels_widget.fields.reels]
+name = "Videos"
+type = "list.metaobject_reference<$app:reel>"
+
+[metaobjects.app.stacked_carousel_widget]
+name = "Stacked carousel widget"
+description = "One stacked carousel widget: its settings and videos, picked in the theme editor block"
+display_name_field = "name"
+
+  [metaobjects.app.stacked_carousel_widget.access]
+  admin = "merchant_read"
+  storefront = "public_read"
+
+[metaobjects.app.stacked_carousel_widget.fields.name]
+name = "Name"
+type = "single_line_text_field"
+required = true
+
+[metaobjects.app.stacked_carousel_widget.fields.config]
+name = "Config"
+type = "json"
+required = true
+description = "published, targetRule, style, deviceVisibility, pageTypes (same shape as the shop-level widget metafield)"
+
+[metaobjects.app.stacked_carousel_widget.fields.reels]
+name = "Videos"
+type = "list.metaobject_reference<$app:reel>"
+
+[metaobjects.app.insta_stories_widget]
+name = "Stories widget"
+description = "One stories widget: its settings and videos, picked in the theme editor block"
+display_name_field = "name"
+
+  [metaobjects.app.insta_stories_widget.access]
+  admin = "merchant_read"
+  storefront = "public_read"
+
+[metaobjects.app.insta_stories_widget.fields.name]
+name = "Name"
+type = "single_line_text_field"
+required = true
+
+[metaobjects.app.insta_stories_widget.fields.config]
+name = "Config"
+type = "json"
+required = true
+description = "published, targetRule, style, deviceVisibility, pageTypes (same shape as the shop-level widget metafield)"
+
+[metaobjects.app.insta_stories_widget.fields.reels]
+name = "Videos"
+type = "list.metaobject_reference<$app:reel>"
+
+[metaobjects.app.single_video_widget]
+name = "Featured video widget"
+description = "One featured video widget: its settings and videos, picked in the theme editor block"
+display_name_field = "name"
+
+  [metaobjects.app.single_video_widget.access]
+  admin = "merchant_read"
+  storefront = "public_read"
+
+[metaobjects.app.single_video_widget.fields.name]
+name = "Name"
+type = "single_line_text_field"
+required = true
+
+[metaobjects.app.single_video_widget.fields.config]
+name = "Config"
+type = "json"
+required = true
+description = "published, targetRule, style, deviceVisibility, pageTypes (same shape as the shop-level widget metafield)"
+
+[metaobjects.app.single_video_widget.fields.featured_reel]
+name = "Video"
+type = "metaobject_reference<$app:reel>"
+
+[metaobjects.app.add_to_cart_video_widget]
+name = "Add-to-cart video widget"
+description = "One add-to-cart video widget: its settings and videos, picked in the theme editor block"
+display_name_field = "name"
+
+  [metaobjects.app.add_to_cart_video_widget.access]
+  admin = "merchant_read"
+  storefront = "public_read"
+
+[metaobjects.app.add_to_cart_video_widget.fields.name]
+name = "Name"
+type = "single_line_text_field"
+required = true
+
+[metaobjects.app.add_to_cart_video_widget.fields.config]
+name = "Config"
+type = "json"
+required = true
+description = "published, targetRule, style, deviceVisibility, pageTypes (same shape as the shop-level widget metafield)"
+
+[metaobjects.app.add_to_cart_video_widget.fields.featured_reel]
+name = "Video"
+type = "metaobject_reference<$app:reel>"
+
 [product.metafields.app.reels]
 type = "list.metaobject_reference<$app:reel>"
 name = "Reels"

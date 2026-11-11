@@ -19,7 +19,7 @@ async function shopId() {
 const widget = (id: string, published: boolean, type = "CAROUSEL") =>
   prisma.widget.create({ data: { shopId: id, type, name: `${type} ${published}`, config: {}, published } });
 
-describe("Widget_one_published_per_type (partial unique index)", () => {
+describe("Widget_one_published_floating_video (partial unique index)", () => {
   beforeEach(async () => {
     await prisma.shop.deleteMany({ where: { shopDomain: SHOP } });
   });
@@ -28,12 +28,21 @@ describe("Widget_one_published_per_type (partial unique index)", () => {
     await prisma.shop.deleteMany({ where: { shopDomain: SHOP } });
   });
 
-  it("rejects a second published widget of the same type in one shop", async () => {
+  it("rejects a second published floating video in one shop (one app embed per store)", async () => {
     const id = await shopId();
-    await widget(id, true);
-    const second = widget(id, true);
+    await widget(id, true, "REEL_POPS");
+    const second = widget(id, true, "REEL_POPS");
     await expect(second).rejects.toBeInstanceOf(Prisma.PrismaClientKnownRequestError);
-    await expect(widget(id, true)).rejects.toMatchObject({ code: "P2002" });
+    await expect(widget(id, true, "REEL_POPS")).rejects.toMatchObject({ code: "P2002" });
+  });
+
+  it("allows several published block widgets of one type (each block picks its own)", async () => {
+    const id = await shopId();
+    await widget(id, true, "CAROUSEL");
+    await widget(id, true, "CAROUSEL");
+    await widget(id, true, "PRODUCT_PAGE_REELS");
+    await widget(id, true, "PRODUCT_PAGE_REELS");
+    expect(await prisma.widget.count({ where: { shopId: id, published: true } })).toBe(4);
   });
 
   it("allows any number of unpublished drafts of the same type", async () => {

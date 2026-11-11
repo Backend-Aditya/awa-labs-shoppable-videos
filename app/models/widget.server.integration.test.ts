@@ -16,16 +16,32 @@ import {
   syncShopWidgetState,
   saveWidgetSettings,
   removeReelFromWidgets,
+  backfillWidgetEntries,
 } from "./widget.server";
 
 // Admin mock that records the variables passed to the metafieldsSet mutation.
+// Per-widget metaobject entry calls (the theme block's widget picker) are
+// recorded separately in `entries` and not counted in `callCount`, so the
+// shop-metafield assertions below stay about the shop metafield.
 function createRecordingAdmin() {
-  const recorder: { variables?: Record<string, unknown>; callCount: number } = {
+  const recorder: {
+    variables?: Record<string, unknown>;
+    callCount: number;
+    entries: { query: string; variables?: Record<string, unknown> }[];
+  } = {
     variables: undefined,
     callCount: 0,
+    entries: [],
   };
   const admin = {
     graphql: async (query: string, options?: { variables?: Record<string, unknown> }) => {
+      if (query.includes("WidgetEntry")) {
+        recorder.entries.push({ query, variables: options?.variables });
+        if (query.includes("query WidgetEntry")) {
+          return { json: async () => ({ data: { metaobjectByHandle: { id: "gid://shopify/Metaobject/999" } } }) };
+        }
+        return { json: async () => ({ data: { metaobjectUpsert: { userErrors: [] }, metaobjectDelete: { userErrors: [] } } }) };
+      }
       recorder.callCount += 1;
       if (query.includes("GetShopId")) {
         return { json: async () => ({ data: { shop: { id: "gid://shopify/Shop/1" } } }) };
@@ -71,6 +87,93 @@ function expectedMetafields(
 }
 
 describe("widget.server", () => {
+  describe("per-widget metaobject entries (the theme block's widget picker)", () => {
+    it("every save upserts an entry per widget of the kind, by handle, with its name, state and videos", async () => {
+      const shop = await getOrCreateShop("widget-entries.myshopify.com");
+      const a = await createWidget(shop.id, "CAROUSEL", "Best sellers", { templateStyle: "classic", targetRule: { type: "all_products" }, reelIds: ["gid://shopify/Metaobject/1"] });
+      const b = await createWidget(shop.id, "CAROUSEL", "New in", { templateStyle: "classic", targetRule: { type: "all_products" } });
+      const { admin, recorder } = createRecordingAdmin();
+
+      await updateWidget(admin, shop.id, a.id, { published: true });
+
+      const upserts = recorder.entries.filter((e) => e.query.includes("UpsertWidgetEntry"));
+      expect(upserts).toHaveLength(2);
+      const forA = upserts.find((e) => (e.variables!.handle as { handle: string }).handle === `widget-${a.id}`.toLowerCase())!;
+      expect(forA.variables!.handle).toEqual({ type: "$app:stacked_carousel_widget", handle: `widget-${a.id}`.toLowerCase() });
+      const fields = (forA.variables!.metaobject as { fields: { key: string; value: string }[] }).fields;
+      expect(fields.find((f) => f.key === "name")!.value).toBe("Best sellers");
+      expect(JSON.parse(fields.find((f) => f.key === "config")!.value)).toMatchObject({ published: true });
+      expect(fields.find((f) => f.key === "reels")!.value).toBe(JSON.stringify(["gid://shopify/Metaobject/1"]));
+      const forB = upserts.find((e) => (e.variables!.handle as { handle: string }).handle === `widget-${b.id}`.toLowerCase())!;
+      expect(JSON.parse((forB.variables!.metaobject as { fields: { key: string; value: string }[] }).fields.find((f) => f.key === "config")!.value)).toMatchObject({ published: false });
+    });
+
+    it("single-video kinds write their featured reel (empty clears it); the floating video has no entries", async () => {
+      const shop = await getOrCreateShop("widget-entries-single.myshopify.com");
+      const single = await createWidget(shop.id, "SINGLE_VIDEO", "Hero", { templateStyle: "classic", targetRule: { type: "all_products" } });
+      const pop = await createWidget(shop.id, "REEL_POPS", "Pop", { templateStyle: "classic", targetRule: { type: "all_products" } });
+      const { admin, recorder } = createRecordingAdmin();
+      await updateWidget(admin, shop.id, single.id, { published: true });
+      const fields = (recorder.entries[0].variables!.metaobject as { fields: { key: string; value: string }[] }).fields;
+      expect(fields.find((f) => f.key === "featured_reel")!.value).toBe("");
+      expect(fields.find((f) => f.key === "reels")).toBeUndefined();
+
+      const pops = createRecordingAdmin();
+      await updateWidget(pops.admin, shop.id, pop.id, { published: true });
+      expect(pops.recorder.entries).toHaveLength(0);
+    });
+
+    it("a failing entry write never fails the save", async () => {
+      const shop = await getOrCreateShop("widget-entries-fail.myshopify.com");
+      const widget = await createWidget(shop.id, "CAROUSEL", "C", { templateStyle: "classic", targetRule: { type: "all_products" } });
+      const admin = {
+        graphql: async (query: string) => {
+          if (query.includes("UpsertWidgetEntry")) {
+            return { json: async () => ({ data: { metaobjectUpsert: { userErrors: [{ field: ["handle"], message: "No such type" }] } } }) };
+          }
+          return { json: async () => ({ data: { shop: { id: "gid://shopify/Shop/1" }, metafieldsSet: { userErrors: [] } } }) };
+        },
+      };
+      await expect(updateWidget(admin, shop.id, widget.id, { published: true })).resolves.toMatchObject({ published: true });
+    });
+
+    it("backfill writes entries for every block widget once per shop, skipping the floating video", async () => {
+      const shop = await getOrCreateShop("widget-entries-backfill.myshopify.com");
+      await createWidget(shop.id, "CAROUSEL", "C", { templateStyle: "classic", targetRule: { type: "all_products" } });
+      await createWidget(shop.id, "STORIES", "S", { templateStyle: "classic", targetRule: { type: "all_products" } });
+      await createWidget(shop.id, "REEL_POPS", "P", { templateStyle: "classic", targetRule: { type: "all_products" } });
+      const widgets = await listWidgetsForShop(shop.id);
+      const { admin, recorder } = createRecordingAdmin();
+      await backfillWidgetEntries(admin, shop.id, widgets);
+      expect(recorder.entries.map((e) => (e.variables!.handle as { type: string }).type).sort()).toEqual([
+        "$app:insta_stories_widget",
+        "$app:stacked_carousel_widget",
+      ]);
+      await backfillWidgetEntries(admin, shop.id, widgets);
+      expect(recorder.entries).toHaveLength(2);
+    });
+
+    it("deleting a widget deletes its entry", async () => {
+      const shop = await getOrCreateShop("widget-entries-delete.myshopify.com");
+      const widget = await createWidget(shop.id, "CAROUSEL", "C", { templateStyle: "classic", targetRule: { type: "all_products" } });
+      const { admin, recorder } = createRecordingAdmin();
+      await deleteWidget(admin, shop.id, widget.id);
+      expect(recorder.entries.map((e) => e.query.match(/(query|mutation) (\w+)/)![2])).toEqual(["WidgetEntry", "DeleteWidgetEntry"]);
+      expect(recorder.entries[1].variables).toEqual({ id: "gid://shopify/Metaobject/999" });
+    });
+
+    it("blocks with no pick get the most recently saved live widget of the kind", async () => {
+      const shop = await getOrCreateShop("widget-entries-latest.myshopify.com");
+      const older = await createWidget(shop.id, "CAROUSEL", "Older", { templateStyle: "classic", targetRule: { type: "all_products" }, style: { heading: "Older" } });
+      const newer = await createWidget(shop.id, "CAROUSEL", "Newer", { templateStyle: "classic", targetRule: { type: "all_products" }, style: { heading: "Newer" } });
+      const { admin, recorder } = createRecordingAdmin();
+      await updateWidget(admin, shop.id, older.id, { published: true });
+      await updateWidget(admin, shop.id, newer.id, { published: true });
+      const fields = (recorder.variables!.metafields as { key: string; value: string }[]);
+      expect(JSON.parse(fields.find((f) => f.key === "stacked_carousel_widget")!.value).style).toEqual({ heading: "Newer" });
+    });
+  });
+
   beforeEach(async () => {
     await prisma.widget.deleteMany();
     await prisma.shop.deleteMany();
@@ -137,6 +240,7 @@ describe("widget.server", () => {
         if (query.includes("GetShopId")) {
           return { json: async () => ({ data: { shop: { id: "gid://shopify/Shop/1" } } }) };
         }
+        if (query.includes("WidgetEntry")) return { json: async () => ({ data: {} }) };
         capturedSetVariables = options?.variables;
         return { json: async () => ({ data: { metafieldsSet: { userErrors: [] } } }) };
       },
@@ -227,13 +331,24 @@ describe("widget.server", () => {
     expect(updated.published).toBe(true);
   });
 
-  it("publishing a widget unpublishes another published widget of the same type and shop", async () => {
+  it("block widgets of one kind can all be live: publishing one leaves the others live", async () => {
+    const shop = await getOrCreateShop("widget-multi-live.myshopify.com");
+    const admin = { graphql: async () => ({ json: async () => ({ data: { shop: { id: "gid://shopify/Shop/1" }, metafieldsSet: { userErrors: [] } } }) }) };
+    const first = await createWidget(shop.id, "CAROUSEL", "First", { templateStyle: "classic", targetRule: { type: "all_products" } });
+    const second = await createWidget(shop.id, "CAROUSEL", "Second", { templateStyle: "classic", targetRule: { type: "all_products" } });
+    await updateWidget(admin, shop.id, first.id, { published: true });
+    await updateWidget(admin, shop.id, second.id, { published: true });
+    expect((await getWidget(shop.id, first.id))?.published).toBe(true);
+    expect((await getWidget(shop.id, second.id))?.published).toBe(true);
+  });
+
+  it("publishing a floating video unpublishes the other live one (one app embed per store)", async () => {
     const shop = await getOrCreateShop("widget-exclusive.myshopify.com");
-    const first = await createWidget(shop.id, "PRODUCT_PAGE_REELS", "First", {
+    const first = await createWidget(shop.id, "REEL_POPS", "First", {
       templateStyle: "classic",
       targetRule: { type: "all_products" },
     });
-    const second = await createWidget(shop.id, "PRODUCT_PAGE_REELS", "Second", {
+    const second = await createWidget(shop.id, "REEL_POPS", "Second", {
       templateStyle: "classic",
       targetRule: { type: "all_products" },
     });
@@ -350,6 +465,7 @@ describe("widget.server", () => {
         if (query.includes("GetShopId")) {
           return { json: async () => ({ data: { shop: { id: "gid://shopify/Shop/1" } } }) };
         }
+        if (query.includes("WidgetEntry")) return { json: async () => ({ data: {} }) };
         capturedSetVariables = options?.variables;
         return { json: async () => ({ data: { metafieldsSet: { userErrors: [] } } }) };
       },
@@ -1048,14 +1164,14 @@ describe("saveWidgetSettings", () => {
     );
   });
 
-  it("publishing unpublishes the other live widget of the same kind", async () => {
+  it("publishing a floating video unpublishes the other live one", async () => {
     const shop = await getOrCreateShop("save-settings-sibling.myshopify.com");
-    const live = await createWidget(shop.id, "PRODUCT_PAGE_REELS", "Live", {
+    const live = await createWidget(shop.id, "REEL_POPS", "Live", {
       templateStyle: "classic",
       targetRule: { type: "all_products" },
     });
     await setWidgetPublished(live.id, true);
-    const draft = await createWidget(shop.id, "PRODUCT_PAGE_REELS", "Draft", {
+    const draft = await createWidget(shop.id, "REEL_POPS", "Draft", {
       templateStyle: "classic",
       targetRule: { type: "all_products" },
     });

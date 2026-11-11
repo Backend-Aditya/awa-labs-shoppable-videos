@@ -2,6 +2,7 @@ import type { Prisma, Widget } from "@prisma/client";
 import prisma from "../db.server";
 import type { AdminGraphqlClient } from "./reel.server";
 import { assertNoGraphqlErrors, throwOnUserErrors } from "./reel.server";
+import { log } from "../lib/logger.server";
 
 import type { WidgetConfig, WidgetKind, WidgetStyleConfig } from "./widget-kinds";
 export type { WidgetConfig, WidgetKind, WidgetStyleConfig } from "./widget-kinds";
@@ -30,8 +31,13 @@ export async function listWidgetsForShop(shopId: string): Promise<Widget[]> {
   });
 }
 
+// Only the floating video is one-per-store (it lives in the single app
+// embed). Every other kind is a theme block, and a block picks which widget
+// it shows, so any number of them can be live at once.
+export const isSingleLiveKind = (kind: string) => kind === "REEL_POPS";
+
 // Test-only helper: flips `published` directly without enforcing the
-// one-published-widget-per-type invariant and without syncing the shop
+// one-live floating video rule and without syncing the shop
 // metafield. Production code must go through `updateWidget` instead.
 export async function setWidgetPublished(
   id: string,
@@ -55,6 +61,8 @@ export async function deleteWidget(
     await syncShopWidgetState(admin, existing.shopId, existing.type as WidgetKind, { force: true });
   }
   await prisma.widget.delete({ where: { id } });
+  // Blocks that picked it fall back to the kind's live widget.
+  await deleteWidgetEntry(admin, existing);
 }
 
 export async function getWidget(
@@ -72,13 +80,10 @@ export async function updateWidget(
 ): Promise<Widget> {
   const current = await prisma.widget.findFirstOrThrow({ where: { id, shopId } });
 
-  // Sibling-unpublish + this widget's own update run in one transaction so a
-  // concurrent publish of two widgets of the same kind can't both land as
-  // `published: true`, without this, two overlapping requests could each
-  // read the old sibling list before either write lands, violating the
-  // one-published-widget-per-kind invariant that syncShopWidgetState relies on.
+  // For the floating video, sibling-unpublish + this widget's own update run
+  // in one transaction so two overlapping publishes can't both land live.
   const widget = await prisma.$transaction(async (tx) => {
-    if (updates.published === true && !current.published) {
+    if (updates.published === true && !current.published && isSingleLiveKind(current.type)) {
       await tx.widget.updateMany({
         where: {
           shopId: current.shopId,
@@ -229,8 +234,11 @@ export async function syncShopWidgetState(
   const syncConfig = WIDGET_KIND_SYNC_CONFIG[kind];
   if (!syncConfig) return;
 
+  // Blocks with no widget picked show the kind's most recently saved live
+  // widget (several can be live now that blocks pick their own).
   const live = await prisma.widget.findFirst({
     where: { shopId, type: kind, published: true },
+    orderBy: { updatedAt: "desc" },
   });
 
   if (!live && !options.force) {
@@ -318,6 +326,120 @@ export async function syncShopWidgetState(
   const json = await response.json();
   assertNoGraphqlErrors(json);
   throwOnUserErrors(json.data.metafieldsSet.userErrors);
+
+  await syncWidgetEntries(admin, shopId, kind);
+}
+
+/* --------------------------------------------- per-widget entries */
+
+// Each block-based widget is mirrored into its own app metaobject entry
+// (types in shopify.app.toml, one per kind), so the theme block's "Widget"
+// setting, a metaobject picker, lists the merchant's widgets of that kind
+// by name and the block renders the one picked. Handles are derived from
+// the widget id, so upserts need no stored metaobject id.
+export const widgetEntryType = (kind: WidgetKind) => {
+  const key = WIDGET_KIND_SYNC_CONFIG[kind]?.metafieldKey;
+  return key && !isSingleLiveKind(kind) ? `$app:${key}` : null;
+};
+export const widgetEntryHandle = (widgetId: string) => `widget-${widgetId}`.toLowerCase();
+
+function metafieldValueFor(widget: Widget): WidgetMetafieldValue {
+  const config = widget.config as unknown as WidgetConfig;
+  return {
+    published: widget.published,
+    targetRule: config.targetRule,
+    style: config.style ?? {},
+    deviceVisibility: config.deviceVisibility ?? "all",
+    pageTypes: config.pageTypes ?? [],
+  };
+}
+
+async function upsertWidgetEntry(admin: AdminGraphqlClient, widget: Widget): Promise<void> {
+  const type = widgetEntryType(widget.type as WidgetKind);
+  if (!type) return;
+  const config = widget.config as unknown as WidgetConfig;
+  const syncConfig = WIDGET_KIND_SYNC_CONFIG[widget.type as WidgetKind]!;
+  const fields: { key: string; value: string }[] = [
+    { key: "name", value: widget.name },
+    { key: "config", value: JSON.stringify(metafieldValueFor(widget)) },
+  ];
+  if (syncConfig.reelListMetafieldKey) fields.push({ key: "reels", value: JSON.stringify(config.reelIds ?? []) });
+  if (syncConfig.featuredReelMetafieldKey) fields.push({ key: "featured_reel", value: config.featuredReelId ?? "" });
+
+  const response = await admin.graphql(
+    `#graphql
+    mutation UpsertWidgetEntry($handle: MetaobjectHandleInput!, $metaobject: MetaobjectUpsertInput!) {
+      metaobjectUpsert(handle: $handle, metaobject: $metaobject) {
+        metaobject { id }
+        userErrors { field message }
+      }
+    }`,
+    { variables: { handle: { type, handle: widgetEntryHandle(widget.id) }, metaobject: { fields } } },
+  );
+  const json = await response.json();
+  assertNoGraphqlErrors(json);
+  throwOnUserErrors(json.data?.metaobjectUpsert?.userErrors ?? []);
+}
+
+// Refreshes every widget entry of one kind from the DB. Failures are logged,
+// not thrown: blocks with no widget picked keep working off the shop-level
+// metafield, so a save must not fail just because an entry couldn't be
+// written (e.g. before the app version defining the types is released).
+export async function syncWidgetEntries(admin: AdminGraphqlClient, shopId: string, kind: WidgetKind): Promise<void> {
+  if (!widgetEntryType(kind)) return;
+  const widgets = await prisma.widget.findMany({ where: { shopId, type: kind } });
+  for (const widget of widgets) {
+    try {
+      await upsertWidgetEntry(admin, widget);
+    } catch (error) {
+      log.warn("widget.entry_sync_failed", { widgetId: widget.id, kind }, error);
+    }
+  }
+}
+
+// Widgets saved before entries existed get one the first time the shop's
+// Widgets page loads in this server process, so the theme editor's picker
+// lists them without the merchant re-saving each one. Best effort and
+// once per shop per process: a later save re-syncs anyway.
+const entriesBackfilled = new Set<string>();
+export async function backfillWidgetEntries(admin: AdminGraphqlClient, shopId: string, widgets: Widget[]): Promise<void> {
+  if (entriesBackfilled.has(shopId)) return;
+  entriesBackfilled.add(shopId);
+  for (const kind of new Set(widgets.map((w) => w.type as WidgetKind))) {
+    await syncWidgetEntries(admin, shopId, kind);
+  }
+}
+
+async function deleteWidgetEntry(admin: AdminGraphqlClient, widget: Widget): Promise<void> {
+  const type = widgetEntryType(widget.type as WidgetKind);
+  if (!type) return;
+  try {
+    const found = await admin.graphql(
+      `#graphql
+      query WidgetEntry($handle: MetaobjectHandleInput!) {
+        metaobjectByHandle(handle: $handle) { id }
+      }`,
+      { variables: { handle: { type, handle: widgetEntryHandle(widget.id) } } },
+    );
+    const foundJson = await found.json();
+    assertNoGraphqlErrors(foundJson);
+    const entryId = foundJson.data?.metaobjectByHandle?.id;
+    if (!entryId) return;
+    const removed = await admin.graphql(
+      `#graphql
+      mutation DeleteWidgetEntry($id: ID!) {
+        metaobjectDelete(id: $id) {
+          userErrors { field message }
+        }
+      }`,
+      { variables: { id: entryId } },
+    );
+    const removedJson = await removed.json();
+    assertNoGraphqlErrors(removedJson);
+    throwOnUserErrors(removedJson.data?.metaobjectDelete?.userErrors ?? []);
+  } catch (error) {
+    log.warn("widget.entry_delete_failed", { widgetId: widget.id }, error);
+  }
 }
 
 export async function updateWidgetFeaturedReel(
@@ -390,7 +512,7 @@ export async function saveWidgetSettings(
   if (update.reelIds !== undefined) config.reelIds = update.reelIds;
 
   const widget = await prisma.$transaction(async (tx) => {
-    if (update.published && !current.published) {
+    if (update.published && !current.published && isSingleLiveKind(current.type)) {
       await tx.widget.updateMany({
         where: { shopId: current.shopId, type: current.type, published: true, id: { not: id } },
         data: { published: false },

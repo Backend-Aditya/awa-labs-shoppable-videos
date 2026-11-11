@@ -85,9 +85,9 @@ export const BLOCK_METAFIELDS = {
 /**
  * Builds the full render context for one block.
  * @param {keyof typeof BLOCK_METAFIELDS} block
- * @param {{ widget?: object, reels?: object[], reel?: object, product?: object | null, template?: string, brand?: object, blockId?: string }} input
+ * @param {{ widget?: object, reels?: object[], reel?: object, product?: object | null, template?: string, brand?: object, blockId?: string, settings?: object }} input
  */
-export function blockContext(block, { widget = makeWidget(), reels = [], reel, product = null, template = "product", brand, blockId = "block-1" }) {
+export function blockContext(block, { widget = makeWidget(), reels = [], reel, product = null, template = "product", brand, blockId = "block-1", settings = {} }) {
   const keys = BLOCK_METAFIELDS[block];
   const metafields = { [keys.widget]: widget };
   if ("reels" in keys) metafields[keys.reels] = reels;
@@ -97,7 +97,7 @@ export function blockContext(block, { widget = makeWidget(), reels = [], reel, p
     shop: makeShop(metafields),
     product,
     template: { name: template },
-    block: { id: blockId, shopify_attributes: "" },
+    block: { id: blockId, shopify_attributes: "", settings },
     routes: {
       cart_url: "/cart",
       cart_add_url: "/cart/add",
@@ -119,4 +119,18 @@ export function multiVariantProduct(id = 7) {
       { id: id * 100 + 3, title: "Large", price: 5200, compare_at_price: null, available: false },
     ],
   });
+}
+
+/**
+ * A widget's own metaobject entry, as the block's "Widget" (metaobject)
+ * setting resolves it: fields expose `.value` like any metaobject field.
+ * @param {{ widget?: object, reels?: object[], reel?: object, name?: string }} [input]
+ */
+export function makeWidgetEntry({ widget = makeWidget(), reels = [], reel, name = "Picked widget" } = {}) {
+  return {
+    name: { value: name },
+    config: { value: widget },
+    reels: { value: reels },
+    featured_reel: { value: reel ?? reels[0] ?? null },
+  };
 }
