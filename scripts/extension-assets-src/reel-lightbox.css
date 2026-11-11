@@ -2262,3 +2262,71 @@ html[dir="rtl"] .awa-sv-pdp__arrow svg {
     border-radius: 0;
   }
 }
+
+/* =================================================================
+   Phones, product tiles, sheet closed: just the strip. The product cards
+   float over the bottom of the video (no white sheet, no header), so the
+   video keeps the screen; a small "9 ⌃" pill above the strip opens the
+   full product grid.
+   ================================================================= */
+@media (max-width: 749px) {
+  .awa-sv-viewer.awa-sv-products--large .awa-sv-viewer__panel[data-state="peek"] {
+    overflow: visible;
+    background: transparent;
+    box-shadow: none;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  }
+
+  .awa-sv-viewer.awa-sv-products--large .awa-sv-viewer__panel[data-state="peek"] .awa-sv-viewer__panel-head {
+    position: absolute;
+    top: -40px;
+    inset-inline-end: 12px;
+    width: auto;
+    gap: 4px;
+    padding: 5px 8px 5px 12px;
+    border: 0;
+    border-radius: 999px;
+    background: rgb(0 0 0 / 0.5);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    color: #fff;
+  }
+
+  .awa-sv-viewer.awa-sv-products--large .awa-sv-viewer__panel[data-state="peek"] :is(.awa-sv-viewer__panel-icon, .awa-sv-viewer__panel-text) {
+    display: none;
+  }
+
+  .awa-sv-viewer.awa-sv-products--large .awa-sv-viewer__panel[data-state="peek"] .awa-sv-viewer__panel-count {
+    min-width: 0;
+    height: auto;
+    padding: 0;
+    background: transparent;
+    color: inherit;
+    font-size: 13px;
+    line-height: 20px;
+  }
+
+  .awa-sv-viewer.awa-sv-products--large .awa-sv-viewer__panel[data-state="peek"] .awa-sv-viewer__chevron svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .awa-sv-viewer.awa-sv-products--large .awa-sv-viewer__panel[data-state="peek"] .awa-sv-viewer__list {
+    padding: 0 12px;
+  }
+
+  .awa-sv-viewer.awa-sv-products--large .awa-sv-viewer__panel[data-state="peek"] .awa-sv-product--tile {
+    border: 0;
+    background: #fff;
+    box-shadow: 0 6px 20px rgb(0 0 0 / 0.25);
+  }
+
+  /* The title and the "product on screen" pop-up sit just above the strip. */
+  .awa-sv-viewer.awa-sv-products--large.has-products .awa-sv-viewer__title {
+    bottom: calc(150px + env(safe-area-inset-bottom));
+  }
+
+  .awa-sv-viewer.awa-sv-products--large.has-products .awa-sv-moment {
+    bottom: calc(150px + env(safe-area-inset-bottom));
+  }
+}
