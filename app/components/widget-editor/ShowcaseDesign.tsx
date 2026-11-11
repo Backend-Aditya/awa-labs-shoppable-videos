@@ -169,6 +169,13 @@ const ICON_MOBILE = (
   </svg>
 );
 
+// Stack card sizes (px), desktop and phones.
+type StackSize = "auto" | "small" | "medium" | "large";
+const STACK_SIZES: Record<"desktop" | "mobile", Record<Exclude<StackSize, "auto">, number>> = {
+  desktop: { small: 220, medium: 280, large: 340 },
+  mobile: { small: 180, medium: 230, large: 280 },
+};
+
 const CORNER_LABEL = { sharp: "Square", rounded: "Rounded", soft: "Soft" } as const;
 const LAYOUT_LABEL = { stack: "Stack", carousel: "Slider", grid: "Grid" } as const;
 
@@ -237,6 +244,23 @@ export function ShowcaseDesignTab({
       ) as Partial<WidgetStyleConfig>,
     );
 
+  // Cards per row (slider, filmstrip, grid): card sizes are worked out from
+  // the page width on the storefront. Phones can show half a card more in
+  // a scrolling row; a grid needs whole columns.
+  const perRowOptions = mobile ? (layout === "grid" ? [1, 2, 3] : [1, 1.5, 2, 2.5, 3]) : [2, 3, 4, 5, 6];
+  const storedPerRow = mobile ? (style.columnsMobile ?? 2) : (style.columns ?? 4);
+  const perRow = perRowOptions.includes(storedPerRow) ? storedPerRow : Math.floor(storedPerRow);
+  const perRowLabel = perRow % 1 ? `${Math.floor(perRow)}½ cards` : `${perRow} card${perRow === 1 ? "" : "s"}`;
+  // The stack has no rows: a card size instead, Auto = responsive default.
+  const storedStack = mobile ? style.triggerSizeMobile : style.triggerSize;
+  const stackSize: StackSize =
+    storedStack === undefined
+      ? "auto"
+      : (Object.entries(STACK_SIZES[mobile ? "mobile" : "desktop"]).reduce(
+          (best, [name, px]) => (Math.abs(px - storedStack) < Math.abs(STACK_SIZES[mobile ? "mobile" : "desktop"][best] - storedStack) ? (name as Exclude<StackSize, "auto">) : best),
+          "medium" as Exclude<StackSize, "auto">,
+        ) as StackSize);
+
   const templateLabel = CARD_TEMPLATE_OPTIONS.find((t) => t.value === template)?.label ?? "";
   const cardsSummary = [
     templateLabel,
@@ -248,7 +272,10 @@ export function ShowcaseDesignTab({
     .join(" · ");
   const headerSummary = [style.eyebrow, style.heading, style.subheading].filter(Boolean).join(" · ") || "No header";
   const layoutName = layout === "carousel" && !isCarousel ? "Filmstrip" : LAYOUT_LABEL[layout];
-  const layoutSummary = `${layoutName} · ${mobile ? "Mobile" : "Desktop"} sizes`;
+  const layoutSummary =
+    layout === "stack"
+      ? `${layoutName} · ${stackSize === "auto" ? "Auto size" : `${stackSize[0].toUpperCase()}${stackSize.slice(1)} cards`}`
+      : `${layoutName} · ${style.columns ?? 4} per row · ${style.columnsMobile ?? 2} on phones`;
   const colorsSummary = style.backgroundColor ? `Background ${style.backgroundColor}` : "Theme background";
 
   return (
@@ -409,32 +436,35 @@ export function ShowcaseDesignTab({
           ]}
         />
         {isCarousel && layout === "stack" && <p className={styles.hint}>The stack needs 3 or more videos; with fewer it shows as a slider.</p>}
-        {layout === "grid" ? (
-          mobile ? (
-            <Slider
-              key="columns-mobile"
-              label="Columns on phones"
-              unit=""
-              min={1}
-              max={3}
-              value={style.columnsMobile ?? 2}
-              auto={style.columnsMobile === undefined}
-              onReset={() => setStyle({ columnsMobile: undefined })}
-              onChange={(columnsMobile) => setStyle({ columnsMobile })}
-            />
-          ) : (
-            <Slider key="columns" label="Columns" unit="" min={2} max={6} value={style.columns ?? 4} onChange={(columns) => setStyle({ columns })} />
-          )
+        {layout === "stack" ? (
+          <Segmented
+            key={`stack-size-${device}`}
+            label={mobile ? "Card size on phones" : "Card size"}
+            value={stackSize}
+            onChange={(size) => {
+              const px = size === "auto" ? undefined : STACK_SIZES[mobile ? "mobile" : "desktop"][size];
+              setStyle(mobile ? { triggerSizeMobile: px } : { triggerSize: px });
+            }}
+            options={[
+              { value: "auto", label: "Auto" },
+              { value: "small", label: "Small" },
+              { value: "medium", label: "Medium" },
+              { value: "large", label: "Large" },
+            ]}
+            hint="Auto sizes the front card to the screen."
+          />
         ) : (
-          <Slider
-            key={`width-${device}`}
-            label={meta.sizeLabel}
-            min={meta.sizeMin}
-            max={meta.sizeMax}
-            value={(mobile ? style.triggerSizeMobile : style.triggerSize) ?? meta.defaults.triggerSize ?? 220}
-            auto={mobile ? style.triggerSizeMobile === undefined : isCarousel && style.triggerSize === undefined}
-            onReset={() => setStyle(mobile ? { triggerSizeMobile: undefined } : { triggerSize: isCarousel ? undefined : meta.defaults.triggerSize })}
-            onChange={(value) => setStyle(mobile ? { triggerSizeMobile: value } : { triggerSize: value })}
+          <Segmented
+            key={`per-row-${device}-${layout}`}
+            label={mobile ? "Cards per row on phones" : "Cards per row"}
+            value={String(perRow)}
+            onChange={(value) => setStyle(mobile ? { columnsMobile: Number(value) } : { columns: Number(value) })}
+            options={perRowOptions.map((n) => ({ value: String(n), label: n % 1 ? `${Math.floor(n)}½` : String(n) }))}
+            hint={
+              layout === "grid"
+                ? "Cards are sized to fill the row, however wide your page is."
+                : `Cards are sized to fit ${perRowLabel} across your page${perRow % 1 ? ", the half card hinting there's more to swipe" : ""}.`
+            }
           />
         )}
         {fieldsIn("spacing").map(sizeSlider)}

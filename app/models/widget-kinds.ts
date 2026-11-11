@@ -664,6 +664,10 @@ export function sanitizeStyle(kind: string, input: unknown): WidgetStyleConfig {
       // The stacked deck only exists for the carousel widget.
       const stackElsewhere = key === "layoutMode" && value === "stack" && kind !== "CAROUSEL";
       if (typeof value === "string" && ENUMS[key]!.includes(value) && !stackElsewhere) out[key] = value;
+    } else if (key === "columnsMobile") {
+      // Phones may show half a card more (1.5, 2.5) so the row hints it scrolls.
+      const n = Number(value);
+      if (Number.isFinite(n)) out[key] = Math.min(Math.max(Math.round(n * 2) / 2, 1), 3);
     } else if (key === "triggerSize" || key === "triggerSizeMobile") {
       const n = Number(value);
       if (Number.isFinite(n)) out[key] = Math.round(Math.min(Math.max(n, meta.sizeMin), meta.sizeMax));

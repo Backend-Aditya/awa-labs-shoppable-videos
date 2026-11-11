@@ -66,6 +66,10 @@ describe("sanitizeStyle", () => {
       }),
     ).toEqual({ headingSizeMobile: 64, cardGapMobile: 0, columnsMobile: 3, triggerSizeMobile: 140, headerAlign: "center" });
     expect(sanitizeStyle("CAROUSEL", { headerAlign: "right" })).toEqual({});
+    // Cards per row on phones: whole or half cards, 1 to 3.
+    expect(sanitizeStyle("CAROUSEL", { columnsMobile: 1.4 })).toEqual({ columnsMobile: 1.5 });
+    expect(sanitizeStyle("CAROUSEL", { columnsMobile: 0 })).toEqual({ columnsMobile: 1 });
+    expect(sanitizeStyle("CAROUSEL", { columnsMobile: "x" })).toEqual({});
     expect(resolveStyle("PRODUCT_PAGE_REELS", {})).toMatchObject({ headerAlign: "start", cardTemplate: "title", productImageSize: "large" });
     expect(resolveStyle("CAROUSEL", {})).toMatchObject({ headerAlign: "center" });
   });

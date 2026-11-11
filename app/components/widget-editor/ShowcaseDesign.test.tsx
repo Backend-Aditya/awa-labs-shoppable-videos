@@ -44,6 +44,12 @@ function setup(kind: Kind, initial: WidgetStyleConfig = {}, startDevice: Device 
 
 const sectionToggle = (name: string) => screen.getByRole("button", { name: new RegExp(`^${name}`) });
 const slider = (label: string) => screen.getByLabelText(label) as HTMLInputElement;
+const pick = (group: string, option: string) =>
+  userEvent.click(within(screen.getByRole("radiogroup", { name: group })).getByRole("radio", { name: option }));
+const checked = (group: string) =>
+  within(screen.getByRole("radiogroup", { name: group }))
+    .getAllByRole("radio")
+    .find((r) => r.getAttribute("aria-checked") === "true")?.textContent;
 const setRange = (input: HTMLInputElement, value: number) => {
   // Range inputs take a value + input/change event, not typing.
   const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
@@ -79,7 +85,7 @@ describe("ShowcaseDesignTab", { timeout: 20_000 }, () => {
     await userEvent.click(sectionToggle("Card design"));
     expect(sectionToggle("Card design")).toHaveTextContent("Overlay · Square · Discount badge · No play button");
     expect(sectionToggle("Header")).toHaveTextContent("Reels · See it");
-    expect(sectionToggle("Layout & spacing")).toHaveTextContent("Stack · Desktop sizes");
+    expect(sectionToggle("Layout & spacing")).toHaveTextContent("Stack · Auto size");
     expect(sectionToggle("Colors")).toHaveTextContent("Background #161412");
   });
 
@@ -153,16 +159,19 @@ describe("ShowcaseDesignTab", { timeout: 20_000 }, () => {
     expect(latest.style.headingSize).toBe(50);
   });
 
-  it("layout: arrangement, card width or columns per device, spacing, reset all", async () => {
+  it("layout: arrangement, cards per row or stack size per device, spacing, reset all", async () => {
     const latest = setup("CAROUSEL", {}, "desktop");
     await userEvent.click(sectionToggle("Layout & spacing"));
     expect(screen.getByText(/The stack needs 3 or more videos/)).toBeInTheDocument();
 
-    // Carousel card width starts automatic.
-    expect(within(slider("Card width").closest("div[class]")!.parentElement!).getByText("Auto")).toBeInTheDocument();
-    setRange(slider("Card width"), 260);
-    expect(latest.style.triggerSize).toBe(260);
-    await userEvent.click(screen.getByRole("button", { name: "Reset card width to automatic" }));
+    // The stack has a card size: Auto, or a preset.
+    expect(checked("Card size")).toBe("Auto");
+    await pick("Card size", "Large");
+    expect(latest.style.triggerSize).toBe(340);
+    await userEvent.click(sectionToggle("Layout & spacing"));
+    expect(sectionToggle("Layout & spacing")).toHaveTextContent("Stack · Large cards");
+    await userEvent.click(sectionToggle("Layout & spacing"));
+    await pick("Card size", "Auto");
     expect(latest.style.triggerSize).toBeUndefined();
 
     setRange(slider("Space between videos"), 30);
@@ -170,23 +179,33 @@ describe("ShowcaseDesignTab", { timeout: 20_000 }, () => {
     setRange(slider("Space at the sides"), 20);
     expect(latest.style).toMatchObject({ cardGap: 30, sectionPaddingY: 80, sectionPaddingX: 20 });
 
+    // Grid: whole cards per row, desktop and phones.
     await userEvent.click(screen.getByRole("radio", { name: "Grid" }));
     expect(latest.style.layoutMode).toBe("grid");
-    expect(screen.queryByLabelText("Card width")).toBeNull();
-    setRange(slider("Columns"), 5);
+    expect(screen.queryByRole("radiogroup", { name: "Card size" })).toBeNull();
+    await pick("Cards per row", "5");
     expect(latest.style.columns).toBe(5);
 
     await userEvent.click(screen.getByRole("radio", { name: "Mobile" }));
-    setRange(slider("Columns on phones"), 1);
+    expect(screen.queryByRole("radio", { name: "1½" })).toBeNull();
+    await pick("Cards per row on phones", "1");
     expect(latest.style.columnsMobile).toBe(1);
-    await userEvent.click(screen.getByRole("button", { name: "Reset columns on phones to automatic" }));
-    expect(latest.style.columnsMobile).toBeUndefined();
 
+    // A scrolling slider can show half a card more on phones.
     await userEvent.click(screen.getByRole("radio", { name: "Slider" }));
-    setRange(slider("Card width"), 180);
+    await pick("Cards per row on phones", "1½");
+    expect(latest.style.columnsMobile).toBe(1.5);
+    expect(screen.getByText(/1½ cards across your page, the half card/)).toBeInTheDocument();
+    await userEvent.click(sectionToggle("Layout & spacing"));
+    expect(sectionToggle("Layout & spacing")).toHaveTextContent("Slider · 5 per row · 1.5 on phones");
+    await userEvent.click(sectionToggle("Layout & spacing"));
+
+    // A half value saved for a slider shows as whole columns on a grid.
+    await userEvent.click(screen.getByRole("radio", { name: "Grid" }));
+    expect(checked("Cards per row on phones")).toBe("1");
+    await userEvent.click(screen.getByRole("radio", { name: "Stack" }));
+    await pick("Card size on phones", "Small");
     expect(latest.style.triggerSizeMobile).toBe(180);
-    await userEvent.click(screen.getByRole("button", { name: "Reset card width to automatic" }));
-    expect(latest.style.triggerSizeMobile).toBeUndefined();
 
     setRange(slider("Space between videos"), 6);
     expect(latest.style.cardGapMobile).toBe(6);
@@ -194,15 +213,25 @@ describe("ShowcaseDesignTab", { timeout: 20_000 }, () => {
     expect(latest.style.cardGap).toBeUndefined();
     expect(latest.style.cardGapMobile).toBeUndefined();
     expect(latest.style.sectionPaddingY).toBeUndefined();
+    expect(latest.style.triggerSizeMobile).toBeUndefined();
+    expect(latest.style.columnsMobile).toBeUndefined();
   });
 
-  it("product page reels: filmstrip naming, card width resets to its default, no stack", async () => {
-    const latest = setup("PRODUCT_PAGE_REELS", { triggerSize: 260 });
+  it("a stack card size saved from the old width slider shows as the nearest preset", async () => {
+    setup("CAROUSEL", { layoutMode: "stack", triggerSize: 300 });
+    await userEvent.click(sectionToggle("Layout & spacing"));
+    expect(checked("Card size")).toBe("Medium");
+  });
+
+  it("product page reels: filmstrip naming, cards per row, no stack", async () => {
+    const latest = setup("PRODUCT_PAGE_REELS");
     await userEvent.click(sectionToggle("Layout & spacing"));
     expect(screen.queryByRole("radio", { name: "Stack" })).toBeNull();
     expect(screen.getByRole("radio", { name: "Filmstrip" })).toHaveAttribute("aria-checked", "true");
-    await userEvent.click(screen.getByRole("button", { name: "Reset card width to automatic" }));
-    expect(latest.style.triggerSize).toBe(200);
+    expect(checked("Cards per row")).toBe("4");
+    await pick("Cards per row", "3");
+    expect(latest.style.columns).toBe(3);
+    expect(screen.getByText(/fit 3 cards across your page\./)).toBeInTheDocument();
   });
 
   it("colors: accent, background, text and the badge color write hex values", async () => {
@@ -244,7 +273,7 @@ describe("ShowcaseDesignTab", { timeout: 20_000 }, () => {
     expect(screen.getByLabelText("Heading")).toHaveValue("");
     expect(slider("Heading size").value).toBe("28");
     await userEvent.click(sectionToggle("Layout & spacing"));
-    expect(slider("Card width").value).toBe(kind === "CAROUSEL" ? "220" : "200");
+    expect(kind === "CAROUSEL" ? checked("Card size on phones") : checked("Cards per row on phones")).toBe(kind === "CAROUSEL" ? "Auto" : "2");
     await userEvent.click(sectionToggle("Colors"));
     expect(screen.getByLabelText("Text hex value")).toBeInTheDocument();
   });
@@ -262,7 +291,7 @@ describe("ShowcaseDesignTab", { timeout: 20_000 }, () => {
       />,
     );
     await userEvent.click(sectionToggle("Layout & spacing"));
-    expect(slider("Columns").value).toBe("4");
+    expect(checked("Cards per row")).toBe("4");
   });
 });
 

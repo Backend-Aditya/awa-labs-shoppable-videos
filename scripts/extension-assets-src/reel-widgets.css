@@ -1813,3 +1813,43 @@ html[dir="rtl"] .awa-sv-atc__button:hover .awa-sv-atc__chevron { transform: scal
     animation: none;
   }
 }
+
+/* =================================================================
+   Cards per row (slider and filmstrip): the merchant picks how many cards
+   fit across (--awa-sv-columns on desktop, --awa-sv-columns-m on phones,
+   halves allowed so the next card peeks in) and each card's width is
+   worked out from the row's own width, so it suits any theme container.
+   The row is a size container: 100cqw is its width.
+   ================================================================= */
+.awa-sv-showcase {
+  --awa-sv-_cols: var(--awa-sv-columns, 4);
+}
+
+@media (max-width: 749px) {
+  .awa-sv-showcase {
+    --awa-sv-_cols: var(--awa-sv-columns-m, 2);
+  }
+}
+
+.awa-sv-showcase :is(.awa-sv-strip__viewport, .awa-sv-deck__viewport) {
+  container-type: inline-size;
+}
+
+.awa-sv-showcase.awa-sv-strip--carousel .awa-sv-strip__item,
+.awa-sv-showcase.awa-sv-deck--carousel .awa-sv-deck__card {
+  flex: 0 0 calc((100cqw - (var(--awa-sv-_cols) - 1) * var(--awa-sv-_gap)) / var(--awa-sv-_cols));
+  max-width: none;
+}
+
+/* Arrows sit halfway down the posters (9:16 of the card width). */
+.awa-sv-showcase:is(.awa-sv-strip--carousel, .awa-sv-deck--carousel) .awa-sv-arrow {
+  top: calc((100cqw - (var(--awa-sv-_cols) - 1) * var(--awa-sv-_gap)) / var(--awa-sv-_cols) * 16 / 9 / 2);
+}
+
+/* Grids need whole columns: phones use the rounded-down value. */
+@media (max-width: 749px) {
+  .awa-sv-showcase.awa-sv-strip--grid .awa-sv-strip__track,
+  .awa-sv-showcase.awa-sv-deck--grid .awa-sv-deck__stage {
+    grid-template-columns: repeat(var(--awa-sv-grid-columns-m, 2), minmax(0, 1fr));
+  }
+}

@@ -136,7 +136,7 @@ pulls in the viewer runtime when the app embed is off.
     {%- if widget_style.sectionPaddingY != nil %}--awa-sv-pad-y: {{ widget_style.sectionPaddingY | times: 1 }}px;{% endif -%}
     {%- if widget_style.sectionPaddingX != nil %}--awa-sv-pad-x: {{ widget_style.sectionPaddingX | times: 1 }}px;{% endif -%}
     {%- if widget_style.triggerSizeMobile %}--awa-sv-card-w-m: {{ widget_style.triggerSizeMobile | times: 1 }}px;{% endif -%}
-    {%- if widget_style.columnsMobile %}--awa-sv-columns-m: {{ widget_style.columnsMobile | times: 1 }};{% endif -%}
+    {%- if widget_style.columnsMobile %}--awa-sv-columns-m: {{ widget_style.columnsMobile | times: 1 }}; --awa-sv-grid-columns-m: {{ widget_style.columnsMobile | floor }};{% endif -%}
     {%- if widget_style.eyebrowSizeMobile %}--awa-sv-eyebrow-size-m: {{ widget_style.eyebrowSizeMobile | times: 1 }}px;{% endif -%}
     {%- if widget_style.headingSizeMobile %}--awa-sv-heading-size-m: {{ widget_style.headingSizeMobile | times: 1 }}px;{% endif -%}
     {%- if widget_style.subheadingSizeMobile %}--awa-sv-sub-size-m: {{ widget_style.subheadingSizeMobile | times: 1 }}px;{% endif -%}

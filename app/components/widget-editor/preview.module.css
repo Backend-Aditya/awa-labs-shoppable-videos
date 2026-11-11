@@ -247,7 +247,6 @@
   display: flex;
   gap: var(--pv-gap, 12px);
   overflow: hidden;
-  mask-image: linear-gradient(to right, #000 85%, transparent);
 }
 
 .filmGrid {
@@ -263,7 +262,8 @@
 }
 
 .filmCard {
-  flex: 0 0 var(--pv-card-w, calc(var(--pv-size) * 0.62));
+  /* Cards per row, like the storefront: the row's width over the count. */
+  flex: 0 0 calc((100% - (var(--pv-columns, 4) - 1) * var(--pv-gap, 12px)) / var(--pv-columns, 4));
   min-width: 0;
 }
 
@@ -391,7 +391,7 @@
 }
 
 .deckSlider .deckGridCard {
-  flex: 0 0 var(--pv-card-w, 140px);
+  flex: 0 0 calc((100% - (var(--pv-columns, 4) - 1) * var(--pv-gap, 12px)) / var(--pv-columns, 4));
 }
 
 .deckGridCard {
