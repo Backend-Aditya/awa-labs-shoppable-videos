@@ -2274,7 +2274,16 @@ html[dir="rtl"] .awa-sv-pdp__arrow svg {
     overflow: visible;
     background: transparent;
     box-shadow: none;
-    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    /* Clear of the home bar, but no further: one gap, not two stacked. */
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+  }
+
+  /* Nothing but the strip while closed: a video's link button, the cart
+     confirmation and recommendations would otherwise sit (nearly invisible
+     on the video) under the cards and lift them off the bottom. They show
+     again when the sheet is opened. */
+  .awa-sv-viewer.awa-sv-products--large .awa-sv-viewer__panel[data-state="peek"] > :not(.awa-sv-viewer__list, .awa-sv-viewer__panel-head) {
+    display: none;
   }
 
   .awa-sv-viewer.awa-sv-products--large .awa-sv-viewer__panel[data-state="peek"] .awa-sv-viewer__panel-head {
