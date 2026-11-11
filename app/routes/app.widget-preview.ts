@@ -5,8 +5,9 @@ import { getWidget } from "../models/widget.server";
 import { listReels } from "../models/reel.server";
 import { getBrand } from "../models/brand.server";
 import { sanitizeStyle } from "../models/widget-kinds";
-import { previewSupported, renderWidgetPreview } from "../models/widget-preview.server";
+import { previewSupported, renderWidgetPreview, themePagesFor, WIDGET_ROOT_CLASS } from "../models/widget-preview.server";
 import { log } from "../lib/logger.server";
+import { themeContextFor } from "../models/theme-styles.server";
 
 // The widget editor's live preview (see widget-preview.server.ts): renders
 // the real storefront block for the editor's current, unsaved settings.
@@ -44,9 +45,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       .filter((r): r is NonNullable<typeof r> => Boolean(r && r.config.hlsManifestUrl));
     if (reels.length === 0) return Response.json({ html: null, error: null, empty: true });
 
-    const [brand, moneyFormat] = await Promise.all([getBrand(shop.id), shopMoneyFormat(admin)]);
+    const [brand, shopInfo] = await Promise.all([getBrand(shop.id), shopDetails(admin)]);
+    const handles = await productHandles(admin, [...new Set(reels.flatMap((r) => r.config.productIds ?? []))].slice(0, 3));
+    const theme = shopInfo.storefrontUrl
+      ? await themeContextFor(themePagesFor(widget.type, shopInfo.storefrontUrl, handles), WIDGET_ROOT_CLASS[widget.type] ?? "awa-sv")
+      : undefined;
     const origin = new URL(request.url).origin;
-    const html = await renderWidgetPreview({ admin, kind: widget.type, style, reels, brand, origin, moneyFormat });
+    const html = await renderWidgetPreview({ admin, kind: widget.type, style, reels, brand, origin, moneyFormat: shopInfo.moneyFormat, theme });
     return Response.json({ html, error: null });
   } catch (error) {
     if (error instanceof Response) throw error;
@@ -55,13 +60,36 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 };
 
-async function shopMoneyFormat(admin: Parameters<typeof renderWidgetPreview>[0]["admin"]): Promise<string | undefined> {
+// Tagged products' handles: product page reels live on product pages, so
+// that's where to look for the theme around them.
+async function productHandles(admin: Parameters<typeof renderWidgetPreview>[0]["admin"], ids: string[]): Promise<string[]> {
+  if (ids.length === 0) return [];
+  try {
+    const response = await admin.graphql(
+      `#graphql
+      query PreviewHandles($ids: [ID!]!) { nodes(ids: $ids) { ... on Product { handle } } }`,
+      { variables: { ids } },
+    );
+    const json = await response.json();
+    return (json.data?.nodes ?? []).map((n: { handle?: string } | null) => n?.handle).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+// The shop's money format and its storefront address (for the theme's styles).
+async function shopDetails(
+  admin: Parameters<typeof renderWidgetPreview>[0]["admin"],
+): Promise<{ moneyFormat?: string; storefrontUrl?: string }> {
   try {
     const response = await admin.graphql(`#graphql
-      query PreviewMoneyFormat { shop { currencyFormats { moneyFormat } } }`);
+      query PreviewShop { shop { currencyFormats { moneyFormat } primaryDomain { url } } }`);
     const json = await response.json();
-    return json.data?.shop?.currencyFormats?.moneyFormat ?? undefined;
+    return {
+      moneyFormat: json.data?.shop?.currencyFormats?.moneyFormat ?? undefined,
+      storefrontUrl: json.data?.shop?.primaryDomain?.url ?? undefined,
+    };
   } catch {
-    return undefined;
+    return {};
   }
 }
