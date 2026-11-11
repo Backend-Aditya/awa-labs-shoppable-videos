@@ -45,7 +45,9 @@ export interface WidgetStyleConfig {
   playTrigger?: "click" | "hover";
   autoplayOnScroll?: boolean;
   // Per-kind presentation
-  ringStyle?: "gradient" | "solid";
+  ringStyle?: "gradient" | "solid" | "none";
+  // Stories: round avatars, rounded squares, or tall story cards.
+  storyShape?: "circle" | "rounded" | "portrait";
   popShape?: "circle" | "portrait";
   singleLayout?: "split" | "poster";
   showDuration?: boolean;
@@ -242,6 +244,29 @@ const POPUP_DEFAULTS: WidgetStyleConfig = {
   popupCorners: "square",
 };
 
+const STORIES_SECTION_FIELDS: StyleFieldKey[] = [
+  "storyShape",
+  "triggerSizeMobile",
+  "backgroundColor",
+  "eyebrow",
+  "subheading",
+  "headerAlign",
+  "eyebrowSize",
+  "headingSize",
+  "subheadingSize",
+  "cardTextSize",
+  "cardGap",
+  "sectionPaddingY",
+  "sectionPaddingX",
+  "eyebrowSizeMobile",
+  "headingSizeMobile",
+  "subheadingSizeMobile",
+  "cardTextSizeMobile",
+  "cardGapMobile",
+  "sectionPaddingYMobile",
+  "sectionPaddingXMobile",
+];
+
 const SHOWCASE_DEFAULTS: WidgetStyleConfig = {
   eyebrow: "",
   subheading: "",
@@ -375,11 +400,19 @@ export const WIDGET_KIND_META: Record<Exclude<WidgetKind, "GRID">, WidgetKindMet
       "textColor",
       "showCaption",
       "storyDuration",
+      // The section around the row, like the carousel and product page
+      // reels: header, shape and sizes per device, spacing, background.
+      ...STORIES_SECTION_FIELDS,
       ...PRODUCT_TAG_FIELDS.filter((f) => f !== "viewerNav"),
     ],
     defaults: {
       ...PRODUCT_TAG_DEFAULTS,
       heading: "",
+      eyebrow: "",
+      subheading: "",
+      headerAlign: "start",
+      storyShape: "circle",
+      backgroundColor: "",
       triggerSize: 72,
       ringStyle: "gradient",
       accentColor: "#f58529",
@@ -389,9 +422,9 @@ export const WIDGET_KIND_META: Record<Exclude<WidgetKind, "GRID">, WidgetKindMet
       storyDuration: 15,
       mutedDefault: true,
     },
-    sizeLabel: "Avatar size",
+    sizeLabel: "Story size",
     sizeMin: 48,
-    sizeMax: 120,
+    sizeMax: 160,
     accentLabel: "Ring start",
   },
   SINGLE_VIDEO: {
@@ -562,7 +595,8 @@ const ENUMS: Partial<Record<StyleFieldKey, readonly string[]>> = {
   shadowPreset: ["none", "soft", "bold"],
   layoutMode: ["carousel", "grid", "stack"],
   playTrigger: ["click", "hover"],
-  ringStyle: ["gradient", "solid"],
+  ringStyle: ["gradient", "solid", "none"],
+  storyShape: ["circle", "rounded", "portrait"],
   popShape: ["circle", "portrait"],
   singleLayout: ["split", "poster"],
   ctaStyle: ["pill", "square", "text-link"],

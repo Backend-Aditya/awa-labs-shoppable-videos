@@ -57,6 +57,7 @@ import {
   LOOKS,
   ShowcaseDesignTab,
 } from "../components/widget-editor/ShowcaseDesign";
+import { StoriesDesignTab } from "../components/widget-editor/StoriesDesign";
 import type { Look } from "../components/widget-editor/ShowcaseDesign";
 import type { Device, Mode, PreviewHighlight, PreviewReel } from "../components/widget-editor/WidgetPreview";
 import styles from "../components/widget-editor/editor.module.css";
@@ -446,6 +447,15 @@ export default function WidgetEditor() {
                   style={state.style}
                   setStyle={setStyle}
                   brand={brand}
+                  device={previewDevice}
+                  setDevice={setPreviewDevice}
+                  onFocusArea={setHighlight}
+                />
+              ) : meta.kind === "STORIES" ? (
+                <StoriesDesignTab
+                  meta={meta}
+                  style={state.style}
+                  setStyle={setStyle}
                   device={previewDevice}
                   setDevice={setPreviewDevice}
                   onFocusArea={setHighlight}
@@ -987,17 +997,6 @@ function DesignTab({
             </div>
           </Field>
         )}
-        {has("ringStyle") && (
-          <Segmented
-            label="Ring"
-            value={style.ringStyle ?? "gradient"}
-            onChange={(ringStyle) => setStyle({ ringStyle })}
-            options={[
-              { value: "gradient", label: "Gradient" },
-              { value: "solid", label: "Solid" },
-            ]}
-          />
-        )}
         {has("triggerSize") && meta.kind !== "CAROUSEL" && (meta.kind !== "PRODUCT_PAGE_REELS" || style.layoutMode !== "grid") && (
           <Slider
             label={meta.sizeLabel}
@@ -1045,13 +1044,6 @@ function DesignTab({
               onChange={(accentColor) => setStyle({ accentColor })}
             />
           )}
-          {has("accentSecondaryColor") && style.ringStyle !== "solid" && (
-            <ColorInput
-              label="Ring end"
-              value={style.accentSecondaryColor ?? ""}
-              onChange={(accentSecondaryColor) => setStyle({ accentSecondaryColor })}
-            />
-          )}
           {has("backgroundColor") && (
             <ColorInput
               label="Background"
@@ -1077,7 +1069,7 @@ function DesignTab({
         <Card title="Details">
           {has("showCaption") && (!has("cardTemplate") || template === "title") && (
             <Toggle
-              label={meta.kind === "STORIES" ? "Show names under avatars" : "Show video titles"}
+              label="Show video titles"
               checked={style.showCaption ?? true}
               onChange={(showCaption) => setStyle({ showCaption })}
             />

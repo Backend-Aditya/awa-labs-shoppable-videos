@@ -586,6 +586,19 @@
   border-radius: 50%;
 }
 
+.story_rounded :is(.storyRing, .storyInner, .storyPoster) {
+  border-radius: 26%;
+}
+
+.story_portrait .storyRing {
+  height: calc(var(--pv-size) * 1.6);
+  border-radius: 12px;
+}
+
+.story_portrait :is(.storyInner, .storyPoster) {
+  border-radius: 9px;
+}
+
 .storyLabel {
   font-size: 12px;
   max-width: 100%;
