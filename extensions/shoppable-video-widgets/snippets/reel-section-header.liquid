@@ -1,0 +1,48 @@
+{% doc %}
+The eyebrow / heading / text header above a video row, plus an optional
+link ("View all"). Text comes from the block's own theme-editor settings
+when filled in, so merchants can edit it right in the theme editor with a
+live preview, and otherwise from the widget's text set in the app.
+
+@param style {object} - the widget's style object (eyebrow, heading, subheading, headerAlign)
+@param settings {object} - the block's settings (eyebrow, heading, text, header_align, link_label, link)
+@param align {string} - alignment when neither the block nor the widget sets one: 'start' or 'center'
+
+@example
+{% render 'reel-section-header', style: widget_style, settings: block.settings, align: 'center' %}
+{% enddoc %}
+{%- liquid
+  assign eyebrow = settings.eyebrow | default: style.eyebrow
+  assign heading = settings.heading | default: style.heading
+  assign text = settings.text | default: style.subheading
+  assign header_align = settings.header_align
+  if header_align != 'start' and header_align != 'center'
+    assign header_align = style.headerAlign | default: align
+  endif
+  if header_align != 'start'
+    assign header_align = 'center'
+  endif
+  assign show_link = false
+  if settings.link_label != blank and settings.link != blank
+    assign show_link = true
+  endif
+-%}
+{%- if eyebrow != blank or heading != blank or text != blank or show_link -%}
+  <header class="awa-sv-header awa-sv-header--{{ header_align }}">
+    {%- if eyebrow != blank -%}
+      <p class="awa-sv-header__eyebrow">{{ eyebrow | escape }}</p>
+    {%- endif -%}
+    {%- if heading != blank -%}
+      <h2 class="awa-sv-heading{% if header_align == 'center' %} awa-sv-heading--center{% endif %}">{{ heading | escape }}</h2>
+    {%- endif -%}
+    {%- if text != blank -%}
+      <p class="awa-sv-header__text">{{ text | escape }}</p>
+    {%- endif -%}
+    {%- if show_link -%}
+      <a class="awa-sv-header__link" href="{{ settings.link }}">
+        {{- settings.link_label | escape -}}
+        {%- render 'reel-icon', name: 'chevron-right', size: 14 -%}
+      </a>
+    {%- endif -%}
+  </header>
+{%- endif -%}

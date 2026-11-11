@@ -94,6 +94,26 @@ pulls in the viewer runtime when the app embed is off.
     assign show_price = false
   endif
 
+  # Card templates, shared with the stacked carousel: "title" is this
+  # widget's original look (caption + featured product under the video).
+  assign card_template = widget_style.cardTemplate | default: 'title'
+  assign card_below = false
+  case card_template
+    when 'classic', 'modern', 'vibrant'
+      assign card_below = true
+    when 'overlay'
+    else
+      assign card_template = 'title'
+  endcase
+  assign show_play = true
+  if widget_style.showPlayIcon == false
+    assign show_play = false
+  endif
+  assign show_card_badge = false
+  if widget_style.showCardBadge == true
+    assign show_card_badge = true
+  endif
+
   case widget_style.cornerStyle
     when 'sharp'
       assign radius = '0px'
@@ -115,16 +135,36 @@ pulls in the viewer runtime when the app embed is off.
     {%- if widget_style.accentColor != blank %}--awa-sv-accent: {{ widget_style.accentColor | escape }}; --awa-sv-play: {{ widget_style.accentColor | escape }};{% endif -%}
     {%- if widget_style.backgroundColor != blank %}--awa-sv-bg: {{ widget_style.backgroundColor | escape }};{% endif -%}
     {%- if widget_style.textColor != blank %}--awa-sv-text: {{ widget_style.textColor | escape }};{% endif -%}
+    {%- if widget_style.accentColor != blank %}--awa-sv-eyebrow: {{ widget_style.accentColor | escape }};{% endif -%}
+    {%- comment -%} Sizing and spacing (desktop, then phones): only what the merchant set. {%- endcomment -%}
+    {%- if widget_style.eyebrowSize %}--awa-sv-eyebrow-size: {{ widget_style.eyebrowSize | times: 1 }}px;{% endif -%}
+    {%- if widget_style.headingSize %}--awa-sv-heading-size: {{ widget_style.headingSize | times: 1 }}px;{% endif -%}
+    {%- if widget_style.subheadingSize %}--awa-sv-sub-size: {{ widget_style.subheadingSize | times: 1 }}px;{% endif -%}
+    {%- if widget_style.cardTextSize %}--awa-sv-card-text: {{ widget_style.cardTextSize | times: 1 }}px;{% endif -%}
+    {%- if widget_style.cardGap != nil %}--awa-sv-gap: {{ widget_style.cardGap | times: 1 }}px;{% endif -%}
+    {%- if widget_style.sectionPaddingY != nil %}--awa-sv-pad-y: {{ widget_style.sectionPaddingY | times: 1 }}px;{% endif -%}
+    {%- if widget_style.sectionPaddingX != nil %}--awa-sv-pad-x: {{ widget_style.sectionPaddingX | times: 1 }}px;{% endif -%}
+    {%- if widget_style.triggerSizeMobile %}--awa-sv-card-w-m: {{ widget_style.triggerSizeMobile | times: 1 }}px;{% endif -%}
+    {%- if widget_style.columnsMobile %}--awa-sv-columns-m: {{ widget_style.columnsMobile | times: 1 }};{% endif -%}
+    {%- if widget_style.eyebrowSizeMobile %}--awa-sv-eyebrow-size-m: {{ widget_style.eyebrowSizeMobile | times: 1 }}px;{% endif -%}
+    {%- if widget_style.headingSizeMobile %}--awa-sv-heading-size-m: {{ widget_style.headingSizeMobile | times: 1 }}px;{% endif -%}
+    {%- if widget_style.subheadingSizeMobile %}--awa-sv-sub-size-m: {{ widget_style.subheadingSizeMobile | times: 1 }}px;{% endif -%}
+    {%- if widget_style.cardTextSizeMobile %}--awa-sv-card-text-m: {{ widget_style.cardTextSizeMobile | times: 1 }}px;{% endif -%}
+    {%- if widget_style.cardGapMobile != nil %}--awa-sv-gap-m: {{ widget_style.cardGapMobile | times: 1 }}px;{% endif -%}
+    {%- if widget_style.sectionPaddingYMobile != nil %}--awa-sv-pad-y-m: {{ widget_style.sectionPaddingYMobile | times: 1 }}px;{% endif -%}
+    {%- if widget_style.sectionPaddingXMobile != nil %}--awa-sv-pad-x-m: {{ widget_style.sectionPaddingXMobile | times: 1 }}px;{% endif -%}
+    {%- if widget_style.badgeColor != blank %}--awa-sv-card-badge: {{ widget_style.badgeColor | escape }};{% endif -%}
+    {%- if widget_style.ctaColor != blank %}--awa-sv-cta: {{ widget_style.ctaColor | escape }};{% endif -%}
+    {%- if widget_style.ctaTextColor != blank %}--awa-sv-cta-text: {{ widget_style.ctaTextColor | escape }};{% endif -%}
   {%- endcapture -%}
   <section
-    class="awa-sv awa-sv-strip awa-sv-strip--{{ layout }} awa-sv-shadow--{{ widget_style.shadowPreset | default: 'none' | escape }} awa-sv-device--{{ widget.deviceVisibility | default: 'all' | escape }}{% if widget_style.backgroundColor != blank %} awa-sv--filled{% endif %}"
+    class="awa-sv awa-sv-showcase awa-sv-strip awa-sv-strip--{{ layout }} awa-sv-cards--{{ card_template }} awa-sv-shadow--{{ widget_style.shadowPreset | default: 'none' | escape }} awa-sv-device--{{ widget.deviceVisibility | default: 'all' | escape }}{% if widget_style.backgroundColor != blank %} awa-sv--filled{% endif %}"
     style="{{ wrapper_style | strip_newlines }}"
-    {% if widget_style.heading != blank %}aria-label="{{ widget_style.heading | escape }}"{% endif %}
+    {%- assign strip_label = block.settings.heading | default: widget_style.heading -%}
+    {% if strip_label != blank %}aria-label="{{ strip_label | escape }}"{% endif %}
     {{ block.shopify_attributes }}
   >
-    {%- if widget_style.heading != blank -%}
-      <h2 class="awa-sv-heading">{{ widget_style.heading | escape }}</h2>
-    {%- endif -%}
+    {%- render 'reel-section-header', style: widget_style, settings: block.settings, align: 'start' -%}
     <div class="awa-sv-strip__viewport">
       <ul class="awa-sv-strip__track" data-awa-sv-group data-awa-sv-strip role="list">
         {%- assign rendered = 0 -%}
@@ -142,23 +182,52 @@ pulls in the viewer runtime when the app embed is off.
               endif
             -%}
             {%- render 'reel-video-schema', reel: reel -%}
+            {%- liquid
+              assign lead = reel.tagged_products.value | first
+              assign lead_variant = lead.selected_or_first_available_variant
+              assign card_discount = 0
+              if show_card_badge and lead_variant.compare_at_price > lead_variant.price
+                assign half = lead_variant.compare_at_price | divided_by: 2
+                assign card_discount = lead_variant.compare_at_price | minus: lead_variant.price | times: 100 | plus: half | divided_by: lead_variant.compare_at_price
+              endif
+              assign has_lead = false
+              if lead or reel.title.value != blank
+                assign has_lead = true
+              endif
+            -%}
             {%- capture card -%}
               <button type="button" class="awa-sv-trigger__button awa-sv-strip__poster" aria-label="{{ play_label }}">
                 {%- if reel.config.value.posterUrl != blank -%}
                   {%- capture poster_sizes %}min({{ card_width }}px, 70vw){% endcapture -%}
                   {%- render 'reel-poster', url: reel.config.value.posterUrl, height: 800, width_attr: 360, height_attr: 640, srcset_heights: '480,800,1200', sizes: poster_sizes, eager: first, priority: first -%}
                 {%- endif -%}
-                <span class="awa-sv-strip__play awa-sv-play" aria-hidden="true">{%- render 'reel-icon', name: 'play', size: 18 -%}</span>
+                {%- if card_discount > 0 -%}
+                  <span class="awa-sv-card__badge">{{ 'reels.percent_off' | t: percent: card_discount }}</span>
+                {%- endif -%}
+                {%- if show_play -%}
+                  <span class="awa-sv-strip__play awa-sv-play" aria-hidden="true">{%- render 'reel-icon', name: 'play', size: 18 -%}</span>
+                {%- endif -%}
+                {%- if card_template == 'overlay' and has_lead -%}
+                  <span class="awa-sv-card__overlay">{%- render 'reel-card-lead', reel: reel, template: card_template, show_price: show_price -%}</span>
+                {%- endif -%}
                 {%- if show_duration -%}{%- render 'reel-duration', reel: reel, icon: true -%}{%- endif -%}
               </button>
+              {%- if card_below -%}
+                {%- comment -%} Under the video; a click opens the same reel (reel-trigger.js, data-awa-sv-open). {%- endcomment -%}
+                <div class="awa-sv-card__info" data-awa-sv-open>
+                  {%- render 'reel-card-lead', reel: reel, template: card_template, show_price: show_price -%}
+                  {%- if card_template != 'classic' -%}
+                    <span class="awa-sv-card__shop" aria-hidden="true">{{ 'reels.shop_now' | t }}</span>
+                  {%- endif -%}
+                </div>
+              {%- endif -%}
             {%- endcapture -%}
             <li class="awa-sv-strip__item">
-              {%- render 'reel-trigger', reel: reel, style: widget_style, source: 'product_page_reels', inner: card, muted_default: true, autoplay_default: true -%}
-              {%- if show_caption and reel.title.value != blank -%}
+              {%- render 'reel-trigger', reel: reel, style: widget_style, source: 'product_page_reels', inner: card, muted_default: true, autoplay_default: true, details_default: true, image_size_default: 'large', corners_default: 'square' -%}
+              {%- if card_template == 'title' and show_caption and reel.title.value != blank -%}
                 <p class="awa-sv-strip__caption">{{ reel.title.value | escape }}</p>
               {%- endif -%}
-              {%- if show_product -%}
-                {%- assign lead = reel.tagged_products.value | first -%}
+              {%- if card_template == 'title' and show_product -%}
                 {%- if lead -%}
                   <a class="awa-sv-strip__product" href="{{ lead.url }}">
                     {%- if lead.featured_image -%}
@@ -204,8 +273,32 @@ pulls in the viewer runtime when the app embed is off.
       "info": "Which of your product page reels widgets to show. Leave empty to show your most recently saved live one."
     },
     {
+      "type": "header",
+      "content": "Section header"
+    },
+    {
       "type": "paragraph",
-      "content": "Videos, layout and colors are set in the app under Widgets › Product page reels."
+      "content": "Edit the header here with a live preview. Leave a field empty to use the text set in the app."
+    },
+    { "type": "text", "id": "eyebrow", "label": "Eyebrow" },
+    { "type": "text", "id": "heading", "label": "Heading" },
+    { "type": "textarea", "id": "text", "label": "Text" },
+    {
+      "type": "select",
+      "id": "header_align",
+      "label": "Alignment",
+      "options": [
+        { "value": "default", "label": "As set in the app" },
+        { "value": "start", "label": "Left" },
+        { "value": "center", "label": "Center" }
+      ],
+      "default": "default"
+    },
+    { "type": "text", "id": "link_label", "label": "Link label", "info": "e.g. View all. Shown under the header with the link below." },
+    { "type": "url", "id": "link", "label": "Link" },
+    {
+      "type": "paragraph",
+      "content": "Videos, card design, colors, sizes and the popup are set in the app under Widgets › Product page reels."
     }
   ]
 }

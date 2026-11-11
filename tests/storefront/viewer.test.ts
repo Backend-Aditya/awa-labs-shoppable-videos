@@ -13,7 +13,8 @@ const reels = [
 ];
 
 async function mountStrip(style: object = {}, list = reels) {
-  await mount(await renderBlock("product-page-reels", { reels: list, product: products[0], widget: makeWidget({ style }) }));
+  // Compact rows that link out (the pre-tiles behaviour these tests cover).
+  await mount(await renderBlock("product-page-reels", { reels: list, product: products[0], widget: makeWidget({ style: { productImageSize: "compact", productDetails: false, ...style } }) }));
 }
 const triggerButton = (i: number) => document.querySelectorAll<HTMLButtonElement>("[data-awa-sv-trigger] .awa-sv-trigger__button")[i];
 const q = <E extends Element = HTMLElement>(selector: string) => viewer()!.querySelector<E>(selector)!;

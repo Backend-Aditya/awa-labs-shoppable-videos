@@ -47,18 +47,18 @@ describe("stacked-carousel card templates", () => {
 
   it("defaults to the original title caption, play button and no badge", async () => {
     const { $ } = await render({});
-    expect($("section")!.className).toContain("awa-sv-deck--card-title");
+    expect($("section")!.className).toContain("awa-sv-cards--title");
     expect($(".awa-sv-deck__caption")).not.toBeNull();
     expect($(".awa-sv-deck__play")).not.toBeNull();
-    expect($(".awa-sv-deck__badge")).toBeNull();
-    expect($(".awa-sv-deck__info")).toBeNull();
+    expect($(".awa-sv-card__badge")).toBeNull();
+    expect($(".awa-sv-card__info")).toBeNull();
   });
 
   it("overlay puts the escaped lead product, price and compare-at on the poster", async () => {
     const { $, html } = await render({ cardTemplate: "overlay", showPlayIcon: false });
-    const overlay = $(".awa-sv-deck__poster .awa-sv-deck__overlay")!;
-    expect(overlay.querySelector(".awa-sv-deck__product-title")!.textContent).toBe("<i>Chair</i>");
-    expect(overlay.querySelector(".awa-sv-deck__product-price s")!.textContent).toBe("$36.00");
+    const overlay = $(".awa-sv-deck__poster .awa-sv-card__overlay")!;
+    expect(overlay.querySelector(".awa-sv-card__product-title")!.textContent).toBe("<i>Chair</i>");
+    expect(overlay.querySelector(".awa-sv-card__product-price s")!.textContent).toBe("$36.00");
     expect($(".awa-sv-deck__caption")).toBeNull();
     expect($(".awa-sv-deck__play")).toBeNull();
     expect(visibleMarkup(html)).not.toContain("<i>Chair</i>");
@@ -70,26 +70,26 @@ describe("stacked-carousel card templates", () => {
     ["vibrant", true],
   ])("%s puts the product under the video (shop button: %s)", async (cardTemplate, button) => {
     const { $ } = await render({ cardTemplate });
-    const info = $(".awa-sv-deck__info[data-awa-sv-open]")!;
+    const info = $(".awa-sv-card__info[data-awa-sv-open]")!;
     expect(info.closest("[data-awa-sv-trigger]")).not.toBeNull();
-    expect(info.querySelector(".awa-sv-deck__product-title")!.textContent).toBe("<i>Chair</i>");
-    expect(Boolean(info.querySelector(".awa-sv-deck__shop"))).toBe(button);
-    expect(Boolean(info.querySelector(".awa-sv-deck__thumb"))).toBe(cardTemplate !== "modern");
+    expect(info.querySelector(".awa-sv-card__product-title")!.textContent).toBe("<i>Chair</i>");
+    expect(Boolean(info.querySelector(".awa-sv-card__shop"))).toBe(button);
+    expect(Boolean(info.querySelector(".awa-sv-card__thumb"))).toBe(cardTemplate !== "modern");
   });
 
   it("discount ribbon shows the rounded saving, only when on and on sale", async () => {
     const on = await render({ showCardBadge: true, badgeColor: "#123456" });
-    expect(on.$(".awa-sv-deck__badge")!.textContent).toBe("58% OFF");
+    expect(on.$(".awa-sv-card__badge")!.textContent).toBe("58% OFF");
     expect(on.$("section")!.getAttribute("style")).toContain("--awa-sv-card-badge: #123456");
     const full = await render({ showCardBadge: true }, [makeProduct()]);
-    expect(full.$(".awa-sv-deck__badge")).toBeNull();
+    expect(full.$(".awa-sv-card__badge")).toBeNull();
   });
 
   it("eyebrow, heading and subheading render escaped in a header", async () => {
     const { $ } = await render({ eyebrow: "Shoppable <b>reels</b>", heading: "See it", subheading: "Tap any reel" });
-    expect($(".awa-sv-deck__header .awa-sv-deck__eyebrow")!.textContent).toBe("Shoppable <b>reels</b>");
-    expect($(".awa-sv-deck__header .awa-sv-heading")!.textContent).toBe("See it");
-    expect($(".awa-sv-deck__header .awa-sv-deck__subheading")!.textContent).toBe("Tap any reel");
+    expect($(".awa-sv-header .awa-sv-header__eyebrow")!.textContent).toBe("Shoppable <b>reels</b>");
+    expect($(".awa-sv-header .awa-sv-heading")!.textContent).toBe("See it");
+    expect($(".awa-sv-header .awa-sv-header__text")!.textContent).toBe("Tap any reel");
   });
 
   it("viewer settings: details and big images on by default, off when chosen", async () => {
@@ -332,5 +332,102 @@ describe("picking a widget in the block's Widget setting", () => {
   it("no pick falls back to the shop's live widget", async () => {
     const { html } = await renderDom("stacked-carousel", blockContext("stacked-carousel", { reels: [titled("Live reel", 91)] }));
     expect(html).toContain("Live reel");
+  });
+});
+
+describe("product page reels: carousel designs", () => {
+  const sale = () => makeProduct({ id: 7, title: "Chair", variants: [{ id: 700, price: 1500, compare_at_price: 3600 }] });
+  const render = (style: object, settings: object = {}) =>
+    renderDom(
+      "product-page-reels",
+      blockContext("product-page-reels", { reels: reels(2, [sale()]), widget: makeWidget({ style }), product: sale(), settings }),
+    );
+
+  it("keeps its original look by default: caption and featured product under each video", async () => {
+    const { $ } = await render({});
+    expect($("section")!.className).toContain("awa-sv-cards--title");
+    expect($(".awa-sv-strip__product")).not.toBeNull();
+    expect($(".awa-sv-card__overlay")).toBeNull();
+    expect($(".awa-sv-strip__play")).not.toBeNull();
+  });
+
+  it("overlay template: product bar on the poster, discount ribbon, no play button, no caption", async () => {
+    const { $ } = await render({ cardTemplate: "overlay", showCardBadge: true, showPlayIcon: false });
+    expect($(".awa-sv-strip__poster .awa-sv-card__overlay .awa-sv-card__product-title")!.textContent).toBe("Chair");
+    expect($(".awa-sv-card__badge")!.textContent).toBe("58% OFF");
+    expect($(".awa-sv-strip__play")).toBeNull();
+    expect($(".awa-sv-strip__product")).toBeNull();
+    expect($(".awa-sv-strip__caption")).toBeNull();
+  });
+
+  it("vibrant template: product and Shop now under the video, opening the reel", async () => {
+    const { $ } = await render({ cardTemplate: "vibrant" });
+    const info = $(".awa-sv-card__info[data-awa-sv-open]")!;
+    expect(info.closest("[data-awa-sv-trigger]")).not.toBeNull();
+    expect(info.querySelector(".awa-sv-card__shop")!.textContent).toBe("Shop now");
+  });
+
+  it("popup defaults match the carousel: big tiles, product details, square corners", async () => {
+    const { $ } = await render({});
+    const trigger = $("[data-awa-sv-trigger]")!;
+    expect(trigger.getAttribute("data-product-details")).toBe("true");
+    expect(trigger.getAttribute("data-product-image-size")).toBe("large");
+    expect(trigger.getAttribute("data-popup-corners")).toBe("square");
+  });
+
+  it("header from the app is left-aligned by default", async () => {
+    const { $ } = await render({ eyebrow: "Reels", heading: "See it", subheading: "Watch" });
+    expect($(".awa-sv-header")!.className).toContain("awa-sv-header--start");
+    expect($(".awa-sv-header__eyebrow")!.textContent).toBe("Reels");
+  });
+});
+
+describe("theme editor header settings", () => {
+  const render = (block: "product-page-reels" | "stacked-carousel", style: object, settings: object) =>
+    renderDom(block, blockContext(block, { reels: reels(3), widget: makeWidget({ style }), settings }));
+
+  it.each(["product-page-reels", "stacked-carousel"] as const)("%s: block text overrides the app's, empty fields fall back", async (block) => {
+    const { $ } = await render(block, { eyebrow: "App eyebrow", heading: "App heading", subheading: "App text" }, {
+      heading: "Editor <b>heading</b>",
+      text: "",
+      header_align: "center",
+    });
+    expect($(".awa-sv-heading")!.textContent).toBe("Editor <b>heading</b>");
+    expect($(".awa-sv-header__eyebrow")!.textContent).toBe("App eyebrow");
+    expect($(".awa-sv-header__text")!.textContent).toBe("App text");
+    expect($(".awa-sv-header")!.className).toContain("awa-sv-header--center");
+    expect($("section")!.getAttribute("aria-label")).toBe("Editor <b>heading</b>");
+  });
+
+  it("the link shows only with both a label and a URL", async () => {
+    const both = await render("stacked-carousel", {}, { link_label: "View all", link: "/collections/all" });
+    const link = both.$(".awa-sv-header__link")!;
+    expect(link.textContent!.trim()).toBe("View all");
+    expect(link.getAttribute("href")).toBe("/collections/all");
+    const labelOnly = await render("stacked-carousel", {}, { link_label: "View all" });
+    expect(labelOnly.$(".awa-sv-header__link")).toBeNull();
+  });
+
+  it("'As set in the app' keeps the widget's alignment", async () => {
+    const { $ } = await render("stacked-carousel", { heading: "H", headerAlign: "start" }, { header_align: "default" });
+    expect($(".awa-sv-header")!.className).toContain("awa-sv-header--start");
+  });
+});
+
+describe("phone sizes", () => {
+  it.each(["product-page-reels", "stacked-carousel"] as const)("%s emits -m variables only for phone values that are set", async (block) => {
+    const { $ } = await renderDom(
+      block,
+      blockContext(block, {
+        reels: reels(3),
+        widget: makeWidget({ style: { headingSizeMobile: 26, cardGapMobile: 0, sectionPaddingXMobile: 12, triggerSizeMobile: 180, columnsMobile: 1 } }),
+      }),
+    );
+    const style = $("section")!.getAttribute("style")!;
+    for (const part of ["--awa-sv-heading-size-m: 26px", "--awa-sv-gap-m: 0px", "--awa-sv-pad-x-m: 12px", "--awa-sv-card-w-m: 180px", "--awa-sv-columns-m: 1"]) {
+      expect(style).toContain(part);
+    }
+    expect(style).not.toContain("--awa-sv-sub-size-m");
+    expect($("section")!.className).toContain("awa-sv-showcase");
   });
 });

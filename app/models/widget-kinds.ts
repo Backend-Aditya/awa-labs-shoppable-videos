@@ -93,6 +93,19 @@ export interface WidgetStyleConfig {
   cardGap?: number;
   sectionPaddingY?: number;
   sectionPaddingX?: number;
+  // Phones (under 750px) get their own value for each size/spacing; unset =
+  // the storefront's built-in mobile scaling of the desktop value.
+  eyebrowSizeMobile?: number;
+  headingSizeMobile?: number;
+  subheadingSizeMobile?: number;
+  cardTextSizeMobile?: number;
+  cardGapMobile?: number;
+  sectionPaddingYMobile?: number;
+  sectionPaddingXMobile?: number;
+  triggerSizeMobile?: number;
+  columnsMobile?: number;
+  // Where the eyebrow, heading and subheading sit.
+  headerAlign?: "start" | "center";
 }
 
 export type StyleFieldKey = keyof WidgetStyleConfig;
@@ -182,6 +195,52 @@ const PRODUCT_TAG_FIELDS: StyleFieldKey[] = [
   "afterAdd",
 ];
 
+// Everything the stacked carousel and the product page reels share beyond
+// the basics: card templates, the section header, card badges, the popup's
+// product layout/details, and desktop + mobile sizing and spacing.
+const SHOWCASE_FIELDS: StyleFieldKey[] = [
+  "eyebrow",
+  "subheading",
+  "headerAlign",
+  "cardTemplate",
+  "showPlayIcon",
+  "showCardBadge",
+  "badgeColor",
+  "productImageSize",
+  "productDetails",
+  "showDescription",
+  "popupCorners",
+  "triggerSizeMobile",
+  "columnsMobile",
+  "eyebrowSize",
+  "headingSize",
+  "subheadingSize",
+  "cardTextSize",
+  "cardGap",
+  "sectionPaddingY",
+  "sectionPaddingX",
+  "eyebrowSizeMobile",
+  "headingSizeMobile",
+  "subheadingSizeMobile",
+  "cardTextSizeMobile",
+  "cardGapMobile",
+  "sectionPaddingYMobile",
+  "sectionPaddingXMobile",
+];
+
+const SHOWCASE_DEFAULTS: WidgetStyleConfig = {
+  eyebrow: "",
+  subheading: "",
+  cardTemplate: "title",
+  showPlayIcon: true,
+  showCardBadge: false,
+  badgeColor: "",
+  productImageSize: "large",
+  productDetails: true,
+  showDescription: true,
+  popupCorners: "square",
+};
+
 export const CARD_TEMPLATES: { value: NonNullable<WidgetStyleConfig["cardTemplate"]>; label: string }[] = [
   { value: "title", label: "Only video title" },
   { value: "classic", label: "Classic" },
@@ -214,9 +273,12 @@ export const WIDGET_KIND_META: Record<Exclude<WidgetKind, "GRID">, WidgetKindMet
       "playTrigger",
       "autoplayOnScroll",
       ...PRODUCT_TAG_FIELDS,
+      ...SHOWCASE_FIELDS,
     ],
     defaults: {
       ...PRODUCT_TAG_DEFAULTS,
+      ...SHOWCASE_DEFAULTS,
+      headerAlign: "start",
       heading: "See it in action",
       layoutMode: "carousel",
       columns: 4,
@@ -246,10 +308,7 @@ export const WIDGET_KIND_META: Record<Exclude<WidgetKind, "GRID">, WidgetKindMet
     icon: "layout-columns-3",
     reelSelection: "list",
     fields: [
-      "eyebrow",
       "heading",
-      "subheading",
-      "cardTemplate",
       "layoutMode",
       "columns",
       "cornerStyle",
@@ -259,37 +318,16 @@ export const WIDGET_KIND_META: Record<Exclude<WidgetKind, "GRID">, WidgetKindMet
       "textColor",
       "showCaption",
       "showDuration",
-      "showPlayIcon",
-      "showCardBadge",
-      "badgeColor",
       "autoplayOnScroll",
-      ...PRODUCT_TAG_FIELDS,
-      "productImageSize",
-      "productDetails",
-      "showDescription",
-      "popupCorners",
       "triggerSize",
-      "eyebrowSize",
-      "headingSize",
-      "subheadingSize",
-      "cardTextSize",
-      "cardGap",
-      "sectionPaddingY",
-      "sectionPaddingX",
+      ...PRODUCT_TAG_FIELDS,
+      ...SHOWCASE_FIELDS,
     ],
     defaults: {
       ...PRODUCT_TAG_DEFAULTS,
-      eyebrow: "",
+      ...SHOWCASE_DEFAULTS,
+      headerAlign: "center",
       heading: "Shop the looks",
-      subheading: "",
-      cardTemplate: "title",
-      showPlayIcon: true,
-      showCardBadge: false,
-      badgeColor: "",
-      productImageSize: "large",
-      productDetails: true,
-      showDescription: true,
-      popupCorners: "square",
       layoutMode: "stack",
       columns: 4,
       cornerStyle: "soft",
@@ -511,6 +549,7 @@ const ENUMS: Partial<Record<StyleFieldKey, readonly string[]>> = {
   cardTemplate: ["title", "classic", "modern", "vibrant", "overlay"],
   productImageSize: ["compact", "large"],
   popupCorners: ["square", "rounded"],
+  headerAlign: ["start", "center"],
 };
 
 const COLORS: StyleFieldKey[] = [
@@ -559,18 +598,37 @@ const NUMBER_RANGES: Partial<Record<StyleFieldKey, [number, number]>> = {
   cardGap: [0, 48],
   sectionPaddingY: [0, 160],
   sectionPaddingX: [0, 120],
+  eyebrowSizeMobile: [9, 20],
+  headingSizeMobile: [14, 64],
+  subheadingSizeMobile: [11, 28],
+  cardTextSizeMobile: [10, 20],
+  cardGapMobile: [0, 48],
+  sectionPaddingYMobile: [0, 160],
+  sectionPaddingXMobile: [0, 120],
+  columnsMobile: [1, 3],
 };
 
-// Sizing/spacing sliders for the carousel: label, unit range and the value
-// the slider shows while unset (the storefront's own default at desktop).
-export const SIZING_FIELDS: { key: StyleFieldKey; label: string; min: number; max: number; auto: number }[] = [
-  { key: "eyebrowSize", label: "Eyebrow text", min: 9, max: 20, auto: 11 },
-  { key: "headingSize", label: "Heading text", min: 14, max: 64, auto: 40 },
-  { key: "subheadingSize", label: "Subheading text", min: 11, max: 28, auto: 15 },
-  { key: "cardTextSize", label: "Card text", min: 10, max: 20, auto: 13 },
-  { key: "cardGap", label: "Space between videos", min: 0, max: 48, auto: 14 },
-  { key: "sectionPaddingY", label: "Space above and below", min: 0, max: 160, auto: 32 },
-  { key: "sectionPaddingX", label: "Space at the sides", min: 0, max: 120, auto: 40 },
+// Sizing/spacing sliders: label, range, the field holding the phone value,
+// and what the slider shows while unset (the storefront's own defaults on
+// desktop and on phones). `group` places it in the editor.
+export interface SizingField {
+  key: StyleFieldKey;
+  mobileKey: StyleFieldKey;
+  label: string;
+  group: "header" | "cards" | "spacing";
+  min: number;
+  max: number;
+  auto: number;
+  autoMobile: number;
+}
+export const SIZING_FIELDS: SizingField[] = [
+  { key: "eyebrowSize", mobileKey: "eyebrowSizeMobile", label: "Eyebrow size", group: "header", min: 9, max: 20, auto: 11, autoMobile: 10 },
+  { key: "headingSize", mobileKey: "headingSizeMobile", label: "Heading size", group: "header", min: 14, max: 64, auto: 40, autoMobile: 28 },
+  { key: "subheadingSize", mobileKey: "subheadingSizeMobile", label: "Subheading size", group: "header", min: 11, max: 28, auto: 15, autoMobile: 14 },
+  { key: "cardTextSize", mobileKey: "cardTextSizeMobile", label: "Card text size", group: "cards", min: 10, max: 20, auto: 13, autoMobile: 12 },
+  { key: "cardGap", mobileKey: "cardGapMobile", label: "Space between videos", group: "spacing", min: 0, max: 48, auto: 14, autoMobile: 10 },
+  { key: "sectionPaddingY", mobileKey: "sectionPaddingYMobile", label: "Space above and below", group: "spacing", min: 0, max: 160, auto: 32, autoMobile: 24 },
+  { key: "sectionPaddingX", mobileKey: "sectionPaddingXMobile", label: "Space at the sides", group: "spacing", min: 0, max: 120, auto: 40, autoMobile: 16 },
 ];
 
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
@@ -602,7 +660,7 @@ export function sanitizeStyle(kind: string, input: unknown): WidgetStyleConfig {
       // The stacked deck only exists for the carousel widget.
       const stackElsewhere = key === "layoutMode" && value === "stack" && kind !== "CAROUSEL";
       if (typeof value === "string" && ENUMS[key]!.includes(value) && !stackElsewhere) out[key] = value;
-    } else if (key === "triggerSize") {
+    } else if (key === "triggerSize" || key === "triggerSizeMobile") {
       const n = Number(value);
       if (Number.isFinite(n)) out[key] = Math.round(Math.min(Math.max(n, meta.sizeMin), meta.sizeMax));
     } else if (NUMBER_RANGES[key]) {

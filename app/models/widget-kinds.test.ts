@@ -30,8 +30,9 @@ describe("sanitizeStyle", () => {
       productDetails: false,
     });
     expect(sanitizeStyle("CAROUSEL", { cardTemplate: "fancy", productImageSize: "huge", badgeColor: "red" })).toEqual({});
-    // Only the carousel has them.
-    expect(sanitizeStyle("PRODUCT_PAGE_REELS", { cardTemplate: "overlay", productDetails: true })).toEqual({});
+    // Product page reels share them; other kinds don't.
+    expect(sanitizeStyle("PRODUCT_PAGE_REELS", { cardTemplate: "overlay", productDetails: true })).toEqual({ cardTemplate: "overlay", productDetails: true });
+    expect(sanitizeStyle("STORIES", { cardTemplate: "overlay", productDetails: true })).toEqual({});
     // Existing carousels keep their card look; the popup gets the new defaults.
     expect(resolveStyle("CAROUSEL", {})).toMatchObject({ cardTemplate: "title", productDetails: true, productImageSize: "large" });
   });
@@ -52,6 +53,21 @@ describe("sanitizeStyle", () => {
     // Unset sizes stay unset (the storefront's responsive defaults).
     expect(resolveStyle("CAROUSEL", {}).headingSize).toBeUndefined();
     expect(resolveStyle("CAROUSEL", {}).popupCorners).toBe("square");
+  });
+
+  it("phone sizes are separate, clamped fields; header alignment is start or center", () => {
+    expect(
+      sanitizeStyle("PRODUCT_PAGE_REELS", {
+        headingSizeMobile: 90,
+        cardGapMobile: -4,
+        columnsMobile: 5,
+        triggerSizeMobile: 10,
+        headerAlign: "center",
+      }),
+    ).toEqual({ headingSizeMobile: 64, cardGapMobile: 0, columnsMobile: 3, triggerSizeMobile: 140, headerAlign: "center" });
+    expect(sanitizeStyle("CAROUSEL", { headerAlign: "right" })).toEqual({});
+    expect(resolveStyle("PRODUCT_PAGE_REELS", {})).toMatchObject({ headerAlign: "start", cardTemplate: "title", productImageSize: "large" });
+    expect(resolveStyle("CAROUSEL", {})).toMatchObject({ headerAlign: "center" });
   });
 
   it("keeps only fields the kind uses", () => {

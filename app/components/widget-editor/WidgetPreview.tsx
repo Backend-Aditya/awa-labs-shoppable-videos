@@ -134,22 +134,56 @@ function Skeleton({ w, h = 10, r = 4 }: { w: string | number; h?: number; r?: nu
   return <span className={styles.skeleton} style={{ width: w, height: h, borderRadius: r }} />;
 }
 
-type Device = "desktop" | "mobile";
-type Mode = "page" | "viewer";
+export type Device = "desktop" | "mobile";
+export type Mode = "page" | "viewer";
+// The part of the widget being edited, outlined in the preview.
+export type PreviewHighlight = "header" | "cards" | "layout" | "section";
 
+// A size for the device being previewed: the phone value on mobile when
+// one is set, else the desktop value (undefined = storefront default).
+function sized(style: WidgetStyleConfig, key: keyof WidgetStyleConfig, mobileKey: keyof WidgetStyleConfig, device: Device) {
+  const desktop = style[key] as number | undefined;
+  if (device !== "mobile") return desktop;
+  const mobile = style[mobileKey] as number | undefined;
+  return mobile ?? desktop;
+}
+
+// Device and mode can be controlled by the editor (so its desktop/mobile
+// size switch and the preview stay in step, and the Shopping tab can show the
+// viewer); left uncontrolled they're internal state.
 export function WidgetPreview({
   kind,
   style,
   reels,
   brand = BRAND_DEFAULTS,
+  device: deviceProp,
+  onDeviceChange,
+  mode: modeProp,
+  onModeChange,
+  highlight = null,
 }: {
   kind: WidgetKind;
   style: WidgetStyleConfig;
   reels: PreviewReel[];
   brand?: BrandConfig;
+  device?: Device;
+  onDeviceChange?: (device: Device) => void;
+  mode?: Mode;
+  onModeChange?: (mode: Mode) => void;
+  highlight?: PreviewHighlight | null;
 }) {
-  const [device, setDevice] = useState<Device>("desktop");
-  const [mode, setMode] = useState<Mode>("page");
+  const [deviceState, setDeviceState] = useState<Device>("desktop");
+  const [modeState, setModeState] = useState<Mode>("page");
+  const device = deviceProp ?? deviceState;
+  const mode = modeProp ?? modeState;
+  const setDevice = (next: Device) => {
+    setDeviceState(next);
+    onDeviceChange?.(next);
+  };
+  const setMode = (next: Mode) => {
+    setModeState(next);
+    onModeChange?.(next);
+  };
   const [viewerIndex, setViewerIndex] = useState(0);
   const [hovered, setHovered] = useState<number | null>(null);
   const usingSamples = reels.length === 0;
@@ -253,7 +287,7 @@ export function WidgetPreview({
       </div>
 
       <div className={styles.stage} data-device={device}>
-        <div className={styles.viewport} style={vars} data-device={device}>
+        <div className={styles.viewport} style={vars} data-device={device} data-highlight={(mode === "page" && highlight) || undefined}>
           {mode === "viewer" ? (
             <ViewerPreview
               reel={shown[current]}
@@ -297,7 +331,7 @@ function PagePreview({
       return (
         <>
           <ProductPageMock device={device} />
-          <Filmstrip style={style} reels={reels} interact={interact} />
+          <Filmstrip style={style} reels={reels} device={device} interact={interact} />
         </>
       );
     case "CAROUSEL":
@@ -360,38 +394,77 @@ function Heading({ text, align = "start" }: { text?: string; align?: "start" | "
 
 /* ------------------------------------------------------------- filmstrip */
 
-function Filmstrip({ style, reels, interact }: { style: WidgetStyleConfig; reels: PreviewReel[]; interact: Interact }) {
+function Filmstrip({
+  style,
+  reels,
+  device,
+  interact,
+}: {
+  style: WidgetStyleConfig;
+  reels: PreviewReel[];
+  device: Device;
+  interact: Interact;
+}) {
   const grid = style.layoutMode === "grid";
+  const template = style.cardTemplate ?? "title";
   return (
-    <div className={styles.section} style={{ background: "var(--pv-bg)" }}>
-      <Heading text={style.heading} />
-      <div className={grid ? styles.filmGrid : styles.filmRow}>
-        {reels.map((reel, i) => (
-          <div key={reel.id} className={styles.filmCard}>
-            <div className={styles.filmPosterWrap} {...interact.bind(i, reel.title)}>
-              <Poster reel={reel} index={i} playing={interact.hovered === i} />
-              {style.showDuration && formatDuration(reel.durationSeconds) && (
-                <span className={styles.chip}>
-                  <PlayGlyph size={12} />
-                  {formatDuration(reel.durationSeconds)}
-                </span>
+    <div className={styles.section} style={sectionStyleFor(style, device)} data-hl="section">
+      <DeckHeader style={style} align="start" />
+      <div className={grid ? styles.filmGrid : styles.filmRow} data-hl="layout">
+        {reels.map((reel, i) =>
+          template === "title" ? (
+            <div key={reel.id} className={styles.filmCard}>
+              <div className={styles.filmPosterWrap} data-hl="cards" {...interact.bind(i, reel.title)}>
+                <Poster reel={reel} index={i} playing={interact.hovered === i} />
+                {style.showCardBadge && reel.products[0]?.discountPercent ? (
+                  <span className={styles.cardBadge}>{reel.products[0].discountPercent}% OFF</span>
+                ) : null}
+                {style.showDuration && formatDuration(reel.durationSeconds) && (
+                  <span className={styles.chip}>
+                    <PlayGlyph size={12} />
+                    {formatDuration(reel.durationSeconds)}
+                  </span>
+                )}
+              </div>
+              {style.showCaption && <p className={styles.caption}>{reel.title}</p>}
+              {style.showProductPreview && reel.products[0] && (
+                <div className={styles.filmProduct}>
+                  <ProductThumb product={reel.products[0]} size={26} />
+                  <span className={styles.filmProductText}>
+                    <span className={styles.oneLine}>{reel.products[0].title}</span>
+                    {style.showPrice && <span className={styles.subdued}>{reel.products[0].price}</span>}
+                  </span>
+                </div>
               )}
             </div>
-            {style.showCaption && <p className={styles.caption}>{reel.title}</p>}
-            {style.showProductPreview && reel.products[0] && (
-              <div className={styles.filmProduct}>
-                <ProductThumb product={reel.products[0]} size={26} />
-                <span className={styles.filmProductText}>
-                  <span className={styles.oneLine}>{reel.products[0].title}</span>
-                  {style.showPrice && <span className={styles.subdued}>{reel.products[0].price}</span>}
-                </span>
-              </div>
-            )}
-          </div>
-        ))}
+          ) : (
+            <div key={reel.id} className={styles.filmCard} data-template={template} {...interact.bind(i, reel.title)}>
+              <CardFace reel={reel} index={i} style={style} playing={interact.hovered === i} front />
+              <CardInfo reel={reel} style={style} />
+            </div>
+          ),
+        )}
       </div>
     </div>
   );
+}
+
+// Section-level sizing for the mock, from the device's values. The mock is
+// drawn at roughly 75% of storefront scale (spacing at half).
+function sectionStyleFor(style: WidgetStyleConfig, device: Device): CSSProperties {
+  const px = (value: number | undefined, scale = 0.75) => (value === undefined ? undefined : `${Math.round(value * scale)}px`);
+  return {
+    background: "var(--pv-bg)",
+    paddingBlock: px(sized(style, "sectionPaddingY", "sectionPaddingYMobile", device), 0.5),
+    paddingInline: px(sized(style, "sectionPaddingX", "sectionPaddingXMobile", device), 0.5),
+    "--pv-eyebrow-size": px(sized(style, "eyebrowSize", "eyebrowSizeMobile", device)),
+    "--pv-heading-size": px(sized(style, "headingSize", "headingSizeMobile", device)),
+    "--pv-sub-size": px(sized(style, "subheadingSize", "subheadingSizeMobile", device)),
+    "--pv-card-text": px(sized(style, "cardTextSize", "cardTextSizeMobile", device)),
+    "--pv-gap": px(sized(style, "cardGap", "cardGapMobile", device)),
+    "--pv-card-w": px(sized(style, "triggerSize", "triggerSizeMobile", device), 0.6),
+    "--pv-columns": String(device === "mobile" ? (style.columnsMobile ?? 2) : (style.columns ?? 4)),
+  } as CSSProperties;
 }
 
 /* ------------------------------------------------------------------ deck */
@@ -401,10 +474,10 @@ const BELOW_TEMPLATES: CardTemplate[] = ["classic", "modern", "vibrant"];
 // Height the product line adds under each card (storefront: --awa-sv-info-h).
 const INFO_HEIGHT: Partial<Record<CardTemplate, number>> = { classic: 46, modern: 92, vibrant: 84 };
 
-function DeckHeader({ style }: { style: WidgetStyleConfig }) {
+function DeckHeader({ style, align = "center" }: { style: WidgetStyleConfig; align?: "start" | "center" }) {
   if (!style.eyebrow && !style.heading && !style.subheading) return null;
   return (
-    <div className={styles.deckHeader}>
+    <div className={styles.deckHeader} data-align={style.headerAlign ?? align} data-hl="header">
       {style.eyebrow && <p className={styles.eyebrow}>{style.eyebrow}</p>}
       {style.heading && <h3 className={styles.heading}>{style.heading}</h3>}
       {style.subheading && <p className={styles.subheading}>{style.subheading}</p>}
@@ -455,7 +528,7 @@ function CardFace({
   const template = style.cardTemplate ?? "title";
   const discount = reel.products[0]?.discountPercent;
   return (
-    <span className={styles.cardFace}>
+    <span className={styles.cardFace} data-hl="cards">
       <Poster reel={reel} index={index} playing={playing} />
       {style.showCardBadge && discount ? <span className={styles.cardBadge}>{discount}% OFF</span> : null}
       {front && style.showPlayIcon !== false && (
@@ -502,24 +575,13 @@ function Deck({
   const requestedMode = style.layoutMode ?? "stack";
   const mode = requestedMode === "stack" && reels.length < 3 ? "carousel" : requestedMode;
   const template = style.cardTemplate ?? "title";
-  const px = (value: number | undefined, scale = 0.75) => (value === undefined ? undefined : `${Math.round(value * scale)}px`);
-  const sectionStyle = {
-    background: "var(--pv-bg)",
-    paddingBlock: px(style.sectionPaddingY, 0.5),
-    paddingInline: px(style.sectionPaddingX, 0.5),
-    "--pv-eyebrow-size": px(style.eyebrowSize),
-    "--pv-heading-size": px(style.headingSize),
-    "--pv-sub-size": px(style.subheadingSize),
-    "--pv-card-text": px(style.cardTextSize),
-    "--pv-gap": px(style.cardGap),
-    "--pv-card-w": px(style.triggerSize, 0.6),
-  } as CSSProperties;
+  const sectionStyle = sectionStyleFor(style, device);
 
   if (mode === "grid" || mode === "carousel") {
     return (
-      <div className={styles.section} style={sectionStyle}>
+      <div className={styles.section} style={sectionStyle} data-hl="section">
         <DeckHeader style={style} />
-        <div className={mode === "grid" ? styles.deckGrid : styles.deckSlider}>
+        <div className={mode === "grid" ? styles.deckGrid : styles.deckSlider} data-hl="layout">
           {reels.map((reel, i) => (
             <div key={reel.id} className={styles.deckGridCard} data-template={template} {...interact.bind(i, reel.title)}>
               <CardFace reel={reel} index={i} style={style} playing={interact.hovered === i} front />
@@ -533,9 +595,9 @@ function Deck({
 
   const spread = device === "mobile" ? 46 : 58;
   return (
-    <div className={styles.section} style={sectionStyle}>
+    <div className={styles.section} style={sectionStyle} data-hl="section">
       <DeckHeader style={style} />
-      <div className={styles.deck} style={{ height: 300 + (INFO_HEIGHT[template] ?? 0) }}>
+      <div className={styles.deck} style={{ height: 300 + (INFO_HEIGHT[template] ?? 0) }} data-hl="layout">
         {reels.map((reel, i) => {
           const offset = i - active;
           const abs = Math.abs(offset);
@@ -873,6 +935,9 @@ function ViewerPreview({
                   <span className={styles.priceRow}>
                     <span className={product.compareAtPrice ? styles.salePrice : styles.subdued}>{product.price}</span>
                     {product.compareAtPrice && <s className={styles.subdued}>{product.compareAtPrice}</s>}
+                    {style.showSaleBadge && product.discountPercent ? (
+                      <span className={styles.saleBadge}>−{product.discountPercent}%</span>
+                    ) : null}
                   </span>
                 )}
                 <button

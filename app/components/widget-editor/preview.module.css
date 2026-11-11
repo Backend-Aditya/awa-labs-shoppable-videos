@@ -245,7 +245,7 @@
 
 .filmRow {
   display: flex;
-  gap: 12px;
+  gap: var(--pv-gap, 12px);
   overflow: hidden;
   mask-image: linear-gradient(to right, #000 85%, transparent);
 }
@@ -253,7 +253,7 @@
 .filmGrid {
   display: grid;
   grid-template-columns: repeat(var(--pv-columns), minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--pv-gap, 12px);
 }
 
 @container (max-width: 400px) {
@@ -263,7 +263,7 @@
 }
 
 .filmCard {
-  flex: 0 0 calc(var(--pv-size) * 0.62);
+  flex: 0 0 var(--pv-card-w, calc(var(--pv-size) * 0.62));
   min-width: 0;
 }
 
@@ -420,6 +420,12 @@
   margin: 0 auto 14px;
   max-width: 420px;
   text-align: center;
+}
+
+.deckHeader[data-align="start"] {
+  margin-inline: 0;
+  max-width: none;
+  text-align: start;
 }
 
 .deckHeader .heading {
@@ -1291,4 +1297,34 @@
 
 .viewer[data-corners="square"] :is(.viewerPlayer, .viewerPanel) {
   border-radius: 0;
+}
+
+/* ---------- editing highlight: the part being edited, outlined ---------- */
+
+.viewport[data-highlight="header"] [data-hl="header"],
+.viewport[data-highlight="cards"] [data-hl="cards"],
+.viewport[data-highlight="layout"] [data-hl="layout"],
+.viewport[data-highlight="section"] [data-hl="section"] {
+  outline: 2px dashed #005bd3;
+  outline-offset: 3px;
+  animation: pv-highlight 1.4s ease-out 1;
+}
+
+/* The filmstrip fades out at its edge with a mask, which would clip an
+   outside outline: draw it inside and drop the fade while highlighted. */
+.viewport[data-highlight="layout"] [data-hl="layout"] {
+  outline-offset: -2px;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+@keyframes pv-highlight {
+  0% { outline-color: transparent; }
+  20% { outline-color: #005bd3; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewport [data-hl] {
+    animation: none !important;
+  }
 }

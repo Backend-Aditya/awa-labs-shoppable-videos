@@ -2,7 +2,7 @@ import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { Card, ChipToggleGroup, ColorInput, Field, normalizeHex, Segmented, Slider, TextInput, Toggle } from "./controls";
+import { Card, ChipToggleGroup, ColorInput, Field, normalizeHex, Section, Segmented, Slider, TextInput, Toggle } from "./controls";
 
 // Controlled wrapper so typing behaves like it does in the editor.
 function Controlled<T>({
@@ -350,5 +350,65 @@ describe("Card", () => {
     expect(screen.getByText("Inherit from your brand")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reset" })).toBeInTheDocument();
     expect(screen.getByText("body")).toBeInTheDocument();
+  });
+});
+
+describe("Slider: automatic values", () => {
+  it("tags an unset value Auto and offers no reset", () => {
+    render(<Slider label="Heading size" value={40} min={14} max={64} auto onReset={() => {}} onChange={() => {}} />);
+    expect(screen.getByText("Auto")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /reset/i })).toBeNull();
+  });
+
+  it("a set value can be reset back to automatic", async () => {
+    const onReset = vi.fn();
+    render(<Slider label="Heading size" value={30} min={14} max={64} onReset={onReset} onChange={() => {}} />);
+    expect(screen.queryByText("Auto")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Reset heading size to automatic" }));
+    expect(onReset).toHaveBeenCalledOnce();
+  });
+});
+
+describe("Segmented: hidden label", () => {
+  it("keeps the group's accessible name without a visible label", () => {
+    render(
+      <Segmented
+        label="Screen size"
+        hideLabel
+        value="desktop"
+        onChange={() => {}}
+        options={[
+          { value: "desktop", label: "Desktop" },
+          { value: "mobile", label: "Mobile" },
+        ]}
+      />,
+    );
+    expect(screen.getByRole("radiogroup", { name: "Screen size" })).toBeInTheDocument();
+    expect(screen.queryByText("Screen size")).toBeNull();
+  });
+});
+
+describe("Section", () => {
+  function Harness() {
+    const [open, setOpen] = useState(false);
+    return (
+      <Section title="Header" summary="Shoppable reels · See it" icon={<svg />} open={open} onToggle={() => setOpen(!open)}>
+        <p>Header settings</p>
+      </Section>
+    );
+  }
+
+  it("shows its summary while closed and its settings while open", async () => {
+    render(<Harness />);
+    const toggle = screen.getByRole("button", { name: /Header/ });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByText("Shoppable reels · See it")).toBeInTheDocument();
+    expect(screen.queryByText("Header settings")).not.toBeVisible();
+
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("Header settings")).toBeVisible();
+    expect(screen.queryByText("Shoppable reels · See it")).toBeNull();
+    expect(document.getElementById(toggle.getAttribute("aria-controls")!)).toHaveTextContent("Header settings");
   });
 });

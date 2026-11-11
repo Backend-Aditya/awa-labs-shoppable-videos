@@ -900,3 +900,228 @@
   outline: 2px solid var(--ed-focus);
   outline-offset: 2px;
 }
+
+/* ---------- label row extras: Auto tag / reset ---------- */
+
+.labelRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.autoTag {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--ed-surface-2);
+  box-shadow: inset 0 0 0 1px var(--ed-border);
+  color: var(--ed-subdued);
+  font-size: 11px;
+  font-weight: 550;
+  line-height: 16px;
+}
+
+.resetButton {
+  appearance: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ed-focus);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.resetButton:hover {
+  text-decoration: underline;
+}
+
+.resetButton:focus-visible {
+  outline: 2px solid var(--ed-focus);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.sliderRow[data-auto] .range {
+  opacity: 0.55;
+}
+
+/* ---------- collapsible sections ---------- */
+
+.section {
+  background: var(--ed-surface);
+  border-radius: 12px;
+  box-shadow: 0 0 0 1px var(--ed-border), 0 1px 0 rgb(0 0 0 / 0.04);
+  overflow: hidden;
+  transition: box-shadow 0.2s ease;
+}
+
+.section[data-open] {
+  box-shadow: 0 0 0 1px var(--ed-border-strong), 0 4px 14px rgb(0 0 0 / 0.06);
+}
+
+.sectionHeading {
+  margin: 0;
+  font: inherit;
+}
+
+.sectionToggle {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 0;
+  background: none;
+  color: var(--ed-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.sectionToggle:hover {
+  background: var(--ed-surface-2);
+}
+
+.sectionToggle:focus-visible {
+  outline: 2px solid var(--ed-focus);
+  outline-offset: -2px;
+}
+
+.sectionIcon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--ed-surface-2);
+  box-shadow: inset 0 0 0 1px var(--ed-border);
+  color: var(--ed-text);
+}
+
+.section[data-open] .sectionIcon {
+  background: var(--ed-fill);
+  box-shadow: none;
+  color: #fff;
+}
+
+.sectionText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sectionTitle {
+  font-weight: 650;
+}
+
+.sectionSummary {
+  overflow: hidden;
+  color: var(--ed-subdued);
+  font-size: 12px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.sectionChevron {
+  flex: none;
+  color: var(--ed-subdued);
+  transition: transform 0.2s ease;
+}
+
+.section[data-open] .sectionChevron {
+  transform: rotate(180deg);
+}
+
+.sectionBody {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 4px 16px 18px;
+}
+
+.sectionBody[hidden] {
+  display: none;
+}
+
+.groupLabel {
+  margin: 4px 0 -6px;
+  color: var(--ed-subdued);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ---------- desktop / mobile switch for sizes ---------- */
+
+.deviceBar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--ed-surface);
+  box-shadow: 0 0 0 1px var(--ed-border), 0 2px 8px rgb(0 0 0 / 0.05);
+}
+
+.deviceBarText {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.deviceBarTitle {
+  font-weight: 650;
+}
+
+.designStack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .section,
+  .sectionChevron {
+    transition: none;
+  }
+}
+
+/* The device switch is a compact pill pair, side by side. */
+.deviceBar .segmented {
+  flex: none;
+  flex-wrap: nowrap;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 10px;
+  background: var(--ed-surface-2);
+  box-shadow: inset 0 0 0 1px var(--ed-border);
+}
+
+.deviceBar .segment {
+  flex: none;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: row;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: 8px;
+  box-shadow: none;
+  font-size: 12px;
+}
+
+.deviceBar .segment[aria-checked="true"] {
+  background: var(--ed-surface);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12), 0 0 0 1px var(--ed-border);
+}
