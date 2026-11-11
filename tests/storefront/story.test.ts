@@ -259,3 +259,11 @@ describe("product moments", () => {
     expect(q(".awa-sv-story__sticker-count").textContent).toBe("");
   });
 });
+
+describe("title setting", () => {
+  it("'Video title on the player' off hides the story title too", async () => {
+    await mountStories({ storyDuration: 5, showTitleOverlay: false });
+    click(document.querySelector("[data-awa-sv-trigger] .awa-sv-trigger__button"));
+    expect(q("#awa-sv-story-title").hidden).toBe(true);
+  });
+});

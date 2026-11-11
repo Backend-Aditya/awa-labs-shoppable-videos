@@ -534,6 +534,13 @@ html[dir="rtl"] .awa-sv-story {
   transition: opacity 0.2s ease;
 }
 
+/* "Video title on the player" off. The title's own display (a clamped
+   -webkit-box) would otherwise override the hidden attribute. */
+.awa-sv-viewer__title[hidden],
+.awa-sv-story__title[hidden] {
+  display: none;
+}
+
 /* ---------- product moments ---------- */
 
 /* The product on screen right now, in the caption's place. */
@@ -980,6 +987,48 @@ html[dir="rtl"] .awa-sv-story {
 
 .awa-sv-viewer__navbtn:active:not(:disabled) {
   transform: scale(0.92);
+}
+
+/* ---------- side arrows (default navigation) ---------- */
+
+/* Previous/next sit either side of the video and products, vertically
+   centred, instead of the stacked pair at the screen's edge. */
+.awa-sv-viewer--nav-sides .awa-sv-viewer__stage {
+  padding-inline: 96px;
+}
+
+.awa-sv-viewer--nav-sides .awa-sv-viewer__nav {
+  inset-inline: 24px;
+  flex-direction: row;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.awa-sv-viewer--nav-sides .awa-sv-viewer__navbtn {
+  width: 48px;
+  height: 48px;
+  pointer-events: auto;
+  background: rgb(255 255 255 / 0.14);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+html[dir="rtl"] .awa-sv-viewer--nav-sides .awa-sv-viewer__navbtn svg {
+  transform: scaleX(-1);
+}
+
+.awa-sv-viewer--nav-sides .awa-sv-viewer__navbtn:disabled {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 1080px) and (min-width: 750px) {
+  .awa-sv-viewer--nav-sides .awa-sv-viewer__stage {
+    padding-inline: 72px;
+  }
+  .awa-sv-viewer--nav-sides .awa-sv-viewer__nav {
+    inset-inline: 12px;
+  }
 }
 
 /* ---------- CTA variants inside viewers ---------- */

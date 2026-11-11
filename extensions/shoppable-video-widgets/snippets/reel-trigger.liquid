@@ -80,7 +80,6 @@ its look; this snippet owns the contract with the JS.
   data-cta-hover-color="{{ cta_hover | escape }}"
   data-cta-style="{{ style.ctaStyle | default: 'pill' | escape }}"
   data-show-title="{{ show_title }}"
-  data-tag-reveal-mode="{{ style.tagRevealMode | default: 'always' | escape }}"
   data-muted-default="{{ muted }}"
   data-loop="{% if style.loop %}true{% else %}false{% endif %}"
   data-play-trigger="{{ style.playTrigger | default: 'click' | escape }}"
@@ -95,6 +94,7 @@ its look; this snippet owns the contract with the JS.
   data-product-details="{{ product_details }}"
   data-product-image-size="{{ image_size | escape }}"
   data-show-description="{% if style.showDescription == false %}false{% else %}true{% endif %}"
+  data-viewer-nav="{% if style.viewerNav == 'stacked' %}stacked{% else %}sides{% endif %}"
   data-popup-corners="{{ style.popupCorners | default: corners_default | default: 'rounded' | escape }}"
   data-show-quantity="{% if style.showQuantity %}true{% else %}false{% endif %}"
   {%- if reel.config.value.productTimes %} data-product-times="{{ reel.config.value.productTimes | json | escape }}"{% endif %}

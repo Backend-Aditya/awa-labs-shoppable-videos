@@ -11,6 +11,8 @@ import type { BrandConfig } from "../../models/brand";
 import { BRAND_DEFAULTS } from "../../models/brand";
 import styles from "./preview.module.css";
 import { handleRovingKeys } from "./controls";
+import { LivePreview } from "./LivePreview";
+import type { LiveSource } from "./LivePreview";
 
 export interface PreviewProduct {
   id: string;
@@ -161,17 +163,23 @@ export function WidgetPreview({
   mode: modeProp,
   onModeChange,
   highlight = null,
+  live,
 }: {
   kind: WidgetKind;
   style: WidgetStyleConfig;
   reels: PreviewReel[];
   brand?: BrandConfig;
+  // When set, the stage shows the real widget (LivePreview) for these
+  // videos; the drawn preview remains the fallback (no ready videos yet).
+  live?: LiveSource;
   device?: Device;
   onDeviceChange?: (device: Device) => void;
   mode?: Mode;
   onModeChange?: (mode: Mode) => void;
   highlight?: PreviewHighlight | null;
 }) {
+  const [liveUnavailable, setLiveUnavailable] = useState(false);
+  const showLive = Boolean(live) && !liveUnavailable && reels.length > 0;
   const [deviceState, setDeviceState] = useState<Device>("desktop");
   const [modeState, setModeState] = useState<Mode>("page");
   const device = deviceProp ?? deviceState;
@@ -286,7 +294,17 @@ export function WidgetPreview({
         </div>
       </div>
 
-      <div className={styles.stage} data-device={device}>
+      <div className={styles.stage} data-device={device} data-live={showLive || undefined}>
+        {showLive && live ? (
+          <LivePreview
+            source={live}
+            style={style}
+            device={device}
+            mode={mode}
+            highlight={mode === "page" ? highlight : null}
+            onUnavailable={setLiveUnavailable}
+          />
+        ) : (
         <div className={styles.viewport} style={vars} data-device={device} data-highlight={(mode === "page" && highlight) || undefined}>
           {mode === "viewer" ? (
             <ViewerPreview
@@ -302,9 +320,12 @@ export function WidgetPreview({
             <PagePreview kind={kind} style={style} reels={shown} device={device} interact={interact} />
           )}
         </div>
+        )}
       </div>
 
-      {usingSamples ? (
+      {showLive ? (
+        <p className={styles.footnote}>Your real widget, with your videos and products. Click a video to try the player.</p>
+      ) : usingSamples ? (
         <p className={styles.footnote}>Showing sample videos. Add reels on the Content tab to preview your own.</p>
       ) : (
         mode === "page" && <p className={styles.footnote}>Hover a video to play it; click it to open the viewer.</p>
@@ -862,7 +883,8 @@ function ViewerPreview({
   device: Device;
   theme: BrandConfig["viewerTheme"];
 }) {
-  const tap = style.tagRevealMode === "tap";
+  // Products always show right away in the viewer.
+  const tap = false;
   const large = style.productImageSize === "large" && style.showProductImage !== false;
   // Clicking a product in the mock opens the details view, as on the store.
   const [detail, setDetail] = useState<PreviewProduct | null>(null);

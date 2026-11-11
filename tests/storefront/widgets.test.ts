@@ -58,7 +58,7 @@ describe("stacked deck", () => {
     expect(viewer()).toBeNull();
     click(cards[2].querySelector(".awa-sv-trigger__button"));
     expect(viewer()!.open).toBe(true);
-    expect(viewer()!.querySelector("[data-awa-sv-count]")!.textContent).toBe("3 of 4");
+    expect(viewer()!.querySelector("#awa-sv-viewer-title")!.textContent).toBe(cards[2].querySelector("[data-awa-sv-trigger]")!.getAttribute("data-title"));
   });
 
   it("a horizontal swipe moves the deck and does not open the card", async () => {
@@ -97,7 +97,7 @@ describe("filmstrip arrows", () => {
 });
 
 describe("scroll previews", () => {
-  it("start muted lowest-rendition previews for visible triggers, at most three, and stop when a viewer opens", async () => {
+  it("autoplay plays every visible video (muted, lowest rendition, looping) and stops when a viewer opens", async () => {
     vi.spyOn(window, "requestAnimationFrame").mockImplementation((cb) => {
       cb(0);
       return 0;
@@ -109,8 +109,9 @@ describe("scroll previews", () => {
     observer.trigger(triggers.map((target) => ({ target, isIntersecting: true })));
     await flush();
     const previews = document.querySelectorAll<HTMLVideoElement>("video.awa-sv-trigger__preview");
-    expect(previews).toHaveLength(3);
+    expect(previews).toHaveLength(5);
     expect(previews[0].muted).toBe(true);
+    expect(previews[0].loop).toBe(true);
     expect(hls.attach).toHaveBeenCalledWith(expect.any(HTMLVideoElement), expect.stringContaining("manifest"), { preview: true });
 
     click(triggers[0].querySelector(".awa-sv-trigger__button"));

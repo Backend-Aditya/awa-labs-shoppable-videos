@@ -55,7 +55,10 @@ test("open the viewer from the filmstrip and move next / previous", async ({ pag
   const dialog = viewer(page);
   await expect(dialog).toBeVisible();
   await expect(dialog.locator("#awa-sv-viewer-title")).toHaveText("Morning routine");
-  await expect(dialog.locator("[data-awa-sv-count]")).toHaveText("1 of 3");
+  // No "1 of 3" counter; side arrows, the first reel's "previous" hidden.
+  await expect(dialog.locator("[data-awa-sv-count]")).toBeHidden();
+  await expect(dialog).toHaveClass(/awa-sv-viewer--nav-sides/);
+  await expect(dialog.locator("[data-awa-sv-prev]")).toBeDisabled();
 
   await dialog.locator("[data-awa-sv-next]").click();
   await expect(dialog.locator("#awa-sv-viewer-title")).toHaveText("Styling tips");
@@ -63,7 +66,7 @@ test("open the viewer from the filmstrip and move next / previous", async ({ pag
   await expect(dialog.locator("#awa-sv-viewer-title")).toHaveText("Unboxing");
   await expect(dialog.locator("[data-awa-sv-next]")).toBeDisabled();
   await dialog.locator("[data-awa-sv-prev]").click();
-  await expect(dialog.locator("[data-awa-sv-count]")).toHaveText("2 of 3");
+  await expect(dialog.locator("#awa-sv-viewer-title")).toHaveText("Styling tips");
 });
 
 test("drag along the progress strip to seek; scroll over the video to change reels", async ({ page }) => {

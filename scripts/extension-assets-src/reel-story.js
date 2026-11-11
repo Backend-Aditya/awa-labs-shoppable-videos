@@ -270,7 +270,7 @@
       avatar.style.backgroundImage = "";
     }
 
-    viewer()?.applyViewerSettings(dialog, video, null, trigger);
+    viewer()?.applyViewerSettings(dialog, video, title, trigger);
     dialog.querySelector("[data-awa-sv-story-share]").hidden = trigger.dataset.showShare === "false";
     video.dispatchEvent(new Event("volumechange"));
 
