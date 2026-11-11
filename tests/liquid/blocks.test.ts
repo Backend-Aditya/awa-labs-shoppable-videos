@@ -189,6 +189,52 @@ describe("insta-stories", () => {
     const solid = await renderDom("insta-stories", blockContext("insta-stories", { reels: reels(2), widget: makeWidget({ style: { accentColor: "#111111", ringStyle: "solid" } }) }));
     expect(solid.$("section")!.getAttribute("style")).toContain("--awa-sv-ring-end: #111111");
   });
+
+  const stories = (style: object, settings: object = {}) =>
+    renderDom("insta-stories", blockContext("insta-stories", { reels: reels(2), widget: makeWidget({ style }), settings }));
+
+  it("defaults: circles, gradient ring, left aligned, on the shared sizing layer, theme background", async () => {
+    const { $ } = await stories({});
+    const section = $("section")!;
+    for (const c of ["awa-sv-showcase", "awa-sv-stories--circle", "awa-sv-stories--ring-gradient", "awa-sv-stories--start"]) expect(section.className).toContain(c);
+    expect(section.className).not.toContain("awa-sv--filled");
+    expect(section.getAttribute("style")).toContain("--awa-sv-avatar-d: 72px");
+    expect(section.getAttribute("style")).not.toContain("--awa-sv-avatar-m");
+    expect($(".awa-sv-header")).toBeNull();
+  });
+
+  it("shape, ring, alignment, header, sizes per device and background follow the widget", async () => {
+    const { $ } = await stories({
+      storyShape: "portrait",
+      ringStyle: "none",
+      headerAlign: "center",
+      eyebrow: "New in",
+      heading: "Stories",
+      subheading: "Tap to watch",
+      backgroundColor: "#101010",
+      triggerSize: 110,
+      triggerSizeMobile: 80,
+      cardTextSize: 14,
+      cardGapMobile: 6,
+      sectionPaddingY: 40,
+    });
+    const section = $("section")!;
+    for (const c of ["awa-sv-stories--portrait", "awa-sv-stories--ring-none", "awa-sv-stories--center", "awa-sv--filled"]) expect(section.className).toContain(c);
+    const style = section.getAttribute("style")!;
+    for (const part of ["--awa-sv-avatar-d: 110px", "--awa-sv-avatar-m: 80px", "--awa-sv-bg: #101010", "--awa-sv-card-text: 14px", "--awa-sv-gap-m: 6px", "--awa-sv-pad-y: 40px"]) {
+      expect(style).toContain(part);
+    }
+    expect($(".awa-sv-header__eyebrow")!.textContent).toBe("New in");
+    expect($(".awa-sv-heading")!.textContent).toBe("Stories");
+    expect($(".awa-sv-header__text")!.textContent).toBe("Tap to watch");
+    expect($(".awa-sv-header")!.className).toContain("awa-sv-header--center");
+  });
+
+  it("an unknown shape falls back to circles; the theme editor's alignment wins for the row too", async () => {
+    const { $ } = await stories({ storyShape: "hexagon", headerAlign: "start" }, { header_align: "center" });
+    expect($("section")!.className).toContain("awa-sv-stories--circle");
+    expect($("section")!.className).toContain("awa-sv-stories--center");
+  });
 });
 
 describe("single-video", () => {
@@ -302,10 +348,8 @@ describe("picking a widget in the block's Widget setting", () => {
       );
       expect(html).toContain("Picked reel");
       expect(html).not.toContain("Live reel");
-      if (block !== "insta-stories") {
-        expect(html).toContain("Picked heading");
-        expect(html).not.toContain("Live heading");
-      }
+      expect(html).toContain("Picked heading");
+      expect(html).not.toContain("Live heading");
     },
   );
 
@@ -383,10 +427,10 @@ describe("product page reels: carousel designs", () => {
 });
 
 describe("theme editor header settings", () => {
-  const render = (block: "product-page-reels" | "stacked-carousel", style: object, settings: object) =>
+  const render = (block: "product-page-reels" | "stacked-carousel" | "insta-stories", style: object, settings: object) =>
     renderDom(block, blockContext(block, { reels: reels(3), widget: makeWidget({ style }), settings }));
 
-  it.each(["product-page-reels", "stacked-carousel"] as const)("%s: block text overrides the app's, empty fields fall back", async (block) => {
+  it.each(["product-page-reels", "stacked-carousel", "insta-stories"] as const)("%s: block text overrides the app's, empty fields fall back", async (block) => {
     const { $ } = await render(block, { eyebrow: "App eyebrow", heading: "App heading", subheading: "App text" }, {
       heading: "Editor <b>heading</b>",
       text: "",

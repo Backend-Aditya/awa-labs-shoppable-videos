@@ -447,7 +447,7 @@ html[dir="rtl"] .awa-sv-arrow svg { transform: scaleX(-1); }
 
 /* Stories row: smaller arrows centred on the avatars. */
 .awa-sv-stories .awa-sv-arrow {
-  top: calc(var(--awa-sv-avatar, 72px) / 2 + 4px);
+  top: calc(var(--awa-sv-avatar-h, 72px) / 2 + 4px);
   width: 32px;
   height: 32px;
   margin-top: -16px;
@@ -1044,8 +1044,17 @@ html[dir="rtl"] .awa-sv-card__badge {
    ================================================================= */
 
 .awa-sv-stories {
-  --awa-sv-avatar: 72px;
+  /* Story size: desktop, and the phone size when set. --awa-sv-avatar-h is
+     the story's height (tall cards are taller than they are wide). */
+  --awa-sv-avatar: var(--awa-sv-avatar-d, 72px);
+  --awa-sv-avatar-h: var(--awa-sv-avatar);
   margin-block: 16px;
+}
+
+@media (max-width: 749px) {
+  .awa-sv-stories {
+    --awa-sv-avatar: var(--awa-sv-avatar-m, var(--awa-sv-avatar-d, 72px));
+  }
 }
 
 .awa-sv-stories__row {
@@ -1858,3 +1867,63 @@ html[dir="rtl"] .awa-sv-atc__button:hover .awa-sv-atc__chevron { transform: scal
     grid-template-columns: repeat(var(--awa-sv-grid-columns-m, 2), minmax(0, 1fr));
   }
 }
+
+/* =================================================================
+   Stories: section design (header, sizes and spacing per device, shape,
+   ring, background), on the shared showcase sizing layer.
+   ================================================================= */
+
+.awa-sv-showcase.awa-sv-stories {
+  --awa-sv-_pad-y: var(--awa-sv-pad-y, 16px);
+  --awa-sv-_pad-x: var(--awa-sv-pad-x, 0px);
+}
+.awa-sv-showcase.awa-sv-stories.awa-sv--filled {
+  --awa-sv-_pad-x: var(--awa-sv-pad-x, clamp(16px, 3vw, 28px));
+  /* The gap between ring and photo matches the band. */
+  --awa-sv-story-gap: var(--awa-sv-bg);
+}
+@media (max-width: 749px) {
+  .awa-sv-showcase.awa-sv-stories {
+    --awa-sv-_pad-y: var(--awa-sv-pad-y-m, min(var(--awa-sv-pad-y, 16px), 48px));
+    --awa-sv-_pad-x: var(--awa-sv-pad-x-m, 0px);
+  }
+  .awa-sv-showcase.awa-sv-stories.awa-sv--filled {
+    --awa-sv-_pad-x: var(--awa-sv-pad-x-m, 16px);
+  }
+}
+.awa-sv-showcase .awa-sv-stories__row { gap: var(--awa-sv-_gap); }
+.awa-sv-showcase .awa-sv-stories__label { font-size: var(--awa-sv-_card-text); }
+
+/* Centred row (follows the header alignment). Auto margins rather than
+   justify-content, so an overflowing row still scrolls to its first story. */
+.awa-sv-stories--center .awa-sv-stories__item:first-of-type { margin-inline-start: auto; }
+.awa-sv-stories--center .awa-sv-stories__item:last-of-type { margin-inline-end: auto; }
+
+/* Rounded squares. */
+.awa-sv-stories--rounded :is(.awa-sv-stories__ring, .awa-sv-stories__photo, .awa-sv-stories__photo .awa-sv-trigger__poster),
+.awa-sv-stories.awa-sv-stories--rounded .awa-sv-trigger__button.awa-sv-stories__avatar {
+  border-radius: 28%;
+}
+.awa-sv-stories--rounded :is(.awa-sv-stories__photo, .awa-sv-stories__photo .awa-sv-trigger__poster) {
+  border-radius: 24%;
+}
+
+/* Tall story cards: the size is the card's width. */
+.awa-sv-stories--portrait {
+  --awa-sv-avatar-h: calc(var(--awa-sv-avatar) * 16 / 10);
+}
+.awa-sv-stories.awa-sv-stories--portrait .awa-sv-trigger__button.awa-sv-stories__avatar {
+  height: var(--awa-sv-avatar-h);
+  border-radius: 14px;
+}
+.awa-sv-stories--portrait .awa-sv-stories__ring { border-radius: 14px; }
+.awa-sv-stories--portrait :is(.awa-sv-stories__photo, .awa-sv-stories__photo .awa-sv-trigger__poster) { border-radius: 11px; }
+.awa-sv-stories--portrait .awa-sv-stories__photo { inset: 4px; }
+@media (hover: hover) {
+  .awa-sv-stories--portrait .awa-sv-stories__avatar:hover .awa-sv-stories__ring,
+  .awa-sv-stories--rounded .awa-sv-stories__avatar:hover .awa-sv-stories__ring { transform: scale(1.04); }
+}
+
+/* No ring: just the photo. */
+.awa-sv-stories--ring-none .awa-sv-stories__ring { display: none; }
+.awa-sv-stories--ring-none .awa-sv-stories__photo { inset: 0; box-shadow: none; }

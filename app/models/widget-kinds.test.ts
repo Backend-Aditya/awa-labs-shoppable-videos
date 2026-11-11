@@ -94,6 +94,35 @@ describe("sanitizeStyle", () => {
     expect(resolveStyle(kind, {})).toMatchObject({ productImageSize: "large", productDetails: true, showDescription: true, popupCorners: "square" });
   });
 
+  it("stories get the section design: shape, ring, header, sizes per device, background", () => {
+    expect(
+      sanitizeStyle("STORIES", {
+        storyShape: "portrait",
+        ringStyle: "none",
+        eyebrow: "New",
+        subheading: "Tap",
+        headerAlign: "center",
+        triggerSize: 400,
+        triggerSizeMobile: 20,
+        cardGapMobile: 4,
+        backgroundColor: "#ABCDEF",
+        layoutMode: "grid",
+      }),
+    ).toEqual({
+      storyShape: "portrait",
+      ringStyle: "none",
+      eyebrow: "New",
+      subheading: "Tap",
+      headerAlign: "center",
+      triggerSize: 160,
+      triggerSizeMobile: 48,
+      cardGapMobile: 4,
+      backgroundColor: "#abcdef",
+    });
+    expect(sanitizeStyle("STORIES", { storyShape: "hexagon" })).toEqual({});
+    expect(resolveStyle("STORIES", {})).toMatchObject({ storyShape: "circle", ringStyle: "gradient", headerAlign: "start" });
+  });
+
   it("keeps only fields the kind uses", () => {
     const style = sanitizeStyle("REEL_POPS", { popShape: "circle", layoutMode: "grid", heading: "Hi" });
     expect(style).toEqual({ popShape: "circle" });

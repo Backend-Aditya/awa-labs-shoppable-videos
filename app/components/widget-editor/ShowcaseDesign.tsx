@@ -179,6 +179,93 @@ const STACK_SIZES: Record<"desktop" | "mobile", Record<Exclude<StackSize, "auto"
 const CORNER_LABEL = { sharp: "Square", rounded: "Rounded", soft: "Soft" } as const;
 const LAYOUT_LABEL = { stack: "Stack", carousel: "Slider", grid: "Grid" } as const;
 
+// A size slider for the device being edited: shows the storefront's own
+// default (tagged Auto) until set, and can be reset back to it.
+export function sizeSliderFor(style: WidgetStyleConfig, setStyle: (patch: Partial<WidgetStyleConfig>) => void, device: Device) {
+  const mobile = device === "mobile";
+  return function sizeSlider(field: SizingField) {
+    const key = mobile ? field.mobileKey : field.key;
+    const set = style[key] as number | undefined;
+    // Unset on mobile: the storefront scales the desktop value down.
+    const fallback = mobile ? Math.min((style[field.key] as number | undefined) ?? field.autoMobile, field.autoMobile * 1.6) : field.auto;
+    return (
+      <Slider
+        key={`${field.key}-${device}`}
+        label={field.label}
+        min={field.min}
+        max={field.max}
+        value={set ?? Math.round(fallback)}
+        auto={set === undefined}
+        onReset={() => setStyle({ [key]: undefined } as Partial<WidgetStyleConfig>)}
+        onChange={(value) => setStyle({ [key]: value } as Partial<WidgetStyleConfig>)}
+      />
+    );
+  };
+}
+
+// The desktop/mobile switch above the sections: it is the preview's own
+// device switch, so what's edited is what's shown.
+export function DeviceBar({ device, setDevice }: { device: Device; setDevice: (device: Device) => void }) {
+  const mobile = device === "mobile";
+  return (
+    <div className={styles.deviceBar}>
+      <span className={styles.deviceBarText}>
+        <span className={styles.deviceBarTitle}>Editing sizes for {mobile ? "phones" : "desktop"}</span>
+        <span className={styles.hint}>
+          {mobile ? "Phones get their own sizes. Auto scales your desktop sizes down." : "Switch to Mobile to set phone sizes separately."}
+        </span>
+      </span>
+      <Segmented
+        label="Screen size"
+        hideLabel
+        value={device}
+        onChange={setDevice}
+        options={[
+          { value: "desktop" as const, label: "Desktop", icon: ICON_DESKTOP },
+          { value: "mobile" as const, label: "Mobile", icon: ICON_MOBILE },
+        ]}
+      />
+    </div>
+  );
+}
+
+// Eyebrow, heading, subheading and their alignment.
+export function HeaderControls({
+  style,
+  setStyle,
+  align,
+}: {
+  style: WidgetStyleConfig;
+  setStyle: (patch: Partial<WidgetStyleConfig>) => void;
+  align: "start" | "center";
+}) {
+  return (
+    <>
+      <TextInput label="Eyebrow" value={style.eyebrow ?? ""} placeholder="e.g. Shoppable reels" onChange={(eyebrow) => setStyle({ eyebrow })} />
+      <TextInput label="Heading" value={style.heading ?? ""} placeholder="No heading" onChange={(heading) => setStyle({ heading })} />
+      <TextInput
+        label="Subheading"
+        value={style.subheading ?? ""}
+        placeholder="e.g. Tap any reel to watch, then shop the pieces in it."
+        maxLength={160}
+        onChange={(subheading) => setStyle({ subheading })}
+      />
+      <Segmented
+        label="Alignment"
+        value={align}
+        onChange={(headerAlign) => setStyle({ headerAlign })}
+        options={[
+          { value: "start", label: "Left" },
+          { value: "center", label: "Center" },
+        ]}
+        hint="Leave a field empty to hide it. You can also edit this text, and add a “View all” link, in the theme editor."
+      />
+    </>
+  );
+}
+
+export const DESIGN_ICONS = { cards: ICON_CARDS, header: ICON_HEADER, layout: ICON_LAYOUT, colors: ICON_COLORS };
+
 export function ShowcaseDesignTab({
   meta,
   style,
@@ -209,26 +296,7 @@ export function ShowcaseDesignTab({
   const layout = style.layoutMode ?? (isCarousel ? "stack" : "carousel");
   const align = style.headerAlign ?? (isCarousel ? "center" : "start");
 
-  // A size slider for the device being edited: shows the storefront's own
-  // default (tagged Auto) until set, and can be reset back to it.
-  const sizeSlider = (field: SizingField) => {
-    const key = mobile ? field.mobileKey : field.key;
-    const set = style[key] as number | undefined;
-    // Unset on mobile: the storefront scales the desktop value down.
-    const fallback = mobile ? Math.min((style[field.key] as number | undefined) ?? field.autoMobile, field.autoMobile * 1.6) : field.auto;
-    return (
-      <Slider
-        key={`${field.key}-${device}`}
-        label={field.label}
-        min={field.min}
-        max={field.max}
-        value={set ?? Math.round(fallback)}
-        auto={set === undefined}
-        onReset={() => setStyle({ [key]: undefined } as Partial<WidgetStyleConfig>)}
-        onChange={(value) => setStyle({ [key]: value } as Partial<WidgetStyleConfig>)}
-      />
-    );
-  };
+  const sizeSlider = sizeSliderFor(style, setStyle, device);
   const fieldsIn = (group: SizingField["group"]) => SIZING_FIELDS.filter((f) => f.group === group && has(f.key));
   const applyLook = (look: Look) => {
     const patch: Record<string, unknown> = {};
@@ -293,24 +361,7 @@ export function ShowcaseDesignTab({
         </div>
       </Card>
 
-      <div className={styles.deviceBar}>
-        <span className={styles.deviceBarText}>
-          <span className={styles.deviceBarTitle}>Editing sizes for {mobile ? "phones" : "desktop"}</span>
-          <span className={styles.hint}>
-            {mobile ? "Phones get their own sizes. Auto scales your desktop sizes down." : "Switch to Mobile to set phone sizes separately."}
-          </span>
-        </span>
-        <Segmented
-          label="Screen size"
-          hideLabel
-          value={device}
-          onChange={setDevice}
-          options={[
-            { value: "desktop" as const, label: "Desktop", icon: ICON_DESKTOP },
-            { value: "mobile" as const, label: "Mobile", icon: ICON_MOBILE },
-          ]}
-        />
-      </div>
+      <DeviceBar device={device} setDevice={setDevice} />
 
       <Section title="Card design" icon={ICON_CARDS} summary={cardsSummary} open={open === "cards"} onToggle={() => toggle("cards")}>
         <Field label="Template">
@@ -397,30 +448,7 @@ export function ShowcaseDesignTab({
       </Section>
 
       <Section title="Header" icon={ICON_HEADER} summary={headerSummary} open={open === "header"} onToggle={() => toggle("header")}>
-        <TextInput
-          label="Eyebrow"
-          value={style.eyebrow ?? ""}
-          placeholder="e.g. Shoppable reels"
-          onChange={(eyebrow) => setStyle({ eyebrow })}
-        />
-        <TextInput label="Heading" value={style.heading ?? ""} placeholder="No heading" onChange={(heading) => setStyle({ heading })} />
-        <TextInput
-          label="Subheading"
-          value={style.subheading ?? ""}
-          placeholder="e.g. Tap any reel to watch, then shop the pieces in it."
-          maxLength={160}
-          onChange={(subheading) => setStyle({ subheading })}
-        />
-        <Segmented
-          label="Alignment"
-          value={align}
-          onChange={(headerAlign) => setStyle({ headerAlign })}
-          options={[
-            { value: "start", label: "Left" },
-            { value: "center", label: "Center" },
-          ]}
-          hint="Leave a field empty to hide it. You can also edit this text, and add a “View all” link, in the theme editor."
-        />
+        <HeaderControls style={style} setStyle={setStyle} align={align} />
         {fieldsIn("header").map(sizeSlider)}
       </Section>
 

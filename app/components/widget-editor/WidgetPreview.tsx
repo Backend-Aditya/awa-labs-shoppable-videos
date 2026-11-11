@@ -680,16 +680,20 @@ function Deck({
 
 function Stories({ style, reels, interact }: { style: WidgetStyleConfig; reels: PreviewReel[]; interact: Interact }) {
   const ring =
-    style.ringStyle === "solid"
-      ? "var(--pv-accent)"
-      : "linear-gradient(45deg, var(--pv-accent), var(--pv-accent-2))";
+    style.ringStyle === "none"
+      ? "transparent"
+      : style.ringStyle === "solid"
+        ? "var(--pv-accent)"
+        : "linear-gradient(45deg, var(--pv-accent), var(--pv-accent-2))";
+  const shape = style.storyShape ?? "circle";
+  const centered = style.headerAlign === "center";
   return (
-    <div className={styles.section}>
-      <Heading text={style.heading} />
-      <div className={styles.storyRow}>
+    <div className={styles.section} style={style.backgroundColor ? { background: style.backgroundColor } : undefined}>
+      <Heading text={style.heading} align={centered ? "center" : "start"} />
+      <div className={`${styles.storyRow} ${styles[`story_${shape}`]}`} style={centered ? { justifyContent: "center" } : undefined}>
         {reels.map((reel, i) => (
           <div key={reel.id} className={styles.story} {...interact.bind(i, reel.title)}>
-            <span className={styles.storyRing} style={{ background: i === reels.length - 1 ? "#d4d4d4" : ring }}>
+            <span className={styles.storyRing} style={{ background: i === reels.length - 1 && style.ringStyle !== "none" ? "#d4d4d4" : ring }}>
               <span className={styles.storyInner}>
                 <Poster reel={reel} index={i} className={styles.storyPoster} playing={interact.hovered === i} />
               </span>

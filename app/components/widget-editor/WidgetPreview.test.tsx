@@ -152,6 +152,18 @@ describe("WidgetPreview, page mode per kind", () => {
 
     rerender(<WidgetPreview kind="STORIES" style={{ ...defaults("STORIES"), ringStyle: "solid" }} reels={reels(4)} />);
     expect(container.querySelectorAll<HTMLElement>(".storyRing")[0].style.background).toBe("var(--pv-accent)");
+
+    rerender(
+      <WidgetPreview
+        kind="STORIES"
+        style={{ ...defaults("STORIES"), ringStyle: "none", storyShape: "portrait", headerAlign: "center", backgroundColor: "#101010" }}
+        reels={reels(4)}
+      />,
+    );
+    const row = container.querySelector<HTMLElement>(".storyRow")!;
+    expect(row.className).toContain("story_portrait");
+    expect(row.style.justifyContent).toBe("center");
+    expect(container.querySelectorAll<HTMLElement>(".storyRing")[3].style.background).toBe("transparent");
   });
 
   it("SINGLE_VIDEO: split layout lists up to 3 products with CTA", () => {
