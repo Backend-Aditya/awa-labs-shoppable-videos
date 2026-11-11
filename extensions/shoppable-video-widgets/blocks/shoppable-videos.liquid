@@ -96,7 +96,7 @@ Enabled under Theme settings › App embeds, not placed with {% content_for %}.
     hidden
   >
     <div class="awa-sv-pop__frame">
-      {%- render 'reel-trigger', reel: reel, style: widget_style, source: 'floating_video', inner: player, muted_default: false, autoplay_preview: preview -%}
+      {%- render 'reel-trigger', reel: reel, style: widget_style, source: 'floating_video', inner: player, muted_default: false, autoplay_preview: preview, details_default: true, image_size_default: 'large', corners_default: 'square' -%}
       <button type="button" class="awa-sv-pop__dismiss" data-awa-sv-pop-dismiss aria-label="{{ 'reels.dismiss_label' | t }}">
         {%- render 'reel-icon', name: 'close', size: 12, stroke: 3 -%}
       </button>
