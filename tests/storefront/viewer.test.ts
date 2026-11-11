@@ -36,7 +36,9 @@ describe("opening the viewer", () => {
     expect(q("#awa-sv-viewer-title").textContent).toBe("First");
     expect(dialog.querySelectorAll("[data-awa-sv-list] [data-awa-sv-product]")).toHaveLength(2);
     expect(q("[data-awa-sv-panel-count]").textContent).toBe("2");
-    expect(q("[data-awa-sv-count]").textContent).toBe("1 of 3");
+    // No "1 of 3" counter in the player.
+    expect(q("[data-awa-sv-count]").hidden).toBe(true);
+    expect(q<HTMLButtonElement>("[data-awa-sv-prev]").disabled).toBe(true);
     expect(q<HTMLVideoElement>("video").getAttribute("poster")).toBe("https://cdn.test/posters/11.jpg");
     expect(hls.attach).toHaveBeenCalledWith(q("video"), "https://customer-test.cloudflarestream.com/11/manifest/video.m3u8");
   });
@@ -47,7 +49,7 @@ describe("opening the viewer", () => {
     expect(q<HTMLButtonElement>("[data-awa-sv-prev]").disabled).toBe(true);
     click(q("[data-awa-sv-next]"));
     expect(q("#awa-sv-viewer-title").textContent).toBe("Second");
-    expect(q("[data-awa-sv-count]").textContent).toBe("2 of 3");
+    expect(q("[data-awa-sv-count]").hidden).toBe(true);
     fireEvent.keyDown(viewer()!, { key: "ArrowDown" });
     expect(q("#awa-sv-viewer-title").textContent).toBe("Third");
     expect(q<HTMLButtonElement>("[data-awa-sv-next]").disabled).toBe(true);
@@ -301,7 +303,7 @@ describe("buffering and transitions", () => {
 });
 
 describe("product panel", () => {
-  it("no accordion on desktop: the list stays open, even with tap reveal, and the head doesn't collapse it", async () => {
+  it("no accordion on desktop: the list stays open (even for a widget saved with the retired 'tap' reveal)", async () => {
     await mountStrip({ tagRevealMode: "tap" });
     click(triggerButton(0));
     const panel = q("[data-awa-sv-panel]");
@@ -421,7 +423,9 @@ describe("deep links and sharing", () => {
     await mountStrip();
     expect(viewer()!.open).toBe(true);
     expect(q("#awa-sv-viewer-title").textContent).toBe("Second");
-    expect(q("[data-awa-sv-count]").textContent).toBe("2 of 3");
+    // In its group: both directions are available from the middle reel.
+    expect(q<HTMLButtonElement>("[data-awa-sv-prev]").disabled).toBe(false);
+    expect(q<HTMLButtonElement>("[data-awa-sv-next]").disabled).toBe(false);
   });
 
   it.each(["abc", "22abc", "99"])("ignores ?awa-sv=%s", async (id) => {
@@ -601,5 +605,51 @@ describe("product moments", () => {
     click(triggerButton(0));
     play(2.5);
     expect(chip().hidden).toBe(true);
+  });
+});
+
+describe("navigation and title settings", () => {
+  it("side arrows by default (left/right glyphs), the stacked up/down pair when chosen", async () => {
+    await mountStrip();
+    click(triggerButton(0));
+    expect(viewer()!.classList.contains("awa-sv-viewer--nav-sides")).toBe(true);
+    expect(q("[data-awa-sv-prev]").innerHTML).toContain("m15 18-6-6 6-6");
+    expect(q("[data-awa-sv-next]").innerHTML).toContain("m9 18 6-6-6-6");
+
+    resetPage();
+    await mountStrip({ viewerNav: "stacked" });
+    click(triggerButton(0));
+    expect(viewer()!.classList.contains("awa-sv-viewer--nav-sides")).toBe(false);
+    expect(q("[data-awa-sv-next]").innerHTML).toContain("m6 9 6 6 6-6");
+  });
+
+  const swipe = (el: Element, from: [number, number], to: [number, number]) => {
+    fireEvent.touchStart(el, { touches: [{ clientX: from[0], clientY: from[1] }] });
+    fireEvent.touchEnd(el, { changedTouches: [{ clientX: to[0], clientY: to[1] }] });
+  };
+
+  it("phones swipe sideways with side arrows, up/down with the stacked pair", async () => {
+    await mountStrip();
+    click(triggerButton(0));
+    const player = q("[data-awa-sv-player]");
+    swipe(player, [300, 400], [100, 410]);
+    expect(q("#awa-sv-viewer-title").textContent).toBe("Second");
+    swipe(player, [100, 400], [300, 395]);
+    expect(q("#awa-sv-viewer-title").textContent).toBe("First");
+    // Vertical swipes still work too.
+    swipe(player, [200, 500], [205, 300]);
+    expect(q("#awa-sv-viewer-title").textContent).toBe("Second");
+
+    resetPage();
+    await mountStrip({ viewerNav: "stacked" });
+    click(triggerButton(0));
+    swipe(q("[data-awa-sv-player]"), [300, 400], [100, 410]);
+    expect(q("#awa-sv-viewer-title").textContent).toBe("First");
+  });
+
+  it("'Video title on the player' off hides the title", async () => {
+    await mountStrip({ showTitleOverlay: false });
+    click(triggerButton(0));
+    expect(q("#awa-sv-viewer-title").hidden).toBe(true);
   });
 });

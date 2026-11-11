@@ -496,6 +496,16 @@
     if (titleEl) titleEl.hidden = trigger.dataset.showTitle === "false";
     dialog.classList.toggle("awa-sv-products--large", trigger.dataset.productImageSize === "large");
     dialog.classList.toggle("awa-sv-viewer--square", trigger.dataset.popupCorners === "square");
+    // Next/previous: side arrows beside the video (default) or the stacked
+    // up/down pair. Only the video viewer has them; the story viewer taps.
+    const stacked = trigger.dataset.viewerNav === "stacked";
+    dialog.classList.toggle("awa-sv-viewer--nav-sides", !stacked);
+    const prev = dialog.querySelector("[data-awa-sv-prev]");
+    const next = dialog.querySelector("[data-awa-sv-next]");
+    if (prev && next) {
+      prev.innerHTML = stacked ? ICONS.up : ICONS.left;
+      next.innerHTML = stacked ? ICONS.down : ICONS.right;
+    }
   };
 
   // Gives the dialog an accessible name even when the reel has no title.
@@ -1534,16 +1544,23 @@
       { passive: false },
     );
 
-    // Vertical swipe on the player moves through the group (mobile).
+    // Swipe on the player moves through the group (mobile): up/down, and
+    // sideways when the viewer uses side arrows (reading direction aware).
+    let startX = null;
     let startY = null;
     player.addEventListener("touchstart", (event) => {
+      startX = event.touches[0].clientX;
       startY = event.touches[0].clientY;
     }, { passive: true });
     player.addEventListener("touchend", (event) => {
       if (startY === null) return;
+      const dx = event.changedTouches[0].clientX - startX;
       const dy = event.changedTouches[0].clientY - startY;
+      startX = null;
       startY = null;
-      if (Math.abs(dy) > 60) go(dy < 0 ? 1 : -1);
+      const sideways = dialog.classList.contains("awa-sv-viewer--nav-sides") && Math.abs(dx) > Math.abs(dy);
+      if (sideways && Math.abs(dx) > 60) go((dx < 0) !== isRtl(dialog) ? 1 : -1);
+      else if (!sideways && Math.abs(dy) > 60) go(dy < 0 ? 1 : -1);
     });
 
     dialog.addEventListener("close", () => {
@@ -1612,7 +1629,8 @@
     dialog.classList.toggle("has-products", !panel.hidden);
     dialog.querySelector("[data-awa-sv-panel-toggle]").hidden = productCount === 0;
     dialog.querySelector("[data-awa-sv-panel-count]").textContent = productCount > 1 ? String(productCount) : "";
-    initialPanelState = trigger.dataset.tagRevealMode === "tap" ? "closed" : "peek";
+    // Products always show right away (the "on tap" option was retired).
+    initialPanelState = "peek";
     dialog.setPanelState(initialPanelState);
     dialog.querySelector("[data-awa-sv-panel-sub]").hidden = trigger.dataset.productDetails !== "true" || productCount === 0;
     dialog.setMoments(trigger);
@@ -1628,8 +1646,9 @@
 
     const nav = dialog.querySelector("[data-awa-sv-nav]");
     nav.hidden = group.length < 2;
-    count.hidden = group.length < 2;
-    count.textContent = labels.of.replace("__CURRENT__", String(index + 1)).replace("__TOTAL__", String(group.length));
+    // No "1 of N" counter: the arrows (and their disabled ends) say enough.
+    count.hidden = true;
+    count.textContent = "";
     dialog.querySelector("[data-awa-sv-prev]").disabled = index === 0;
     dialog.querySelector("[data-awa-sv-next]").disabled = index === group.length - 1;
 

@@ -251,15 +251,17 @@
 
   /* ------------------------------------------------- scroll previews */
 
-  // Muted previews while triggers are on screen, lowest HLS rendition, at
-  // most MAX_PREVIEWS at once (the ones nearest the viewport centre win),
-  // never on data-saver or reduced-motion, never before window load, paused
-  // while the tab is hidden, and each stops after PREVIEW_MS on its last
-  // frame so a page left open doesn't stream forever. Hover previews
-  // (playTrigger "hover") run while hovered. Posters stay underneath until
-  // the first frame is ready, so nothing flashes.
-  const MAX_PREVIEWS = 3;
-  const PREVIEW_MS = 8000;
+  // With autoplay on, every video on screen plays: muted, looping, lowest
+  // HLS rendition. Bounded by MAX_PREVIEWS as a safety net for very long
+  // rows (the ones nearest the viewport centre win), never on data-saver or
+  // reduced-motion, never before window load, paused while the tab is
+  // hidden and stopped as soon as a card scrolls out of view, so a page
+  // only ever streams what's on screen. Hover previews (playTrigger
+  // "hover") run while hovered. Posters stay underneath until the first
+  // frame is ready, so nothing flashes.
+  const MAX_PREVIEWS = 12;
+  // 0 = loop for as long as the card is on screen.
+  const PREVIEW_MS = 0;
   const saveData = navigator.connection?.saveData === true;
   const visible = new Set();
   const running = new Map(); // trigger -> { video, timer, startedAt, remaining, done, hover }
@@ -287,7 +289,7 @@
   };
 
   const startTimer = (trigger, entry) => {
-    if (entry.hover || entry.done) return;
+    if (entry.hover || entry.done || !PREVIEW_MS) return;
     clearTimeout(entry.timer);
     entry.startedAt = Date.now();
     entry.timer = setTimeout(() => finishPreview(trigger), entry.remaining);
@@ -327,8 +329,9 @@
     return Math.abs(r.top + r.height / 2 - window.innerHeight / 2) + Math.abs(r.left + r.width / 2 - window.innerWidth / 2);
   };
 
-  const eligible = (t) =>
-    t.isConnected && !t.closest("[hidden]") && !t.closest(".is-ready [data-awa-sv-deck-card]:not(.is-active)");
+  // Stacked-deck side cards play too: "autoplay" means every video shows
+  // motion, not just the one in front.
+  const eligible = (t) => t.isConnected && !t.closest("[hidden]") && !t.closest(".is-ready [data-awa-sv-deck-card][data-far]");
 
   const reconcile = () => {
     const viewerOpen = document.querySelector("dialog.awa-sv-viewer[open], dialog.awa-sv-story[open]");

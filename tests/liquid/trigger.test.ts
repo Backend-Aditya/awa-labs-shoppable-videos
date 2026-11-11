@@ -22,7 +22,6 @@ describe("reel-trigger data attributes", () => {
       title: "Reel 9",
       ctaStyle: "pill",
       showTitle: "true",
-      tagRevealMode: "always",
       mutedDefault: "true",
       loop: "false",
       playTrigger: "click",
@@ -51,7 +50,6 @@ describe("reel-trigger data attributes", () => {
       autoplayOnScroll: true,
       loop: true,
       ctaStyle: "square",
-      tagRevealMode: "tap",
       playTrigger: "hover",
       storyDuration: 7,
       showShare: false,
@@ -63,7 +61,6 @@ describe("reel-trigger data attributes", () => {
       autoplayScroll: "true",
       loop: "true",
       ctaStyle: "square",
-      tagRevealMode: "tap",
       playTrigger: "hover",
       storyDuration: "7000",
       showShare: "false",
@@ -213,5 +210,17 @@ describe("reel-icon", () => {
   it("renders nothing for an unknown name", async () => {
     const { html } = await renderDom("reel-icon", { name: "nope", size: 16 });
     expect(html.trim()).toBe("");
+  });
+});
+
+describe("viewer navigation attribute", () => {
+  it("defaults to side arrows; 'stacked' when chosen; anything else falls back to sides", async () => {
+    expect((await trigger(makeReel(), {})).dataset.viewerNav).toBe("sides");
+    expect((await trigger(makeReel(), { viewerNav: "stacked" })).dataset.viewerNav).toBe("stacked");
+    expect((await trigger(makeReel(), { viewerNav: "diagonal" })).dataset.viewerNav).toBe("sides");
+  });
+
+  it("no longer emits the retired tag reveal mode", async () => {
+    expect((await trigger(makeReel(), { tagRevealMode: "tap" })).hasAttribute("data-tag-reveal-mode")).toBe(false);
   });
 });

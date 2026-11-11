@@ -292,12 +292,10 @@ describe("WidgetPreview, viewer mode", () => {
     expect(container.querySelector(".viewerShare")).not.toBeNull();
   });
 
-  it("tap reveal hides the product list behind a count", async () => {
-    const { container } = renderPreview("PRODUCT_PAGE_REELS", { tagRevealMode: "tap" }, [reel(1, 3)]);
+  it("a stored legacy 'tap' reveal no longer hides products", async () => {
+    const { container } = renderPreview("PRODUCT_PAGE_REELS", { tagRevealMode: "tap", productImageSize: "compact" }, [reel(1, 3)]);
     await openViewer();
-    expect(screen.getByText("3 ›")).toBeInTheDocument();
-    expect(container.querySelector(".viewerProduct")).toBeNull();
-    expect(screen.queryByText("You may also like")).not.toBeInTheDocument();
+    expect(container.querySelectorAll(".viewerProduct").length).toBeGreaterThan(0);
   });
 
   it("hides share, title and recommendations when turned off; recs never on mobile", async () => {

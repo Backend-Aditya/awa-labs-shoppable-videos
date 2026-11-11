@@ -30,7 +30,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
   const shop = await getOrCreateShop(session.shop);
   const [reels, views] = await Promise.all([listReels(admin), getViewCountsByReel(shop.id)]);
-  const healed = await healProcessingReels(admin, reels, 6, (uids) => releaseStreamAssets(admin, shop.id, uids));
+  const healed = await healProcessingReels(admin, reels, 12, (uids) => releaseStreamAssets(admin, shop.id, uids));
   return {
     reels: healed.map((reel) => ({
       id: reel.id,
@@ -127,6 +127,20 @@ const numericId = (key: string) => Number(key) || 0;
 export default function ReelsLibrary() {
   const { reels } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
+  // New uploads show "Processing" until Stream finishes. The loader asks
+  // Cloudflare directly (healProcessingReels), so re-check every 5s while
+  // any video is still processing and the list flips to Ready on its own,
+  // without opening the video. Stops once nothing is waiting, and pauses
+  // while the tab is in the background.
+  const { revalidate, state: revalidation } = useRevalidator();
+  const anyProcessing = reels.some((r) => r.status === "processing" || r.replacing);
+  useEffect(() => {
+    if (!anyProcessing) return;
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible" && revalidation === "idle") revalidate();
+    }, 5_000);
+    return () => clearInterval(timer);
+  }, [anyProcessing, revalidate, revalidation]);
   const shopify = useAppBridge();
   const bulkFetcher = useFetcher<typeof action>();
   const [query, setQuery] = useState("");

@@ -82,6 +82,9 @@ export interface WidgetStyleConfig {
   productImageSize?: "compact" | "large";
   productDetails?: boolean;
   showDescription?: boolean;
+  // Video viewer navigation: arrows either side of the video (default) or
+  // the stacked up/down pair.
+  viewerNav?: "sides" | "stacked";
   // Popup corners: square panel and player, or the rounded originals.
   popupCorners?: "square" | "rounded";
   // Sizing and spacing (px). Unset = the storefront's built-in responsive
@@ -167,7 +170,6 @@ const PRODUCT_TAG_DEFAULTS: WidgetStyleConfig = {
   showPrice: true,
   showTitleOverlay: true,
   showProductImage: true,
-  tagRevealMode: "always",
   loop: false,
   showQuantity: false,
   showShare: true,
@@ -175,6 +177,7 @@ const PRODUCT_TAG_DEFAULTS: WidgetStyleConfig = {
   // Off until the merchant chooses it, so existing storefronts don't change.
   showSaleBadge: false,
   afterAdd: "stay",
+  viewerNav: "sides",
 };
 
 const PRODUCT_TAG_FIELDS: StyleFieldKey[] = [
@@ -185,7 +188,6 @@ const PRODUCT_TAG_FIELDS: StyleFieldKey[] = [
   "showPrice",
   "showTitleOverlay",
   "showProductImage",
-  "tagRevealMode",
   "mutedDefault",
   "loop",
   "showQuantity",
@@ -193,6 +195,7 @@ const PRODUCT_TAG_FIELDS: StyleFieldKey[] = [
   "showRecommendations",
   "showSaleBadge",
   "afterAdd",
+  "viewerNav",
 ];
 
 // Everything the stacked carousel and the product page reels share beyond
@@ -361,7 +364,7 @@ export const WIDGET_KIND_META: Record<Exclude<WidgetKind, "GRID">, WidgetKindMet
       "textColor",
       "showCaption",
       "storyDuration",
-      ...PRODUCT_TAG_FIELDS.filter((f) => f !== "tagRevealMode"),
+      ...PRODUCT_TAG_FIELDS.filter((f) => f !== "viewerNav"),
     ],
     defaults: {
       ...PRODUCT_TAG_DEFAULTS,
@@ -436,7 +439,7 @@ export const WIDGET_KIND_META: Record<Exclude<WidgetKind, "GRID">, WidgetKindMet
       "accentColor",
       "showPulse",
       "popDelay",
-      ...PRODUCT_TAG_FIELDS.filter((f) => f !== "tagRevealMode"),
+      ...PRODUCT_TAG_FIELDS,
     ],
     defaults: {
       ...PRODUCT_TAG_DEFAULTS,
@@ -546,6 +549,7 @@ const ENUMS: Partial<Record<StyleFieldKey, readonly string[]>> = {
   ctaStyle: ["pill", "square", "text-link"],
   tagRevealMode: ["always", "tap"],
   afterAdd: ["stay", "cart", "checkout"],
+  viewerNav: ["sides", "stacked"],
   cardTemplate: ["title", "classic", "modern", "vibrant", "overlay"],
   productImageSize: ["compact", "large"],
   popupCorners: ["square", "rounded"],

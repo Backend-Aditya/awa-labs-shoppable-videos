@@ -27,6 +27,8 @@ import type {
   WidgetStyleConfig,
 } from "../models/widget-kinds";
 import { getProductsByIds, listReels } from "../models/reel.server";
+import { healProcessingReels } from "../models/reel-media.server";
+import { releaseStreamAssets } from "../models/stream-assets.server";
 import { getBrand } from "../models/brand.server";
 import type { BrandConfig } from "../models/brand";
 import type { ReelConfig } from "../models/reel.server";
@@ -37,6 +39,7 @@ import {
   ChipToggleGroup,
   ColorInput,
   Field,
+  Section,
   Segmented,
   Slider,
   TextInput,
@@ -66,7 +69,9 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     throw new Response("Widget not found", { status: 404 });
   }
 
-  const reels = await listReels(admin);
+  // Videos still processing are checked with Cloudflare here too, so the
+  // picker doesn't show "Processing" for one that has finished.
+  const reels = await healProcessingReels(admin, await listReels(admin), 12, (uids) => releaseStreamAssets(admin, shop.id, uids));
 
   // First two tagged products per reel are enough for every preview layout
   // (filmstrip shows one, the feature/viewer panels show up to three of the
@@ -466,6 +471,10 @@ export default function WidgetEditor() {
             mode={previewMode}
             onModeChange={setPreviewMode}
             highlight={highlight}
+            live={{
+              widgetId: widget.id,
+              ...(meta.reelSelection === "list" ? { reelIds: state.reelIds } : { featuredReelId: state.featuredReelId || undefined }),
+            }}
           />
         </div>
       </div>
@@ -1119,6 +1128,37 @@ const AFTER_ADD_HINTS: Record<NonNullable<WidgetStyleConfig["afterAdd"]>, string
   checkout: "Goes straight to checkout. Fastest for single-product videos.",
 };
 
+// The Shopping tab, in the same collapsible sections as Design: what's in
+// the video popup and how it behaves. Opening this tab shows the popup in
+// the preview (see openTab), so each change is visible as it's made.
+type ShoppingArea = "products" | "details" | "cart" | "player" | "playback";
+
+const ICON_BAG = (
+  <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+    <path d="M7 6V5a3 3 0 1 1 6 0v1h2.25A1.75 1.75 0 0 1 17 7.75l-.62 8.06A2.4 2.4 0 0 1 14 18H6a2.4 2.4 0 0 1-2.38-2.19L3 7.75A1.75 1.75 0 0 1 4.75 6H7Zm1.5 0h3V5a1.5 1.5 0 0 0-3 0v1Z" />
+  </svg>
+);
+const ICON_DETAILS = (
+  <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+    <path d="M4.5 3A1.5 1.5 0 0 0 3 4.5v11A1.5 1.5 0 0 0 4.5 17h11a1.5 1.5 0 0 0 1.5-1.5v-11A1.5 1.5 0 0 0 15.5 3h-11Zm0 1.5h11v5h-11v-5Zm1 7a.75.75 0 0 1 .75-.75h7.5a.75.75 0 0 1 0 1.5h-7.5a.75.75 0 0 1-.75-.75Zm.75 2.25a.75.75 0 0 0 0 1.5h4.5a.75.75 0 0 0 0-1.5h-4.5Z" />
+  </svg>
+);
+const ICON_CART = (
+  <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+    <path d="M2.75 3a.75.75 0 0 0 0 1.5h1.12l1.6 7.48A2 2 0 0 0 7.43 13.5h7.3a2 2 0 0 0 1.95-1.57l1.06-4.77A1 1 0 0 0 16.77 6H6.02l-.48-2.24A1 1 0 0 0 4.56 3H2.75Zm5 13.25a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Zm8 0a1.25 1.25 0 1 1-2.5 0 1.25 1.25 0 0 1 2.5 0Z" />
+  </svg>
+);
+const ICON_PLAYER = (
+  <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+    <path d="M5.5 2A1.5 1.5 0 0 0 4 3.5v13A1.5 1.5 0 0 0 5.5 18h9a1.5 1.5 0 0 0 1.5-1.5v-13A1.5 1.5 0 0 0 14.5 2h-9Zm3 5.13a.5.5 0 0 1 .76-.43l3.6 2.43a.5.5 0 0 1 0 .84l-3.6 2.43a.5.5 0 0 1-.76-.43V7.13Z" />
+  </svg>
+);
+const ICON_PLAYBACK = (
+  <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+    <path d="M10 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16Zm-1.5 5.13a.5.5 0 0 1 .76-.43l3.6 2.43a.5.5 0 0 1 0 .84l-3.6 2.43a.5.5 0 0 1-.76-.43V7.13Z" />
+  </svg>
+);
+
 function ShoppingTab({
   meta,
   style,
@@ -1131,105 +1171,111 @@ function ShoppingTab({
   brand: BrandConfig;
 }) {
   const has = (key: StyleFieldKey) => meta.fields.includes(key);
+  const [open, setOpen] = useState<ShoppingArea | null>("products");
+  const toggle = (area: ShoppingArea) => setOpen(open === area ? null : area);
+  const on = (value: boolean | undefined, fallback: boolean) => value ?? fallback;
+  const large = (style.productImageSize ?? "compact") === "large";
+
+  const productsSummary = [
+    has("productImageSize") ? (large ? "Large images" : "Thumbnails") : null,
+    on(style.showPrice, true) ? "Prices" : "No prices",
+    on(style.showSaleBadge, false) ? "Sale badge" : null,
+    on(style.showRecommendations, true) ? "You may also like" : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const cartSummary = [
+    { pill: "Pill", square: "Square", "text-link": "Link" }[style.ctaStyle ?? "pill"],
+    style.ctaLabel || "Add to cart",
+    { stay: "Keep watching", cart: "Show cart", checkout: "Checkout" }[style.afterAdd ?? "stay"],
+  ].join(" · ");
+  const playerSummary = [
+    on(style.showTitleOverlay, true) ? "Title" : "No title",
+    has("viewerNav") ? ((style.viewerNav ?? "sides") === "sides" ? "Side arrows" : "Up/down arrows") : null,
+    on(style.mutedDefault, false) ? "Starts muted" : "Sound on",
+    on(style.loop, false) ? "Loops" : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const playbackSummary = [
+    has("autoplayOnScroll") ? (on(style.autoplayOnScroll, false) ? "Autoplay on" : "Autoplay off") : null,
+    has("playTrigger") ? `Opens on ${style.playTrigger === "hover" ? "hover" : "click"}` : null,
+    has("storyDuration") ? `${style.storyDuration ?? 15}s per story` : null,
+    has("popDelay") ? `Appears after ${style.popDelay ?? 2}s` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   return (
-    <>
-      <Card title="Product list" description="Shown beside the video when a shopper opens it.">
+    <div className={styles.designStack}>
+      <Section title="Products in the video" icon={ICON_BAG} summary={productsSummary} open={open === "products"} onToggle={() => toggle("products")}>
         {has("productImageSize") && style.showProductImage !== false && (
           <Segmented
-            label="Product image"
+            label="Product layout"
             value={style.productImageSize ?? "compact"}
             onChange={(productImageSize) => setStyle({ productImageSize })}
             options={[
-              { value: "large", label: "Large" },
-              { value: "compact", label: "Thumbnail" },
+              { value: "large", label: "Tiles" },
+              { value: "compact", label: "Rows" },
             ]}
             hint={
-              (style.productImageSize ?? "compact") === "large"
-                ? "Each product as a tile with a big image, like a product grid."
-                : "A compact row with a small image beside the name."
+              large
+                ? "Two products per row with a big image and a Shop now button."
+                : "A compact row per product: image, name, options and Add to cart."
             }
           />
         )}
         {has("showProductImage") && (
-          <Toggle label="Product images" checked={style.showProductImage ?? true} onChange={(showProductImage) => setStyle({ showProductImage })} />
+          <Toggle label="Product images" checked={on(style.showProductImage, true)} onChange={(showProductImage) => setStyle({ showProductImage })} />
         )}
-        {has("showPrice") && (
-          <Toggle label="Prices" checked={style.showPrice ?? true} onChange={(showPrice) => setStyle({ showPrice })} />
-        )}
+        {has("showPrice") && <Toggle label="Prices" checked={on(style.showPrice, true)} onChange={(showPrice) => setStyle({ showPrice })} />}
         {has("showSaleBadge") && style.showPrice !== false && (
           <Toggle
             label="Sale badge"
             description="Shows the saving, like −20%, on products with a compare-at price. Follows the chosen variant."
-            checked={style.showSaleBadge ?? false}
+            checked={on(style.showSaleBadge, false)}
             onChange={(showSaleBadge) => setStyle({ showSaleBadge })}
           />
         )}
-        {has("showTitleOverlay") && (
-          <Toggle label="Video title on the player" checked={style.showTitleOverlay ?? true} onChange={(showTitleOverlay) => setStyle({ showTitleOverlay })} />
-        )}
         {has("showQuantity") && (
-          <Toggle label="Quantity selector" checked={style.showQuantity ?? false} onChange={(showQuantity) => setStyle({ showQuantity })} />
+          <Toggle label="Quantity selector" checked={on(style.showQuantity, false)} onChange={(showQuantity) => setStyle({ showQuantity })} />
         )}
         {has("showRecommendations") && (
           <Toggle
             label="You may also like"
             description="Shopify's own recommendations for the first tagged product."
-            checked={style.showRecommendations ?? true}
+            checked={on(style.showRecommendations, true)}
             onChange={(showRecommendations) => setStyle({ showRecommendations })}
           />
         )}
-        {has("showShare") && (
-          <Toggle
-            label="Share button"
-            description="Shoppers can share a link that opens this exact video."
-            checked={style.showShare ?? true}
-            onChange={(showShare) => setStyle({ showShare })}
-          />
-        )}
-        {has("tagRevealMode") && (
-          <Segmented
-            label="Products appear"
-            value={style.tagRevealMode ?? "always"}
-            onChange={(tagRevealMode) => setStyle({ tagRevealMode })}
-            options={[
-              { value: "always", label: "Right away" },
-              { value: "tap", label: "On tap" },
-            ]}
-          />
-        )}
-      </Card>
+      </Section>
 
       {has("productDetails") && (
-        <Card title="Product details" description="The full product page, opened inside the video popup.">
+        <Section
+          title="Product details"
+          icon={ICON_DETAILS}
+          summary={on(style.productDetails, true) ? `Opens inside the video${on(style.showDescription, true) ? " · Description" : ""}` : "Links to the product page"}
+          open={open === "details"}
+          onToggle={() => toggle("details")}
+        >
           <Toggle
             label="Open products inside the video"
             description="Tapping a product shows its photos, price, options, add to cart and description next to the video, so shoppers never leave it."
-            checked={style.productDetails ?? true}
+            checked={on(style.productDetails, true)}
             onChange={(productDetails) => setStyle({ productDetails })}
           />
-          {has("popupCorners") && (
-            <Segmented
-              label="Popup corners"
-              value={style.popupCorners ?? "rounded"}
-              onChange={(popupCorners) => setStyle({ popupCorners })}
-              options={[
-                { value: "square", label: "Square" },
-                { value: "rounded", label: "Rounded" },
-              ]}
-            />
-          )}
           {has("showDescription") && style.productDetails !== false && (
             <Toggle
               label="Product description"
               description="Your product's description, with its tables and images."
-              checked={style.showDescription ?? true}
+              checked={on(style.showDescription, true)}
               onChange={(showDescription) => setStyle({ showDescription })}
             />
           )}
-        </Card>
+        </Section>
       )}
 
-      <Card title="Add to cart button">
+      <Section title="Add to cart" icon={ICON_CART} summary={cartSummary} open={open === "cart"} onToggle={() => toggle("cart")}>
         <Segmented
           label="Button style"
           value={style.ctaStyle ?? "pill"}
@@ -1278,9 +1324,66 @@ function ShoppingTab({
             hint={AFTER_ADD_HINTS[style.afterAdd ?? "stay"]}
           />
         )}
-      </Card>
+      </Section>
 
-      <Card title="Playback">
+      <Section title="Video player" icon={ICON_PLAYER} summary={playerSummary} open={open === "player"} onToggle={() => toggle("player")}>
+        {has("viewerNav") && (
+          <Segmented
+            label="Next / previous video"
+            value={style.viewerNav ?? "sides"}
+            onChange={(viewerNav) => setStyle({ viewerNav })}
+            options={[
+              { value: "sides", label: "Side arrows" },
+              { value: "stacked", label: "Up / down" },
+            ]}
+            hint={
+              (style.viewerNav ?? "sides") === "sides"
+                ? "Arrows either side of the video, like a slider. Phones swipe sideways."
+                : "A stacked pair at the edge of the screen. Phones swipe up and down."
+            }
+          />
+        )}
+        {has("popupCorners") && (
+          <Segmented
+            label="Popup corners"
+            value={style.popupCorners ?? "rounded"}
+            onChange={(popupCorners) => setStyle({ popupCorners })}
+            options={[
+              { value: "square", label: "Square" },
+              { value: "rounded", label: "Rounded" },
+            ]}
+          />
+        )}
+        {has("showTitleOverlay") && (
+          <Toggle
+            label="Video title on the player"
+            checked={on(style.showTitleOverlay, true)}
+            onChange={(showTitleOverlay) => setStyle({ showTitleOverlay })}
+          />
+        )}
+        {has("showShare") && (
+          <Toggle
+            label="Share button"
+            description="Shoppers can share a link that opens this exact video."
+            checked={on(style.showShare, true)}
+            onChange={(showShare) => setStyle({ showShare })}
+          />
+        )}
+        {has("mutedDefault") && (
+          <Toggle label="Start muted" checked={on(style.mutedDefault, false)} onChange={(mutedDefault) => setStyle({ mutedDefault })} />
+        )}
+        {has("loop") && <Toggle label="Loop video" checked={on(style.loop, false)} onChange={(loop) => setStyle({ loop })} />}
+      </Section>
+
+      <Section title="Autoplay & opening" icon={ICON_PLAYBACK} summary={playbackSummary} open={open === "playback"} onToggle={() => toggle("playback")}>
+        {has("autoplayOnScroll") && (
+          <Toggle
+            label="Autoplay videos"
+            description="Every video on screen plays silently, looping, at low quality to save data. Skipped for shoppers using Data Saver or reduced motion."
+            checked={on(style.autoplayOnScroll, false)}
+            onChange={(autoplayOnScroll) => setStyle({ autoplayOnScroll })}
+          />
+        )}
         {has("playTrigger") && (
           <Segmented
             label="Open video on"
@@ -1290,51 +1393,25 @@ function ShoppingTab({
               { value: "click", label: "Click" },
               { value: "hover", label: "Hover" },
             ]}
-            hint="Hover applies on desktop only. Touch screens always use tap."
+            hint="Hover plays a preview on desktop; a click opens the player. Touch screens always use tap."
           />
         )}
         {has("storyDuration") && (
-          <Slider
-            label="Time per story"
-            unit="s"
-            min={3}
-            max={60}
-            value={style.storyDuration ?? 15}
-            onChange={(storyDuration) => setStyle({ storyDuration })}
-          />
+          <Slider label="Time per story" unit="s" min={3} max={60} value={style.storyDuration ?? 15} onChange={(storyDuration) => setStyle({ storyDuration })} />
         )}
-        {has("autoplayOnScroll") && (
-          <Toggle
-            label="Autoplay previews"
-            description="Previews play silently as they scroll into view, at low quality to save data. Skipped for shoppers using Data Saver or reduced motion."
-            checked={style.autoplayOnScroll ?? false}
-            onChange={(autoplayOnScroll) => setStyle({ autoplayOnScroll })}
-          />
-        )}
-        {has("mutedDefault") && (
-          <Toggle label="Start muted" checked={style.mutedDefault ?? false} onChange={(mutedDefault) => setStyle({ mutedDefault })} />
-        )}
-        {has("loop") && <Toggle label="Loop video" checked={style.loop ?? false} onChange={(loop) => setStyle({ loop })} />}
         {has("popDelay") && (
-          <Slider
-            label="Appear after"
-            unit="s"
-            min={0}
-            max={30}
-            value={style.popDelay ?? 2}
-            onChange={(popDelay) => setStyle({ popDelay })}
-          />
+          <Slider label="Appear after" unit="s" min={0} max={30} value={style.popDelay ?? 2} onChange={(popDelay) => setStyle({ popDelay })} />
         )}
         {has("showPulse") && (
           <Toggle
             label="Pulse when it appears"
             description="Two gentle pulses to catch the eye, then it settles."
-            checked={style.showPulse ?? true}
+            checked={on(style.showPulse, true)}
             onChange={(showPulse) => setStyle({ showPulse })}
           />
         )}
-      </Card>
-    </>
+      </Section>
+    </div>
   );
 }
 
