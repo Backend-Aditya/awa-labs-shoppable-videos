@@ -126,7 +126,7 @@ pulls in the viewer runtime when the app embed is off.
       <h2 class="awa-sv-heading awa-sv-heading--center">{{ widget_style.heading | escape }}</h2>
     {%- endif -%}
     <div class="awa-sv-feature__video">
-      {%- render 'reel-trigger', reel: reel, style: widget_style, source: 'featured_video', inner: poster, muted_default: false, autoplay_default: true -%}
+      {%- render 'reel-trigger', reel: reel, style: widget_style, source: 'featured_video', inner: poster, muted_default: false, autoplay_default: true, details_default: true, image_size_default: 'large', corners_default: 'square' -%}
     </div>
     {%- if layout == 'split' -%}
       <div class="awa-sv-feature__body" data-awa-sv-reel-id="{{ reel.system.id }}">
