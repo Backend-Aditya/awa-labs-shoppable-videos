@@ -14,10 +14,18 @@ pulls in the viewer runtime when the app embed is off.
 {% assign reel_namespace = 'app--404281098241' %}
 
 {%- liquid
-  assign widget = shop.metafields[reel_namespace].add_to_cart_video_widget.value
+  # The widget this block shows: the one picked in its Widget setting, or
+  # (none picked, or the pick was deleted) the kind's latest live widget.
+  assign picked = block.settings.widget
+  if picked != blank and picked.config.value
+    assign widget = picked.config.value
+    assign reel = picked.featured_reel.value
+  else
+    assign widget = shop.metafields[reel_namespace].add_to_cart_video_widget.value
+    assign reel = shop.metafields[reel_namespace].add_to_cart_video_featured_reel.value
+  endif
   assign widget_style = widget.style
-  assign reel = shop.metafields[reel_namespace].add_to_cart_video_featured_reel.value
-  assign target_product = block.settings.product | default: product
+  assign target_product = product
 
   assign show_widget = false
   if widget.published
@@ -122,7 +130,13 @@ pulls in the viewer runtime when the app embed is off.
   "javascript": "reel-loader.js",
   "stylesheet": "reel-widgets.css",
   "settings": [
-    { "type": "product", "id": "product", "label": "Product", "autofill": true },
+    {
+      "type": "metaobject",
+      "id": "widget",
+      "label": "Widget",
+      "metaobject_type": "app--404281098241--add_to_cart_video_widget",
+      "info": "Which of your add-to-cart video widgets to show. Leave empty to show your most recently saved live one."
+    },
     {
       "type": "paragraph",
       "content": "Place this right below Buy buttons. The video, label and colors are set in the app under Widgets › Add-to-cart video."

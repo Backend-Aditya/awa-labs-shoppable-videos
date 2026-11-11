@@ -76,9 +76,11 @@ model StreamAsset {
   @@index([shopId])
 }
 
-// One published widget per (shop, type) is also enforced in the database by
-// a partial unique index ("Widget_one_published_per_type", see migration
-// 20261012120000_hardening) — Prisma can't express partial indexes.
+// Only the floating video (REEL_POPS, one app embed per store) is limited
+// to one published widget per shop, enforced in the database by a partial
+// unique index ("Widget_one_published_floating_video", see migration
+// 20261111090000_multi_live_block_widgets) — Prisma can't express partial
+// indexes. Block widgets can all be live; each theme block picks its own.
 model Widget {
   id        String   @id @default(cuid())
   shop      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)

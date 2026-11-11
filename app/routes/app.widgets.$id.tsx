@@ -11,7 +11,7 @@ import { SaveBar, useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { getOrCreateShop } from "../models/shop.server";
-import { createWidget, deleteWidget, getWidget, listWidgetsForShop, saveWidgetSettings, updateWidget } from "../models/widget.server";
+import { createWidget, deleteWidget, getWidget, isSingleLiveKind, listWidgetsForShop, saveWidgetSettings, updateWidget } from "../models/widget.server";
 import {
   CARD_TEMPLATES,
   PAGE_TYPE_OPTIONS,
@@ -74,9 +74,10 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     // Preview-only data, the editor still works with placeholder products.
   }
 
-  const liveSibling = (await listWidgetsForShop(shop.id)).find(
-    (w) => w.type === widget.type && w.published && w.id !== widget.id,
-  );
+  // Only the floating video is one-live-per-store; block widgets can all be live.
+  const liveSibling = isSingleLiveKind(widget.type)
+    ? (await listWidgetsForShop(shop.id)).find((w) => w.type === widget.type && w.published && w.id !== widget.id)
+    : undefined;
 
   return {
     widget,
@@ -125,7 +126,7 @@ export const action = async ({ request, params }: ActionFunctionArgs): Promise<A
     const intent = formData.get("intent");
 
     // One-click Live/Draft from the widget list. updateWidget keeps the
-    // one-live-per-type rule (taking a live sibling off) and syncs the store.
+    // one-live floating video rule and syncs the store.
     if (intent === "publish") {
       await updateWidget(admin, shop.id, widget.id, { published: formData.get("published") === "true" });
       return { ok: true, error: null };
@@ -137,8 +138,8 @@ export const action = async ({ request, params }: ActionFunctionArgs): Promise<A
     }
 
     if (intent === "duplicate") {
-      // Unpublished copy, the one-live-widget-per-kind rule means a
-      // published duplicate would silently take the original offline.
+      // Unpublished copy: the merchant decides when it goes live (and a live
+      // floating video copy would take the original offline).
       const copy = await createWidget(
         shop.id,
         widget.type as WidgetKind,
@@ -1575,6 +1576,10 @@ function VisibilityTab({
                 <strong>Add the {meta.name.toLowerCase()} block</strong>
                 <span className={styles.hint}>
                   {placed ? "Placed in your live theme." : `${meta.placement}. Drag it anywhere you like afterwards.`}
+                </span>
+                <span className={styles.hint}>
+                  In the block’s <strong>Widget</strong> setting, pick “{state.name}”. With nothing picked, the
+                  block shows your most recently saved live {meta.name.toLowerCase()}.
                 </span>
               </span>
               <s-button variant={placed ? "secondary" : "primary"} href={themeEditorUrl(apiKey, meta.kind)} target="_top">

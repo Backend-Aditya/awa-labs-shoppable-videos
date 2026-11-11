@@ -1,6 +1,6 @@
 // Per-block rendering details beyond visibility.
 import { describe, expect, it } from "vitest";
-import { blockContext, makeProduct, makeReel, makeWidget } from "../support/storefront-fixtures.mjs";
+import { blockContext, makeProduct, makeReel, makeWidget, makeWidgetEntry } from "../support/storefront-fixtures.mjs";
 import { REEL_NAMESPACE } from "../support/liquid-engine.mjs";
 import { renderDom, visibleMarkup } from "./helpers";
 
@@ -279,5 +279,58 @@ describe("shoppable-videos app embed", () => {
     expect($("[data-awa-sv-pop-dismiss]")).not.toBeNull();
     expect($("[data-awa-sv-pop-open]")!.textContent).toBe("Watch <me>");
     expect($$("link[rel=stylesheet]").map((l) => l.getAttribute("href"))).toEqual(["/assets/reel-widgets.css"]);
+  });
+});
+
+describe("picking a widget in the block's Widget setting", () => {
+  const titled = (title: string, id: number) => makeReel({ id, title });
+
+  it.each(["product-page-reels", "stacked-carousel", "insta-stories"] as const)(
+    "%s shows the picked widget's videos and style, not the shop's live one",
+    async (block) => {
+      const picked = makeWidgetEntry({
+        widget: makeWidget({ style: { heading: "Picked heading" } }),
+        reels: [titled("Picked reel", 41), titled("Picked two", 42), titled("Picked three", 43)],
+      });
+      const { html } = await renderDom(
+        block,
+        blockContext(block, {
+          widget: makeWidget({ style: { heading: "Live heading" } }),
+          reels: [titled("Live reel", 51), titled("Live two", 52), titled("Live three", 53)],
+          settings: { widget: picked },
+        }),
+      );
+      expect(html).toContain("Picked reel");
+      expect(html).not.toContain("Live reel");
+      if (block !== "insta-stories") {
+        expect(html).toContain("Picked heading");
+        expect(html).not.toContain("Live heading");
+      }
+    },
+  );
+
+  it.each(["single-video", "add-to-cart-video"] as const)("%s plays the picked widget's video", async (block) => {
+    const picked = makeWidgetEntry({ reel: titled("Picked video", 61) });
+    const { html } = await renderDom(
+      block,
+      blockContext(block, { reel: titled("Live video", 71), product: makeProduct(), settings: { widget: picked } }),
+    );
+    expect(html).toContain("gid://shopify/Metaobject/61");
+    expect(html).not.toContain("gid://shopify/Metaobject/71");
+  });
+
+  it("a picked widget that is a draft shows nothing, even with a live one in the shop", async () => {
+    const picked = makeWidgetEntry({ widget: makeWidget({ published: false }), reels: [titled("Draft reel", 81)] });
+    const { html } = await renderDom(
+      "stacked-carousel",
+      blockContext("stacked-carousel", { reels: [titled("Live reel", 91)], settings: { widget: picked } }),
+    );
+    expect(html).not.toContain("Draft reel");
+    expect(html).not.toContain("Live reel");
+  });
+
+  it("no pick falls back to the shop's live widget", async () => {
+    const { html } = await renderDom("stacked-carousel", blockContext("stacked-carousel", { reels: [titled("Live reel", 91)] }));
+    expect(html).toContain("Live reel");
   });
 });

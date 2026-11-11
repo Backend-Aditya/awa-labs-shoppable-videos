@@ -9,7 +9,7 @@ import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { getOrCreateShop } from "../models/shop.server";
-import { createWidget, listWidgetsForShop, updateWidget } from "../models/widget.server";
+import { backfillWidgetEntries, createWidget, isSingleLiveKind, listWidgetsForShop, updateWidget } from "../models/widget.server";
 import { WIDGET_KIND_ORDER, getKindMeta } from "../models/widget-kinds";
 import type { WidgetConfig, WidgetKind } from "../models/widget-kinds";
 import type { Widget } from "@prisma/client";
@@ -19,9 +19,10 @@ import { handleRovingKeys } from "../components/widget-editor/controls";
 import styles from "../components/widget-editor/list.module.css";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const shop = await getOrCreateShop(session.shop);
   const widgets = await listWidgetsForShop(shop.id);
+  await backfillWidgetEntries(admin, shop.id, widgets);
   return { widgets };
 };
 
@@ -50,9 +51,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // Go live straight away, unless this type already has a live widget,
     // which publishing would silently take off the store. Then it starts as
     // a draft and the merchant decides when to switch.
-    const liveSibling = (await listWidgetsForShop(shop.id)).some(
-      (w) => w.type === type && w.published && w.id !== widget.id,
-    );
+    // (Only the floating video is one-live-per-store.)
+    const liveSibling =
+      isSingleLiveKind(type as string) &&
+      (await listWidgetsForShop(shop.id)).some((w) => w.type === type && w.published && w.id !== widget.id);
     if (!liveSibling) {
       await updateWidget(admin, shop.id, widget.id, { published: true });
     }
