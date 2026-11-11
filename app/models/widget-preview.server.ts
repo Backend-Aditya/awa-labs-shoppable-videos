@@ -12,6 +12,8 @@ import type { AdminGraphqlClient, Reel } from "./reel.server";
 import { assertNoGraphqlErrors } from "./reel.server";
 import type { BrandConfig } from "./brand";
 import type { WidgetKind, WidgetStyleConfig } from "./widget-kinds";
+import type { ThemeContext } from "./theme-styles.server";
+import { EMPTY_THEME } from "./theme-styles.server";
 
 // Which block file renders each kind, and where it reads its data when no
 // widget is picked in the block (the floating video only reads these).
@@ -166,13 +168,34 @@ export interface PreviewInput {
   // The app's origin: the preview page loads the storefront assets from it.
   origin: string;
   moneyFormat?: string;
+  // The theme around the widget (theme-styles.server.ts), so the preview
+  // matches the storefront; empty = the preview's neutral defaults.
+  theme?: ThemeContext;
+}
+
+// The class on each kind's root element, to find it on the storefront.
+export const WIDGET_ROOT_CLASS: Partial<Record<WidgetKind, string>> = {
+  PRODUCT_PAGE_REELS: "awa-sv-strip",
+  CAROUSEL: "awa-sv-deck",
+  STORIES: "awa-sv-stories",
+  SINGLE_VIDEO: "awa-sv-feature",
+  ADD_TO_CART_VIDEO: "awa-sv-atc",
+  REEL_POPS: "awa-sv-pop",
+};
+
+// The storefront pages where a kind's widget is most likely placed.
+export function themePagesFor(kind: WidgetKind, storefrontUrl: string, productHandles: string[] = []): string[] {
+  const home = storefrontUrl.replace(/\/$/, "") + "/";
+  const products = productHandles.slice(0, 3).map((h) => `${home}products/${encodeURIComponent(h)}`);
+  const onProductPage = kind === "PRODUCT_PAGE_REELS" || kind === "ADD_TO_CART_VIDEO";
+  return onProductPage ? [...products, home] : [home, ...products];
 }
 
 export function previewSupported(kind: string): kind is WidgetKind {
   return kind in PREVIEW_BLOCKS;
 }
 
-export async function renderWidgetPreview({ admin, kind, style, reels, brand, origin, moneyFormat }: PreviewInput): Promise<string> {
+export async function renderWidgetPreview({ admin, kind, style, reels, brand, origin, moneyFormat, theme = EMPTY_THEME }: PreviewInput): Promise<string> {
   const block = PREVIEW_BLOCKS[kind];
   if (!block) throw new Error(`No preview for ${kind}`);
 
@@ -228,22 +251,31 @@ export async function renderWidgetPreview({ admin, kind, style, reels, brand, or
   });
 
   const ajax = Object.fromEntries(adminProducts.map((p) => [`/products/${p.handle}`, ajaxProduct(p)]));
-  return previewPage(blockHtml, assetBase, ajax);
+  return previewPage(blockHtml, assetBase, ajax, theme);
 }
 
 const json = (value: unknown) => JSON.stringify(value).replace(/</g, "\\u003c");
 
-function previewPage(blockHtml: string, assetBase: string, products: Record<string, ReturnType<typeof ajaxProduct>>) {
+function previewPage(blockHtml: string, assetBase: string, products: Record<string, ReturnType<typeof ajaxProduct>>, theme: ThemeContext) {
+  const themed = theme.head.trim().length > 0;
+  const themeHead = theme.head;
   return `<!doctype html>
-<html lang="en">
+<html${theme.htmlAttrs || ' lang="en"'}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+${themeHead}
 <link rel="stylesheet" href="${assetBase}/reel-widgets.css">
 <style>
-  html, body { margin: 0; background: #fff; color: #1a1a1a; }
+${
+  themed
+    ? `  /* Your theme's styles are loaded above; only keep the page from scrolling sideways. */
+  html, body { overflow-x: hidden; }
+  body { min-height: 0 !important; }`
+    : `  html, body { margin: 0; background: #fff; color: #1a1a1a; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 8px 24px 24px; }
-  @media (max-width: 749px) { body { padding: 4px 16px 16px; } }
+  @media (max-width: 749px) { body { padding: 4px 16px 16px; } }`
+}
   /* The editor outlines the part being edited (html[data-highlight]). */
   html[data-highlight="header"] .awa-sv-header,
   html[data-highlight="cards"] :is(.awa-sv-deck__poster, .awa-sv-strip__poster, .awa-sv-stories__avatar, .awa-sv-feature__poster, .awa-sv-atc__thumb),
@@ -295,9 +327,13 @@ function previewPage(blockHtml: string, assetBase: string, products: Record<stri
   })();
 </script>
 </head>
-<body>
+<body${theme.bodyAttrs}>
 <div id="awa-sv-preview-root">
+${theme.placed ? `${theme.wrapOpen}
 ${blockHtml}
+${theme.wrapClose}` : themed ? `<div style="padding-inline: clamp(16px, 4vw, 48px)">
+${blockHtml}
+</div>` : blockHtml}
 </div>
 <script src="${assetBase}/reel-loader.js"></script>
 </body>

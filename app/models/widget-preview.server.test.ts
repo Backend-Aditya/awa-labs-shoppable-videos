@@ -90,3 +90,29 @@ describe("renderWidgetPreview", () => {
     expect(previewSupported("GRID")).toBe(false);
   });
 });
+
+describe("the theme around the preview", () => {
+  const theme = {
+    head: '<link rel="stylesheet" href="https://cdn.test/theme.css">',
+    htmlAttrs: ' class="js" lang="en"',
+    bodyAttrs: ' class="template-product"',
+    wrapOpen: '<div class="shopify-section"><div class="container">',
+    wrapClose: "</div></div>",
+    placed: true,
+  };
+
+  it("loads the theme's styles first and nests the widget in its real wrappers", async () => {
+    const html = await renderWidgetPreview({ admin, kind: "CAROUSEL", style: {}, reels: [reel(1)], brand: BRAND_DEFAULTS, origin: "https://app.test", theme });
+    const doc = new JSDOM(html).window.document;
+    expect(html.indexOf("cdn.test/theme.css")).toBeLessThan(html.indexOf("reel-widgets.css"));
+    expect(doc.documentElement.className).toBe("js");
+    expect(doc.body.className).toBe("template-product");
+    expect(doc.querySelector("#awa-sv-preview-root > .shopify-section > .container > section.awa-sv-deck")).not.toBeNull();
+  });
+
+  it("with the theme's styles but no placed widget, keeps standard side spacing", async () => {
+    const html = await renderWidgetPreview({ admin, kind: "CAROUSEL", style: {}, reels: [reel(1)], brand: BRAND_DEFAULTS, origin: "https://app.test", theme: { ...theme, placed: false, wrapOpen: "", wrapClose: "" } });
+    const doc = new JSDOM(html).window.document;
+    expect(doc.querySelector<HTMLElement>("#awa-sv-preview-root > div")!.style.paddingInline).toContain("clamp");
+  });
+});
