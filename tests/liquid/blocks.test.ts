@@ -464,3 +464,28 @@ describe("floating video: same player as the carousel", () => {
     expect(trigger.getAttribute("data-popup-corners")).toBe("rounded");
   });
 });
+
+describe.each(["single-video", "add-to-cart-video"] as const)("%s: same player as the carousel", (block) => {
+  const render = (style: object) =>
+    renderDom(block, blockContext(block, { reel: makeReel({ id: 5, products: [makeProduct()] }), widget: makeWidget({ style }) }));
+
+  it("defaults to product tiles, product details inside the video and square corners", async () => {
+    const { $ } = await render({});
+    const trigger = $("[data-awa-sv-trigger]")!;
+    expect(trigger.getAttribute("data-product-image-size")).toBe("large");
+    expect(trigger.getAttribute("data-product-details")).toBe("true");
+    expect(trigger.getAttribute("data-show-description")).toBe("true");
+    expect(trigger.getAttribute("data-popup-corners")).toBe("square");
+    const tile = ($("template[data-awa-sv-products]") as HTMLTemplateElement).content.querySelector("[data-awa-sv-product]")!;
+    expect(tile.classList.contains("awa-sv-product--tile")).toBe(true);
+  });
+
+  it("follows the merchant's choices", async () => {
+    const { $ } = await render({ productImageSize: "compact", productDetails: false, showDescription: false, popupCorners: "rounded" });
+    const trigger = $("[data-awa-sv-trigger]")!;
+    expect(trigger.getAttribute("data-product-image-size")).toBe("compact");
+    expect(trigger.getAttribute("data-product-details")).toBe("false");
+    expect(trigger.getAttribute("data-show-description")).toBe("false");
+    expect(trigger.getAttribute("data-popup-corners")).toBe("rounded");
+  });
+});

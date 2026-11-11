@@ -84,6 +84,16 @@ describe("sanitizeStyle", () => {
     expect(resolveStyle("REEL_POPS", {})).toMatchObject({ productImageSize: "large", productDetails: true, popupCorners: "square" });
   });
 
+  it.each(["SINGLE_VIDEO", "ADD_TO_CART_VIDEO"] as const)("%s has the same player popup options and defaults", (kind) => {
+    expect(sanitizeStyle(kind, { productImageSize: "compact", productDetails: false, showDescription: false, popupCorners: "rounded" })).toEqual({
+      productImageSize: "compact",
+      productDetails: false,
+      showDescription: false,
+      popupCorners: "rounded",
+    });
+    expect(resolveStyle(kind, {})).toMatchObject({ productImageSize: "large", productDetails: true, showDescription: true, popupCorners: "square" });
+  });
+
   it("keeps only fields the kind uses", () => {
     const style = sanitizeStyle("REEL_POPS", { popShape: "circle", layoutMode: "grid", heading: "Hi" });
     expect(style).toEqual({ popShape: "circle" });

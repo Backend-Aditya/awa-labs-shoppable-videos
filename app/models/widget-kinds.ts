@@ -414,9 +414,11 @@ export const WIDGET_KIND_META: Record<Exclude<WidgetKind, "GRID">, WidgetKindMet
       "playTrigger",
       "autoplayOnScroll",
       ...PRODUCT_TAG_FIELDS,
+      ...POPUP_FIELDS,
     ],
     defaults: {
       ...PRODUCT_TAG_DEFAULTS,
+      ...POPUP_DEFAULTS,
       autoplayOnScroll: true,
       heading: "Shop the video",
       singleLayout: "split",
@@ -489,9 +491,11 @@ export const WIDGET_KIND_META: Record<Exclude<WidgetKind, "GRID">, WidgetKindMet
       "showDuration",
       "playTrigger",
       ...PRODUCT_TAG_FIELDS,
+      ...POPUP_FIELDS,
     ],
     defaults: {
       ...PRODUCT_TAG_DEFAULTS,
+      ...POPUP_DEFAULTS,
       watchLabel: "See it in action",
       triggerSize: 56,
       cornerStyle: "rounded",
