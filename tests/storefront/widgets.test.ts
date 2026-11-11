@@ -178,6 +178,46 @@ describe("floating video (reel-pop.js)", () => {
     }
   });
 
+  it("sits above a theme bar fixed to the bottom of the screen, and drops back when it goes", async () => {
+    const bar = document.createElement("nav");
+    bar.style.position = "fixed";
+    document.body.append(bar);
+    const box = (top: number, height: number) => ({ top, bottom: top + height, height, left: 0, right: 400, width: 400, x: 0, y: top, toJSON() {} }) as DOMRect;
+    vi.spyOn(bar, "getBoundingClientRect").mockReturnValue(box(window.innerHeight - 64, 64));
+    let barShown = true;
+    const elementsFromPoint = vi.fn(() => (barShown ? [bar, document.body] : [document.body]));
+    Object.defineProperty(document, "elementsFromPoint", { value: elementsFromPoint, configurable: true });
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    try {
+      const pop = await mountPop({ popDelay: 0, position: "bottom_left" });
+      vi.advanceTimersByTime(0);
+      expect(pop.style.getPropertyValue("--awa-sv-pop-lift")).toBe("64px");
+
+      barShown = false;
+      window.dispatchEvent(new Event("resize"));
+      await new Promise((r) => requestAnimationFrame(r));
+      expect(pop.style.getPropertyValue("--awa-sv-pop-lift")).toBe("0px");
+    } finally {
+      vi.useRealTimers();
+      delete (document as { elementsFromPoint?: unknown }).elementsFromPoint;
+      bar.remove();
+    }
+  });
+
+  it("a top-corner player is never lifted", async () => {
+    Object.defineProperty(document, "elementsFromPoint", { value: vi.fn(() => []), configurable: true });
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    try {
+      const pop = await mountPop({ popDelay: 0, position: "top_right" });
+      vi.advanceTimersByTime(0);
+      expect(pop.style.getPropertyValue("--awa-sv-pop-lift")).toBe("0px");
+      expect(document.elementsFromPoint).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+      delete (document as { elementsFromPoint?: unknown }).elementsFromPoint;
+    }
+  });
+
   it("the label bubble opens the viewer", async () => {
     const pop = await mountPop();
     click(pop.querySelector("[data-awa-sv-pop-open]"));
