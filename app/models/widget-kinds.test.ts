@@ -70,6 +70,16 @@ describe("sanitizeStyle", () => {
     expect(resolveStyle("CAROUSEL", {})).toMatchObject({ headerAlign: "center" });
   });
 
+  it("floating video has the player's popup options, but no next/previous style (one video)", () => {
+    expect(sanitizeStyle("REEL_POPS", { productImageSize: "compact", productDetails: false, showDescription: false, popupCorners: "rounded", viewerNav: "stacked" })).toEqual({
+      productImageSize: "compact",
+      productDetails: false,
+      showDescription: false,
+      popupCorners: "rounded",
+    });
+    expect(resolveStyle("REEL_POPS", {})).toMatchObject({ productImageSize: "large", productDetails: true, popupCorners: "square" });
+  });
+
   it("keeps only fields the kind uses", () => {
     const style = sanitizeStyle("REEL_POPS", { popShape: "circle", layoutMode: "grid", heading: "Hi" });
     expect(style).toEqual({ popShape: "circle" });

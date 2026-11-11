@@ -231,6 +231,17 @@ const SHOWCASE_FIELDS: StyleFieldKey[] = [
   "sectionPaddingXMobile",
 ];
 
+// The video player's product popup: tiles or rows, product details inside
+// the video, description, corners. Shared by every widget that opens the
+// video viewer with the new look.
+const POPUP_FIELDS: StyleFieldKey[] = ["productImageSize", "productDetails", "showDescription", "popupCorners"];
+const POPUP_DEFAULTS: WidgetStyleConfig = {
+  productImageSize: "large",
+  productDetails: true,
+  showDescription: true,
+  popupCorners: "square",
+};
+
 const SHOWCASE_DEFAULTS: WidgetStyleConfig = {
   eyebrow: "",
   subheading: "",
@@ -439,10 +450,14 @@ export const WIDGET_KIND_META: Record<Exclude<WidgetKind, "GRID">, WidgetKindMet
       "accentColor",
       "showPulse",
       "popDelay",
-      ...PRODUCT_TAG_FIELDS,
+      // One video: no next/previous to style.
+      ...PRODUCT_TAG_FIELDS.filter((f) => f !== "viewerNav"),
+      // The same player inside as the carousel and product page reels.
+      ...POPUP_FIELDS,
     ],
     defaults: {
       ...PRODUCT_TAG_DEFAULTS,
+      ...POPUP_DEFAULTS,
       popShape: "portrait",
       position: "bottom_right",
       triggerSize: 96,
