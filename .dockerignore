@@ -6,3 +6,20 @@ scripts/debug-sessions.mjs
 .env
 .env.*
 !.env.example
+
+# Dev-only: not needed in the image, and big enough to slow every deploy
+# (the whole build context is uploaded to the builder each time).
+.git
+screenshots
+coverage
+test-results
+playwright-report
+tests
+docs
+.claude
+.cursor
+.gemini
+.superpowers
+.worktrees
+.shopify
+.github
